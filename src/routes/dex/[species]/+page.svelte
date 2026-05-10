@@ -16,8 +16,9 @@
 </script>
 
 <div class="std-page">
-	<div style="margin-bottom:16px">
+	<div style="margin-bottom:16px;display:flex;gap:10px;align-items:center">
 		<a href="/dex" class="btn btn-secondary btn-sm">← Back to Dex</a>
+		<a href="/specimens?species={encodeURIComponent(name)}" class="btn btn-primary btn-sm">+ Add to Vault</a>
 	</div>
 
 	{#if !species}
