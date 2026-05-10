@@ -1,0 +1,438 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int      @id @default(autoincrement())
+  email           String   @unique
+  passwordHash    String?  @map("password_hash")
+  nickname        String?  @unique
+  discordId       String?  @unique @map("discord_id")
+  discordName     String?  @map("discord_name")
+  bio             String?
+  bannerImage     String?  @map("banner_image")
+  lookingFor      String?  @map("looking_for")
+  pinnedCreatures Json     @default("[]") @map("pinned_creatures")
+  lastSeen        DateTime @default(now()) @map("last_seen")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  creatures            Creature[]
+  friendsInitiated     Friendship[]         @relation("FriendInitiator")
+  friendsReceived      Friendship[]         @relation("FriendReceiver")
+  trades               Trade[]
+  offersGiven          Offer[]              @relation("OfferFrom")
+  offersReceived       Offer[]              @relation("OfferTo")
+  messagesSent         DirectMessage[]      @relation("MessageFrom")
+  messagesReceived     DirectMessage[]      @relation("MessageTo")
+  notifications        Notification[]
+  reactions            Reaction[]
+  wishlists            Wishlist[]
+  ratingsGiven         TradeRating[]        @relation("RaterUser")
+  ratingsReceived      TradeRating[]        @relation("RatedUser")
+  activityEvents       ActivityEvent[]
+  announcements        Announcement[]
+  tribesOwned          Tribe[]
+  tribeMemberships     TribeMembership[]
+  tribeCreatures       TribeCreature[]
+  tribeJoinRequests    TribeJoinRequest[]
+  allianceRequests     TribeAlliance[]      @relation("AllianceRequester")
+  allianceChats        AllianceChat[]
+  arenaSessionsCreated ArenaSession[]
+  arenaSessionMembers  ArenaSessionMember[]
+  arenaCreatures       ArenaCreature[]
+  arenaChats           ArenaChat[]
+  arenaCollection      ArenaCollection?
+  bossRecords          BossRecord[]
+  bossInvitesSent      BossInvite[]         @relation("BossInviter")
+  bossInvitesReceived  BossInvite[]         @relation("BossInvited")
+  bossTimers           BossTimer[]
+  bossPlanner          BossPlanner?
+
+  @@map("users")
+}
+
+model Creature {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades         Trade[]
+  arenaCreatures ArenaCreature[]
+  tribeCreatures TribeCreature[]
+
+  @@map("creatures")
+}
+
+model Friendship {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  friendUserId Int      @map("friend_user_id")
+  status       String   @default("pending")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user   User @relation("FriendInitiator", fields: [userId], references: [id], onDelete: Cascade)
+  friend User @relation("FriendReceiver", fields: [friendUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendUserId])
+  @@map("friendships")
+}
+
+model Trade {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  creatureId   Int?     @map("creature_id")
+  creatureData Json?    @map("creature_data")
+  wanted       String?
+  price        String?
+  status       String   @default("open")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creature Creature?     @relation(fields: [creatureId], references: [id], onDelete: SetNull)
+  offers   Offer[]
+  ratings  TradeRating[]
+
+  @@map("trades")
+}
+
+model Offer {
+  id                  Int      @id @default(autoincrement())
+  tradeId             Int      @map("trade_id")
+  fromUserId          Int      @map("from_user_id")
+  toUserId            Int      @map("to_user_id")
+  offeredCreatureId   Int?     @map("offered_creature_id")
+  offeredCreatureData Json?    @map("offered_creature_data")
+  offeredPrice        String?  @map("offered_price")
+  message             String?
+  status              String   @default("pending")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  trade    Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  fromUser User  @relation("OfferFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User  @relation("OfferTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@map("offers")
+}
+
+model DirectMessage {
+  id         Int      @id @default(autoincrement())
+  fromUserId Int      @map("from_user_id")
+  toUserId   Int      @map("to_user_id")
+  message    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  fromUser User @relation("MessageFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("MessageTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@map("direct_messages")
+}
+
+model Tribe {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  mainMap     String?  @map("main_map")
+  description String?
+  flagImage   String?  @map("flag_image")
+  colors      Json?
+  ownerUserId Int      @map("owner_user_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  owner        User               @relation(fields: [ownerUserId], references: [id])
+  members      TribeMembership[]
+  creatures    TribeCreature[]
+  joinRequests TribeJoinRequest[]
+  alliancesAs1 TribeAlliance[]    @relation("Tribe1")
+  alliancesAs2 TribeAlliance[]    @relation("Tribe2")
+
+  @@map("tribes")
+}
+
+model TribeMembership {
+  id        Int      @id @default(autoincrement())
+  tribeId   Int      @map("tribe_id")
+  userId    Int      @map("user_id")
+  role      String   @default("member")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tribe Tribe @relation(fields: [tribeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tribeId, userId])
+  @@map("tribe_memberships")
+}
+
+model TribeCreature {
+  id              Int      @id @default(autoincrement())
+  tribeId         Int      @map("tribe_id")
+  createdByUserId Int      @map("created_by_user_id")
+  creatureId      Int?     @map("creature_id")
+  data            Json
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  tribe    Tribe     @relation(fields: [tribeId], references: [id], onDelete: Cascade)
+  creator  User      @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  creature Creature? @relation(fields: [creatureId], references: [id], onDelete: SetNull)
+
+  @@map("tribe_creatures")
+}
+
+model TribeJoinRequest {
+  id        Int      @id @default(autoincrement())
+  tribeId   Int      @map("tribe_id")
+  userId    Int      @map("user_id")
+  message   String?
+  status    String   @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tribe Tribe @relation(fields: [tribeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("tribe_join_requests")
+}
+
+model TribeAlliance {
+  id            Int      @id @default(autoincrement())
+  tribe1Id      Int      @map("tribe1_id")
+  tribe2Id      Int      @map("tribe2_id")
+  status        String   @default("pending")
+  requestedById Int      @map("requested_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  tribe1      Tribe          @relation("Tribe1", fields: [tribe1Id], references: [id], onDelete: Cascade)
+  tribe2      Tribe          @relation("Tribe2", fields: [tribe2Id], references: [id], onDelete: Cascade)
+  requestedBy User           @relation("AllianceRequester", fields: [requestedById], references: [id])
+  chats       AllianceChat[]
+
+  @@unique([tribe1Id, tribe2Id])
+  @@map("tribe_alliances")
+}
+
+model AllianceChat {
+  id         Int      @id @default(autoincrement())
+  allianceId Int      @map("alliance_id")
+  userId     Int      @map("user_id")
+  message    String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  alliance TribeAlliance @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("alliance_chat")
+}
+
+model ArenaSession {
+  id            Int      @id @default(autoincrement())
+  bossId        String   @map("boss_id")
+  bossName      String   @map("boss_name")
+  creatorUserId Int      @map("creator_user_id")
+  joinCode      String   @unique @map("join_code")
+  difficulty    String   @default("alpha")
+  status        String   @default("open")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  creator   User                 @relation(fields: [creatorUserId], references: [id], onDelete: Cascade)
+  members   ArenaSessionMember[]
+  creatures ArenaCreature[]
+  chats     ArenaChat[]
+
+  @@map("arena_sessions")
+}
+
+model ArenaSessionMember {
+  id        Int      @id @default(autoincrement())
+  sessionId Int      @map("session_id")
+  userId    Int      @map("user_id")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  session ArenaSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@map("arena_session_members")
+}
+
+model ArenaCreature {
+  id           Int      @id @default(autoincrement())
+  sessionId    Int      @map("session_id")
+  userId       Int      @map("user_id")
+  creatureId   Int?     @map("creature_id")
+  creatureData Json     @map("creature_data")
+  addedAt      DateTime @default(now()) @map("added_at")
+
+  session  ArenaSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creature Creature?    @relation(fields: [creatureId], references: [id], onDelete: SetNull)
+
+  @@map("arena_creatures")
+}
+
+model ArenaChat {
+  id          Int      @id @default(autoincrement())
+  sessionId   Int      @map("session_id")
+  userId      Int      @map("user_id")
+  messageType String   @default("text") @map("message_type")
+  content     String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  session ArenaSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("arena_chat")
+}
+
+model ArenaCollection {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique @map("user_id")
+  data      Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("arena_collections")
+}
+
+model BossRecord {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  bossName      String   @map("boss_name")
+  mapName       String?  @map("map_name")
+  difficulty    String?
+  outcome       String   @default("success")
+  notes         String?
+  creaturesUsed Json     @default("[]") @map("creatures_used")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("boss_records")
+}
+
+model BossInvite {
+  id            Int      @id @default(autoincrement())
+  bossId        String   @map("boss_id")
+  inviterUserId Int      @map("inviter_user_id")
+  invitedUserId Int      @map("invited_user_id")
+  message       String?
+  status        String   @default("pending")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  inviter User @relation("BossInviter", fields: [inviterUserId], references: [id], onDelete: Cascade)
+  invited User @relation("BossInvited", fields: [invitedUserId], references: [id], onDelete: Cascade)
+
+  @@map("boss_invites")
+}
+
+model BossTimer {
+  id              Int      @id @default(autoincrement())
+  bossId          String   @map("boss_id")
+  scheduledAt     DateTime @map("scheduled_at")
+  createdByUserId Int      @map("created_by_user_id")
+  status          String   @default("scheduled")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  createdBy User @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@map("boss_timers")
+}
+
+model BossPlanner {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique @map("user_id")
+  data      Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("boss_planner")
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  actorUserId Int?     @map("actor_user_id")
+  type        String
+  payload     Json     @default("{}")
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Reaction {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  entityType String   @map("entity_type")
+  entityId   Int      @map("entity_id")
+  emoji      String   @default("❤️")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entityType, entityId])
+  @@map("reactions")
+}
+
+model Wishlist {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  species   String
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, species])
+  @@map("wishlists")
+}
+
+model TradeRating {
+  id          Int      @id @default(autoincrement())
+  raterId     Int      @map("rater_id")
+  ratedUserId Int      @map("rated_user_id")
+  tradeId     Int      @map("trade_id")
+  rating      Int
+  comment     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  rater     User  @relation("RaterUser", fields: [raterId], references: [id], onDelete: Cascade)
+  ratedUser User  @relation("RatedUser", fields: [ratedUserId], references: [id], onDelete: Cascade)
+  trade     Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  @@unique([raterId, tradeId])
+  @@map("trade_ratings")
+}
+
+model ActivityEvent {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  type      String
+  data      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activity_events")
+}
+
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  type        String
+  payload     Json     @default("{}")
+  createdById Int      @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@map("announcements")
+}
