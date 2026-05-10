@@ -20,6 +20,12 @@
 
 	const joined = profile?.createdAt ? new Date(profile.createdAt as string).toLocaleDateString('en-US', { month:'long', year:'numeric' }) : '';
 	const displayName = (profile?.nickname ?? profile?.email ?? 'Survivor') as string;
+
+	function getCollectorBadges(): string {
+		if (typeof window === 'undefined') return '';
+		const bs = (window as Record<string,unknown>).BadgeSystem as Record<string,Function> | undefined;
+		return bs ? String(bs.generateCollectorBadgeHTML(data.creatures) ?? '') : '';
+	}
 	const STATS = ['Health','Stamina','Oxygen','Food','Weight','Melee','Crafting'];
 
 	function getCat(sp: string): string {
@@ -77,6 +83,13 @@
 			<div class="dos-stat-inner"><span class="dos-stat-val">{data.speciesOwned}</span><span class="dos-stat-lbl">Species</span></div>
 		</div>
 	</div>
+
+	<!-- Achievements / collector badges -->
+	{@const collectorHtml = getCollectorBadges()}
+	{#if collectorHtml}
+		<div class="dos-section-header"><div class="dos-section-title">Achievements</div></div>
+		<div class="dos-badges">{@html collectorHtml}</div>
+	{/if}
 
 	<!-- Pinned -->
 	<div class="dos-section-header">
@@ -179,6 +192,7 @@
 .dos-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
 .dos-section-title { font-size:0.65rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#475569; }
 .dos-empty { color:#475569; padding:24px 0; font-size:0.88rem; }
+.dos-badges { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:24px; }
 
 .dos-pinned-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
 .dos-pin-card { --cut:8px; }

@@ -122,7 +122,7 @@
 			<h1>Specimens</h1>
 			<div class="page-subtitle">{creatures.length} creature{creatures.length !== 1 ? 's' : ''} in vault</div>
 		</div>
-		<button class="btn btn-primary" onclick={openAdd}>+ Add Specimen</button>
+		<a href="/dex" class="btn btn-secondary btn-sm">Browse Dex to Add</a>
 	</div>
 
 	<div class="spec-controls">
@@ -177,6 +177,14 @@
 						</div>
 
 						{#if c.notes}<div class="spec-notes">{String(c.notes)}</div>{/if}
+
+						<!-- Badges from BadgeSystem -->
+						{#if typeof window !== 'undefined' && (window as Record<string,unknown>).BadgeSystem}
+							{@const badgeHtml = ((window as Record<string,unknown>).BadgeSystem as Record<string,Function>).generateBadgeHTML(c)}
+							{#if badgeHtml}
+								<div class="spec-badges">{@html badgeHtml}</div>
+							{/if}
+						{/if}
 
 						<div class="spec-footer">
 							<div class="spec-chips">
@@ -315,6 +323,7 @@
 .spec-mut-pip { position:absolute; top:-2px; right:0; background:rgba(139,92,246,0.9); color:#fff; padding:0 3px; font-size:0.5rem; font-weight:800; clip-path:polygon(2px 0%,100% 0%,calc(100% - 2px) 100%,0% 100%); }
 
 .spec-notes { font-size:0.77rem; color:#64748b; line-height:1.5; }
+.spec-badges { display:flex; gap:4px; flex-wrap:wrap; }
 .spec-footer { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
 .spec-chips { display:flex; gap:4px; flex-wrap:wrap; }
 .spec-chip { font-size:0.64rem; font-weight:500; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); padding:2px 7px; color:#64748b; clip-path:polygon(3px 0%,100% 0%,calc(100% - 3px) 100%,0% 100%); }

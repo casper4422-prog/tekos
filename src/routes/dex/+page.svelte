@@ -18,15 +18,15 @@
 	let search     = $state('');
 	let category   = $state('all');
 
-	const CATEGORIES = ['all','combat','flyer','utility','water','mount','boss','resource'];
-
-	const CAT_LABEL: Record<string,string> = {
-		combat:'CMB', flyer:'FLY', utility:'UTL', water:'AQU',
-		mount:'MNT', boss:'BSS', resource:'RES'
-	};
+	// Categories must match actual species-database.js values: combat, utility, transport, harvesting, boss
+	const CATEGORIES = ['all','combat','utility','transport','harvesting','boss'];
 	const CAT_DISPLAY: Record<string,string> = {
-		combat:'Combat', flyer:'Flyer', utility:'Utility', water:'Aquatic',
-		mount:'Mount', boss:'Boss', resource:'Resource', all:'All'
+		all:'All', combat:'Combat', utility:'Utility',
+		transport:'Companions', harvesting:'Harvesting', boss:'Boss'
+	};
+	const CAT_LABEL: Record<string,string> = {
+		combat:'CMB', utility:'UTL', transport:'CMP',
+		harvesting:'HRV', boss:'BSS'
 	};
 
 	onMount(() => {
