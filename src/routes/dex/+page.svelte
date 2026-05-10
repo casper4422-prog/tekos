@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 
 	type SpeciesEntry = {
 		name: string;
@@ -86,9 +87,12 @@
 	{:else}
 		<div class="dex-grid">
 			{#each getFiltered() as s}
-				<a class="dex-card {s.category ?? 'default'}" href="/dex/{encodeURIComponent(s.name)}">
+				{@const cat = s.category ?? 'default'}
+				{@const rgb = ({combat:'239,68,68',flyer:'6,182,212',utility:'34,197,94',water:'59,130,246',boss:'245,158,11',mount:'249,115,22',resource:'167,139,250'})[cat] ?? '0,180,255'}
+				<a class="cham-shell {cat} dex-card-link" href="/dex/{encodeURIComponent(s.name)}" style="--cat-rgb:{rgb}">
+				<div class="dex-card">
 					<div class="dex-card-header">
-						<div class="dex-cat-badge">{catCode(s)}</div>
+						<div class="cat-badge-v3" style="--cat-rgb:{rgb}"><CategoryIcon category={cat} size={11} />{catCode(s)}</div>
 						<div class="dex-name-block">
 							<div class="dex-name">{s.name}</div>
 							<div class="dex-sub">
@@ -107,7 +111,8 @@
 						<span class="dex-source">{s.source ?? 'Base Game'}</span>
 						{#if s.rarity}<span class="dex-rarity {s.rarity}">{s.rarity}</span>{/if}
 					</div>
-				</a>
+				</div><!-- dex-card -->
+				</a><!-- cham-shell -->
 			{/each}
 		</div>
 	{/if}
@@ -131,41 +136,15 @@
 .dex-loading { color:#334155; padding:48px 0; text-align:center; font-size:0.9rem; }
 
 /* Grid */
-.dex-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; }
+.dex-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:16px; }
 
-/* Card base */
+.dex-card-link { display:block; text-decoration:none; color:inherit; }
+
 .dex-card {
 	display:flex; flex-direction:column; gap:10px;
-	background:linear-gradient(160deg,rgba(14,26,54,0.9) 0%,rgba(5,10,24,0.97) 100%);
-	border:1px solid rgba(255,255,255,0.06);
-	border-left:3px solid var(--accent, #00b4ff);
-	border-radius:10px; padding:16px 18px;
-	text-decoration:none; color:inherit;
-	transition:transform .18s, box-shadow .18s, border-color .18s;
-	position:relative; overflow:hidden;
+	background:linear-gradient(160deg,rgba(10,18,40,0.97) 0%,rgba(4,8,20,1) 100%);
+	padding:16px 18px;
 }
-.dex-card::before {
-	content:''; position:absolute; inset:0;
-	background:linear-gradient(135deg,rgba(var(--accent-rgb,0,180,255),0.04) 0%,transparent 55%);
-	pointer-events:none;
-}
-.dex-card:hover {
-	transform:translateY(-2px);
-	box-shadow:-3px 0 18px rgba(var(--accent-rgb,0,180,255),0.22), 0 6px 28px rgba(0,0,0,0.5);
-	border-top-color:rgba(var(--accent-rgb,0,180,255),0.18);
-	border-right-color:rgba(var(--accent-rgb,0,180,255),0.08);
-	border-bottom-color:rgba(var(--accent-rgb,0,180,255),0.08);
-}
-
-/* Category colors */
-.dex-card.combat   { --accent:#ef4444; --accent-rgb:239,68,68;   }
-.dex-card.flyer    { --accent:#06b6d4; --accent-rgb:6,182,212;   }
-.dex-card.utility  { --accent:#22c55e; --accent-rgb:34,197,94;   }
-.dex-card.water    { --accent:#3b82f6; --accent-rgb:59,130,246;  }
-.dex-card.boss     { --accent:#f59e0b; --accent-rgb:245,158,11;  }
-.dex-card.mount    { --accent:#f97316; --accent-rgb:249,115,22;  }
-.dex-card.resource { --accent:#a78bfa; --accent-rgb:167,139,250; }
-.dex-card.default  { --accent:#00b4ff; --accent-rgb:0,180,255;   }
 
 /* Header */
 .dex-card-header { display:flex; align-items:flex-start; gap:10px; }

@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 
 	type Creature = Record<string, unknown> & { id: number };
 
 	const CAT_LABEL: Record<string,string> = { combat:'CMB', flyer:'FLY', utility:'UTL', water:'AQU', mount:'MNT', boss:'BSS', resource:'RES' };
-	const CAT_COLOR: Record<string,string> = { combat:'#ef4444', flyer:'#06b6d4', utility:'#22c55e', water:'#3b82f6', boss:'#f59e0b', mount:'#f97316', resource:'#a78bfa' };
+	const CAT_RGB:   Record<string,string> = { combat:'239,68,68', flyer:'6,182,212', utility:'34,197,94', water:'59,130,246', boss:'245,158,11', mount:'249,115,22', resource:'167,139,250' };
 
 	const STATS = [
 		{ key:'Health',   label:'HP',      pct:false },
@@ -18,22 +19,10 @@
 		{ key:'Crafting', label:'Crafting', pct:true  },
 	];
 
-	function getAccent(speciesName: string) {
-		if (typeof window === 'undefined') return { color:'#00b4ff', rgb:'0,180,255', code:'GEN' };
-		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,Record<string,unknown>> | undefined;
-		const cat = String(db?.[speciesName]?.category ?? '');
-		const color = CAT_COLOR[cat] ?? '#00b4ff';
-		const hex = color.replace('#','');
-		const rgb = hex.match(/../g)?.map(h => parseInt(h,16)).join(',') ?? '0,180,255';
-		return { color, rgb, code: CAT_LABEL[cat] ?? 'GEN' };
-	}
-
 	let creatures   = $state<Creature[]>(data.creatures as Creature[]);
 	let view        = $state<'expanded'|'compact'>('expanded');
 	let search      = $state('');
 	let sortBy      = $state('newest');
-
-	// Modal state
 	let modalOpen   = $state(false);
 	let isEdit      = $state(false);
 	let editTarget  = $state<Creature | null>(null);
@@ -56,16 +45,19 @@
 	onMount(() => {
 		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,unknown> | undefined;
 		if (db) speciesList = Object.keys(db).sort();
-
-		// Pre-fill species from Dex "Add to Vault" link
 		const params = new URLSearchParams(window.location.search);
 		const pre = params.get('species');
 		if (pre) { resetForm(); fSpecies = pre; modalOpen = true; isEdit = false; }
 	});
 
-	function totalMuts(c: Creature) {
-		return Object.values((c.mutations as Record<string,number>) ?? {}).reduce((a,b) => a+b, 0);
+	function getCat(sp: string): string {
+		if (typeof window === 'undefined') return 'default';
+		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,Record<string,unknown>> | undefined;
+		return String(db?.[sp]?.category ?? 'default');
 	}
+	function getRgb(cat: string): string { return CAT_RGB[cat] ?? '0,180,255'; }
+	function getCode(cat: string): string { return CAT_LABEL[cat] ?? 'GEN'; }
+	function totalMuts(c: Creature) { return Object.values((c.mutations as Record<string,number>) ?? {}).reduce((a,b) => a+b, 0); }
 
 	function getFiltered(): Creature[] {
 		let list = creatures;
@@ -160,43 +152,50 @@
 				{@const bs  = (c.baseStats  as Record<string,number>) ?? {}}
 				{@const mut = (c.mutations  as Record<string,number>) ?? {}}
 				{@const tm  = totalMuts(c)}
-				{@const acc = getAccent(String(c.species ?? ''))}
-				<div class="spec-card" style="--accent:{acc.color};--accent-rgb:{acc.rgb}">
-					<div class="spec-header">
-						<div class="spec-cat-badge">{acc.code}</div>
-						<div class="spec-name-block">
-							<div class="spec-species">{String(c.species ?? 'Unknown')}</div>
-							{#if c.name}<div class="spec-given-name">{String(c.name)}</div>{/if}
-						</div>
-						<div class="spec-level">Lvl {Number(c.level ?? 1)}</div>
-					</div>
-
-					<div class="spec-divider"></div>
-
-					<div class="spec-stats">
-						{#each STATS as s}
-							<div class="spec-stat-item">
-								<span class="spec-stat-lbl">{s.label}</span>
-								<span class="spec-stat-val">{s.pct ? '' : ''}{(bs[s.key] ?? 0).toLocaleString()}{s.pct ? '%' : ''}</span>
-								{#if (mut[s.key] ?? 0) > 0}<span class="spec-mut-pip">+{mut[s.key]}</span>{/if}
+				{@const cat = getCat(String(c.species ?? ''))}
+				{@const rgb = getRgb(cat)}
+				{@const code = getCode(cat)}
+				<div class="cham-shell {cat}" style="--cat-rgb:{rgb}">
+					<div class="spec-card">
+						<div class="spec-header">
+							<div class="cat-badge-v3" style="--cat-rgb:{rgb}">
+								<CategoryIcon category={cat} size={11} />
+								{code}
 							</div>
-						{/each}
-					</div>
-
-					{#if c.notes}<div class="spec-notes">{String(c.notes)}</div>{/if}
-
-					<div class="spec-footer">
-						<div class="spec-chips">
-							<span class="spec-chip">{String(c.gender ?? 'Unknown')}</span>
-							{#if tm > 0}<span class="spec-chip mut">{tm} Mut{tm !== 1 ? 's' : ''}</span>{/if}
-							{#if c.cryopodded}<span class="spec-chip">Cryopodded</span>{/if}
-							{#if c.neutered}<span class="spec-chip">Neutered</span>{/if}
-							{#if c.maleBreeder}<span class="spec-chip">Breeder</span>{/if}
-							{#if c.server}<span class="spec-chip">📍 {String(c.server)}</span>{/if}
+							<div class="spec-name-block">
+								<div class="spec-species">{String(c.species ?? 'Unknown')}</div>
+								{#if c.name}<div class="spec-given-name">{String(c.name)}</div>{/if}
+							</div>
+							<div class="spec-level">Lvl {Number(c.level ?? 1)}</div>
 						</div>
-						<div class="spec-actions">
-							<button class="btn btn-secondary btn-sm" onclick={() => openEdit(c)}>Edit</button>
-							<button class="btn btn-danger btn-sm" onclick={() => deleteCreature(c)}>Delete</button>
+
+						<div class="spec-divider"></div>
+
+						<div class="spec-stats">
+							{#each STATS as s}
+								<div class="spec-stat-item">
+									<span class="spec-stat-lbl">{s.label}</span>
+									<span class="spec-stat-val">{(bs[s.key] ?? 0).toLocaleString()}{s.pct ? '%' : ''}</span>
+									{#if (mut[s.key] ?? 0) > 0}<span class="spec-mut-pip">+{mut[s.key]}</span>{/if}
+								</div>
+							{/each}
+						</div>
+
+						{#if c.notes}<div class="spec-notes">{String(c.notes)}</div>{/if}
+
+						<div class="spec-footer">
+							<div class="spec-chips">
+								<span class="spec-chip">{String(c.gender ?? 'Unknown')}</span>
+								{#if tm > 0}<span class="spec-chip mut" style="--cat-rgb:{rgb}">{tm} Mut{tm !== 1 ? 's' : ''}</span>{/if}
+								{#if c.cryopodded}<span class="spec-chip">Cryopodded</span>{/if}
+								{#if c.neutered}<span class="spec-chip">Neutered</span>{/if}
+								{#if c.maleBreeder}<span class="spec-chip">Breeder</span>{/if}
+								{#if c.server}<span class="spec-chip">📍 {String(c.server)}</span>{/if}
+							</div>
+							<div class="spec-actions">
+								<button class="btn btn-secondary btn-sm" onclick={() => openEdit(c)}>Edit</button>
+								<button class="btn btn-danger btn-sm" onclick={() => deleteCreature(c)}>Delete</button>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -207,22 +206,27 @@
 			{#each getFiltered() as c}
 				{@const bs  = (c.baseStats as Record<string,number>) ?? {}}
 				{@const tm  = totalMuts(c)}
-				{@const acc = getAccent(String(c.species ?? ''))}
-				<div class="spec-compact-card" style="border-left-color:{acc.color}">
-					<div class="spec-compact-badge" style="color:{acc.color}">{acc.code}</div>
-					<div class="spec-compact-info">
-						<span class="spec-compact-species">{String(c.species ?? 'Unknown')}</span>
-						{#if c.name}<span class="spec-compact-name">{String(c.name)}</span>{/if}
-					</div>
-					<div class="spec-compact-stats">
-						<span>HP {(bs.Health ?? 0).toLocaleString()}</span>
-						<span>Mel {bs.Melee ?? 0}%</span>
-						<span>Lvl {Number(c.level ?? 1)}</span>
-						{#if tm > 0}<span class="mut-text">{tm}m</span>{/if}
-					</div>
-					<div class="spec-compact-actions">
-						<button class="btn btn-secondary btn-sm" onclick={() => openEdit(c)}>Edit</button>
-						<button class="btn btn-danger btn-sm" onclick={() => deleteCreature(c)}>✕</button>
+				{@const cat = getCat(String(c.species ?? ''))}
+				{@const rgb = getRgb(cat)}
+				<div class="cham-shell {cat}" style="--cat-rgb:{rgb};--cut:6px">
+					<div class="spec-compact-card">
+						<div class="spec-compact-icon" style="color:rgb({rgb})">
+							<CategoryIcon category={cat} size={14} />
+						</div>
+						<div class="spec-compact-info">
+							<span class="spec-compact-species">{String(c.species ?? 'Unknown')}</span>
+							{#if c.name}<span class="spec-compact-name">{String(c.name)}</span>{/if}
+						</div>
+						<div class="spec-compact-stats">
+							<span>HP {(bs.Health ?? 0).toLocaleString()}</span>
+							<span>Mel {bs.Melee ?? 0}%</span>
+							<span>Lvl {Number(c.level ?? 1)}</span>
+							{#if tm > 0}<span class="mut-text">{tm}m</span>{/if}
+						</div>
+						<div class="spec-compact-actions">
+							<button class="btn btn-secondary btn-sm" onclick={() => openEdit(c)}>Edit</button>
+							<button class="btn btn-danger btn-sm" onclick={() => deleteCreature(c)}>✕</button>
+						</div>
 					</div>
 				</div>
 			{/each}
@@ -302,43 +306,37 @@
 .spec-search { flex:1; min-width:200px; }
 .spec-empty { color:#475569; padding:48px 0; text-align:center; font-size:0.9rem; }
 
-/* Expanded grid */
-.spec-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; }
+.spec-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:16px; }
+
 .spec-card {
-	background:linear-gradient(160deg,rgba(14,26,54,0.9) 0%,rgba(5,10,24,0.97) 100%);
-	border:1px solid rgba(255,255,255,0.06); border-left:3px solid var(--accent,#00b4ff);
-	border-radius:10px; padding:16px 18px; display:flex; flex-direction:column; gap:10px;
-	position:relative; overflow:hidden; transition:transform .18s, box-shadow .18s;
+	background:linear-gradient(160deg,rgba(10,18,40,0.97) 0%,rgba(4,8,20,1) 100%);
+	padding:16px 18px; display:flex; flex-direction:column; gap:10px;
 }
-.spec-card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(var(--accent-rgb,0,180,255),0.04) 0%,transparent 55%); pointer-events:none; }
-.spec-card:hover { transform:translateY(-2px); box-shadow:-3px 0 18px rgba(var(--accent-rgb,0,180,255),0.2),0 6px 28px rgba(0,0,0,0.5); }
 
 .spec-header { display:flex; align-items:flex-start; gap:10px; }
-.spec-cat-badge { background:rgba(var(--accent-rgb,0,180,255),0.12); border:1px solid rgba(var(--accent-rgb,0,180,255),0.3); color:var(--accent,#00b4ff); font-size:0.58rem; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; padding:3px 7px; border-radius:4px; flex-shrink:0; margin-top:3px; }
 .spec-name-block { flex:1; min-width:0; }
 .spec-species { font-size:1rem; font-weight:700; color:#f1f5f9; letter-spacing:-0.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.spec-given-name { font-size:0.75rem; color:var(--accent,#00b4ff); opacity:0.75; margin-top:2px; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.spec-level { font-size:0.72rem; font-weight:700; color:#f1f5f9; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:5px; padding:3px 8px; white-space:nowrap; flex-shrink:0; }
+.spec-given-name { font-size:0.74rem; color:rgb(var(--cat-rgb,0,180,255)); opacity:0.8; margin-top:2px; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.spec-level { font-size:0.7rem; font-weight:700; color:#94a3b8; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09); padding:3px 8px; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); white-space:nowrap; flex-shrink:0; }
 
 .spec-divider { height:1px; background:rgba(255,255,255,0.05); }
 
-.spec-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
-.spec-stat-item { background:rgba(0,0,0,0.2); border-radius:7px; padding:7px 6px; display:flex; flex-direction:column; align-items:center; gap:2px; position:relative; }
-.spec-stat-lbl { font-size:0.58rem; color:#475569; text-transform:uppercase; letter-spacing:.05em; }
-.spec-stat-val { font-size:0.88rem; font-weight:700; color:#f1f5f9; }
-.spec-mut-pip { position:absolute; top:-3px; right:-3px; background:rgba(139,92,246,0.85); color:#fff; border-radius:99px; padding:0 4px; font-size:0.55rem; font-weight:800; }
+.spec-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
+.spec-stat-item { background:rgba(0,0,0,0.25); padding:6px 4px; display:flex; flex-direction:column; align-items:center; gap:1px; position:relative; clip-path:polygon(3px 0%,100% 0%,calc(100% - 3px) 100%,0% 100%); }
+.spec-stat-lbl { font-size:0.55rem; color:#475569; text-transform:uppercase; letter-spacing:.05em; }
+.spec-stat-val { font-size:0.85rem; font-weight:700; color:#e2e8f0; }
+.spec-mut-pip { position:absolute; top:-2px; right:0; background:rgba(139,92,246,0.9); color:#fff; padding:0 3px; font-size:0.5rem; font-weight:800; clip-path:polygon(2px 0%,100% 0%,calc(100% - 2px) 100%,0% 100%); }
 
 .spec-notes { font-size:0.77rem; color:#64748b; line-height:1.5; }
 .spec-footer { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
-.spec-chips { display:flex; gap:5px; flex-wrap:wrap; }
-.spec-chip { font-size:0.67rem; font-weight:500; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:4px; padding:2px 7px; color:#64748b; }
-.spec-chip.mut { color:var(--accent,#00b4ff); border-color:rgba(var(--accent-rgb,0,180,255),0.3); background:rgba(var(--accent-rgb,0,180,255),0.08); }
+.spec-chips { display:flex; gap:4px; flex-wrap:wrap; }
+.spec-chip { font-size:0.64rem; font-weight:500; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); padding:2px 7px; color:#64748b; clip-path:polygon(3px 0%,100% 0%,calc(100% - 3px) 100%,0% 100%); }
+.spec-chip.mut { color:rgb(var(--cat-rgb,0,180,255)); border-color:rgba(var(--cat-rgb,0,180,255),0.3); background:rgba(var(--cat-rgb,0,180,255),0.08); }
 .spec-actions { display:flex; gap:6px; flex-shrink:0; }
 
-/* Compact */
-.spec-compact-list { display:flex; flex-direction:column; gap:5px; }
-.spec-compact-card { display:flex; align-items:center; gap:12px; background:rgba(14,26,54,0.7); border:1px solid rgba(255,255,255,0.06); border-left:3px solid; border-radius:8px; padding:10px 14px; }
-.spec-compact-badge { font-size:0.58rem; font-weight:800; letter-spacing:0.1em; flex-shrink:0; }
+.spec-compact-list { display:flex; flex-direction:column; gap:6px; }
+.spec-compact-card { display:flex; align-items:center; gap:12px; background:rgba(10,18,40,0.97); padding:10px 14px; }
+.spec-compact-icon { flex-shrink:0; display:flex; align-items:center; }
 .spec-compact-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
 .spec-compact-species { font-size:0.88rem; font-weight:600; color:#f1f5f9; }
 .spec-compact-name { font-size:0.72rem; color:#64748b; font-style:italic; }
@@ -346,8 +344,7 @@
 .mut-text { color:#a78bfa; font-weight:600; }
 .spec-compact-actions { display:flex; gap:6px; }
 
-/* Modal form */
-.mform-section-title { font-size:0.68rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#475569; margin-bottom:10px; }
+.mform-section-title { font-size:0.65rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#475569; margin-bottom:10px; }
 .mform-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .mform-stats-head { display:grid; grid-template-columns:1fr 120px 120px; gap:8px; font-size:0.65rem; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#475569; padding:0 2px 6px; border-bottom:1px solid rgba(255,255,255,0.05); margin-bottom:4px; }
 .mform-stats-row { display:grid; grid-template-columns:1fr 120px 120px; gap:8px; align-items:center; margin-bottom:5px; }

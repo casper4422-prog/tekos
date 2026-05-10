@@ -845,6 +845,139 @@ body, input, button, select, textarea {
     animation: tek-text-pulse 2s ease-in-out infinite;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   V3 DESIGN SYSTEM — Chamfered cards, Lucide icons, modernised surfaces
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── New surface hierarchy ───────────────────────────────────────────────── */
+:root {
+    --s0: #050812;          /* page background                  */
+    --s1: rgba(10,18,40,0.96);  /* primary card surface         */
+    --s2: rgba(4,8,24,0.99);    /* deep card surface            */
+    --s3: rgba(0,0,0,0.25);     /* inset / stat cells           */
+    --border-subtle:  rgba(255,255,255,0.07);
+    --border-default: rgba(255,255,255,0.10);
+    --border-strong:  rgba(255,255,255,0.16);
+    --cut: 10px;
+}
+
+/* ── Chamfered card system ───────────────────────────────────────────────── */
+/*
+   Usage:
+   <div class="cham-shell [category]">
+     <div class="cham-body">
+       content
+     </div>
+   </div>
+   Hover glows in category color. Default glow is tek-blue.
+*/
+
+.cham-shell {
+    clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+    background: linear-gradient(160deg, var(--s1) 0%, var(--s2) 100%);
+    padding: 0;
+    filter: drop-shadow(0 0 1px rgba(255,255,255,0.08)) drop-shadow(0 4px 16px rgba(0,0,0,0.45));
+    transition: filter 0.2s ease, transform 0.2s ease;
+    position: relative;
+}
+.cham-shell:hover {
+    transform: translateY(-2px);
+    filter:
+        drop-shadow(0 0 2px rgba(var(--cat-rgb, 0,180,255), 0.55))
+        drop-shadow(0 8px 28px rgba(0,0,0,0.55));
+}
+/* category colour variables */
+.cham-shell.combat   { --cat-rgb: 239,68,68;   }
+.cham-shell.flyer    { --cat-rgb: 6,182,212;   }
+.cham-shell.utility  { --cat-rgb: 34,197,94;   }
+.cham-shell.water    { --cat-rgb: 59,130,246;  }
+.cham-shell.boss     { --cat-rgb: 245,158,11;  }
+.cham-shell.mount    { --cat-rgb: 249,115,22;  }
+.cham-shell.resource { --cat-rgb: 167,139,250; }
+
+/* left accent bar — replaces the old border-left approach */
+.cham-shell::before {
+    content: '';
+    position: absolute;
+    left: 0; top: var(--cut); bottom: 0;
+    width: 2px;
+    background: rgba(var(--cat-rgb, 0,180,255), 0.7);
+    clip-path: none; /* doesn't inherit parent clip */
+    z-index: 2;
+    transition: background 0.2s;
+}
+.cham-shell:hover::before {
+    background: rgba(var(--cat-rgb, 0,180,255), 1);
+}
+
+/* ── Category badge (icon + label) ──────────────────────────────────────── */
+.cat-badge-v3 {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(var(--cat-rgb, 0,180,255), 0.1);
+    border: 1px solid rgba(var(--cat-rgb, 0,180,255), 0.28);
+    color: rgb(var(--cat-rgb, 0,180,255));
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    flex-shrink: 0;
+}
+
+/* ── Updated sidebar nav items (Lucide icon-aware) ───────────────────────── */
+.tek-nav-item .nav-icon-wrap {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0.55;
+    transition: opacity 0.18s;
+}
+.tek-nav-item:hover .nav-icon-wrap,
+.tek-nav-item.active .nav-icon-wrap {
+    opacity: 1;
+}
+.tek-nav-item.active .nav-icon-wrap {
+    color: var(--tek-blue);
+    filter: drop-shadow(0 0 4px rgba(0,180,255,0.5));
+}
+
+/* ── TekOS logo mark (replaces ⬡ unicode) ───────────────────────────────── */
+.tek-logo-mark {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tek-blue);
+    filter: drop-shadow(0 0 6px rgba(0,180,255,0.5));
+    flex-shrink: 0;
+}
+
+/* ── Page title row ──────────────────────────────────────────────────────── */
+.page-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+}
+.page-title-row .page-icon {
+    color: var(--tek-blue);
+    opacity: 0.9;
+}
+.page-title h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: #f1f5f9;
+    line-height: 1.1;
+}
+
 /* ── Selection highlight ─────────────────────────────────────────────────── */
 ::selection {
     background: rgba(0,180,255,0.25);

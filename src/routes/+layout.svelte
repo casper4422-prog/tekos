@@ -1,4 +1,9 @@
 <script lang="ts">
+	import {
+		User, Dna, BookOpen, Users, MessageSquare, Shield,
+		Repeat2, Sword, Trophy, Bell, Power, Hexagon,
+		ChevronRight
+	} from 'lucide-svelte';
 	import type { LayoutData } from './$types';
 	import { page } from '$app/stores';
 
@@ -6,19 +11,19 @@
 
 	const NAV = [
 		{ section: 'Personal', color: 'beta', items: [
-			{ page: 'dossier',   icon: '👤', label: 'Dossier' },
-			{ page: 'specimens', icon: '🧬', label: 'Specimens' },
-			{ page: 'dex',       icon: '🦖', label: 'Dex' },
+			{ page: 'dossier',   Icon: User,          label: 'Dossier' },
+			{ page: 'specimens', Icon: Dna,           label: 'Specimens' },
+			{ page: 'dex',       Icon: BookOpen,       label: 'Dex' },
 		]},
 		{ section: 'Social', color: 'gamma', items: [
-			{ page: 'friends',   icon: '👥', label: 'Network' },
-			{ page: 'messages',  icon: '💬', label: 'Comms' },
-			{ page: 'tribe',     icon: '🛡️', label: 'Tribe' },
+			{ page: 'friends',   Icon: Users,         label: 'Network' },
+			{ page: 'messages',  Icon: MessageSquare, label: 'Comms' },
+			{ page: 'tribe',     Icon: Shield,        label: 'Tribe' },
 		]},
 		{ section: 'Operations', color: 'alpha', items: [
-			{ page: 'marketplace',  icon: '🔁', label: 'Marketplace' },
-			{ page: 'overseer',     icon: '👑', label: 'Overseer' },
-			{ page: 'leaderboards', icon: '🏆', label: 'Rankings' },
+			{ page: 'marketplace',  Icon: Repeat2,   label: 'Marketplace' },
+			{ page: 'overseer',     Icon: Sword,     label: 'Overseer' },
+			{ page: 'leaderboards', Icon: Trophy,    label: 'Rankings' },
 		]},
 	];
 
@@ -32,11 +37,18 @@
 {#if !data.user}
 	{@render children()}
 {:else}
-	<button class="tek-mobile-menu" onclick={() => sidebarOpen = !sidebarOpen} aria-label="Menu">☰</button>
+	<button class="tek-mobile-menu" onclick={() => sidebarOpen = !sidebarOpen} aria-label="Menu">
+		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+			<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+		</svg>
+	</button>
 
 	<nav id="tekSidebar" class:open={sidebarOpen} aria-label="Main navigation">
+		<!-- Logo -->
 		<a class="tek-logo" href="/dossier">
-			<span class="tek-logo-hex">⬡</span>
+			<div class="tek-logo-mark">
+				<Hexagon size={26} strokeWidth={1.5} />
+			</div>
 			<div>
 				<div class="tek-logo-name">TekOS</div>
 				<span class="tek-logo-ver">v3.0 · Online</span>
@@ -54,7 +66,7 @@
 							href="/{item.page}"
 							onclick={() => sidebarOpen = false}
 						>
-							<span class="tek-nav-icon">{item.icon}</span>
+							<span class="nav-icon-wrap"><item.Icon size={15} strokeWidth={1.75} /></span>
 							<span class="tek-nav-label-text">{item.label}</span>
 						</a>
 					{/each}
@@ -62,29 +74,19 @@
 				<div class="tek-nav-divider"></div>
 			{/each}
 
-			<!-- Settings section -->
+			<!-- Settings -->
 			<div class="tek-nav-label settings">Settings</div>
 			<div class="tek-nav-group-items settings">
-				<a class="tek-nav-item"
-					class:active={isActive('notifications')}
-					href="/notifications"
-					onclick={() => sidebarOpen = false}
-				>
-					<span class="tek-nav-icon">🔔</span>
+				<a class="tek-nav-item" class:active={isActive('notifications')} href="/notifications" onclick={() => sidebarOpen = false}>
+					<span class="nav-icon-wrap"><Bell size={15} strokeWidth={1.75} /></span>
 					<span class="tek-nav-label-text">Notifications</span>
 				</a>
-
-				<a class="tek-nav-item profile-item"
-					href="/dossier"
-					onclick={() => sidebarOpen = false}
-					title={data.user.nickname ?? data.user.email}
-				>
-					<span class="tek-nav-icon">⬡</span>
+				<a class="tek-nav-item profile-item" href="/dossier" onclick={() => sidebarOpen = false} title={data.user.nickname ?? data.user.email}>
+					<span class="nav-icon-wrap"><User size={15} strokeWidth={1.75} /></span>
 					<span class="tek-nav-label-text profile-name">{data.user.nickname ?? data.user.email}</span>
 				</a>
-
 				<a class="tek-nav-item disconnect-item" href="/api/auth/logout">
-					<span class="tek-nav-icon">⏻</span>
+					<span class="nav-icon-wrap"><Power size={15} strokeWidth={1.75} /></span>
 					<span class="tek-nav-label-text">Disconnect</span>
 				</a>
 			</div>
@@ -97,54 +99,36 @@
 {/if}
 
 <style>
-	/* ── Section label colors ───────────────────────── */
-	:global(.tek-nav-label.beta)     { color: #60a5fa; border-left: 2px solid #3b82f6; background: rgba(59,130,246,0.10); padding-left: 8px; border-radius: 3px; }
-	:global(.tek-nav-label.gamma)    { color: #4ade80; border-left: 2px solid #22c55e; background: rgba(34,197,94,0.10);  padding-left: 8px; border-radius: 3px; }
-	:global(.tek-nav-label.alpha)    { color: #f87171; border-left: 2px solid #ef4444; background: rgba(239,68,68,0.10);  padding-left: 8px; border-radius: 3px; }
-	:global(.tek-nav-label.settings) { color: #c084fc; border-left: 2px solid #8b5cf6; background: rgba(139,92,246,0.10); padding-left: 8px; border-radius: 3px; }
+	/* ── Section label colours ──────────────────────────────────────────────── */
+	:global(.tek-nav-label.beta)     { color:#60a5fa; border-left:2px solid #3b82f6; background:rgba(59,130,246,0.08); padding-left:8px; border-radius:3px; }
+	:global(.tek-nav-label.gamma)    { color:#4ade80; border-left:2px solid #22c55e; background:rgba(34,197,94,0.08);  padding-left:8px; border-radius:3px; }
+	:global(.tek-nav-label.alpha)    { color:#f87171; border-left:2px solid #ef4444; background:rgba(239,68,68,0.08);  padding-left:8px; border-radius:3px; }
+	:global(.tek-nav-label.settings) { color:#c084fc; border-left:2px solid #8b5cf6; background:rgba(139,92,246,0.08); padding-left:8px; border-radius:3px; }
 
-	/* ── Group item containers (connecting line) ────── */
-	:global(.tek-nav-group-items) {
-		position: relative;
-		padding-left: 10px;
-	}
-	:global(.tek-nav-group-items::before) {
-		content: '';
-		position: absolute;
-		left: 13px;
-		top: 4px;
-		bottom: 4px;
-		width: 1px;
-	}
-	:global(.tek-nav-group-items.beta::before)     { background: rgba(59,130,246,0.40); }
-	:global(.tek-nav-group-items.gamma::before)    { background: rgba(34,197,94,0.40); }
-	:global(.tek-nav-group-items.alpha::before)    { background: rgba(239,68,68,0.40); }
-	:global(.tek-nav-group-items.settings::before) { background: rgba(139,92,246,0.40); }
+	/* ── Group item containers (connecting line) ────────────────────────────── */
+	:global(.tek-nav-group-items)          { position:relative; padding-left:10px; }
+	:global(.tek-nav-group-items::before)  { content:''; position:absolute; left:13px; top:4px; bottom:4px; width:1px; }
+	:global(.tek-nav-group-items.beta::before)     { background:rgba(59,130,246,0.35); }
+	:global(.tek-nav-group-items.gamma::before)    { background:rgba(34,197,94,0.35); }
+	:global(.tek-nav-group-items.alpha::before)    { background:rgba(239,68,68,0.35); }
+	:global(.tek-nav-group-items.settings::before) { background:rgba(139,92,246,0.35); }
 
-	/* ── Item tinted backgrounds ────────────────────── */
-	:global(.tek-nav-group-items.beta     .tek-nav-item) { background: rgba(59,130,246,0.05);  padding-left: 22px; }
-	:global(.tek-nav-group-items.gamma    .tek-nav-item) { background: rgba(34,197,94,0.05);   padding-left: 22px; }
-	:global(.tek-nav-group-items.alpha    .tek-nav-item) { background: rgba(239,68,68,0.05);   padding-left: 22px; }
-	:global(.tek-nav-group-items.settings .tek-nav-item) { background: rgba(139,92,246,0.05);  padding-left: 22px; }
+	/* ── Item tinted backgrounds ────────────────────────────────────────────── */
+	:global(.tek-nav-group-items.beta     .tek-nav-item) { background:rgba(59,130,246,0.04);  padding-left:22px; }
+	:global(.tek-nav-group-items.gamma    .tek-nav-item) { background:rgba(34,197,94,0.04);   padding-left:22px; }
+	:global(.tek-nav-group-items.alpha    .tek-nav-item) { background:rgba(239,68,68,0.04);   padding-left:22px; }
+	:global(.tek-nav-group-items.settings .tek-nav-item) { background:rgba(139,92,246,0.04);  padding-left:22px; }
 
 	:global(.tek-nav-group-items.beta     .tek-nav-item:hover),
-	:global(.tek-nav-group-items.beta     .tek-nav-item.active) { background: rgba(59,130,246,0.14); color: #93c5fd; }
+	:global(.tek-nav-group-items.beta     .tek-nav-item.active) { background:rgba(59,130,246,0.13); color:#93c5fd; }
 	:global(.tek-nav-group-items.gamma    .tek-nav-item:hover),
-	:global(.tek-nav-group-items.gamma    .tek-nav-item.active) { background: rgba(34,197,94,0.14);  color: #86efac; }
+	:global(.tek-nav-group-items.gamma    .tek-nav-item.active) { background:rgba(34,197,94,0.13);  color:#86efac; }
 	:global(.tek-nav-group-items.alpha    .tek-nav-item:hover),
-	:global(.tek-nav-group-items.alpha    .tek-nav-item.active) { background: rgba(239,68,68,0.14);  color: #fca5a5; }
+	:global(.tek-nav-group-items.alpha    .tek-nav-item.active) { background:rgba(239,68,68,0.13);  color:#fca5a5; }
 	:global(.tek-nav-group-items.settings .tek-nav-item:hover),
-	:global(.tek-nav-group-items.settings .tek-nav-item.active) { background: rgba(139,92,246,0.14); color: #d8b4fe; }
+	:global(.tek-nav-group-items.settings .tek-nav-item.active) { background:rgba(139,92,246,0.13); color:#d8b4fe; }
 
-	/* ── Profile name truncation ────────────────────── */
-	:global(.profile-name) {
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		min-width: 0;
-	}
-
-	/* ── Disconnect red tint ────────────────────────── */
-	:global(.disconnect-item) { color: #f87171 !important; }
-	:global(.disconnect-item:hover) { background: rgba(239,68,68,0.14) !important; }
+	:global(.profile-name) { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+	:global(.disconnect-item) { color:#f87171 !important; }
+	:global(.disconnect-item:hover) { background:rgba(239,68,68,0.12) !important; }
 </style>
