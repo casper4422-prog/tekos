@@ -16,10 +16,9 @@
 			{ page: 'tribe',     icon: '🛡️', label: 'Tribe' },
 		]},
 		{ section: 'Alpha', color: 'alpha', items: [
-			{ page: 'marketplace',   icon: '🔁', label: 'Marketplace' },
-			{ page: 'overseer',      icon: '👑', label: 'Overseer' },
-			{ page: 'leaderboards',  icon: '🏆', label: 'Rankings' },
-			{ page: 'notifications', icon: '🔔', label: 'Alerts' },
+			{ page: 'marketplace',  icon: '🔁', label: 'Marketplace' },
+			{ page: 'overseer',     icon: '👑', label: 'Overseer' },
+			{ page: 'leaderboards', icon: '🏆', label: 'Rankings' },
 		]},
 	];
 
@@ -60,17 +59,33 @@
 				{/each}
 				<div class="tek-nav-divider"></div>
 			{/each}
-		</div>
 
-		<div class="tek-sidebar-footer">
-			<div class="tek-user-card">
-				<div class="tek-user-avatar">⬡</div>
-				<div style="min-width:0;overflow:hidden">
-					<div class="tek-user-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{data.user.nickname ?? data.user.email}</div>
-					<div class="tek-user-status">● Online</div>
-				</div>
-			</div>
-			<a class="tek-disconnect-btn" href="/api/auth/logout">Disconnect</a>
+			<!-- Implant section -->
+			<div class="tek-nav-label implant">Implant</div>
+
+			<a class="tek-nav-item implant-item"
+				class:active={isActive('dossier') || isActive('specimens') || isActive('dex')}
+				href="/dossier"
+				onclick={() => sidebarOpen = false}
+				title={data.user.nickname ?? data.user.email}
+			>
+				<span class="tek-nav-icon">⬡</span>
+				<span class="tek-nav-label-text implant-name">{data.user.nickname ?? data.user.email}</span>
+			</a>
+
+			<a class="tek-nav-item"
+				class:active={isActive('notifications')}
+				href="/notifications"
+				onclick={() => sidebarOpen = false}
+			>
+				<span class="tek-nav-icon">🔔</span>
+				<span class="tek-nav-label-text">Notifications</span>
+			</a>
+
+			<a class="tek-nav-item disconnect-item" href="/api/auth/logout">
+				<span class="tek-nav-icon">⏻</span>
+				<span class="tek-nav-label-text">Disconnect</span>
+			</a>
 		</div>
 	</nav>
 
@@ -100,5 +115,26 @@
 		background: rgba(239, 68, 68, 0.08);
 		padding-left: 8px;
 		border-radius: 3px;
+	}
+	:global(.tek-nav-label.implant) {
+		color: #c084fc;
+		border-left: 2px solid #8b5cf6;
+		background: rgba(139, 92, 246, 0.08);
+		padding-left: 8px;
+		border-radius: 3px;
+	}
+	:global(.implant-name) {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		min-width: 0;
+	}
+	:global(.disconnect-item) {
+		color: #f87171 !important;
+		opacity: 0.8;
+	}
+	:global(.disconnect-item:hover) {
+		opacity: 1;
+		background: rgba(239, 68, 68, 0.08) !important;
 	}
 </style>
