@@ -28,9 +28,6 @@
 	let fGender      = $state(String(c.gender ?? 'Male'));
 	let fServer      = $state(String(c.server ?? ''));
 	let fNotes       = $state(String(c.notes ?? ''));
-	let fCryopodded  = $state(Boolean(c.cryopodded));
-	let fNeutered    = $state(Boolean(c.neutered));
-	let fMaleBreeder = $state(Boolean(c.maleBreeder));
 	let fStats       = $state<Record<string,number>>({ Health:bs.Health??0, Stamina:bs.Stamina??0, Oxygen:bs.Oxygen??0, Food:bs.Food??0, Weight:bs.Weight??0, Melee:bs.Melee??0, Crafting:bs.Crafting??0 });
 	let fMuts        = $state<Record<string,number>>({ Health:ms.Health??0, Stamina:ms.Stamina??0, Oxygen:ms.Oxygen??0, Food:ms.Food??0, Weight:ms.Weight??0, Melee:ms.Melee??0, Crafting:ms.Crafting??0 });
 
@@ -52,7 +49,6 @@
 				name: fName.trim(), species: fSpecies.trim(), level: fLevel,
 				gender: fGender, server: fServer.trim() || undefined,
 				notes: fNotes.trim() || undefined,
-				cryopodded: fCryopodded, neutered: fNeutered, maleBreeder: fMaleBreeder,
 				baseStats: { ...fStats }, mutations: { ...fMuts }
 			})
 		});
@@ -121,15 +117,10 @@
 		</div>
 
 		<div class="form-section">
-			<div class="form-section-title">Notes &amp; Flags</div>
-			<div class="plan-field" style="margin-bottom:16px">
+			<div class="form-section-title">Notes</div>
+			<div class="plan-field">
 				<label class="form-label" for="f-notes">Notes</label>
 				<textarea id="f-notes" class="form-control" rows="3" bind:value={fNotes}></textarea>
-			</div>
-			<div class="flags-row">
-				<label class="flag-check"><input type="checkbox" bind:checked={fCryopodded} /> Cryopodded</label>
-				<label class="flag-check"><input type="checkbox" bind:checked={fNeutered} /> Neutered</label>
-				<label class="flag-check"><input type="checkbox" bind:checked={fMaleBreeder} /> Male Breeder</label>
 			</div>
 		</div>
 

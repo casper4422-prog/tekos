@@ -35,9 +35,6 @@
 	let fGender      = $state('Male');
 	let fServer      = $state('');
 	let fNotes       = $state('');
-	let fCryopodded  = $state(false);
-	let fNeutered    = $state(false);
-	let fMaleBreeder = $state(false);
 	let fStats       = $state<Record<string,number>>({ Health:0, Stamina:0, Oxygen:0, Food:0, Weight:0, Melee:0, Crafting:0 });
 	let fMuts        = $state<Record<string,number>>({ Health:0, Stamina:0, Oxygen:0, Food:0, Weight:0, Melee:0, Crafting:0 });
 	let speciesList  = $state<string[]>([]);
@@ -76,7 +73,6 @@
 
 	function resetForm() {
 		fName=''; fSpecies=''; fLevel=1; fGender='Male'; fServer=''; fNotes='';
-		fCryopodded=false; fNeutered=false; fMaleBreeder=false;
 		fStats={ Health:0, Stamina:0, Oxygen:0, Food:0, Weight:0, Melee:0, Crafting:0 };
 		fMuts={ Health:0, Stamina:0, Oxygen:0, Food:0, Weight:0, Melee:0, Crafting:0 };
 		formErr='';
@@ -89,14 +85,13 @@
 		const ms = (c.mutations as Record<string,number>) ?? {};
 		fName=String(c.name??''); fSpecies=String(c.species??''); fLevel=Number(c.level??1);
 		fGender=String(c.gender??'Male'); fServer=String(c.server??''); fNotes=String(c.notes??'');
-		fCryopodded=Boolean(c.cryopodded); fNeutered=Boolean(c.neutered); fMaleBreeder=Boolean(c.maleBreeder);
 		fStats={ Health:bs.Health??0, Stamina:bs.Stamina??0, Oxygen:bs.Oxygen??0, Food:bs.Food??0, Weight:bs.Weight??0, Melee:bs.Melee??0, Crafting:bs.Crafting??0 };
 		fMuts={ Health:ms.Health??0, Stamina:ms.Stamina??0, Oxygen:ms.Oxygen??0, Food:ms.Food??0, Weight:ms.Weight??0, Melee:ms.Melee??0, Crafting:ms.Crafting??0 };
 		editTarget=c; isEdit=true; modalOpen=true; formErr='';
 	}
 
 	function buildPayload() {
-		return { name:fName.trim(), species:fSpecies.trim(), level:fLevel, gender:fGender, server:fServer.trim()||undefined, notes:fNotes.trim()||undefined, cryopodded:fCryopodded, neutered:fNeutered, maleBreeder:fMaleBreeder, baseStats:{...fStats}, mutations:{...fMuts} };
+		return { name:fName.trim(), species:fSpecies.trim(), level:fLevel, gender:fGender, server:fServer.trim()||undefined, notes:fNotes.trim()||undefined, baseStats:{...fStats}, mutations:{...fMuts} };
 	}
 
 	async function saveCreature() {
@@ -187,9 +182,6 @@
 							<div class="spec-chips">
 								<span class="spec-chip">{String(c.gender ?? 'Unknown')}</span>
 								{#if tm > 0}<span class="spec-chip mut" style="--cat-rgb:{rgb}">{tm} Mut{tm !== 1 ? 's' : ''}</span>{/if}
-								{#if c.cryopodded}<span class="spec-chip">Cryopodded</span>{/if}
-								{#if c.neutered}<span class="spec-chip">Neutered</span>{/if}
-								{#if c.maleBreeder}<span class="spec-chip">Breeder</span>{/if}
 								{#if c.server}<span class="spec-chip">📍 {String(c.server)}</span>{/if}
 							</div>
 							<div class="spec-actions">
@@ -285,11 +277,6 @@
 			<div class="plan-field" style="margin-top:14px">
 				<label class="form-label" for="m-notes">Notes</label>
 				<textarea id="m-notes" class="form-control" rows="2" bind:value={fNotes} placeholder="Breeding lines, colours, location..."></textarea>
-			</div>
-			<div class="mform-flags">
-				<label><input type="checkbox" bind:checked={fCryopodded} /> Cryopodded</label>
-				<label><input type="checkbox" bind:checked={fNeutered} /> Neutered</label>
-				<label><input type="checkbox" bind:checked={fMaleBreeder} /> Male Breeder</label>
 			</div>
 			{#if formErr}<div class="tek-login-error" style="margin-top:10px">{formErr}</div>{/if}
 		</div>
