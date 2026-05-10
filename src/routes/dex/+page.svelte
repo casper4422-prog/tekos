@@ -30,8 +30,9 @@
 
 	onMount(() => {
 		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,SpeciesEntry> | undefined;
-		if (db) allSpecies = Object.values(db)
-			.filter(s => s && s.name)
+		if (db) allSpecies = Object.entries(db)
+			.filter(([, v]) => v && typeof v === 'object')
+			.map(([key, v]) => ({ ...v, name: v.name || key }))
 			.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
 	});
 
