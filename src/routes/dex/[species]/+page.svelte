@@ -25,16 +25,24 @@
 		<div style="color:#64748b;padding:40px 0">Loading...</div>
 	{:else}
 		{@const s = species}
+		{@const CAT_LABEL: Record<string,string> = {combat:'CMB',flyer:'FLY',utility:'UTL',water:'AQU',mount:'MNT',boss:'BSS',resource:'RES'}}
+		{@const CAT_COLOR: Record<string,string> = {combat:'#ef4444',flyer:'#06b6d4',utility:'#22c55e',water:'#3b82f6',boss:'#f59e0b',mount:'#f97316',resource:'#a78bfa'}}
+		{@const cat = String(s.category ?? '')}
+		{@const accentColor = CAT_COLOR[cat] ?? '#00b4ff'}
 		<!-- Hero -->
-		<div class="sdp-hero">
-			<div class="sdp-hero-icon">{String(s.icon ?? '🦖')}</div>
+		<div class="sdp-hero" style="border-left-color:{accentColor}">
 			<div class="sdp-hero-info">
+				<div class="sdp-hero-top">
+					{#if cat && CAT_LABEL[cat]}
+						<span class="sdp-cat-badge" style="color:{accentColor};border-color:color-mix(in srgb,{accentColor} 40%,transparent);background:color-mix(in srgb,{accentColor} 10%,transparent)">{CAT_LABEL[cat]}</span>
+					{/if}
+					{#if s.rarity}<span class="sdp-tag rarity">{String(s.rarity)}</span>{/if}
+				</div>
 				<h1 class="sdp-name">{name}</h1>
 				<div class="sdp-tags">
-					{#if s.category}<span class="sdp-tag">{String(s.category)}</span>{/if}
-					{#if s.rarity}<span class="sdp-tag rarity">{String(s.rarity)}</span>{/if}
+					{#if s.diet}<span class="sdp-tag" style="color:{accentColor};opacity:0.85">{String(s.diet)}</span>{/if}
 					{#if s.temperament}<span class="sdp-tag">{String(s.temperament)}</span>{/if}
-					{#if s.diet}<span class="sdp-tag">{String(s.diet)}</span>{/if}
+					{#if s.habitat}<span class="sdp-tag">{String(s.habitat)}</span>{/if}
 				</div>
 			</div>
 		</div>
@@ -109,9 +117,10 @@
 </div>
 
 <style>
-.sdp-hero { display:flex; align-items:center; gap:20px; background:var(--tek-card-bg,linear-gradient(160deg,rgba(14,26,54,.88),rgba(5,10,24,.94))); border:1px solid var(--tek-border,rgba(255,255,255,.07)); border-radius:16px; padding:28px; margin-bottom:24px; }
-.sdp-hero-icon { font-size:4rem; flex-shrink:0; }
-.sdp-name { font-size:2rem; font-weight:700; color:#f1f5f9; margin:0 0 10px; }
+.sdp-hero { background:linear-gradient(160deg,rgba(14,26,54,.9),rgba(5,10,24,.97)); border:1px solid rgba(255,255,255,.06); border-left:3px solid; border-radius:10px; padding:28px 28px 24px; margin-bottom:24px; }
+.sdp-hero-top { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.sdp-cat-badge { font-size:0.62rem; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; padding:3px 8px; border-radius:4px; border:1px solid; }
+.sdp-name { font-size:2rem; font-weight:700; color:#f1f5f9; margin:0 0 12px; letter-spacing:-0.02em; }
 .sdp-tags { display:flex; gap:6px; flex-wrap:wrap; }
 .sdp-tag { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:99px; padding:3px 10px; font-size:0.75rem; color:#94a3b8; text-transform:capitalize; }
 .sdp-tag.rarity { color:#a855f7; border-color:rgba(168,85,247,.3); background:rgba(168,85,247,.1); }
