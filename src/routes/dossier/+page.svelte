@@ -109,16 +109,16 @@
 		</div>
 		<div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
 			<div class="plan-field">
-				<label class="form-label">Callsign (nickname)</label>
-				<input class="form-control" type="text" bind:value={nickname} placeholder="Leave blank to use email" />
+				<label class="form-label" for="edit-nick">Callsign (nickname)</label>
+				<input id="edit-nick" class="form-control" type="text" bind:value={nickname} placeholder="Leave blank to use email" />
 			</div>
 			<div class="plan-field">
-				<label class="form-label">Bio</label>
-				<textarea class="form-control" rows="3" bind:value={bio} placeholder="Tell survivors about yourself..."></textarea>
+				<label class="form-label" for="edit-bio">Bio</label>
+				<textarea id="edit-bio" class="form-control" rows="3" bind:value={bio} placeholder="Tell survivors about yourself..."></textarea>
 			</div>
 			<div class="plan-field">
-				<label class="form-label">Looking For</label>
-				<input class="form-control" type="text" bind:value={lookingFor} placeholder="e.g. Mutation breeding partner, boss tribe..." />
+				<label class="form-label" for="edit-lf">Looking For</label>
+				<input id="edit-lf" class="form-control" type="text" bind:value={lookingFor} placeholder="e.g. Mutation breeding partner, boss tribe..." />
 			</div>
 			{#if editErr}<div class="tek-login-error">{editErr}</div>{/if}
 		</div>

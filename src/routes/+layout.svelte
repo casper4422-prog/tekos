@@ -91,7 +91,7 @@
 		</div>
 	</nav>
 
-	<main id="appMainContent" role="main">
+	<main id="appMainContent">
 		{@render children()}
 	</main>
 {/if}

@@ -217,7 +217,7 @@
 					<label class="form-label">Species *</label>
 					<input class="form-control" type="text" list="species-list" bind:value={fSpecies} placeholder="e.g. Rex" />
 					<datalist id="species-list">
-						{#each getSpeciesList() as s}<option value={s}>{/each}
+						{#each getSpeciesList() as s}<option value={s}>{s}</option>{/each}
 					</datalist>
 				</div>
 				<div class="plan-field">
