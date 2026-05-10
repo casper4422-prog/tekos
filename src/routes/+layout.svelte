@@ -1,8 +1,7 @@
 <script lang="ts">
 	import {
 		User, Dna, BookOpen, Users, MessageSquare, Shield,
-		Repeat2, Sword, Trophy, Bell, Power, Hexagon,
-		ChevronRight
+		Repeat2, Sword, Trophy, Bell, Power, Hexagon, Rss
 	} from 'lucide-svelte';
 	import type { LayoutData } from './$types';
 	import { page } from '$app/stores';
@@ -16,6 +15,7 @@
 			{ page: 'dex',       Icon: BookOpen,       label: 'Dex' },
 		]},
 		{ section: 'Social', color: 'gamma', items: [
+			{ page: 'feed',      Icon: Rss,           label: 'Feed' },
 			{ page: 'friends',   Icon: Users,         label: 'Network' },
 			{ page: 'messages',  Icon: MessageSquare, label: 'Comms' },
 			{ page: 'tribe',     Icon: Shield,        label: 'Tribe' },

@@ -81,6 +81,23 @@
 			</div>
 		{/each}
 	</div>
+
+	<!-- My fight history -->
+	{#if (data.records as Record<string,unknown>[]).length > 0}
+		<div class="ov-section-title" style="margin-top:28px">My Fight History</div>
+		<div class="ov-records">
+			{#each data.records as Record<string,unknown>[] as r}
+				{@const rd = r as Record<string,unknown>}
+				<div class="cham-shell ov-record" style="--cut:5px;--cat-rgb:{rd.outcome==='success' ? '34,197,94' : '239,68,68'}">
+					<div class="ov-record-inner">
+						<div class="ov-record-boss">{String(rd.bossName)}</div>
+						<div class="ov-record-meta">{String(rd.difficulty ?? '?').toUpperCase()} · {rd.mapName ? String(rd.mapName) : ''}</div>
+						<div class="ov-record-outcome" class:win={rd.outcome==='success'}>{rd.outcome === 'success' ? 'Victory' : 'Defeat'}</div>
+					</div>
+				</div>
+			{/each}
+		</div>
+	{/if}
 </div>
 
 <!-- Create modal -->
@@ -129,4 +146,11 @@
 .ov-diff-btn.gamma { background:rgba(34,197,94,0.15); color:#4ade80; }
 .ov-diff-btn.beta  { background:rgba(59,130,246,0.15); color:#60a5fa; }
 .ov-diff-btn.alpha { background:rgba(239,68,68,0.15);  color:#f87171; }
+.ov-records { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:8px; }
+.ov-record { --cut:5px; }
+.ov-record-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:10px 14px; display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:10px; }
+.ov-record-boss { font-size:0.86rem; font-weight:600; color:#f1f5f9; }
+.ov-record-meta { font-size:0.68rem; color:#475569; }
+.ov-record-outcome { font-size:0.68rem; font-weight:700; color:#ef4444; }
+.ov-record-outcome.win { color:#4ade80; }
 </style>

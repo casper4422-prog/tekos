@@ -13,10 +13,13 @@ const BOSSES = [
 	{ id:'rockwell_prime', name:'Rockwell Prime', map:'Genesis 2', difficulties:['gamma','beta','alpha'] },
 ];
 
-export const load: PageServerLoad = async () => {
-	const sessions = await db.arenaSession.findMany({
-		where: { status:'open' }, orderBy: { createdAt:'desc' },
-		include: { creator: { select:{ nickname:true, email:true } }, _count:{ select:{ members:true, creatures:true } } }
-	});
-	return { bosses: BOSSES, sessions: sessions.map(s => ({ ...s, memberCount: s._count.members, creatureCount: s._count.creatures })) };
+export const load: PageServerLoad = async ({ locals }) => {
+	const [sessions, records] = await Promise.all([
+		db.arenaSession.findMany({
+			where: { status:'open' }, orderBy: { createdAt:'desc' },
+			include: { creator: { select:{ nickname:true, email:true } }, _count:{ select:{ members:true, creatures:true } } }
+		}),
+		db.bossRecord.findMany({ where: { userId: locals.user!.id }, orderBy: { createdAt:'desc' }, take:10 })
+	]);
+	return { bosses: BOSSES, sessions: sessions.map(s => ({ ...s, memberCount: s._count.members, creatureCount: s._count.creatures })), records };
 };

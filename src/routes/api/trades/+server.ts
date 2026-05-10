@@ -16,5 +16,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const uid = locals.user!.id;
 	const { creatureId, creatureData, wanted, price } = await request.json();
 	const trade = await db.trade.create({ data: { userId: uid, creatureId: creatureId ?? null, creatureData: creatureData ?? null, wanted: wanted ?? null, price: price ?? null } });
+	const cd = creatureData as Record<string,unknown> | null;
+	await db.activityEvent.create({ data: { userId: uid, type: 'trade_list', data: { species: cd?.species ?? '?', name: cd?.name ?? '?' } } }).catch(() => {});
 	return json(trade, { status: 201 });
 };

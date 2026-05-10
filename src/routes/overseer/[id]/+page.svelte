@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Send, X, Dna, Users, MessageSquare } from 'lucide-svelte';
+	import { Send, X, Dna, Users, ScrollText } from 'lucide-svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 
@@ -19,9 +20,36 @@
 	let activeTab   = $state<'chat'|'roster'|'members'>('chat');
 	let draft       = $state('');
 	let addOpen     = $state(false);
+	let logOpen     = $state(false);
 	let sending     = $state(false);
 	let closed      = $state(session.status === 'closed');
 	let bottom: HTMLDivElement;
+	let pollTimer: ReturnType<typeof setInterval>;
+
+	// Log fight form
+	let logOutcome = $state<'success'|'failed'>('success');
+	let logNotes   = $state('');
+
+	// Poll for new messages every 8 seconds when on chat tab
+	onMount(() => {
+		pollTimer = setInterval(async () => {
+			if (closed || activeTab !== 'chat') return;
+			const res = await fetch(`/api/arena/sessions/${session.id}/chat`);
+			if (res.ok) {
+				const fresh = await res.json() as ChatMsg[];
+				if (fresh.length > messages.length) {
+					messages = fresh;
+					setTimeout(() => bottom?.scrollIntoView({ behavior:'smooth' }), 50);
+				}
+			}
+		}, 8000);
+	});
+	onDestroy(() => clearInterval(pollTimer));
+
+	async function logFight() {
+		await fetch('/api/boss-records', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ bossName:String(session.bossName), difficulty:String(session.difficulty), outcome:logOutcome, notes:logNotes||null, creaturesUsed:creatures.map(c => c.creatureData ?? c) }) });
+		logOpen = false; alert('Fight recorded!');
+	}
 
 	function display(u: Record<string,unknown>) { return (u.nickname ?? u.email ?? 'Unknown') as string; }
 	function ago(dt: string) {
@@ -66,6 +94,9 @@
 			<div class="war-boss">{String(session.bossName)}</div>
 			<div class="war-meta">{String(session.difficulty).toUpperCase()} · Code: <strong>{String(session.joinCode)}</strong> · {members.length} online</div>
 		</div>
+		<button class="btn btn-secondary btn-sm" onclick={() => { logOpen=true; logOutcome='success'; logNotes=''; }}>
+			<ScrollText size={13} /> Log Fight
+		</button>
 		{#if isCreator && !closed}
 			<button class="btn btn-danger btn-sm" onclick={closeRoom}>Close Room</button>
 		{/if}
@@ -160,6 +191,36 @@
 					{/each}
 				</div>
 			{/if}
+		</div>
+	</div>
+</div>
+{/if}
+
+<!-- Log fight modal -->
+{#if logOpen}
+<div class="modal active" role="dialog" aria-modal="true">
+	<div class="modal-content" style="max-width:420px">
+		<div class="modal-header">
+			<h2 class="modal-title">Log Boss Fight</h2>
+			<button class="close-btn" onclick={() => logOpen=false}>&times;</button>
+		</div>
+		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+			<div style="color:#94a3b8;font-size:0.88rem">{String(session.bossName)} · {String(session.difficulty).toUpperCase()}</div>
+			<div class="plan-field">
+				<label class="form-label">Outcome</label>
+				<div style="display:flex;gap:8px">
+					<button class="btn btn-sm" class:btn-primary={logOutcome==='success'} class:btn-secondary={logOutcome!=='success'} onclick={() => logOutcome='success'}>Victory</button>
+					<button class="btn btn-sm" class:btn-danger={logOutcome==='failed'} class:btn-secondary={logOutcome!=='failed'}  onclick={() => logOutcome='failed'}>Defeat</button>
+				</div>
+			</div>
+			<div class="plan-field">
+				<label class="form-label" for="log-notes">Notes</label>
+				<textarea id="log-notes" class="form-control" rows="2" bind:value={logNotes} placeholder="How did it go?"></textarea>
+			</div>
+		</div>
+		<div class="modal-footer">
+			<button class="btn btn-secondary" onclick={() => logOpen=false}>Cancel</button>
+			<button class="btn btn-primary" onclick={logFight}>Save Record</button>
 		</div>
 	</div>
 </div>

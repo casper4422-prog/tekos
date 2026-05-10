@@ -15,5 +15,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
 	const data = await request.json();
 	const creature = await db.creature.create({ data: { userId: locals.user.id, data } });
+	// Log to activity feed
+	await db.activityEvent.create({ data: { userId: locals.user.id, type: 'creature_add', data: { species: data.species, name: data.name, level: data.level } } }).catch(() => {});
 	return json({ ...data, id: creature.id, createdAt: creature.createdAt }, { status: 201 });
 };
