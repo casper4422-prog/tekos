@@ -11,7 +11,9 @@
 
 	onMount(() => {
 		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string, SpeciesEntry> | undefined;
-		if (db) allSpecies = Object.values(db).sort((a, b) => a.name.localeCompare(b.name));
+		if (db) allSpecies = Object.values(db)
+			.filter(s => s && s.name)
+			.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
 	});
 
 	function getFiltered(): SpeciesEntry[] {
