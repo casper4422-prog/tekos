@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Shield, Users, Dna, Plus, Check, X, LogOut } from 'lucide-svelte';
+	import { Shield, Users, Dna, Plus, Check, X, LogOut, Megaphone } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 
@@ -13,7 +13,17 @@
 	const myId = data.myId as number;
 	const allTribes = data.allTribes as AllTribe[] | null;
 
-	let activeTab = $state<'members'|'vault'|'requests'>('members');
+	let activeTab   = $state<'members'|'vault'|'requests'|'announce'>('members');
+	let announceMsg = $state('');
+	let announcing  = $state(false);
+
+	async function postAnnouncement() {
+		if (!announceMsg.trim() || !membership) return;
+		announcing = true;
+		await fetch(`/api/tribes/${membership.tribe.id}/announce`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ message:announceMsg }) });
+		announceMsg = ''; announcing = false;
+		alert('Announcement sent to all tribe members!');
+	}
 	let createOpen = $state(false);
 	let joinOpen   = $state<number|null>(null);
 	let saving     = $state(false);
@@ -91,6 +101,9 @@
 				<button class="tribe-tab" class:active={activeTab === 'requests'} onclick={() => activeTab = 'requests'}>
 					<Shield size={13} /> Requests {tribe.joinRequests.length > 0 ? `(${tribe.joinRequests.length})` : ''}
 				</button>
+				<button class="tribe-tab" class:active={activeTab === 'announce'} onclick={() => activeTab = 'announce'}>
+					<Megaphone size={13} /> Announce
+				</button>
 			{/if}
 		</div>
 
@@ -102,7 +115,7 @@
 						<div class="tribe-member-inner">
 							<div class="tribe-dot" class:online></div>
 							<div class="tribe-minfo">
-								<div class="tribe-mname">{display(m.user)} {m.user.id === myId ? '(you)' : ''}</div>
+								<a href="/survivors/{m.user.id}" class="tribe-mname" style="text-decoration:none;color:inherit">{display(m.user)} {m.user.id === myId ? '(you)' : ''}</a>
 								<div class="tribe-mrole">{m.role}</div>
 							</div>
 						</div>
@@ -131,6 +144,13 @@
 					{/each}
 				</div>
 			{/if}
+		{:else if activeTab === 'announce'}
+			<div class="tribe-announce">
+				<div class="tribe-announce-desc">Send a notification to all {tribe.members.length} tribe members.</div>
+				<textarea class="form-control" rows="4" bind:value={announceMsg} placeholder="Write your announcement..."></textarea>
+				<button class="btn btn-primary" onclick={postAnnouncement} disabled={announcing || !announceMsg.trim()}><Megaphone size={14} /> {announcing ? 'Sending...' : 'Send Announcement'}</button>
+			</div>
+
 		{:else if activeTab === 'requests'}
 			{#if tribe.joinRequests.length === 0}
 				<div class="tribe-empty">No pending join requests.</div>
@@ -278,4 +298,7 @@
 .tribe-bc-desc { font-size:0.82rem; color:#64748b; line-height:1.5; }
 .tribe-bc-footer { display:flex; align-items:center; justify-content:space-between; margin-top:6px; }
 .tribe-bc-count { display:flex; align-items:center; gap:5px; font-size:0.75rem; color:#64748b; }
+.tribe-announce { display:flex; flex-direction:column; gap:12px; max-width:560px; }
+.tribe-announce-desc { font-size:0.82rem; color:#64748b; }
+.tribe-announce .btn { align-self:flex-start; display:flex; align-items:center; gap:6px; }
 </style>

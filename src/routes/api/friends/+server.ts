@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { notify } from '$lib/notify';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const uid = locals.user!.id;
@@ -22,7 +23,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			return { id: r.id, friendId: other.id, nickname: other.nickname, email: other.email, discordName: other.discordName, online: !!isOnline };
 		}));
 	}
-
 	if (status === 'pending') {
 		const rows = await db.friendship.findMany({
 			where: { friendUserId: uid, status: 'pending' },
@@ -30,7 +30,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		});
 		return json(rows.map(r => ({ id: r.id, fromId: r.userId, nickname: r.user.nickname, email: r.user.email, discordName: r.user.discordName })));
 	}
-
 	if (status === 'sent') {
 		const rows = await db.friendship.findMany({
 			where: { userId: uid, status: 'pending' },
@@ -38,7 +37,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		});
 		return json(rows.map(r => ({ id: r.id, toId: r.friendUserId, nickname: r.friend.nickname, email: r.friend.email })));
 	}
-
 	return json([]);
 };
 
@@ -49,5 +47,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const existing = await db.friendship.findFirst({ where: { OR: [{ userId: uid, friendUserId }, { userId: friendUserId, friendUserId: uid }] } });
 	if (existing) return json({ error: 'Request already exists' }, { status: 409 });
 	const row = await db.friendship.create({ data: { userId: uid, friendUserId, status: 'pending' } });
+	const me = await db.user.findUnique({ where: { id: uid }, select: { nickname:true, email:true } });
+	await notify(friendUserId, uid, 'friend_request', { fromName: me?.nickname ?? me?.email });
 	return json({ ok: true, id: row.id }, { status: 201 });
 };

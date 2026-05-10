@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { notify } from '$lib/notify';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	const uid = locals.user!.id;
@@ -21,6 +22,13 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	const offer = await db.offer.findFirst({ where: { id: offerId, toUserId: uid } });
 	if (!offer) return json({ error: 'Not found' }, { status: 404 });
 	await db.offer.update({ where: { id: offerId }, data: { status: action === 'accept' ? 'accepted' : 'rejected' } });
-	if (action === 'accept') await db.trade.update({ where: { id: offer.tradeId }, data: { status: 'closed' } });
+	if (action === 'accept') {
+		await db.trade.update({ where: { id: offer.tradeId }, data: { status: 'closed' } });
+		const me = await db.user.findUnique({ where: { id: uid }, select: { nickname:true, email:true } });
+		await notify(offer.fromUserId, uid, 'offer_accepted', { acceptedBy: me?.nickname ?? me?.email });
+	} else {
+		const me = await db.user.findUnique({ where: { id: uid }, select: { nickname:true, email:true } });
+		await notify(offer.fromUserId, uid, 'offer_rejected', { rejectedBy: me?.nickname ?? me?.email });
+	}
 	return json({ ok: true });
 };

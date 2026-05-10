@@ -1,6 +1,6 @@
 <script lang="ts">
 	import {
-		User, Dna, BookOpen, Users, MessageSquare, Shield,
+		User, Dna, BookOpen, Users, UserPlus, MessageSquare, Shield,
 		Repeat2, Sword, Trophy, Bell, Power, Hexagon, Rss
 	} from 'lucide-svelte';
 	import type { LayoutData } from './$types';
@@ -16,7 +16,8 @@
 		]},
 		{ section: 'Social', color: 'gamma', items: [
 			{ page: 'feed',      Icon: Rss,           label: 'Feed' },
-			{ page: 'friends',   Icon: Users,         label: 'Network' },
+			{ page: 'survivors', Icon: Users,         label: 'Survivors' },
+			{ page: 'friends',   Icon: UserPlus,      label: 'Network' },
 			{ page: 'messages',  Icon: MessageSquare, label: 'Comms' },
 			{ page: 'tribe',     Icon: Shield,        label: 'Tribe' },
 		]},
@@ -80,6 +81,9 @@
 				<a class="tek-nav-item" class:active={isActive('notifications')} href="/notifications" onclick={() => sidebarOpen = false}>
 					<span class="nav-icon-wrap"><Bell size={15} strokeWidth={1.75} /></span>
 					<span class="tek-nav-label-text">Notifications</span>
+					{#if data.unreadCount > 0}
+						<span class="notif-nav-badge">{data.unreadCount > 99 ? '99+' : data.unreadCount}</span>
+					{/if}
 				</a>
 				<a class="tek-nav-item profile-item" href="/dossier" onclick={() => sidebarOpen = false} title={data.user.nickname ?? data.user.email}>
 					<span class="nav-icon-wrap"><User size={15} strokeWidth={1.75} /></span>
@@ -131,4 +135,5 @@
 	:global(.profile-name) { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 	:global(.disconnect-item) { color:#f87171 !important; }
 	:global(.disconnect-item:hover) { background:rgba(239,68,68,0.12) !important; }
+	:global(.notif-nav-badge) { background:#ef4444; color:#fff; border-radius:99px; padding:1px 6px; font-size:0.62rem; font-weight:800; margin-left:auto; flex-shrink:0; }
 </style>
