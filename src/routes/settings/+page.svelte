@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Palette, Check, Lock, AlertTriangle } from 'lucide-svelte';
+	import { Palette, Check } from 'lucide-svelte';
 
 	const PRESETS = [
 		{ id:'tekos',    name:'TekOS Default',    primary:'#00b4ff', accent:'#8b5cf6', bg:'#050812' },
@@ -16,18 +16,6 @@
 	let custom      = $state({ primary:'#00b4ff', accent:'#8b5cf6', bg:'#050812' });
 	let themeSaving = $state(false);
 	let themeSaved  = $state(false);
-
-	// Password change
-	let curPwd   = $state('');
-	let newPwd   = $state('');
-	let pwdSaving = $state(false);
-	let pwdMsg    = $state('');
-	let pwdErr    = $state(false);
-
-	// Delete account
-	let delPwd    = $state('');
-	let delSaving = $state(false);
-	let delConfirm = $state(false);
 
 	onMount(async () => {
 		const res = await fetch('/api/settings');
@@ -77,39 +65,15 @@
 		themeSaving = false; themeSaved = true;
 		setTimeout(() => themeSaved = false, 2000);
 	}
-
-	async function changePassword() {
-		if (!curPwd || !newPwd) return;
-		pwdSaving = true; pwdMsg = ''; pwdErr = false;
-		const res = await fetch('/api/profile', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ currentPassword:curPwd, newPassword:newPwd }) });
-		const body = await res.json();
-		if (res.ok) { pwdMsg = 'Password changed successfully.'; curPwd=''; newPwd=''; }
-		else { pwdMsg = body.error ?? 'Failed to change password'; pwdErr = true; }
-		pwdSaving = false;
-	}
-
-	async function deleteAccount() {
-		if (!delPwd) return;
-		delSaving = true;
-		const res = await fetch('/api/profile', { method:'DELETE' });
-		if (res.ok) {
-			await fetch('/api/auth/logout');
-			window.location.href = '/login';
-		} else {
-			alert('Failed to delete account');
-			delSaving = false;
-		}
-	}
 </script>
 
-<div class="std-page" style="max-width:600px">
+<div class="std-page" style="max-width:580px">
 	<div class="std-page-header">
-		<div class="page-title"><h1>Settings</h1><div class="page-subtitle">Theme &amp; account</div></div>
+		<div class="page-title"><h1>Theme</h1><div class="page-subtitle">Pick your colour palette</div></div>
 	</div>
 
-	<!-- ── Theme ───────────────────────────────────────────────────────── -->
 	<div class="set-section">
-		<div class="set-section-title"><Palette size={14} /> Color Theme</div>
+		<div class="set-section-title"><Palette size={14} /> Color Palette</div>
 		<div class="theme-grid">
 			{#each PRESETS as p}
 				<button class="theme-preset" class:active={activeTheme === p.id} onclick={() => selectPreset(p.id)}>
@@ -141,61 +105,18 @@
 			</div>
 		{/if}
 
-		<button class="btn btn-primary" onclick={saveTheme} disabled={themeSaving} style="margin-top:16px">
+		<button class="btn btn-primary" onclick={saveTheme} disabled={themeSaving}>
 			{#if themeSaved}<Check size={14} /> Saved!{:else if themeSaving}Saving...{:else}Save Theme{/if}
 		</button>
-	</div>
 
-	<!-- ── Change password ─────────────────────────────────────────────── -->
-	<div class="set-section">
-		<div class="set-section-title"><Lock size={14} /> Change Password</div>
-		<div class="set-fields">
-			<div class="plan-field">
-				<label class="form-label" for="cur-pwd">Current Password</label>
-				<input id="cur-pwd" class="form-control" type="password" bind:value={curPwd} autocomplete="current-password" />
-			</div>
-			<div class="plan-field">
-				<label class="form-label" for="new-pwd">New Password</label>
-				<input id="new-pwd" class="form-control" type="password" bind:value={newPwd} autocomplete="new-password" />
-			</div>
-		</div>
-		{#if pwdMsg}
-			<div class="set-msg" class:set-err={pwdErr}>{pwdMsg}</div>
-		{/if}
-		<button class="btn btn-secondary" onclick={changePassword} disabled={pwdSaving || !curPwd || !newPwd}>
-			{pwdSaving ? 'Saving...' : 'Update Password'}
-		</button>
-	</div>
-
-	<!-- ── Danger zone ─────────────────────────────────────────────────── -->
-	<div class="set-section set-danger-zone">
-		<div class="set-section-title"><AlertTriangle size={14} /> Danger Zone</div>
-
-		{#if !delConfirm}
-			<div class="set-danger-desc">Permanently delete your account and all data. This cannot be undone.</div>
-			<button class="btn btn-danger" onclick={() => delConfirm = true}>Delete My Account</button>
-		{:else}
-			<div class="set-danger-desc">This will delete your account, all specimens, tribe memberships, and connections. Enter your password to confirm.</div>
-			<div class="plan-field" style="margin-bottom:12px">
-				<label class="form-label" for="del-pwd">Password confirmation</label>
-				<input id="del-pwd" class="form-control" type="password" bind:value={delPwd} placeholder="Your current password" />
-			</div>
-			<div style="display:flex;gap:10px">
-				<button class="btn btn-secondary" onclick={() => { delConfirm=false; delPwd=''; }}>Cancel</button>
-				<button class="btn btn-danger" onclick={deleteAccount} disabled={delSaving || !delPwd}>{delSaving ? 'Deleting...' : 'Permanently Delete'}</button>
-			</div>
-		{/if}
+		<div class="set-tip">Account settings (password, delete account) — click your username in the sidebar.</div>
 	</div>
 </div>
 
 <style>
-.set-section { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:20px 22px; clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%); margin-bottom:14px; display:flex; flex-direction:column; gap:14px; }
+.set-section { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:20px 22px; clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%); display:flex; flex-direction:column; gap:16px; }
 .set-section-title { font-size:0.68rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#475569; display:flex; align-items:center; gap:7px; }
-.set-danger-zone { background:linear-gradient(160deg,rgba(20,8,8,0.97),rgba(10,4,4,1)); }
-.set-danger-desc { font-size:0.82rem; color:#64748b; line-height:1.5; }
-.set-fields { display:flex; flex-direction:column; gap:10px; }
-.set-msg { font-size:0.8rem; padding:8px 12px; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); background:rgba(34,197,94,0.08); border-left:2px solid #22c55e; color:#4ade80; }
-.set-msg.set-err { background:rgba(239,68,68,0.08); border-left-color:#ef4444; color:#fca5a5; }
+.set-tip { font-size:0.74rem; color:#334155; }
 
 .theme-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:7px; }
 .theme-preset { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); padding:11px 10px; cursor:pointer; font-family:inherit; display:flex; flex-direction:column; align-items:center; gap:7px; position:relative; transition:all .15s; clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%); }
