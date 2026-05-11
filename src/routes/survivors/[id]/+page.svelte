@@ -33,7 +33,7 @@
 
 <div class="std-page">
 	<div style="margin-bottom:16px">
-		<a href="javascript:history.back()" class="btn btn-secondary btn-sm">← Back</a>
+		<button class="btn btn-secondary btn-sm" onclick={() => history.back()}>← Back</button>
 	</div>
 
 	<!-- Hero -->

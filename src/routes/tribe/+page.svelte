@@ -9,9 +9,9 @@
 	type Tribe = { id:number; name:string; mainMap:string|null; description:string|null; ownerUserId:number; members:Member[]; creatures:TribeCreature[]; joinRequests:JoinReq[] };
 	type AllTribe = { id:number; name:string; description:string|null; mainMap:string|null; memberCount:number };
 
-	const membership = data.membership as { role:string; tribe:Tribe } | null;
+	let membership = $state(data.membership as { role:string; tribe:Tribe } | null);
 	const myId = data.myId as number;
-	const allTribes = data.allTribes as AllTribe[] | null;
+	let allTribes = $state(data.allTribes as AllTribe[] | null);
 
 	let activeTab   = $state<'members'|'vault'|'requests'|'announce'>('members');
 	let announceMsg = $state('');

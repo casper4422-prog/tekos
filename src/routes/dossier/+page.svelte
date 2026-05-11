@@ -85,10 +85,9 @@
 	</div>
 
 	<!-- Achievements / collector badges -->
-	{@const collectorHtml = getCollectorBadges()}
-	{#if collectorHtml}
+	{#if getCollectorBadges()}
 		<div class="dos-section-header"><div class="dos-section-title">Achievements</div></div>
-		<div class="dos-badges">{@html collectorHtml}</div>
+		<div class="dos-badges">{@html getCollectorBadges()}</div>
 	{/if}
 
 	<!-- Pinned -->
