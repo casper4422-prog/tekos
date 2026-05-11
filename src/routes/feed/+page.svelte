@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Dna, Repeat2, Sword, Newspaper, ExternalLink, Rss, Plus, X, Youtube, Settings } from 'lucide-svelte';
+	import { Dna, Repeat2, Sword, Newspaper, ExternalLink, Rss, Plus, X, PlayCircle, Settings2 } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 
@@ -129,7 +129,7 @@
 			<div class="page-subtitle">Network activity · ARK news · Your creators</div>
 		</div>
 		<button class="btn btn-secondary btn-sm" onclick={() => showSources = !showSources}>
-			<Settings size={13} /> {showSources ? 'Close' : 'Manage Sources'}
+			<Settings2 size={13} /> {showSources ? 'Close' : 'Manage Sources'}
 		</button>
 	</div>
 
@@ -146,7 +146,7 @@
 					<div class="feed-src-list">
 						{#each sources as s}
 							<div class="feed-src-row">
-								<Youtube size={14} style="color:#ef4444;flex-shrink:0" />
+								<PlayCircle size={14} style="color:#ef4444;flex-shrink:0" />
 								<div class="feed-src-info">
 									<div class="feed-src-label">{s.label}</div>
 									<div class="feed-src-url">{s.url}</div>
@@ -264,7 +264,7 @@
 				{@const v = item.data as YTVideo}
 				<div class="cham-shell feed-item" style="--cut:7px;--cat-rgb:239,68,68">
 					<div class="feed-item-inner">
-						<div class="feed-icon" style="background:rgba(239,68,68,0.12);color:#ef4444"><Youtube size={14} /></div>
+						<div class="feed-icon" style="background:rgba(239,68,68,0.12);color:#ef4444"><PlayCircle size={14} /></div>
 						<div class="feed-content">
 							<div class="feed-news-src">{v.channelName} · YouTube</div>
 							<div class="feed-news-title">{v.title}</div>
