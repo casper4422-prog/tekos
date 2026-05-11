@@ -404,20 +404,20 @@
 			{#if createStep === 1}
 				<div class="tribe-step-title">What is your tribe called?</div>
 				<div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
-					<div class="plan-field"><label class="form-label">Tribe Name *</button><input class="form-control" bind:value={cName} placeholder="e.g. Iron Talons" /></div>
-					<div class="plan-field"><label class="form-label">Home Server / Map</button>
+					<div class="plan-field"><label class="form-label" for="t-name">Tribe Name *</label><input id="t-name" class="form-control" bind:value={cName} placeholder="e.g. Iron Talons" /></div>
+					<div class="plan-field"><label class="form-label" for="t-map">Home Server / Map</label>
 						<select class="form-control" bind:value={cMap}>
 							<option value="">Choose a map...</option>
 							{#each MAPS as m}<option value={m}>{m}</option>{/each}
 						</select>
 					</div>
-					<div class="plan-field"><label class="form-label">Description</button><textarea class="form-control" rows="2" bind:value={cDesc} placeholder="What does your tribe stand for?"></textarea></div>
+					<div class="plan-field"><label class="form-label" for="t-desc">Description</label><textarea id="t-desc" class="form-control" rows="2" bind:value={cDesc} placeholder="What does your tribe stand for?"></textarea></div>
 				</div>
 
 			{:else if createStep === 2}
 				<div class="tribe-step-title">Shape your tribe's identity.</div>
 				<div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
-					<div class="plan-field"><label class="form-label">Tribe Motto</button><input class="form-control" bind:value={cMotto} placeholder="e.g. We ride until the servers die" /></div>
+					<div class="plan-field"><label class="form-label" for="t-motto">Tribe Motto</label><input id="t-motto" class="form-control" bind:value={cMotto} placeholder="e.g. We ride until the servers die" /></div>
 					<div class="tribe-tip">Your motto appears on your tribe profile and is visible to all survivors.</div>
 				</div>
 
@@ -466,7 +466,7 @@
 	<div class="modal-content" style="max-width:420px">
 		<div class="modal-header"><h2 class="modal-title">Request to Join</h2><button class="close-btn" onclick={() => joinOpen=null}>&times;</button></div>
 		<div class="modal-body">
-			<div class="plan-field"><label class="form-label">Message (optional)</button><textarea class="form-control" rows="2" bind:value={jMsg} placeholder="Tell them about yourself..."></textarea></div>
+			<div class="plan-field"><label class="form-label" for="j-msg">Message (optional)</label><textarea id="j-msg" class="form-control" rows="2" bind:value={jMsg} placeholder="Tell them about yourself..."></textarea></div>
 			{#if err}<div class="tek-login-error">{err}</div>{/if}
 		</div>
 		<div class="modal-footer">
