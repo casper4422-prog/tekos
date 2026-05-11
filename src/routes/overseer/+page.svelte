@@ -7,131 +7,145 @@
 	type Boss = { id:string; name:string; map:string; difficulties:string[]; description:string; tribute?:string };
 	type Session = Record<string,unknown>;
 
-	// Full ASA boss list — verified from ark.wiki.gg, Deltia's Gaming, Sportskeeda
+	// ASA boss list — official maps only. Verified against ASA wiki & release notes.
+	// Removed: Fjordur (not in ASA, delayed 2026-2027), Crystal Isles (not yet), Lost Island (not yet).
+	// Svartalfheim = ASA mod by Nekatus, listed separately.
 	const BOSSES: Boss[] = [
-		// ── The Island ────────────────────────────────────────────────────────
-		{ id:'broodmother', name:'Broodmother Lysrix', map:'The Island', difficulties:['gamma','beta','alpha'],
+		// ── The Island (ASA) ─────────────────────────────────────────────────
+		{ id:'broodmother', name:'Broodmother Lysrix', map:'The Island',
+		  difficulties:['gamma','beta','alpha'],
 		  description:'A massive spider guarding the Island. Summons hordes of Araneo and Meganeura. Fought in a cavern arena reached via obelisk tribute.',
-		  tribute:'Megapithecus Trophy, Broodmother Trophy, or gather beetle chitin offerings' },
-		{ id:'megapithecus', name:'Megapithecus', map:'The Island', difficulties:['gamma','beta','alpha'],
+		  tribute:'Sarcosuchus Skin, Sauropod Vertebra, Argentavis Talon, Megalodon Fin, Thylacoleo Hook-Claw' },
+		{ id:'megapithecus', name:'Megapithecus', map:'The Island',
+		  difficulties:['gamma','beta','alpha'],
 		  description:'A colossal gorilla that hurls boulders and summons Gigantopithecus and Mesopithecus to overwhelm survivors. Fought on a floating arena.',
-		  tribute:'Sauropod Vertebra, Argentavis Talon, Tyrannosaurus Arm, and others' },
-		{ id:'dragon', name:'Dragon', map:'The Island', difficulties:['gamma','beta','alpha'],
-		  description:'The apex boss of the Island. Breathes devastating fire, flies above the arena, and transitions between phases. Immune to fire damage.',
-		  tribute:'Dragon Trophy, Wyvern Trophy, or Dragon offerings' },
-		{ id:'overseer', name:'Overseer', map:'The Island', difficulties:['gamma','beta','alpha'],
-		  description:'The final boss of The Island, an AI construct that shifts between combat drone forms. Only reachable after defeating all three main Island bosses.',
-		  tribute:'Defeat Broodmother, Megapithecus, and Dragon first' },
+		  tribute:'Argentavis Talon, Megalodon Fin, Sauropod Vertebra, Tyrannosaurus Arm, Woolly Rhino Horn' },
+		{ id:'dragon', name:'Dragon', map:'The Island',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'The apex boss of the Island. Breathes devastating fire, immune to fire damage. Requires Megalania Toxin in tribute. Melee-focused tribes must bring fire-immune creatures.',
+		  tribute:'Argentavis Talon, Sauropod Vertebra, Sarcosuchus Skin, Megalania Toxin, Titanoboa Venom' },
+		{ id:'overseer', name:'Overseer', map:'The Island',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'The final boss of The Island. An AI construct that shifts between Broodmother, Megapithecus, and Dragon drone forms. Only reachable via the Tek Cave after defeating all three Island guardians.',
+		  tribute:'Defeat Broodmother, Megapithecus, and Dragon first — then traverse the Tek Cave' },
 
-		// ── Scorched Earth ────────────────────────────────────────────────────
-		{ id:'manticore', name:'Manticore', map:'Scorched Earth', difficulties:['gamma','beta','alpha'],
-		  description:'A winged lion-scorpion hybrid. Alternates between flying and landing phases. Primary boss of the desert ARK. Also appears on Ragnarok.',
-		  tribute:'Argentavis Talon, Sauropod Vertebra, Tusoteuthis Tentacle, and others' },
+		// ── Scorched Earth (ASA) ─────────────────────────────────────────────
+		{ id:'manticore', name:'Manticore', map:'Scorched Earth',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'A winged lion-scorpion hybrid that alternates between a flying phase (immune to most attacks) and a landing phase. Its tail injects torpor. Primary boss of the desert ARK.',
+		  tribute:'Argentavis Talon, Sauropod Vertebra, Tusoteuthis Tentacle, Deathworm Horn, Onychonycteris Talon' },
 
-		// ── Aberration ────────────────────────────────────────────────────────
-		{ id:'rockwell', name:'Rockwell', map:'Aberration', difficulties:['gamma','beta','alpha'],
-		  description:'Sir Edmund Rockwell, transformed by Element into a massive tentacled horror. Fought in the depths of Aberration. Attacks with Element surges and tentacle slams.',
-		  tribute:'Karkinos Claw, Basilisk Scale, Reaper Queen Pheromone Gland, and others' },
+		// ── Aberration (ASA) ─────────────────────────────────────────────────
+		{ id:'rockwell', name:'Rockwell', map:'Aberration',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'Sir Edmund Rockwell, transformed by Element into a massive tentacled horror anchored to the ARK\'s core. Attacks with Element surges, tentacle slams, and radiation bursts. Cannot use flyers.',
+		  tribute:'Karkinos Claw, Basilisk Scale, Reaper Queen Pheromone Gland, Nameless Venom, Charge Battery' },
 
-		// ── Extinction ────────────────────────────────────────────────────────
-		{ id:'forest_titan', name:'Forest Titan', map:'Extinction', difficulties:['gamma'],
-		  description:'A colossal titan overgrown with vegetation. Must be tamed rather than killed. Found in the forest biome of the Wasteland.',
-		  tribute:'No tribute — locate and fight in the field' },
-		{ id:'ice_titan', name:'Ice Titan', map:'Extinction', difficulties:['gamma'],
-		  description:'An arctic titan encased in ice and frozen corruption. Found in the snow biome. Its back is covered in weak corruption nodes.',
-		  tribute:'No tribute — locate and fight in the field' },
-		{ id:'desert_titan', name:'Desert Titan', map:'Extinction', difficulties:['gamma'],
-		  description:'A massive flying titan that rains lightning from above. Found in the desert biome. Can be tamed and flown as a platform.',
-		  tribute:'No tribute — locate and fight in the field' },
-		{ id:'king_titan', name:'King Titan', map:'Extinction', difficulties:['gamma','beta','alpha'],
-		  description:'The supreme boss of Extinction and the canonical final threat. Three tiers exist. Alpha requires all three other Titans to have been tamed first.',
-		  tribute:'Corrupt Heart x1 per tier, obtained from defeating or taming the three other Titans' },
+		// ── Extinction (ASA) ─────────────────────────────────────────────────
+		{ id:'forest_titan', name:'Forest Titan', map:'Extinction',
+		  difficulties:['gamma'],
+		  description:'A colossal titan overgrown with corrupted vegetation. Found roaming the Wasteland forest biome. Cannot be killed — must be tamed by destroying corruption nodes on its body.',
+		  tribute:'No tribute — locate and fight in the open world' },
+		{ id:'ice_titan', name:'Ice Titan', map:'Extinction',
+		  difficulties:['gamma'],
+		  description:'An arctic titan encased in frozen corruption. Found in the snow biome. Weak points on its back must be struck during stagger windows.',
+		  tribute:'No tribute — locate and fight in the open world' },
+		{ id:'desert_titan', name:'Desert Titan', map:'Extinction',
+		  difficulties:['gamma'],
+		  description:'A massive flying titan that rains lightning from above. Found in the desert biome. Can be tamed and used as a massive flying platform that houses survivors and turrets.',
+		  tribute:'No tribute — locate and fight in the open world' },
+		{ id:'king_titan', name:'King Titan', map:'Extinction',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'The supreme boss of Extinction and the canonical final threat. Alpha King Titan requires all three other Titans to have been tamed first and brought to the battlefield.',
+		  tribute:'Corrupt Heart — obtained by defeating (gamma) or taming the three field Titans' },
 
-		// ── Genesis: Part 1 ───────────────────────────────────────────────────
-		{ id:'moeder', name:'Moeder, Master of the Ocean', map:'Genesis: Part 1', difficulties:['gamma','beta','alpha'],
-		  description:'A colossal tentacled deep-sea creature. Fought underwater in a glowing arena. Spawns Electrophorus to drain your oxygen during the fight.',
-		  tribute:'HLN-A missions in the Ocean biome' },
-		{ id:'master_controller', name:'Corrupted Master Controller', map:'Genesis: Part 1', difficulties:['gamma','beta','alpha'],
-		  description:'An AI construct controlling the Genesis simulation. Multiple phases including holographic projections of previous survivors.',
-		  tribute:'Complete all HLN-A mission sets' },
+		// ── The Center (ASA) ─────────────────────────────────────────────────
+		{ id:'center_broodmother', name:'Broodmother Lysrix', map:'The Center',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'The Center variant of the Broodmother, accessed via the center obelisk system. Identical mechanics to the Island version.',
+		  tribute:'Same tribute as Island Broodmother' },
+		{ id:'center_megapithecus', name:'Megapithecus', map:'The Center',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'The Center variant accessed via obelisk. Identical mechanics to Island version.',
+		  tribute:'Same tribute as Island Megapithecus' },
+		{ id:'center_dragon', name:'Dragon', map:'The Center',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'The Center variant accessed via obelisk. Identical fire-breathing mechanics to Island version.',
+		  tribute:'Same tribute as Island Dragon' },
 
-		// ── Genesis: Part 2 ───────────────────────────────────────────────────
-		{ id:'rockwell_prime', name:'Rockwell Prime', map:'Genesis: Part 2', difficulties:['gamma','beta','alpha'],
-		  description:'Rockwell at full power after escaping Aberration, now bonded to the Genesis Ship. Multi-phase fight across the ship interior.',
+		// ── Ragnarok (ASA) ───────────────────────────────────────────────────
+		{ id:'ragnarok_boss', name:'Dragon & Manticore', map:'Ragnarok',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'A combined encounter unique to Ragnarok — the Dragon and Manticore fight simultaneously in a highland desert arena. Requires tribes to split their force between two very different threat types.',
+		  tribute:'Argentavis Talon, Sauropod Vertebra, Wyvern Milk, Deathworm Horn, Basilisk Scale' },
+
+		// ── Valguero (ASA) ───────────────────────────────────────────────────
+		{ id:'val_broodmother', name:'Broodmother Lysrix', map:'Valguero',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'Valguero variant. Accessed via underground aberrant zones. Identical mechanics to Island Broodmother.',
+		  tribute:'Same tribute as Island Broodmother' },
+		{ id:'val_megapithecus', name:'Megapithecus', map:'Valguero',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'Valguero variant. Identical mechanics to Island version.',
+		  tribute:'Same tribute as Island Megapithecus' },
+		{ id:'val_dragon', name:'Dragon', map:'Valguero',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'Valguero variant. Identical fire mechanics to Island version.',
+		  tribute:'Same tribute as Island Dragon' },
+
+		// ── Genesis: Part 1 (ASA, roadmapped Feb 2025) ───────────────────────
+		{ id:'moeder', name:'Moeder, Master of the Ocean', map:'Genesis: Part 1',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'A colossal Mosasaurus-like creature fought underwater in a glowing oceanic arena. Spawns Electrophorus to drain oxygen. Survivors must avoid tentacles while fighting.',
+		  tribute:'Reach required Mission HLN-A score in the Ocean biome' },
+		{ id:'master_controller', name:'Corrupted Master Controller', map:'Genesis: Part 1',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'An AI construct managing the Genesis simulation. Multi-phase fight with holographic projections of past survivors. Final boss of Genesis Part 1.',
+		  tribute:'Complete all five HLN-A mission biome sets' },
+
+		// ── Genesis: Part 2 (ASA, roadmapped May 2025) ───────────────────────
+		{ id:'rockwell_prime', name:'Rockwell Prime', map:'Genesis: Part 2',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'Rockwell at full power after merging with the Genesis Ship. Multi-phase fight across the ship interior. The canonical conclusion of the ASA story arc before Lost Colony.',
 		  tribute:'Complete Rockwell Prime mission set' },
 
-		// ── The Center ────────────────────────────────────────────────────────
-		{ id:'center_broodmother', name:'Broodmother Lysrix', map:'The Center', difficulties:['gamma','beta','alpha'],
-		  description:'The Center variant of the Broodmother. Identical mechanics to the Island version, accessed via the Center obelisk system.',
-		  tribute:'Same as Island Broodmother' },
-		{ id:'center_megapithecus', name:'Megapithecus', map:'The Center', difficulties:['gamma','beta','alpha'],
-		  description:'The Center variant of the Megapithecus. Identical mechanics, accessed via obelisk.',
-		  tribute:'Same as Island Megapithecus' },
-		{ id:'center_dragon', name:'Dragon', map:'The Center', difficulties:['gamma','beta','alpha'],
-		  description:'The Center variant of the Dragon. Identical mechanics, accessed via obelisk.',
-		  tribute:'Same as Island Dragon' },
-
-		// ── Ragnarok ──────────────────────────────────────────────────────────
-		{ id:'ragnarok_dragon_manticore', name:'Dragon & Manticore', map:'Ragnarok', difficulties:['gamma','beta','alpha'],
-		  description:'A combined encounter unique to Ragnarok. The Dragon and Manticore fight simultaneously in a desert arena, requiring tribes to split attention.',
-		  tribute:'Wyvern Milk, Sauropod Vertebra, Argentavis Talon, and others' },
-
-		// ── Crystal Isles ─────────────────────────────────────────────────────
-		{ id:'crystal_wyvern_queen', name:'Crystal Wyvern Queen', map:'Crystal Isles', difficulties:['gamma','beta','alpha'],
-		  description:'The apex boss of Crystal Isles. A massive Crystal Wyvern that commands a swarm of smaller Wyverns. Fought in a cavern throne room.',
-		  tribute:'Crystal Talon, Wyvern Milk, and Crystal Isles specific items' },
-
-		// ── Valguero ──────────────────────────────────────────────────────────
-		{ id:'val_broodmother', name:'Broodmother Lysrix', map:'Valguero', difficulties:['gamma','beta','alpha'],
-		  description:'Valguero variant accessed through the Aberration-themed underground areas. Same mechanics as the Island version.',
-		  tribute:'Same tribute as Island Broodmother' },
-		{ id:'val_megapithecus', name:'Megapithecus', map:'Valguero', difficulties:['gamma','beta','alpha'],
-		  description:'Valguero variant. Identical to Island version.',
-		  tribute:'Same as Island Megapithecus' },
-		{ id:'val_dragon', name:'Dragon', map:'Valguero', difficulties:['gamma','beta','alpha'],
-		  description:'Valguero variant. Identical to Island version.',
-		  tribute:'Same as Island Dragon' },
-
-		// ── Lost Island ───────────────────────────────────────────────────────
-		{ id:'dinopithecus_king', name:'Dinopithecus King', map:'Lost Island', difficulties:['gamma','beta','alpha'],
-		  description:'A primal boss that leads a troop of Dinopithecus. Throws bombs, uses environment, and is assisted by its pack throughout the fight.',
-		  tribute:'Dinopithecus King Trophy and specific Lost Island items' },
-
-		// ── Fjordur ───────────────────────────────────────────────────────────
-		{ id:'fenrisulfr', name:'Fenrisúlfr', map:'Fjordur', difficulties:['gamma','beta','alpha'],
-		  description:'A colossal wolf of Norse mythology. The primary boss of Fjordur, fought in a frozen tundra arena. Deadly cold aura and pack summons.',
-		  tribute:'Runestones gathered from Fjordur\'s three sub-realms' },
-		{ id:'beyla', name:'Beyla', map:'Fjordur', difficulties:['gamma','beta','alpha'],
-		  description:'A giant bee boss guarding the Vanaheim realm. Spawns bee swarms and leaves toxic honey traps across the arena.',
-		  tribute:'Runestones from Fjordur sub-realms' },
-		{ id:'steinbjorn', name:'Steinbjorn', map:'Fjordur', difficulties:['gamma','beta','alpha'],
-		  description:'A massive stone bear guardian, one of the three Fjordur realm bosses. Extremely tanky with ground-shake attacks.',
-		  tribute:'Runestones from Fjordur sub-realms' },
-
-		// ── Astraeos (ASA, Feb 2025) ──────────────────────────────────────────
-		{ id:'hydraskos', name:'Hydraskos the Unbroken', map:'Astraeos', difficulties:['gamma','beta','alpha'],
-		  description:'A multi-headed Hydra-inspired boss. Each head targets survivors independently. Defeating the boss is a feat of coordination and target priority.',
-		  tribute:'Astraeos-specific offerings' },
-		{ id:'natrix', name:'Natrix the Gorgon', map:'Astraeos', difficulties:['gamma','beta','alpha'],
-		  description:'A Gorgon-themed boss drawing from Greek mythology. Features petrification mechanics that can stone survivors mid-fight.',
-		  tribute:'Astraeos-specific offerings' },
-		{ id:'thodes', name:'Thodes the Cyclops', map:'Astraeos', difficulties:['gamma','beta','alpha'],
-		  description:'A massive Cyclops boss with a single devastating eye attack. Survivors must attack the eye during phases of vulnerability.',
-		  tribute:'Astraeos-specific offerings' },
-		{ id:'thanatos', name:'Thanatos the Destroyer', map:'Astraeos', difficulties:['gamma','beta','alpha'],
-		  description:'The pinnacle boss of Astraeos, named for the Greek god of death. Inspired by the King Titan in scale and threat level.',
+		// ── Astraeos (ASA mod by Nekatus, Feb 2025) ───────────────────────────
+		{ id:'hydraskos', name:'Hydraskos the Unbroken', map:'Astraeos',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'A Hydra-inspired multi-headed boss. Each head targets survivors independently, requiring coordination in target priority and positioning.',
+		  tribute:'Astraeos tribute altar' },
+		{ id:'natrix', name:'Natrix the Gorgon', map:'Astraeos',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'Greek mythology-themed Gorgon boss. Features petrification mechanics that can freeze survivors mid-fight if they look at it directly.',
+		  tribute:'Astraeos tribute altar' },
+		{ id:'thodes', name:'Thodes the Cyclops', map:'Astraeos',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'A massive Cyclops boss. Its single eye is both its main attack and its vulnerable point — survivors must strike during brief vulnerability windows.',
+		  tribute:'Astraeos tribute altar' },
+		{ id:'thanatos', name:'Thanatos the Destroyer', map:'Astraeos',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'Named for the Greek god of death. The pinnacle boss of Astraeos, requiring all three guardian bosses to be defeated first. Comparable to the King Titan in scale.',
 		  tribute:'Defeat Hydraskos, Natrix, and Thodes first' },
-		{ id:'pulmonoscorpius_monarch', name:'Pulmonoscorpius Monarch', map:'Astraeos', difficulties:['gamma'],
-		  description:'An oversized scorpion miniboss native to Astraeos caves. A dangerous encounter before tackling the major Astraeos bosses.',
-		  tribute:'No tribute — found in cave systems' },
+		{ id:'pulmonoscorpius_monarch', name:'Pulmonoscorpius Monarch', map:'Astraeos',
+		  difficulties:['gamma'],
+		  description:'An oversized scorpion miniboss found in Astraeos cave systems. A dangerous but accessible encounter on the way to the main bosses.',
+		  tribute:'Found in caves — no tribute required' },
 
 		// ── Lost Colony (ASA DLC) ─────────────────────────────────────────────
-		{ id:'lost_king', name:'Lost King', map:'Lost Colony', difficulties:['gamma','beta','alpha'],
-		  description:'The main antagonist of Lost Colony, riding a personal Gigadesmodus into battle. A multi-phase dungeon encounter inside the Red Palace. Dropping him unlocks the Queen fight.',
+		{ id:'lost_king', name:'Lost King', map:'Lost Colony',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'The main antagonist of Lost Colony, riding his personal Gigadesmodus into battle inside the Red Palace dungeon. Multi-phase encounter with Thrall waves between phases.',
 		  tribute:'Altar outside the Red Palace dungeon entrance' },
-		{ id:'lost_queen', name:'Lost Queen', map:'Lost Colony', difficulties:['gamma','beta','alpha'],
-		  description:'Revealed to be Mei Yin Li, transformed into the Lost Queen after Lost King\'s defeat. Multi-phase fight with a beam mechanic requiring the tribe to break her healing channel.',
+		{ id:'lost_queen', name:'Lost Queen', map:'Lost Colony',
+		  difficulties:['gamma','beta','alpha'],
+		  description:'Revealed to be Mei Yin Li, transformed after the Lost King\'s defeat. Multi-phase fight with a healing beam mechanic — the tribe must break the beam to prevent her from regenerating.',
 		  tribute:'Automatically triggered after defeating the Lost King' },
+
+		// ── Svartalfheim (ASA mod by Nekatus) ────────────────────────────────
+		{ id:'svartalfheim_dinopithecus', name:'Dinopithecus King', map:'Svartalfheim · Mod',
+		  difficulties:['alpha'],
+		  description:'The custom boss of Svartalfheim, a Norse/Dwarven-themed no-fly mod map by Nekatus. A unique Dinopithecus bossfight tuned for the map\'s no-fly, no-Tek-armour ruleset.',
+		  tribute:'Svartalfheim-specific tribute — check mod documentation' },
 	];
 
 	const sessions = data.sessions as Session[];
