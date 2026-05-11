@@ -1,5 +1,5 @@
-﻿<script lang="ts">
-	import { User, Dna, Users, Shield, Pin, Edit2, Sword, Repeat2, ChevronRight, Star, Award } from 'lucide-svelte';
+<script lang="ts">
+	import { User, Dna, Users, Shield, Pin, Edit2, Sword, Repeat2, ChevronRight, Star } from 'lucide-svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
@@ -62,11 +62,6 @@
 		return String(db?.[sp]?.category ?? 'default');
 	}
 
-	function getCollectorBadges(): string {
-		if (typeof window === 'undefined') return '';
-		const bs = (window as Record<string,unknown>).BadgeSystem as Record<string,Function> | undefined;
-		return bs ? String(bs.generateCollectorBadgeHTML(data.creatures) ?? '') : '';
-	}
 
 	async function saveProfile() {
 		saving = true; err = '';
@@ -175,12 +170,6 @@
 	</div>
 
 	<!-- â”€â”€ Achievements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
-	{#if getCollectorBadges()}
-		<div class="dos-section-row">
-			<div class="dos-section-label"><Award size={13} /> Achievements</div>
-		</div>
-		<div class="dos-badges">{@html getCollectorBadges()}</div>
-	{/if}
 
 	<!-- â”€â”€ Main two-column body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
 	<div class="dos-body">

@@ -75,20 +75,6 @@
 			stats: 'Melee, Weight, or Stamina score depending on track (same formula)',
 			note: 'Thresholds shown as Bronze/Silver/Gold/Diamond (B/S/G/D).'
 		},
-		{
-			id: 'collector',
-			name: 'Collector Badges',
-			icon: '🏅',
-			color: '0,180,255',
-			desc: 'Account-wide badges counted across your entire Specimens vault. Shown on your Dossier and update automatically.',
-			tiers: [
-				{ tier:'Novice Hunter → Apex Legend',  emoji:'⚔️🏅', req:'Combat species: 5 / 15 / 30 / 50'            },
-				{ tier:'Gatherer → Mining Mogul',      emoji:'⛏️🏅', req:'Harvesting species: 3 / 10 / 20 / 35'        },
-				{ tier:'Pack Mule → Transport Tycoon', emoji:'📦🏅', req:'Transport/Companion species: 3 / 8 / 15 / 25' },
-			],
-			stats: 'Counted from your full vault using each species\' category',
-			note: 'Only the highest tier per track is displayed.'
-		},
 	];
 </script>
 
