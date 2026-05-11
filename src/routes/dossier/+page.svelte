@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { User, Dna, Users, Shield, Pin, Edit2, Sword, Repeat2, ChevronRight, Star, Award } from 'lucide-svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import type { PageData } from './$types';
@@ -89,9 +89,9 @@
 <div class="std-page dos-page">
 
 	{#if isGuest}
-		<!-- ── Guest Mode Dossier ──────────────────────────────────────────── -->
+		<!-- â”€â”€ Guest Mode Dossier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
 		<div class="dos-guest-banner">
-			Guest Mode — your data is saved locally on this device only.
+			Guest Mode â€” your data is saved locally on this device only.
 			<a href="/login" onclick={() => localStorage.removeItem('tekos_guest')}>Sign in</a> to sync across devices and unlock all features.
 		</div>
 
@@ -103,7 +103,7 @@
 				{#if guestBio}<p class="dos-bio-text" style="margin-top:8px;font-size:0.86rem;color:#94a3b8">"{guestBio}"</p>{/if}
 			</div>
 			<div class="dos-header-actions">
-				<button class="btn btn-secondary btn-sm" onclick={() => editOpen=true}><Edit2 size={13} /> Edit</button>
+				<button class="btn btn-secondary" onclick={() => editOpen=true}><Edit2 size={13} /> Edit</button>
 			</div>
 		</div>
 
@@ -114,11 +114,11 @@
 		</div>
 
 		<div class="dos-section-row">
-			<div class="dos-section-label"><a href="/specimens" style="color:inherit;text-decoration:none">→ Go to Specimens to manage your local vault</a></div>
+			<div class="dos-section-label"><a href="/specimens" style="color:inherit;text-decoration:none">â†’ Go to Specimens to manage your local vault</a></div>
 		</div>
 
 	{:else}
-	<!-- ── Character sheet header ─────────────────────────────────────────── -->
+	<!-- â”€â”€ Character sheet header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
 	<div class="dos-sheet-header">
 		<div class="dos-avatar-col">
 			<div class="dos-avatar"><User size={32} /></div>
@@ -129,7 +129,7 @@
 			<div class="dos-callsign">{displayName}</div>
 			{#if profile?.nickname && profile?.email}<div class="dos-email">{String(profile.email)}</div>{/if}
 			{#if tribe}
-				<div class="dos-tribe-line"><Shield size={13} /> {String(tribe.name)}{tribe.mainMap ? ` — ${String(tribe.mainMap)}` : ''}</div>
+				<div class="dos-tribe-line"><Shield size={13} /> {String(tribe.name)}{tribe.mainMap ? ` â€” ${String(tribe.mainMap)}` : ''}</div>
 			{/if}
 			{#if profile?.discordName}
 				<div class="dos-discord-line">Discord: {String(profile.discordName)}</div>
@@ -138,11 +138,11 @@
 		</div>
 
 		<div class="dos-header-actions">
-			<button class="btn btn-secondary btn-sm" onclick={() => editOpen=true}><Edit2 size={13} /> Edit</button>
+			<button class="btn btn-secondary" onclick={() => editOpen=true}><Edit2 size={13} /> Edit</button>
 		</div>
 	</div>
 
-	<!-- ── Bio + Looking For ──────────────────────────────────────────────── -->
+	<!-- â”€â”€ Bio + Looking For â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
 	{#if profile?.bio || profile?.lookingFor}
 		<div class="dos-bio-row">
 			{#if profile?.bio}<div class="dos-bio-text">"{String(profile.bio)}"</div>{/if}
@@ -150,13 +150,13 @@
 		</div>
 	{/if}
 
-	<!-- ── Stat tiles ─────────────────────────────────────────────────────── -->
+	<!-- â”€â”€ Stat tiles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
 	<div class="dos-stats-row">
 		<div class="cham-shell dos-stat-tile" style="--cut:7px">
 			<div class="dos-stat-inner"><Dna size={15} class="dos-stat-icon" /><div class="dos-stat-val">{creatures.length}</div><div class="dos-stat-lbl">Specimens</div></div>
 		</div>
 		<div class="cham-shell dos-stat-tile" style="--cut:7px">
-			<div class="dos-stat-inner"><span class="dos-stat-icon" style="font-size:0.9rem">🦕</span><div class="dos-stat-val">{data.speciesOwned}</div><div class="dos-stat-lbl">Species</div></div>
+			<div class="dos-stat-inner"><span class="dos-stat-icon" style="font-size:0.9rem">ðŸ¦•</span><div class="dos-stat-val">{data.speciesOwned}</div><div class="dos-stat-lbl">Species</div></div>
 		</div>
 		<div class="cham-shell dos-stat-tile" style="--cut:7px">
 			<div class="dos-stat-inner"><Users size={15} class="dos-stat-icon" /><div class="dos-stat-val">{data.friendCount}</div><div class="dos-stat-lbl">Friends</div></div>
@@ -174,7 +174,7 @@
 		{/if}
 	</div>
 
-	<!-- ── Achievements ───────────────────────────────────────────────────── -->
+	<!-- â”€â”€ Achievements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
 	{#if getCollectorBadges()}
 		<div class="dos-section-row">
 			<div class="dos-section-label"><Award size={13} /> Achievements</div>
@@ -182,7 +182,7 @@
 		<div class="dos-badges">{@html getCollectorBadges()}</div>
 	{/if}
 
-	<!-- ── Main two-column body ───────────────────────────────────────────── -->
+	<!-- â”€â”€ Main two-column body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
 	<div class="dos-body">
 
 		<!-- Left: Pinned + Species -->
@@ -193,7 +193,7 @@
 			</div>
 
 			{#if pinned.length === 0}
-				<div class="dos-empty">No pinned specimens — click Edit to feature up to 6.</div>
+				<div class="dos-empty">No pinned specimens â€” click Edit to feature up to 6.</div>
 			{:else}
 				<div class="dos-pinned-grid">
 					{#each pinned as c}
@@ -286,8 +286,8 @@
 						<div class="cham-shell dos-trade-row" style="--cut:5px">
 							<div class="dos-trade-inner">
 								<div class="dos-trade-info">
-									<div class="dos-trade-species">{String(cd.species??'?')} — {String(cd.name??'Unnamed')}</div>
-									<div class="dos-trade-meta">{String(td.status)} · {(td.offerCount as number)??0} offer{(td.offerCount as number)!==1?'s':''}{td.wanted ? ` · Wants: ${td.wanted}` : ''}</div>
+									<div class="dos-trade-species">{String(cd.species??'?')} â€” {String(cd.name??'Unnamed')}</div>
+									<div class="dos-trade-meta">{String(td.status)} Â· {(td.offerCount as number)??0} offer{(td.offerCount as number)!==1?'s':''}{td.wanted ? ` Â· Wants: ${td.wanted}` : ''}</div>
 								</div>
 							</div>
 						</div>
@@ -299,7 +299,7 @@
 	{/if}<!-- end of authenticated/guest split -->
 </div>
 
-<!-- Edit modal — works for both guest and authenticated -->
+<!-- Edit modal â€” works for both guest and authenticated -->
 {#if editOpen}
 <div class="modal active" role="dialog" aria-modal="true">
 	<div class="modal-content" style="max-width:480px">
@@ -337,8 +337,8 @@
 					<button class="cham-shell dos-pick-btn" class:selected={sel} onclick={() => togglePin(cd.id as number)} disabled={!sel && pinnedIds.length >= 6} style="--cut:6px">
 						<div class="dos-pick-inner">
 							<div class="dos-pick-species">{String(cd.species??'?')}</div>
-							<div class="dos-pick-name">{String(cd.name??'Unnamed')} · Lvl {Number(cd.level??1)}</div>
-							{#if sel}<span class="dos-pick-check">✓</span>{/if}
+							<div class="dos-pick-name">{String(cd.name??'Unnamed')} Â· Lvl {Number(cd.level??1)}</div>
+							{#if sel}<span class="dos-pick-check">âœ“</span>{/if}
 						</div>
 					</button>
 				{/each}
@@ -354,7 +354,7 @@
 .dos-guest-banner { background:rgba(245,158,11,0.07); border-left:2px solid #f59e0b; padding:10px 14px; font-size:0.78rem; color:#fbbf24; margin-bottom:16px; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
 .dos-guest-banner a { color:#fcd34d; font-weight:600; }
 
-/* ── Character sheet header ──────────────────────────────────────────── */
+/* â”€â”€ Character sheet header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .dos-sheet-header {
 	display:flex; align-items:flex-start; gap:20px;
 	background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1));
@@ -458,3 +458,4 @@
 .dos-pick-name { font-size:0.72rem; color:#64748b; margin-top:2px; }
 .dos-pick-check { position:absolute; top:8px; right:10px; color:#4ade80; font-weight:700; }
 </style>
+

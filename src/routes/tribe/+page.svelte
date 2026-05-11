@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { Shield, Users, Dna, Plus, Check, X, LogOut, Megaphone, AlertTriangle, ChevronRight, Wand2 } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
@@ -116,9 +116,9 @@
 	<div class="std-page-header">
 		<div class="page-title">
 			<h1>{tribe.name}</h1>
-			<div class="page-subtitle">{tribe.members.length} member{tribe.members.length !== 1 ? 's' : ''}{tribe.mainMap ? ` · ${tribe.mainMap}` : ''}</div>
+			<div class="page-subtitle">{tribe.members.length} member{tribe.members.length !== 1 ? 's' : ''}{tribe.mainMap ? ` Â· ${tribe.mainMap}` : ''}</div>
 		</div>
-		<a href="/tribe/flag" class="btn btn-secondary btn-sm"><Wand2 size={13} /> Flag Workshop</a>
+		<a href="/tribe/flag" class="btn btn-secondary"><Wand2 size={13} /> Flag Workshop</a>
 		{#if !isOwner}
 			<button class="btn btn-danger btn-sm" onclick={leaveTribe}><LogOut size={14} /> Leave</button>
 		{/if}
@@ -166,7 +166,7 @@
 					<div class="cham-shell" style="--cut:7px">
 						<div class="tribe-ccard">
 							<div class="tribe-c-species">{String(cd.species ?? '?')}</div>
-							<div class="tribe-c-sub">{String(cd.name ?? 'Unnamed')} · Lvl {Number(cd.level ?? 1)}</div>
+							<div class="tribe-c-sub">{String(cd.name ?? 'Unnamed')} Â· Lvl {Number(cd.level ?? 1)}</div>
 							<div class="tribe-c-stats"><span>HP {(bs.Health??0).toLocaleString()}</span><span>Mel {bs.Melee??0}%</span></div>
 							<div class="tribe-c-by">by {display(c.creator)}</div>
 						</div>
@@ -268,13 +268,13 @@
 {/if}
 </div>
 
-<!-- ── Multi-step tribe creation ─────────────────────────────────────── -->
+<!-- â”€â”€ Multi-step tribe creation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
 {#if createStep > 0}
 <div class="modal active" role="dialog" aria-modal="true">
 	<div class="modal-content" style="max-width:500px">
 		<div class="modal-header">
 			<h2 class="modal-title">
-				{createStep === 1 ? '⚔ Found a Tribe — Basics' : createStep === 2 ? '🛡 Identity & Culture' : '📋 Membership Policy'}
+				{createStep === 1 ? 'âš” Found a Tribe â€” Basics' : createStep === 2 ? 'ðŸ›¡ Identity & Culture' : 'ðŸ“‹ Membership Policy'}
 			</h2>
 			<button class="close-btn" onclick={() => createStep=0}>&times;</button>
 		</div>
@@ -312,14 +312,14 @@
 				<div class="tribe-step-title">How will survivors join?</div>
 				<div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
 					<label class="tribe-policy-option" class:selected={cOpenPolicy==='open'} onclick={() => cOpenPolicy='open'}>
-						<div class="tribe-policy-check">{cOpenPolicy==='open' ? '●' : '○'}</div>
+						<div class="tribe-policy-check">{cOpenPolicy==='open' ? 'â—' : 'â—‹'}</div>
 						<div>
 							<div class="tribe-policy-name">Open Recruitment</div>
 							<div class="tribe-policy-desc">Any survivor can join instantly. Good for casual tribes.</div>
 						</div>
 					</label>
 					<label class="tribe-policy-option" class:selected={cOpenPolicy==='application'} onclick={() => cOpenPolicy='application'}>
-						<div class="tribe-policy-check">{cOpenPolicy==='application' ? '●' : '○'}</div>
+						<div class="tribe-policy-check">{cOpenPolicy==='application' ? 'â—' : 'â—‹'}</div>
 						<div>
 							<div class="tribe-policy-name">Application Required</div>
 							<div class="tribe-policy-desc">Survivors send a request. Admins review and approve. Better for serious tribes.</div>
@@ -333,14 +333,14 @@
 
 		<div class="modal-footer">
 			{#if createStep > 1}
-				<button class="btn btn-ghost" onclick={() => createStep--}>← Back</button>
+				<button class="btn btn-ghost" onclick={() => createStep--}>â† Back</button>
 			{:else}
 				<button class="btn btn-secondary" onclick={() => createStep=0}>Cancel</button>
 			{/if}
 			{#if createStep < 3}
-				<button class="btn btn-primary" onclick={() => { if (!cName.trim()) { err='Name required'; return; } err=''; createStep++; }}>Next →</button>
+				<button class="btn btn-primary" onclick={() => { if (!cName.trim()) { err='Name required'; return; } err=''; createStep++; }}>Next â†’</button>
 			{:else}
-				<button class="btn btn-primary" onclick={createTribe} disabled={saving}>{saving ? 'Founding...' : '⚔ Found Tribe'}</button>
+				<button class="btn btn-primary" onclick={createTribe} disabled={saving}>{saving ? 'Founding...' : 'âš” Found Tribe'}</button>
 			{/if}
 		</div>
 	</div>
@@ -431,3 +431,4 @@
 .tribe-policy-name { font-size:0.88rem; font-weight:600; color:#f1f5f9; }
 .tribe-policy-desc { font-size:0.78rem; color:#64748b; margin-top:2px; line-height:1.4; }
 </style>
+

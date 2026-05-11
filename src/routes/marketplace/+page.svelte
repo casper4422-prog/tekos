@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { Repeat2, Plus, X, Check, Search, Star, BookMarked } from 'lucide-svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import type { PageData } from './$types';
@@ -50,7 +50,7 @@
 	});
 
 	function display(u: Record<string,unknown>) { return (u.nickname ?? u.email ?? 'Unknown') as string; }
-	function creatureName(c: Creature) { return `${String((c as Record<string,unknown>).species ?? '?')} — ${String((c as Record<string,unknown>).name ?? 'Unnamed')} (Lvl ${Number((c as Record<string,unknown>).level ?? 1)})`; }
+	function creatureName(c: Creature) { return `${String((c as Record<string,unknown>).species ?? '?')} â€” ${String((c as Record<string,unknown>).name ?? 'Unnamed')} (Lvl ${Number((c as Record<string,unknown>).level ?? 1)})`; }
 	function getCategory(speciesName: string) {
 		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,Record<string,unknown>> | undefined;
 		return String(db?.[speciesName]?.category ?? 'default');
@@ -172,10 +172,10 @@
 								<div class="mkt-species">{String(cd.species ?? '?')}</div>
 								<a href="/survivors/{(td.user as Record<string,unknown>).id}" class="mkt-seller">{display(td.user as Record<string,unknown>)}</a>
 							</div>
-							<div class="mkt-name">{String(cd.name ?? 'Unnamed')} · Lvl {Number(cd.level ?? 1)} · {String(cd.gender ?? '?')}</div>
+							<div class="mkt-name">{String(cd.name ?? 'Unnamed')} Â· Lvl {Number(cd.level ?? 1)} Â· {String(cd.gender ?? '?')}</div>
 							{#if td.wanted}<div class="mkt-wanted">Wants: <strong>{String(td.wanted)}</strong></div>{/if}
 							{#if td.price}<div class="mkt-price">Price: <strong>{String(td.price)}</strong></div>{/if}
-							<button class="btn btn-primary btn-sm mkt-offer-btn" onclick={() => { offerOpen = t; oCreatureId = null; oMessage = ''; }}>Make Offer</button>
+							<button class="btn btn-primary mkt-offer-btn" onclick={() => { offerOpen = t; oCreatureId = null; oMessage = ''; }}>Make Offer</button>
 						</div>
 					</div>
 				{/each}
@@ -192,8 +192,8 @@
 				<div class="cham-shell mkt-row" style="--cut:6px">
 					<div class="mkt-row-inner">
 						<div class="mkt-row-info">
-							<div class="mkt-species">{String(cd.species ?? '?')} — {String(cd.name ?? 'Unnamed')}</div>
-							<div class="mkt-meta">{String(td.status)} · {td.offerCount ?? 0} offer{(td.offerCount as number) !== 1 ? 's' : ''}</div>
+							<div class="mkt-species">{String(cd.species ?? '?')} â€” {String(cd.name ?? 'Unnamed')}</div>
+							<div class="mkt-meta">{String(td.status)} Â· {td.offerCount ?? 0} offer{(td.offerCount as number) !== 1 ? 's' : ''}</div>
 							{#if td.wanted}<div class="mkt-meta">Wants: {String(td.wanted)}</div>{/if}
 						</div>
 						<button class="btn btn-danger btn-sm" onclick={() => removeTrade(td.id as number)}><X size={13} /></button>
@@ -213,7 +213,7 @@
 				<div class="cham-shell mkt-row" style="--cut:6px">
 					<div class="mkt-row-inner">
 						<div class="mkt-row-info">
-							<div class="mkt-species"><a href="/survivors/{fromU.id}" class="mkt-link">{display(fromU)}</a> offered: {String(offerCd.species ?? '?')} — {String(offerCd.name ?? 'No specimen')}</div>
+							<div class="mkt-species"><a href="/survivors/{fromU.id}" class="mkt-link">{display(fromU)}</a> offered: {String(offerCd.species ?? '?')} â€” {String(offerCd.name ?? 'No specimen')}</div>
 							{#if od.offeredPrice}<div class="mkt-meta">Price: {String(od.offeredPrice)}</div>{/if}
 							{#if od.message}<div class="mkt-meta">"{String(od.message)}"</div>{/if}
 						</div>
@@ -258,7 +258,7 @@
 
 		<!-- Network wishlists -->
 		{#if networkWl.length > 0}
-			<div class="wl-section-title" style="margin-top:24px">Network Wishlists {networkWl.filter((w:Wishlist) => w.iHaveIt).length > 0 ? `· ${networkWl.filter((w:Wishlist) => w.iHaveIt).length} you can fill` : ''}</div>
+			<div class="wl-section-title" style="margin-top:24px">Network Wishlists {networkWl.filter((w:Wishlist) => w.iHaveIt).length > 0 ? `Â· ${networkWl.filter((w:Wishlist) => w.iHaveIt).length} you can fill` : ''}</div>
 			<div class="wl-list">
 				{#each networkWl as w}
 					{@const wd = w as Record<string,unknown>}
@@ -268,7 +268,7 @@
 						<div class="wl-row-inner">
 							<div class="cat-badge-v3" style="--cat-rgb:{wd.iHaveIt ? '34,197,94' : rgb};font-size:0.52rem;padding:2px 5px"><CategoryIcon category={cat} size={9} /></div>
 							<div class="wl-info">
-								<div class="wl-species">{String(wd.species)} {wd.iHaveIt ? '· You have this!' : ''}</div>
+								<div class="wl-species">{String(wd.species)} {wd.iHaveIt ? 'Â· You have this!' : ''}</div>
 								<div class="wl-owner"><a href="/survivors/{(wd.user as Record<string,unknown>).id}" class="mkt-link">{display(wd.user as Record<string,unknown>)}</a> wants this</div>
 								{#if wd.notes}<div class="wl-notes">{String(wd.notes)}</div>{/if}
 							</div>
@@ -311,7 +311,7 @@
 		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
 			<div class="plan-field"><label class="form-label" for="o-c">Offer a Specimen (optional)</label>
 				<select id="o-c" class="form-control" bind:value={oCreatureId}>
-					<option value={null}>None — offer text only</option>
+					<option value={null}>None â€” offer text only</option>
 					{#each myCreatures as c}<option value={c.id}>{creatureName(c)}</option>{/each}
 				</select>
 			</div>
@@ -391,3 +391,4 @@
 .star-btn.filled { color:#f59e0b; }
 .star-btn:hover { color:#fbbf24; }
 </style>
+

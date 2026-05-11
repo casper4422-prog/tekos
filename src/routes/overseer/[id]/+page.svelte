@@ -156,7 +156,7 @@
 			<ScrollText size={13} /> Log Fight
 		</button>
 		{#if isCreator && !closed}
-			<button class="btn btn-danger btn-sm" onclick={closeRoom}>Close Room</button>
+			<button class="btn btn-danger" onclick={closeRoom}>Close Room</button>
 		{/if}
 		{#if closed}<span class="war-closed-tag">CLOSED</span>{/if}
 	</div>

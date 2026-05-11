@@ -156,7 +156,7 @@
 			<h1>Specimens</h1>
 			<div class="page-subtitle">{creatures.length} creature{creatures.length !== 1 ? 's' : ''} in vault</div>
 		</div>
-		{#if !isGuest}<a href="/dex" class="btn btn-secondary btn-sm">Browse Dex to Add</a>{/if}
+		{#if !isGuest}<a href="/dex" class="btn btn-secondary">Browse Dex to Add</a>{/if}
 	</div>
 
 	<div class="spec-controls">

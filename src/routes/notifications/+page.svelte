@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { Bell } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
@@ -28,7 +28,7 @@
 	}
 
 	const TYPE_ICON: Record<string,string> = {
-		friend_request:'👥', friend_accept:'👥', trade_offer:'🔁', offer_accepted:'✅', tribe_invite:'🛡️', default:'🔔'
+		friend_request:'ðŸ‘¥', friend_accept:'ðŸ‘¥', trade_offer:'ðŸ”', offer_accepted:'âœ…', tribe_invite:'ðŸ›¡ï¸', default:'ðŸ””'
 	};
 </script>
 
@@ -38,7 +38,7 @@
 			<h1>Notifications</h1>
 			{#if unread > 0}<div class="page-subtitle">{unread} unread</div>{/if}
 		</div>
-		{#if unread > 0}<button class="btn btn-secondary btn-sm" onclick={markAll}>Mark all read</button>{/if}
+		{#if unread > 0}<button class="btn btn-secondary" onclick={markAll}>Mark all read</button>{/if}
 	</div>
 
 	{#if notifs.length === 0}
@@ -75,3 +75,4 @@
 .notif-time { font-size:0.68rem; color:#334155; margin-top:4px; }
 .notif-dot { width:7px; height:7px; border-radius:50%; background:#00b4ff; flex-shrink:0; margin-top:6px; box-shadow:0 0 6px rgba(0,180,255,0.6); }
 </style>
+

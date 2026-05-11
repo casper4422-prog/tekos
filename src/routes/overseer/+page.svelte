@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { Sword, Users, Plus, LogIn, ChevronDown } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
@@ -7,11 +7,11 @@
 	type Boss = { id:string; name:string; map:string; difficulties:string[]; description:string; tribute?:string };
 	type Session = Record<string,unknown>;
 
-	// ASA boss list — official maps only. Verified against ASA wiki & release notes.
+	// ASA boss list â€” official maps only. Verified against ASA wiki & release notes.
 	// Removed: Fjordur (not in ASA, delayed 2026-2027), Crystal Isles (not yet), Lost Island (not yet).
 	// Svartalfheim = ASA mod by Nekatus, listed separately.
 	const BOSSES: Boss[] = [
-		// ── The Island (ASA) ─────────────────────────────────────────────────
+		// â”€â”€ The Island (ASA) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 		{ id:'broodmother', name:'Broodmother Lysrix', map:'The Island',
 		  difficulties:['gamma','beta','alpha'],
 		  description:'A massive spider guarding the Island. Summons hordes of Araneo and Meganeura. Fought in a cavern arena reached via obelisk tribute.',
@@ -27,39 +27,39 @@
 		{ id:'overseer', name:'Overseer', map:'The Island',
 		  difficulties:['gamma','beta','alpha'],
 		  description:'The final boss of The Island. An AI construct that shifts between Broodmother, Megapithecus, and Dragon drone forms. Only reachable via the Tek Cave after defeating all three Island guardians.',
-		  tribute:'Defeat Broodmother, Megapithecus, and Dragon first — then traverse the Tek Cave' },
+		  tribute:'Defeat Broodmother, Megapithecus, and Dragon first â€” then traverse the Tek Cave' },
 
-		// ── Scorched Earth (ASA) ─────────────────────────────────────────────
+		// â”€â”€ Scorched Earth (ASA) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 		{ id:'manticore', name:'Manticore', map:'Scorched Earth',
 		  difficulties:['gamma','beta','alpha'],
 		  description:'A winged lion-scorpion hybrid that alternates between a flying phase (immune to most attacks) and a landing phase. Its tail injects torpor. Primary boss of the desert ARK.',
 		  tribute:'Argentavis Talon, Sauropod Vertebra, Tusoteuthis Tentacle, Deathworm Horn, Onychonycteris Talon' },
 
-		// ── Aberration (ASA) ─────────────────────────────────────────────────
+		// â”€â”€ Aberration (ASA) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 		{ id:'rockwell', name:'Rockwell', map:'Aberration',
 		  difficulties:['gamma','beta','alpha'],
 		  description:'Sir Edmund Rockwell, transformed by Element into a massive tentacled horror anchored to the ARK\'s core. Attacks with Element surges, tentacle slams, and radiation bursts. Cannot use flyers.',
 		  tribute:'Karkinos Claw, Basilisk Scale, Reaper Queen Pheromone Gland, Nameless Venom, Charge Battery' },
 
-		// ── Extinction (ASA) ─────────────────────────────────────────────────
+		// â”€â”€ Extinction (ASA) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 		{ id:'forest_titan', name:'Forest Titan', map:'Extinction',
 		  difficulties:['gamma'],
-		  description:'A colossal titan overgrown with corrupted vegetation. Found roaming the Wasteland forest biome. Cannot be killed — must be tamed by destroying corruption nodes on its body.',
-		  tribute:'No tribute — locate and fight in the open world' },
+		  description:'A colossal titan overgrown with corrupted vegetation. Found roaming the Wasteland forest biome. Cannot be killed â€” must be tamed by destroying corruption nodes on its body.',
+		  tribute:'No tribute â€” locate and fight in the open world' },
 		{ id:'ice_titan', name:'Ice Titan', map:'Extinction',
 		  difficulties:['gamma'],
 		  description:'An arctic titan encased in frozen corruption. Found in the snow biome. Weak points on its back must be struck during stagger windows.',
-		  tribute:'No tribute — locate and fight in the open world' },
+		  tribute:'No tribute â€” locate and fight in the open world' },
 		{ id:'desert_titan', name:'Desert Titan', map:'Extinction',
 		  difficulties:['gamma'],
 		  description:'A massive flying titan that rains lightning from above. Found in the desert biome. Can be tamed and used as a massive flying platform that houses survivors and turrets.',
-		  tribute:'No tribute — locate and fight in the open world' },
+		  tribute:'No tribute â€” locate and fight in the open world' },
 		{ id:'king_titan', name:'King Titan', map:'Extinction',
 		  difficulties:['gamma','beta','alpha'],
 		  description:'The supreme boss of Extinction and the canonical final threat. Alpha King Titan requires all three other Titans to have been tamed first and brought to the battlefield.',
-		  tribute:'Corrupt Heart — obtained by defeating (gamma) or taming the three field Titans' },
+		  tribute:'Corrupt Heart â€” obtained by defeating (gamma) or taming the three field Titans' },
 
-		// ── The Center (ASA) ─────────────────────────────────────────────────
+		// â”€â”€ The Center (ASA) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 		{ id:'center_broodmother', name:'Broodmother Lysrix', map:'The Center',
 		  difficulties:['gamma','beta','alpha'],
 		  description:'The Center variant of the Broodmother, accessed via the center obelisk system. Identical mechanics to the Island version.',
@@ -73,13 +73,13 @@
 		  description:'The Center variant accessed via obelisk. Identical fire-breathing mechanics to Island version.',
 		  tribute:'Same tribute as Island Dragon' },
 
-		// ── Ragnarok (ASA) ───────────────────────────────────────────────────
+		// â”€â”€ Ragnarok (ASA) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 		{ id:'ragnarok_boss', name:'Dragon & Manticore', map:'Ragnarok',
 		  difficulties:['gamma','beta','alpha'],
-		  description:'A combined encounter unique to Ragnarok — the Dragon and Manticore fight simultaneously in a highland desert arena. Requires tribes to split their force between two very different threat types.',
+		  description:'A combined encounter unique to Ragnarok â€” the Dragon and Manticore fight simultaneously in a highland desert arena. Requires tribes to split their force between two very different threat types.',
 		  tribute:'Argentavis Talon, Sauropod Vertebra, Wyvern Milk, Deathworm Horn, Basilisk Scale' },
 
-		// ── Valguero (ASA) ───────────────────────────────────────────────────
+		// â”€â”€ Valguero (ASA) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 		{ id:'val_broodmother', name:'Broodmother Lysrix', map:'Valguero',
 		  difficulties:['gamma','beta','alpha'],
 		  description:'Valguero variant. Accessed via underground aberrant zones. Identical mechanics to Island Broodmother.',
@@ -93,7 +93,7 @@
 		  description:'Valguero variant. Identical fire mechanics to Island version.',
 		  tribute:'Same tribute as Island Dragon' },
 
-		// ── Genesis: Part 1 (ASA, roadmapped Feb 2025) ───────────────────────
+		// â”€â”€ Genesis: Part 1 (ASA, roadmapped Feb 2025) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 		{ id:'moeder', name:'Moeder, Master of the Ocean', map:'Genesis: Part 1',
 		  difficulties:['gamma','beta','alpha'],
 		  description:'A colossal Mosasaurus-like creature fought underwater in a glowing oceanic arena. Spawns Electrophorus to drain oxygen. Survivors must avoid tentacles while fighting.',
@@ -103,13 +103,13 @@
 		  description:'An AI construct managing the Genesis simulation. Multi-phase fight with holographic projections of past survivors. Final boss of Genesis Part 1.',
 		  tribute:'Complete all five HLN-A mission biome sets' },
 
-		// ── Genesis: Part 2 (ASA, roadmapped May 2025) ───────────────────────
+		// â”€â”€ Genesis: Part 2 (ASA, roadmapped May 2025) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 		{ id:'rockwell_prime', name:'Rockwell Prime', map:'Genesis: Part 2',
 		  difficulties:['gamma','beta','alpha'],
 		  description:'Rockwell at full power after merging with the Genesis Ship. Multi-phase fight across the ship interior. The canonical conclusion of the ASA story arc before Lost Colony.',
 		  tribute:'Complete Rockwell Prime mission set' },
 
-		// ── Astraeos (ASA mod by Nekatus, Feb 2025) ───────────────────────────
+		// â”€â”€ Astraeos (ASA mod by Nekatus, Feb 2025) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 		{ id:'hydraskos', name:'Hydraskos the Unbroken', map:'Astraeos',
 		  difficulties:['gamma','beta','alpha'],
 		  description:'A Hydra-inspired multi-headed boss. Each head targets survivors independently, requiring coordination in target priority and positioning.',
@@ -120,7 +120,7 @@
 		  tribute:'Astraeos tribute altar' },
 		{ id:'thodes', name:'Thodes the Cyclops', map:'Astraeos',
 		  difficulties:['gamma','beta','alpha'],
-		  description:'A massive Cyclops boss. Its single eye is both its main attack and its vulnerable point — survivors must strike during brief vulnerability windows.',
+		  description:'A massive Cyclops boss. Its single eye is both its main attack and its vulnerable point â€” survivors must strike during brief vulnerability windows.',
 		  tribute:'Astraeos tribute altar' },
 		{ id:'thanatos', name:'Thanatos the Destroyer', map:'Astraeos',
 		  difficulties:['gamma','beta','alpha'],
@@ -129,23 +129,23 @@
 		{ id:'pulmonoscorpius_monarch', name:'Pulmonoscorpius Monarch', map:'Astraeos',
 		  difficulties:['gamma'],
 		  description:'An oversized scorpion miniboss found in Astraeos cave systems. A dangerous but accessible encounter on the way to the main bosses.',
-		  tribute:'Found in caves — no tribute required' },
+		  tribute:'Found in caves â€” no tribute required' },
 
-		// ── Lost Colony (ASA DLC) ─────────────────────────────────────────────
+		// â”€â”€ Lost Colony (ASA DLC) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 		{ id:'lost_king', name:'Lost King', map:'Lost Colony',
 		  difficulties:['gamma','beta','alpha'],
 		  description:'The main antagonist of Lost Colony, riding his personal Gigadesmodus into battle inside the Red Palace dungeon. Multi-phase encounter with Thrall waves between phases.',
 		  tribute:'Altar outside the Red Palace dungeon entrance' },
 		{ id:'lost_queen', name:'Lost Queen', map:'Lost Colony',
 		  difficulties:['gamma','beta','alpha'],
-		  description:'Revealed to be Mei Yin Li, transformed after the Lost King\'s defeat. Multi-phase fight with a healing beam mechanic — the tribe must break the beam to prevent her from regenerating.',
+		  description:'Revealed to be Mei Yin Li, transformed after the Lost King\'s defeat. Multi-phase fight with a healing beam mechanic â€” the tribe must break the beam to prevent her from regenerating.',
 		  tribute:'Automatically triggered after defeating the Lost King' },
 
-		// ── Svartalfheim (ASA mod by Nekatus) ────────────────────────────────
-		{ id:'svartalfheim_dinopithecus', name:'Dinopithecus King', map:'Svartalfheim · Mod',
+		// â”€â”€ Svartalfheim (ASA mod by Nekatus) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+		{ id:'svartalfheim_dinopithecus', name:'Dinopithecus King', map:'Svartalfheim Â· Mod',
 		  difficulties:['alpha'],
 		  description:'The custom boss of Svartalfheim, a Norse/Dwarven-themed no-fly mod map by Nekatus. A unique Dinopithecus bossfight tuned for the map\'s no-fly, no-Tek-armour ruleset.',
-		  tribute:'Svartalfheim-specific tribute — check mod documentation' },
+		  tribute:'Svartalfheim-specific tribute â€” check mod documentation' },
 	];
 
 	const sessions = data.sessions as Session[];
@@ -203,7 +203,7 @@
 	<div class="ov-top-row">
 		<div class="ov-join-row">
 			<input class="form-control" style="max-width:160px;text-transform:uppercase;letter-spacing:0.1em" placeholder="Join Code" bind:value={joinCode} maxlength={6} />
-			<button class="btn btn-secondary btn-sm" onclick={joinSession}><LogIn size={13} /> Join Room</button>
+			<button class="btn btn-secondary" onclick={joinSession}><LogIn size={13} /> Join Room</button>
 		</div>
 		<div class="ov-map-filters">
 			{#each MAPS as m}
@@ -222,9 +222,9 @@
 					<div class="ov-session-inner">
 						<div class="ov-session-info">
 							<div class="ov-session-boss">{String(sd.bossName)}</div>
-							<div class="ov-session-meta">{String(sd.difficulty).toUpperCase()} · Code: <strong>{String(sd.joinCode)}</strong> · {(sd.memberCount as number)} in room</div>
+							<div class="ov-session-meta">{String(sd.difficulty).toUpperCase()} Â· Code: <strong>{String(sd.joinCode)}</strong> Â· {(sd.memberCount as number)} in room</div>
 						</div>
-						<span class="btn btn-primary btn-sm"><Users size={13} /> Join</span>
+						<span class="btn btn-primary"><Users size={13} /> Join</span>
 					</div>
 				</a>
 			{/each}
@@ -260,7 +260,7 @@
 				<div class="cham-shell ov-record" style="--cut:5px;--cat-rgb:{rd.outcome==='success' ? '34,197,94' : '239,68,68'}">
 					<div class="ov-record-inner">
 						<div class="ov-record-boss">{String(rd.bossName)}</div>
-						<div class="ov-record-meta">{String(rd.difficulty ?? '').toUpperCase()}{rd.mapName ? ` · ${String(rd.mapName)}` : ''}</div>
+						<div class="ov-record-meta">{String(rd.difficulty ?? '').toUpperCase()}{rd.mapName ? ` Â· ${String(rd.mapName)}` : ''}</div>
 						<div class="ov-record-outcome" class:win={rd.outcome==='success'}>{rd.outcome === 'success' ? 'Victory' : 'Defeat'}</div>
 					</div>
 				</div>
@@ -356,3 +356,4 @@
 .ov-diff-full-btn.selected.beta  { background:rgba(59,130,246,0.25); box-shadow:0 0 8px rgba(59,130,246,0.3); }
 .ov-diff-full-btn.selected.alpha { background:rgba(239,68,68,0.25);  box-shadow:0 0 8px rgba(239,68,68,0.3); }
 </style>
+

@@ -32,7 +32,7 @@
 	<div class="sdp-action-bar">
 		<a href="/dex" class="btn btn-secondary btn-sm">← Dex</a>
 		<div class="sdp-action-btns">
-			<a href="/specimens?species={encodeURIComponent(name)}" class="btn btn-primary sdp-vault-btn">
+			<a href="/specimens?species={encodeURIComponent(name)}" class="btn btn-primary">
 				+ Add to Vault
 			</a>
 			<button class="btn btn-secondary sdp-wish-btn" onclick={addToWishlist} disabled={wlAdded || wlSaving}>

@@ -55,9 +55,9 @@
 			</div>
 			{#if !data.isSelf}
 				<div class="sur-actions">
-					<a href="/messages/{p.id}" class="btn btn-secondary btn-sm"><MessageSquare size={13} /> Message</a>
+					<a href="/messages/{p.id}" class="btn btn-secondary"><MessageSquare size={13} /> Message</a>
 					{#if !friendship}
-						<button class="btn btn-primary btn-sm" onclick={sendRequest} disabled={sending}>
+						<button class="btn btn-primary" onclick={sendRequest} disabled={sending}>
 							<UserPlus size={13} /> {sending ? 'Sending...' : 'Add Friend'}
 						</button>
 					{:else if (friendship.status as string) === 'accepted'}
@@ -67,7 +67,7 @@
 					{/if}
 				</div>
 			{:else}
-				<a href="/dossier" class="btn btn-secondary btn-sm">Edit Profile</a>
+				<a href="/dossier" class="btn btn-secondary">Edit Profile</a>
 			{/if}
 		</div>
 	</div>
