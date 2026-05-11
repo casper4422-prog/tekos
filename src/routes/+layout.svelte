@@ -3,7 +3,7 @@
 		User, Dna, BookOpen,
 		Users, Shield, Rss,
 		Repeat2, Sword, Bell, Hexagon,
-		Power, Award, Palette, Lock, AlertTriangle
+		Power, Award, Palette
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { LayoutData } from './$types';
@@ -27,23 +27,11 @@
 			{ page:'marketplace',   Icon:Repeat2, label:'Marketplace'   },
 			{ page:'overseer',      Icon:Sword,   label:'Overseer'      },
 			{ page:'notifications', Icon:Bell,    label:'Notifications' },
-			{ page:'badges',        Icon:Award,   label:'Badges'        },
 		]},
 	];
 
-	let sidebarOpen   = $state(false);
-	let isGuest       = $state(false);
-	let accountOpen   = $state(false);
-
-	// Account settings modal state
-	let curPwd    = $state('');
-	let newPwd    = $state('');
-	let pwdSaving = $state(false);
-	let pwdMsg    = $state('');
-	let pwdErr    = $state(false);
-	let delConfirm = $state(false);
-	let delPwd    = $state('');
-	let delSaving = $state(false);
+	let sidebarOpen = $state(false);
+	let isGuest     = $state(false);
 
 	function isActive(p: string) { return $page.url.pathname.startsWith(`/${p}`); }
 
@@ -69,29 +57,9 @@
 		if (theme.bg)     root.style.setProperty('--tek-bg', theme.bg);
 	});
 
-	const SOCIAL_OPS = ['feed','friends','tribe','settings','marketplace','overseer','notifications','badges','survivors','messages'];
+	const SOCIAL_OPS = ['feed','friends','tribe','settings','marketplace','overseer','notifications','badges','survivors','messages','account'];
 	function isLocked(p: string) { return !data.user && SOCIAL_OPS.includes(p); }
-
-	function openAccount() { accountOpen = true; sidebarOpen = false; curPwd=''; newPwd=''; pwdMsg=''; pwdErr=false; delConfirm=false; delPwd=''; }
 	function exitGuest() { localStorage.removeItem('tekos_guest'); window.location.href = '/login'; }
-
-	async function changePassword() {
-		if (!curPwd || !newPwd) return;
-		pwdSaving = true; pwdMsg = ''; pwdErr = false;
-		const res = await fetch('/api/profile', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ currentPassword:curPwd, newPassword:newPwd }) });
-		const body = await res.json();
-		if (res.ok) { pwdMsg = 'Password updated successfully.'; curPwd=''; newPwd=''; }
-		else { pwdMsg = body.error ?? 'Failed'; pwdErr = true; }
-		pwdSaving = false;
-	}
-
-	async function deleteAccount() {
-		if (!delPwd) return;
-		delSaving = true;
-		const res = await fetch('/api/profile', { method:'DELETE' });
-		if (res.ok) { await fetch('/api/auth/logout'); window.location.href = '/login'; }
-		else { alert('Failed to delete account'); delSaving = false; }
-	}
 </script>
 
 {#if !data.user && !isGuest}
@@ -138,14 +106,20 @@
 				<div class="tek-nav-divider"></div>
 			{/each}
 
+			<!-- Account section — username links to /account, badges listed here -->
 			<div class="tek-nav-label settings">Account</div>
 			<div class="tek-nav-group-items settings">
 				{#if data.user}
-					<!-- Clicking username opens account settings modal -->
-					<button class="tek-nav-item profile-item" onclick={openAccount} title="Account settings" style="width:100%;text-align:left;font-family:inherit">
+					<!-- Username → dedicated Edit Account page -->
+					<a class="tek-nav-item profile-item" class:active={isActive('account')} href="/account" onclick={() => sidebarOpen=false} title="Edit account">
 						<span class="nav-icon-wrap"><User size={15} strokeWidth={1.75} /></span>
 						<span class="tek-nav-label-text profile-name">{data.user.nickname ?? data.user.email}</span>
-					</button>
+					</a>
+					<!-- Badges moved here -->
+					<a class="tek-nav-item" class:active={isActive('badges')} href="/badges" onclick={() => sidebarOpen=false}>
+						<span class="nav-icon-wrap"><Award size={15} strokeWidth={1.75} /></span>
+						<span class="tek-nav-label-text">Badges</span>
+					</a>
 					<a class="tek-nav-item disconnect-item" href="/api/auth/logout">
 						<span class="nav-icon-wrap"><Power size={15} strokeWidth={1.75} /></span>
 						<span class="tek-nav-label-text">Disconnect</span>
@@ -165,77 +139,9 @@
 	</main>
 {/if}
 
-<!-- Account settings modal — triggered by clicking username -->
-{#if accountOpen}
-<div class="modal active" role="dialog" aria-modal="true">
-	<div class="modal-content" style="max-width:460px">
-		<div class="modal-header">
-			<h2 class="modal-title">Account Settings</h2>
-			<button class="close-btn" onclick={() => { accountOpen=false; delConfirm=false; }}>&times;</button>
-		</div>
-		<div class="modal-body" style="display:flex;flex-direction:column;gap:20px">
-
-			<!-- Change password -->
-			<div>
-				<div class="acc-section-title"><Lock size={13} /> Change Password</div>
-				<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
-					<div class="plan-field">
-						<label class="form-label" for="acc-cur">Current Password</label>
-						<input id="acc-cur" class="form-control" type="password" bind:value={curPwd} autocomplete="current-password" />
-					</div>
-					<div class="plan-field">
-						<label class="form-label" for="acc-new">New Password</label>
-						<input id="acc-new" class="form-control" type="password" bind:value={newPwd} autocomplete="new-password" />
-					</div>
-					{#if pwdMsg}
-						<div class="acc-msg" class:acc-err={pwdErr}>{pwdMsg}</div>
-					{/if}
-					<button class="btn btn-secondary" onclick={changePassword} disabled={pwdSaving || !curPwd || !newPwd}>
-						{pwdSaving ? 'Updating...' : 'Update Password'}
-					</button>
-				</div>
-			</div>
-
-			<!-- Divider -->
-			<div class="tek-divider"></div>
-
-			<!-- Delete account -->
-			<div>
-				<div class="acc-section-title" style="color:#f87171"><AlertTriangle size={13} /> Danger Zone</div>
-				{#if !delConfirm}
-					<div class="acc-danger-desc">Permanently delete your account, all specimens, tribe memberships, and connections. Cannot be undone.</div>
-					<button class="btn btn-danger" style="margin-top:10px" onclick={() => delConfirm=true}>Delete My Account</button>
-				{:else}
-					<div class="acc-danger-desc">Enter your password to permanently delete your account.</div>
-					<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
-						<div class="plan-field">
-							<label class="form-label" for="acc-del">Password confirmation</label>
-							<input id="acc-del" class="form-control" type="password" bind:value={delPwd} />
-						</div>
-						<div style="display:flex;gap:8px">
-							<button class="btn btn-secondary" onclick={() => { delConfirm=false; delPwd=''; }}>Cancel</button>
-							<button class="btn btn-danger" onclick={deleteAccount} disabled={delSaving || !delPwd}>{delSaving ? 'Deleting...' : 'Permanently Delete'}</button>
-						</div>
-					</div>
-				{/if}
-			</div>
-		</div>
-		<div class="modal-footer">
-			<button class="btn btn-secondary" onclick={() => { accountOpen=false; delConfirm=false; }}>Close</button>
-		</div>
-	</div>
-</div>
-{/if}
-
 <style>
 .guest-banner { margin:6px 10px 2px; padding:8px 12px; background:rgba(245,158,11,0.07); border-left:2px solid #f59e0b; font-size:0.71rem; color:#fbbf24; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
 .guest-banner a { color:#fcd34d; }
-
-/* Account modal styles */
-.acc-section-title { font-size:0.68rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#475569; display:flex; align-items:center; gap:6px; }
-.acc-msg { font-size:0.8rem; padding:8px 12px; background:rgba(34,197,94,0.08); border-left:2px solid #22c55e; color:#4ade80; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
-.acc-msg.acc-err { background:rgba(239,68,68,0.08); border-left-color:#ef4444; color:#fca5a5; }
-.acc-danger-desc { font-size:0.8rem; color:#64748b; margin-top:6px; line-height:1.5; }
 
 :global(.tek-nav-label.beta)     { color:#60a5fa; border-left:2px solid #3b82f6; background:rgba(59,130,246,0.08); padding-left:8px; border-radius:3px; }
 :global(.tek-nav-label.gamma)    { color:#4ade80; border-left:2px solid #22c55e; background:rgba(34,197,94,0.08);  padding-left:8px; border-radius:3px; }
