@@ -22,7 +22,14 @@
 		return String(db?.[sp]?.category ?? 'default');
 	}
 
-	let sending = $state(false);
+	let sending  = $state(false);
+	let rating   = $state<{ average:number|null; count:number } | null>(null);
+
+	import { onMount } from 'svelte';
+	onMount(async () => {
+		const res = await fetch(`/api/ratings?userId=${p.id}`);
+		if (res.ok) { const d = await res.json(); rating = { average: d.average, count: d.count }; }
+	});
 
 	async function sendRequest() {
 		sending = true;
@@ -71,6 +78,15 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Trade rating -->
+	{#if rating && rating.count > 0}
+		<div class="sur-rating">
+			<span class="sur-rating-stars">{'★'.repeat(Math.round(rating.average ?? 0))}{'☆'.repeat(5 - Math.round(rating.average ?? 0))}</span>
+			<span class="sur-rating-val">{rating.average?.toFixed(1)} / 5</span>
+			<span class="sur-rating-count">({rating.count} trade rating{rating.count !== 1 ? 's' : ''})</span>
+		</div>
+	{/if}
 
 	<!-- Stats -->
 	<div class="sur-stats">
@@ -186,4 +202,8 @@
 .sur-cr-meta { font-size:0.7rem; color:#64748b; white-space:nowrap; }
 .sur-cr-stats { display:flex; gap:8px; font-size:0.7rem; color:#475569; white-space:nowrap; }
 .sur-more { text-align:center; color:#334155; font-size:0.78rem; padding:10px; }
+.sur-rating { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+.sur-rating-stars { color:#f59e0b; font-size:1rem; letter-spacing:1px; }
+.sur-rating-val { font-size:0.86rem; font-weight:600; color:#f1f5f9; }
+.sur-rating-count { font-size:0.74rem; color:#64748b; }
 </style>

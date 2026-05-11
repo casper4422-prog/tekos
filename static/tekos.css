@@ -541,22 +541,67 @@ body::before {
 /* ── Mobile: collapse sidebar ───────────────────────────────────────────── */
 @media (max-width: 768px) {
     :root { --sidebar-w: 0px; }
+
     #tekSidebar {
-        transform: translateX(-220px);
-        width: 220px;
+        transform: translateX(-240px);
+        width: 240px;
+        box-shadow: none;
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    #tekSidebar.open { transform: translateX(0); }
-    #appMainContent { margin-left: 0 !important; padding: 16px; }
+    #tekSidebar.open {
+        transform: translateX(0);
+        box-shadow: 4px 0 40px rgba(0,0,0,0.6);
+    }
+    /* Backdrop when sidebar open */
+    #tekSidebar.open::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        left: 240px;
+        background: rgba(0,0,0,0.5);
+        z-index: -1;
+    }
+
+    #appMainContent {
+        margin-left: 0 !important;
+        padding: 56px 14px 20px !important;
+    }
+
     .tek-mobile-menu {
         display: flex;
         position: fixed; top: 12px; left: 12px; z-index: 300;
-        width: 36px; height: 36px;
-        background: var(--tek-surface);
-        border: 1px solid var(--tek-border);
-        border-radius: var(--tek-radius-sm);
+        width: 38px; height: 38px;
+        background: rgba(10,18,40,0.95);
+        border: 1px solid rgba(0,180,255,0.2);
+        clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
         align-items: center; justify-content: center;
-        cursor: pointer; font-size: 1rem;
+        cursor: pointer;
+        color: var(--tek-blue);
     }
+
+    /* Responsive card grids */
+    .spec-grid,
+    .dex-grid,
+    .net-grid,
+    .dir-grid,
+    .tribe-member-grid,
+    .tribe-vault-grid,
+    .tribe-browse-grid,
+    .dos-pinned-grid,
+    .dos-stats-row,
+    .ov-boss-grid,
+    .ov-records {
+        grid-template-columns: 1fr !important;
+    }
+
+    .spec-stats { grid-template-columns: repeat(4,1fr); }
+    .dos-body { grid-template-columns: 1fr; }
+    .fw-arch-grid { grid-template-columns: repeat(2,1fr); }
+    .war-tips-grid { grid-template-columns: 1fr; }
+    .lb-head, .lb-row-inner { font-size: 0.72rem; }
+
+    /* Page header stacks on mobile */
+    .std-page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
 }
 @media (min-width: 769px) { .tek-mobile-menu { display: none; } }
 

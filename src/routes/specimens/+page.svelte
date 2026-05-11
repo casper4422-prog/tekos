@@ -39,14 +39,19 @@
 	let fMuts        = $state<Record<string,number>>({ Health:0, Stamina:0, Oxygen:0, Food:0, Weight:0, Melee:0, Crafting:0 });
 	let speciesList  = $state<string[]>([]);
 
-	let isGuest = $state(false);
+	let isGuest     = $state(false);
+	let userTribeId = $state<number|null>(null);
 
-	onMount(() => {
+	onMount(async () => {
 		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,unknown> | undefined;
 		if (db) speciesList = Object.keys(db).sort();
 
 		// Guest mode: load from localStorage instead of API
 		isGuest = localStorage.getItem('tekos_guest') === '1';
+		if (!isGuest) {
+			const tm = await fetch('/api/tribes/my');
+			if (tm.ok) { const d = await tm.json(); userTribeId = d?.id ?? null; }
+		}
 		if (isGuest) {
 			const saved = localStorage.getItem('tekos_specimens');
 			if (saved) {
@@ -141,12 +146,15 @@
 
 	async function deleteCreature(c: Creature) {
 		if (!confirm(`Delete ${String(c.name ?? String(c.species))}? This cannot be undone.`)) return;
-		if (isGuest) {
-			creatures = creatures.filter(x => x.id !== c.id);
-			saveGuestCreatures(); return;
-		}
+		if (isGuest) { creatures = creatures.filter(x => x.id !== c.id); saveGuestCreatures(); return; }
 		const res = await fetch(`/api/creatures/${c.id}`, { method:'DELETE' });
 		if (res.ok) creatures = creatures.filter(x => x.id !== c.id);
+	}
+
+	async function shareToTribe(c: Creature) {
+		const res = await fetch('/api/tribe-creatures', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ creatureId:c.id }) });
+		if (res.ok) alert(`${String((c as Record<string,unknown>).species ?? 'Specimen')} shared to tribe vault!`);
+		else alert((await res.json()).error ?? 'Failed to share');
 	}
 </script>
 
@@ -228,6 +236,8 @@
 							</div>
 							<div class="spec-actions">
 								<button class="btn btn-secondary btn-sm" onclick={() => openEdit(c)}>Edit</button>
+								<a href="/specimens/{c.id}" class="btn btn-secondary btn-sm" target="_blank" title="Public page">↗</a>
+								{#if userTribeId}<button class="btn btn-secondary btn-sm" onclick={() => shareToTribe(c)} title="Share to tribe vault">🛡</button>{/if}
 								<button class="btn btn-danger btn-sm" onclick={() => deleteCreature(c)}>Delete</button>
 							</div>
 						</div>

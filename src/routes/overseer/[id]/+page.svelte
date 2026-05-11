@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Send, X, Dna, Users, ScrollText, Lightbulb } from 'lucide-svelte';
+	import { Send, X, Dna, Users, ScrollText, UserPlus } from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
@@ -76,13 +76,32 @@
 		const bossId = String(session.bossId ?? '');
 		return BOSS_TIPS[bossId] ?? BOSS_TIPS.default;
 	}
-	let draft       = $state('');
-	let addOpen     = $state(false);
-	let logOpen     = $state(false);
-	let sending     = $state(false);
-	let closed      = $state(session.status === 'closed');
+	let draft        = $state('');
+	let addOpen      = $state(false);
+	let logOpen      = $state(false);
+	let inviteOpen   = $state(false);
+	let sending      = $state(false);
+	let closed       = $state(session.status === 'closed');
 	let bottom: HTMLDivElement;
 	let pollTimer: ReturnType<typeof setInterval>;
+
+	// Invite friends
+	type FriendEntry = { id:number; friendId:number; nickname:string|null; email:string };
+	let friends  = $state<FriendEntry[]>([]);
+	let inviting = $state<number|null>(null);
+
+	async function loadFriends() {
+		const res = await fetch('/api/friends?status=accepted');
+		if (res.ok) friends = await res.json();
+		inviteOpen = true;
+	}
+
+	async function inviteFriend(friendId: number) {
+		inviting = friendId;
+		await fetch(`/api/arena/sessions/${session.id}/invite`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ friendUserId:friendId }) });
+		inviting = null;
+		alert('Invite sent! They\'ll see it in Notifications.');
+	}
 
 	// Log fight form
 	let logOutcome = $state<'success'|'failed'>('success');
@@ -152,7 +171,10 @@
 			<div class="war-boss">{String(session.bossName)}</div>
 			<div class="war-meta">{String(session.difficulty).toUpperCase()} · Code: <strong>{String(session.joinCode)}</strong> · {members.length} online</div>
 		</div>
-		<button class="btn btn-secondary btn-sm" onclick={() => { logOpen=true; logOutcome='success'; logNotes=''; }}>
+		<button class="btn btn-secondary" onclick={loadFriends}>
+			<UserPlus size={13} /> Invite
+		</button>
+		<button class="btn btn-secondary" onclick={() => { logOpen=true; logOutcome='success'; logNotes=''; }}>
 			<ScrollText size={13} /> Log Fight
 		</button>
 		{#if isCreator && !closed}
@@ -297,6 +319,38 @@
 				</div>
 			{/if}
 		</div>
+	</div>
+</div>
+{/if}
+
+<!-- Invite friends modal -->
+{#if inviteOpen}
+<div class="modal active" role="dialog" aria-modal="true">
+	<div class="modal-content" style="max-width:440px">
+		<div class="modal-header">
+			<h2 class="modal-title">Invite to War Room</h2>
+			<button class="close-btn" onclick={() => inviteOpen=false}>&times;</button>
+		</div>
+		<div class="modal-body">
+			<div style="color:#64748b;font-size:0.8rem;margin-bottom:14px">Join code: <strong style="color:#f1f5f9;font-family:monospace">{String(session.joinCode)}</strong> — share this code or invite directly:</div>
+			{#if friends.length === 0}
+				<div style="color:#475569;font-size:0.86rem">No friends yet. Add them from the Network page.</div>
+			{:else}
+				<div style="display:flex;flex-direction:column;gap:5px">
+					{#each friends as f}
+						<div class="cham-shell" style="--cut:5px">
+							<div style="background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1));padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+								<span style="font-size:0.88rem;color:#f1f5f9">{f.nickname ?? f.email}</span>
+								<button class="btn btn-primary btn-sm" onclick={() => inviteFriend(f.friendId)} disabled={inviting === f.friendId}>
+									{inviting === f.friendId ? 'Sending...' : 'Invite'}
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+		<div class="modal-footer"><button class="btn btn-secondary" onclick={() => inviteOpen=false}>Close</button></div>
 	</div>
 </div>
 {/if}

@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-	import { Shield, Users, Dna, Plus, Check, X, LogOut, Megaphone, AlertTriangle, ChevronRight, Wand2 } from 'lucide-svelte';
+	import { Shield, Users, Dna, Plus, Check, X, LogOut, Megaphone, AlertTriangle, ChevronRight, Wand2, Swords } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 
@@ -14,9 +14,13 @@
 	const myId      = data.myId as number;
 	let allTribes   = $state(data.allTribes as AllTribe[] | null);
 
-	let activeTab   = $state<'members'|'vault'|'requests'|'announce'|'blacklist'>('members');
-	let blacklist   = $state<BlackEntry[]>([]);
-	let blLoaded    = $state(false);
+	let activeTab   = $state<'members'|'vault'|'requests'|'announce'|'blacklist'|'alliances'>('members');
+	let blacklist    = $state<BlackEntry[]>([]);
+	let blLoaded     = $state(false);
+	let alliances    = $state<Record<string,unknown>[]>([]);
+	let alliancesLoaded = $state(false);
+	let allTribesForAlliance = $state<AllTribe[]>([]);
+	let allianceSearch = $state('');
 
 	// Multi-step create flow
 	let createStep  = $state(0); // 0=closed, 1=basics, 2=identity, 3=rules
@@ -101,9 +105,35 @@
 		blacklist = blacklist.filter(b => b.id !== entryId);
 	}
 
+	async function loadAlliances() {
+		if (alliancesLoaded) return;
+		const [ar, tr] = await Promise.all([ fetch('/api/alliances'), fetch('/api/tribes') ]);
+		if (ar.ok) alliances = await ar.json();
+		if (tr.ok) allTribesForAlliance = await tr.json();
+		alliancesLoaded = true;
+	}
+
+	async function requestAlliance(targetId: number) {
+		const res = await fetch('/api/alliances', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ targetTribeId:targetId }) });
+		if (res.ok) { await loadAlliances(); alliancesLoaded = false; loadAlliances(); }
+		else alert((await res.json()).error ?? 'Failed');
+	}
+
+	async function respondAlliance(id: number, action: 'accept'|'reject') {
+		await fetch(`/api/alliances/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action }) });
+		alliancesLoaded = false; loadAlliances();
+	}
+
+	async function breakAlliance(id: number) {
+		if (!confirm('Break this alliance?')) return;
+		await fetch(`/api/alliances/${id}`, { method:'DELETE' });
+		alliancesLoaded = false; loadAlliances();
+	}
+
 	function onTabChange(tab: typeof activeTab) {
 		activeTab = tab;
 		if (tab === 'blacklist') loadBlacklist();
+		if (tab === 'alliances') loadAlliances();
 	}
 </script>
 
@@ -129,6 +159,7 @@
 	<div class="tek-tab-bar">
 		<button class="tek-tab" class:active={activeTab==='members'} onclick={() => onTabChange('members')}><Users size={13} /> Members ({tribe.members.length})</button>
 		<button class="tek-tab" class:active={activeTab==='vault'} onclick={() => onTabChange('vault')}><Dna size={13} /> Vault ({tribe.creatures.length})</button>
+		<button class="tek-tab" class:active={activeTab==='alliances'} onclick={() => onTabChange('alliances')}><Swords size={13} /> Alliances</button>
 		{#if isAdmin}
 			<button class="tek-tab" class:active={activeTab==='requests'} onclick={() => onTabChange('requests')}>
 				<Shield size={13} /> Requests
@@ -194,6 +225,88 @@
 				</div>
 			{/each}
 		{/if}
+
+	{:else if activeTab === 'alliances'}
+		<!-- Alliance tab -->
+		<div class="tribe-al-section">
+			{#if alliances.filter((a:Record<string,unknown>) => a.status === 'accepted').length > 0}
+				<div class="tribe-section-label">Active Alliances</div>
+				{#each alliances.filter((a:Record<string,unknown>) => a.status === 'accepted') as al}
+					{@const ald = al as Record<string,unknown>}
+					{@const partner = ald.partnerTribe as Record<string,unknown>}
+					<div class="cham-shell tribe-al-row" style="--cut:6px">
+						<div class="tribe-al-inner">
+							<Swords size={14} style="color:#a78bfa;flex-shrink:0" />
+							<div class="tribe-al-info">
+								<div class="tribe-al-name">{String(partner.name)}</div>
+								{#if partner.mainMap}<div class="tribe-al-map">{String(partner.mainMap)}</div>{/if}
+							</div>
+							{#if isAdmin}<button class="btn btn-danger btn-sm" onclick={() => breakAlliance(Number(ald.id))}>Break</button>{/if}
+						</div>
+					</div>
+				{/each}
+			{/if}
+
+			{#if alliances.filter((a:Record<string,unknown>) => a.status === 'pending' && !(a.isRequester as boolean)).length > 0}
+				<div class="tribe-section-label" style="margin-top:16px">Incoming Alliance Requests</div>
+				{#each alliances.filter((a:Record<string,unknown>) => a.status === 'pending' && !(a.isRequester as boolean)) as al}
+					{@const ald = al as Record<string,unknown>}
+					{@const partner = ald.partnerTribe as Record<string,unknown>}
+					<div class="cham-shell tribe-al-row" style="--cut:6px">
+						<div class="tribe-al-inner">
+							<div class="tribe-al-info">
+								<div class="tribe-al-name">{String(partner.name)} wants an alliance</div>
+							</div>
+							{#if isAdmin}
+								<button class="btn btn-success btn-sm" onclick={() => respondAlliance(Number(ald.id),'accept')}><Check size={13}/></button>
+								<button class="btn btn-danger  btn-sm" onclick={() => respondAlliance(Number(ald.id),'reject')}><X size={13}/></button>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			{/if}
+
+			{#if alliances.filter((a:Record<string,unknown>) => a.status === 'pending' && (a.isRequester as boolean)).length > 0}
+				<div class="tribe-section-label" style="margin-top:16px">Pending Sent Requests</div>
+				{#each alliances.filter((a:Record<string,unknown>) => a.status === 'pending' && (a.isRequester as boolean)) as al}
+					{@const ald = al as Record<string,unknown>}
+					{@const partner = ald.partnerTribe as Record<string,unknown>}
+					<div class="cham-shell tribe-al-row" style="--cut:6px">
+						<div class="tribe-al-inner">
+							<div class="tribe-al-info"><div class="tribe-al-name">{String(partner.name)}</div><div class="tribe-al-map">Awaiting response...</div></div>
+							<button class="btn btn-danger btn-sm" onclick={() => breakAlliance(Number(ald.id))}>Cancel</button>
+						</div>
+					</div>
+				{/each}
+			{/if}
+
+			{#if isAdmin}
+				<div class="tribe-section-label" style="margin-top:20px">Request Alliance with a Tribe</div>
+				<input class="form-control" placeholder="Search tribes..." bind:value={allianceSearch} style="margin-bottom:10px;max-width:300px" />
+				<div style="display:flex;flex-direction:column;gap:5px">
+					{#each allTribesForAlliance.filter(t => t.id !== tribe.id && (t.name.toLowerCase().includes(allianceSearch.toLowerCase()) || !allianceSearch)).slice(0,10) as t}
+						{@const alreadyAllied = alliances.some((a:Record<string,unknown>) => (a.partnerTribe as Record<string,unknown>)?.id === t.id)}
+						<div class="cham-shell tribe-al-row" style="--cut:5px">
+							<div class="tribe-al-inner">
+								<div class="tribe-al-info">
+									<div class="tribe-al-name">{t.name}</div>
+									{#if t.mainMap}<div class="tribe-al-map">{t.mainMap}</div>{/if}
+								</div>
+								{#if alreadyAllied}
+									<span style="font-size:0.72rem;color:#64748b">Already allied</span>
+								{:else}
+									<button class="btn btn-primary btn-sm" onclick={() => requestAlliance(t.id)}><Swords size={12}/> Request</button>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+
+			{#if alliances.length === 0 && !isAdmin}
+				<div class="tribe-empty">No alliances yet. Ask a tribe admin to request one.</div>
+			{/if}
+		</div>
 
 	{:else if activeTab === 'announce'}
 		<div class="tribe-announce">
@@ -414,6 +527,13 @@
 .tribe-bc-desc { font-size:0.82rem; color:#64748b; line-height:1.5; }
 .tribe-bc-footer { display:flex; align-items:center; justify-content:space-between; margin-top:6px; }
 .tribe-bc-count { display:flex; align-items:center; gap:5px; font-size:0.75rem; color:#64748b; }
+.tribe-section-label { font-size:0.62rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#334155; margin-bottom:8px; }
+.tribe-al-section { display:flex; flex-direction:column; gap:4px; }
+.tribe-al-row { margin-bottom:4px; }
+.tribe-al-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:11px 14px; display:flex; align-items:center; gap:10px; }
+.tribe-al-info { flex:1; min-width:0; }
+.tribe-al-name { font-size:0.88rem; font-weight:600; color:#f1f5f9; }
+.tribe-al-map { font-size:0.7rem; color:#64748b; margin-top:1px; }
 
 /* Multi-step creation */
 .tribe-steps { display:flex; align-items:center; gap:0; margin-bottom:20px; }

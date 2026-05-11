@@ -1,0 +1,14 @@
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { db } from '$lib/db';
+
+export const POST: RequestHandler = async ({ request, locals }) => {
+	const uid = locals.user!.id;
+	const { creatureId } = await request.json();
+	const membership = await db.tribeMembership.findFirst({ where: { userId: uid } });
+	if (!membership) return json({ error: 'Not in a tribe' }, { status: 400 });
+	const creature = await db.creature.findFirst({ where: { id: creatureId, userId: uid } });
+	if (!creature) return json({ error: 'Creature not found' }, { status: 404 });
+	const tc = await db.tribeCreature.create({ data: { tribeId: membership.tribeId, createdByUserId: uid, creatureId, data: creature.data } });
+	return json(tc, { status: 201 });
+};
