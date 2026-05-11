@@ -3,7 +3,7 @@
 		User, Dna, BookOpen,
 		Users, Shield, Rss,
 		Repeat2, Sword, Bell, Hexagon,
-		Power, Award, Palette
+		Power, Award, Palette, Flag
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { LayoutData } from './$types';
@@ -85,6 +85,15 @@
 		{/if}
 
 		<div class="tek-nav">
+			<!-- Beta feedback link -->
+			{#if data.user}
+				{@const feedbackName = encodeURIComponent(data.user.nickname ?? data.user.email)}
+				<a class="feedback-btn" href="https://casper4422-prog.github.io/tekos-feedback?name={feedbackName}" target="_blank" rel="noopener">
+					<Flag size={13} strokeWidth={1.75} />
+					Report Test Issue
+				</a>
+			{/if}
+
 			{#each NAV as group}
 				<div class="tek-nav-label {group.color}">{group.section}</div>
 				<div class="tek-nav-group-items {group.color}">
@@ -165,6 +174,8 @@
 :global(.tek-nav-group-items.alpha    .tek-nav-item:hover), :global(.tek-nav-group-items.alpha    .tek-nav-item.active) { background:rgba(239,68,68,0.13);  color:#fca5a5; }
 :global(.tek-nav-group-items.settings .tek-nav-item:hover), :global(.tek-nav-group-items.settings .tek-nav-item.active) { background:rgba(139,92,246,0.13); color:#d8b4fe; }
 
+:global(.feedback-btn) { display:flex; align-items:center; gap:7px; margin:8px 10px 10px; padding:7px 12px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); color:#fbbf24; font-size:0.72rem; font-weight:600; letter-spacing:0.04em; text-decoration:none; clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%); transition:background 0.2s; }
+:global(.feedback-btn:hover) { background:rgba(245,158,11,0.15); }
 :global(.profile-name)     { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 :global(.disconnect-item)  { color:#f87171 !important; }
 :global(.disconnect-item:hover) { background:rgba(239,68,68,0.12) !important; }
