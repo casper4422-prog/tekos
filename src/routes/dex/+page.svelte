@@ -116,9 +116,16 @@
 			{/each}
 		</div>
 	{/if}
+
+	{#if category === 'transport' || category === 'all'}
+		<div class="dex-asa-notice">
+			Newer ASA companion creatures (Draklings, Veilwyns, Armodoggo) are not yet in the species database. The database was built from the original V2 data set and will be updated as ASA adds more creatures.
+		</div>
+	{/if}
 </div>
 
 <style>
+.dex-asa-notice { margin-top:24px; font-size:0.76rem; color:#334155; background:rgba(255,255,255,0.02); border-left:2px solid rgba(0,180,255,0.15); padding:10px 14px; line-height:1.6; max-width:600px; }
 /* Controls */
 .dex-controls { display:flex; flex-direction:column; gap:12px; margin-bottom:28px; }
 .dex-search { max-width:380px; }

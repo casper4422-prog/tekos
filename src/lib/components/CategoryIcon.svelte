@@ -1,16 +1,21 @@
 <script lang="ts">
-	import { Sword, Wind, Wrench, Waves, Zap, Skull, Gem, Hexagon } from 'lucide-svelte';
+	import { Sword, Wrench, Zap, Skull, Gem, Hexagon, Leaf, PawPrint } from 'lucide-svelte';
 
 	let { category = '', size = 14, strokeWidth = 1.75 }: { category: string; size?: number; strokeWidth?: number } = $props();
 
+	// Maps actual species-database.js category values to icons
+	// combat, utility, transport (Companions), harvesting, boss
 	const MAP: Record<string, typeof Sword> = {
-		combat:   Sword,
-		flyer:    Wind,
-		utility:  Wrench,
-		water:    Waves,
-		mount:    Zap,
-		boss:     Skull,
-		resource: Gem,
+		combat:     Sword,
+		utility:    Wrench,
+		transport:  PawPrint,  // Companions — rideable/companion creatures
+		harvesting: Leaf,
+		boss:       Skull,
+		resource:   Gem,
+		// Legacy V2 names (kept for any remaining references)
+		flyer:      Zap,
+		water:      Zap,
+		mount:      PawPrint,
 	};
 
 	const Icon = MAP[category] ?? Hexagon;

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import {
 		User, Dna, BookOpen, Users, UserPlus, MessageSquare, Shield,
-		Repeat2, Sword, Trophy, Bell, Power, Hexagon, Rss
+		Repeat2, Sword, Trophy, Bell, Power, Hexagon, Rss, Settings
 	} from 'lucide-svelte';
+	import { onMount } from 'svelte';
 	import type { LayoutData } from './$types';
 	import { page } from '$app/stores';
 
@@ -29,6 +30,27 @@
 	];
 
 	let sidebarOpen = $state(false);
+
+	// Apply saved color theme on load
+	onMount(async () => {
+		const res = await fetch('/api/settings');
+		if (!res.ok) return;
+		const { theme } = await res.json();
+		if (!theme) return;
+		const hexToRgb = (hex: string) => {
+			const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+			return `${r},${g},${b}`;
+		};
+		const root = document.documentElement;
+		if (theme.primary) {
+			root.style.setProperty('--tek-blue', theme.primary);
+			root.style.setProperty('--tek-blue-dim',    `rgba(${hexToRgb(theme.primary)},0.12)`);
+			root.style.setProperty('--tek-blue-border', `rgba(${hexToRgb(theme.primary)},0.22)`);
+			root.style.setProperty('--tek-blue-glow',   `rgba(${hexToRgb(theme.primary)},0.35)`);
+		}
+		if (theme.accent) root.style.setProperty('--tek-purple', theme.accent);
+		if (theme.bg)     root.style.setProperty('--tek-bg', theme.bg);
+	});
 
 	function isActive(p: string) {
 		return $page.url.pathname.startsWith(`/${p}`);
@@ -78,6 +100,10 @@
 			<!-- Settings -->
 			<div class="tek-nav-label settings">Settings</div>
 			<div class="tek-nav-group-items settings">
+				<a class="tek-nav-item" class:active={isActive('settings')} href="/settings" onclick={() => sidebarOpen = false}>
+					<span class="nav-icon-wrap"><Settings size={15} strokeWidth={1.75} /></span>
+					<span class="tek-nav-label-text">Theme</span>
+				</a>
 				<a class="tek-nav-item" class:active={isActive('notifications')} href="/notifications" onclick={() => sidebarOpen = false}>
 					<span class="nav-icon-wrap"><Bell size={15} strokeWidth={1.75} /></span>
 					<span class="tek-nav-label-text">Notifications</span>
