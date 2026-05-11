@@ -10,13 +10,13 @@
 	const CAT_RGB:   Record<string,string> = { combat:'239,68,68', flyer:'6,182,212', utility:'34,197,94', water:'59,130,246', boss:'245,158,11', mount:'249,115,22', resource:'167,139,250' };
 
 	const STATS = [
-		{ key:'Health',   label:'HP',      pct:false },
-		{ key:'Stamina',  label:'Stamina',  pct:false },
-		{ key:'Oxygen',   label:'Oxygen',   pct:false },
-		{ key:'Food',     label:'Food',     pct:false },
-		{ key:'Weight',   label:'Weight',   pct:false },
-		{ key:'Melee',    label:'Melee',    pct:true  },
-		{ key:'Crafting', label:'Crafting', pct:true  },
+		{ key:'Health',   label:'HP'       },
+		{ key:'Stamina',  label:'Stamina'  },
+		{ key:'Oxygen',   label:'Oxygen'   },
+		{ key:'Food',     label:'Food'     },
+		{ key:'Weight',   label:'Weight'   },
+		{ key:'Melee',    label:'Melee'    },
+		{ key:'Crafting', label:'Crafting' },
 	];
 
 	let creatures   = $state<Creature[]>(data.creatures as Creature[]);
@@ -170,7 +170,7 @@
 							{#each STATS as s}
 								<div class="spec-stat-item">
 									<span class="spec-stat-lbl">{s.label}</span>
-									<span class="spec-stat-val">{(bs[s.key] ?? 0).toLocaleString()}{s.pct ? '%' : ''}</span>
+									<span class="spec-stat-val">{(bs[s.key] ?? 0).toLocaleString()}</span>
 									{#if (mut[s.key] ?? 0) > 0}<span class="spec-mut-pip">+{mut[s.key]}</span>{/if}
 								</div>
 							{/each}
@@ -276,7 +276,7 @@
 			<div class="mform-stats-head"><span></span><span>Base Value</span><span>Mutations</span></div>
 			{#each STATS as s}
 				<div class="mform-stats-row">
-					<span class="mform-stat-name">{s.label}{s.pct ? ' (%)' : ''}</span>
+					<span class="mform-stat-name">{s.label}</span>
 					<input class="form-control mform-stat-input" type="number" bind:value={fStats[s.key]} min="0" />
 					<input class="form-control mform-stat-input" type="number" bind:value={fMuts[s.key]} min="0" max="20" />
 				</div>
