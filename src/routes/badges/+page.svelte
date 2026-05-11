@@ -106,30 +106,30 @@
 			<div class="bg-formula-title">The Score Formula</div>
 			<div class="bg-formula-equation">
 				Score&nbsp;=&nbsp;
-				<span class="bg-eq base">Base Stat</span>
+				<span class="bg-eq base">Base Levels</span>
 				&nbsp;+&nbsp;
-				<span class="bg-eq mut">(Mutation Levels × 2)</span>
+				<span class="bg-eq mut">Mutation Levels</span>
 				&nbsp;+&nbsp;
 				<span class="bg-eq dom">Domestic Levels</span>
 			</div>
 
 			<div class="bg-explainers">
 				<div class="bg-exp">
-					<div class="bg-exp-label" style="color:#60a5fa">Base Stat</div>
-					<div class="bg-exp-text">The raw stat a creature was born or tamed with, before you level it up post-tame. You enter this in the <em>Base Stat</em> column when adding a specimen.</div>
+					<div class="bg-exp-label" style="color:#60a5fa">Base Levels</div>
+					<div class="bg-exp-text">The raw stat levels a creature was born or tamed with, before you level it up post-tame. Enter this in the <em>Base Stat</em> column when adding a specimen.</div>
 				</div>
 				<div class="bg-exp">
-					<div class="bg-exp-label" style="color:#c084fc">Mutation Levels × 2</div>
-					<div class="bg-exp-text">In ARK, each time a stat mutates during breeding it gains <strong>2 extra stat levels</strong>. Enter the mutation count per stat in the <em>Mutations</em> column — TekOS multiplies by 2 automatically. Example: 3 HP mutations = +6 to the HP score.</div>
+					<div class="bg-exp-label" style="color:#c084fc">Mutation Levels</div>
+					<div class="bg-exp-text">Stat levels gained through breeding mutations. Each time a stat mutates during breeding it gains levels — enter the total mutation levels per stat in the <em>Mutations</em> column.</div>
 				</div>
 				<div class="bg-exp">
 					<div class="bg-exp-label" style="color:#4ade80">Domestic Levels</div>
-					<div class="bg-exp-text">Levels you manually allocate to a stat after taming. Each level = 1 point added to the score. Tracked in the <em>Domestic Levels</em> column.</div>
+					<div class="bg-exp-text">Levels you manually allocate to a stat after taming. Tracked in the <em>Domestic Levels</em> column.</div>
 				</div>
 			</div>
 
 			<div class="bg-example">
-				<strong>Example —</strong> A Rex with <span style="color:#60a5fa">40 base HP</span>, <span style="color:#c084fc">3 HP mutations</span>, and <span style="color:#4ade80">20 domestic HP levels</span> has an HP score of 40 + (3 × 2) + 20 = <strong>66</strong>.
+				<strong>Example —</strong> A Rex with <span style="color:#60a5fa">40 base levels in HP</span>, <span style="color:#c084fc">6 mutation levels in HP</span>, and <span style="color:#4ade80">20 domestic HP levels</span> has an HP score of 40 + 6 + 20 = <strong>66</strong>.
 			</div>
 		</div>
 	</div>
