@@ -39,13 +39,29 @@
 	let fMuts        = $state<Record<string,number>>({ Health:0, Stamina:0, Oxygen:0, Food:0, Weight:0, Melee:0, Crafting:0 });
 	let speciesList  = $state<string[]>([]);
 
+	let isGuest = $state(false);
+
 	onMount(() => {
 		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,unknown> | undefined;
 		if (db) speciesList = Object.keys(db).sort();
+
+		// Guest mode: load from localStorage instead of API
+		isGuest = localStorage.getItem('tekos_guest') === '1';
+		if (isGuest) {
+			const saved = localStorage.getItem('tekos_specimens');
+			if (saved) {
+				try { creatures = JSON.parse(saved); } catch {}
+			}
+		}
+
 		const params = new URLSearchParams(window.location.search);
 		const pre = params.get('species');
 		if (pre) { resetForm(); fSpecies = pre; modalOpen = true; isEdit = false; }
 	});
+
+	function saveGuestCreatures() {
+		localStorage.setItem('tekos_specimens', JSON.stringify(creatures));
+	}
 
 	function getCat(sp: string): string {
 		if (typeof window === 'undefined') return 'default';
@@ -97,6 +113,20 @@
 	async function saveCreature() {
 		if (!fName.trim() || !fSpecies.trim()) { formErr='Name and species are required.'; return; }
 		saving=true; formErr='';
+
+		if (isGuest) {
+			// localStorage mode
+			const payload = buildPayload();
+			if (isEdit && editTarget) {
+				creatures = creatures.map(c => c.id === editTarget!.id ? { ...payload, id:editTarget!.id } : c);
+			} else {
+				const newId = Date.now();
+				creatures = [{ ...payload, id:newId }, ...creatures];
+			}
+			saveGuestCreatures();
+			modalOpen=false; saving=false; return;
+		}
+
 		if (isEdit && editTarget) {
 			const res = await fetch(`/api/creatures/${editTarget.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildPayload()) });
 			if (res.ok) { const u = await res.json(); creatures = creatures.map(c => c.id === editTarget!.id ? {...u, id:editTarget!.id} : c); modalOpen=false; }
@@ -111,6 +141,10 @@
 
 	async function deleteCreature(c: Creature) {
 		if (!confirm(`Delete ${String(c.name ?? String(c.species))}? This cannot be undone.`)) return;
+		if (isGuest) {
+			creatures = creatures.filter(x => x.id !== c.id);
+			saveGuestCreatures(); return;
+		}
 		const res = await fetch(`/api/creatures/${c.id}`, { method:'DELETE' });
 		if (res.ok) creatures = creatures.filter(x => x.id !== c.id);
 	}
@@ -122,7 +156,7 @@
 			<h1>Specimens</h1>
 			<div class="page-subtitle">{creatures.length} creature{creatures.length !== 1 ? 's' : ''} in vault</div>
 		</div>
-		<a href="/dex" class="btn btn-secondary btn-sm">Browse Dex to Add</a>
+		{#if !isGuest}<a href="/dex" class="btn btn-secondary btn-sm">Browse Dex to Add</a>{/if}
 	</div>
 
 	<div class="spec-controls">

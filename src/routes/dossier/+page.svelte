@@ -12,10 +12,33 @@
 	const recentTrades = data.recentTrades as Record<string,unknown>[];
 	const topSpecies   = data.topSpecies as [string,number][];
 
-	let editOpen = $state(false);
-	let pinOpen  = $state(false);
-	let saving   = $state(false);
-	let err      = $state('');
+	let editOpen  = $state(false);
+	let pinOpen   = $state(false);
+	let saving    = $state(false);
+	let err       = $state('');
+	let isGuest   = $state(false);
+
+	// Guest local profile (stored in localStorage)
+	let guestName  = $state('Survivor');
+	let guestBio   = $state('');
+	let guestCreatures = $state<Record<string,unknown>[]>([]);
+
+	import { onMount } from 'svelte';
+	onMount(() => {
+		isGuest = localStorage.getItem('tekos_guest') === '1';
+		if (isGuest) {
+			guestName = localStorage.getItem('tekos_guest_name') ?? 'Survivor';
+			guestBio  = localStorage.getItem('tekos_guest_bio') ?? '';
+			const saved = localStorage.getItem('tekos_specimens');
+			if (saved) { try { guestCreatures = JSON.parse(saved); } catch {} }
+		}
+	});
+
+	function saveGuestProfile() {
+		localStorage.setItem('tekos_guest_name', guestName);
+		localStorage.setItem('tekos_guest_bio', guestBio);
+		editOpen = false;
+	}
 
 	let nickname   = $state(String(profile?.nickname ?? ''));
 	let bio        = $state(String(profile?.bio ?? ''));
@@ -65,6 +88,36 @@
 
 <div class="std-page dos-page">
 
+	{#if isGuest}
+		<!-- ── Guest Mode Dossier ──────────────────────────────────────────── -->
+		<div class="dos-guest-banner">
+			Guest Mode — your data is saved locally on this device only.
+			<a href="/login" onclick={() => localStorage.removeItem('tekos_guest')}>Sign in</a> to sync across devices and unlock all features.
+		</div>
+
+		<div class="dos-sheet-header">
+			<div class="dos-avatar-col"><div class="dos-avatar"><User size={32} /></div></div>
+			<div class="dos-identity">
+				<div class="dos-callsign">{guestName || 'Survivor'}</div>
+				<div class="dos-joined">Local Guest Profile</div>
+				{#if guestBio}<p class="dos-bio-text" style="margin-top:8px;font-size:0.86rem;color:#94a3b8">"{guestBio}"</p>{/if}
+			</div>
+			<div class="dos-header-actions">
+				<button class="btn btn-secondary btn-sm" onclick={() => editOpen=true}><Edit2 size={13} /> Edit</button>
+			</div>
+		</div>
+
+		<div class="dos-stats-row">
+			<div class="cham-shell dos-stat-tile" style="--cut:7px">
+				<div class="dos-stat-inner"><Dna size={15} class="dos-stat-icon" /><div class="dos-stat-val">{guestCreatures.length}</div><div class="dos-stat-lbl">Specimens</div></div>
+			</div>
+		</div>
+
+		<div class="dos-section-row">
+			<div class="dos-section-label"><a href="/specimens" style="color:inherit;text-decoration:none">→ Go to Specimens to manage your local vault</a></div>
+		</div>
+
+	{:else}
 	<!-- ── Character sheet header ─────────────────────────────────────────── -->
 	<div class="dos-sheet-header">
 		<div class="dos-avatar-col">
@@ -243,20 +296,30 @@
 			{/if}
 		</div>
 	</div>
+	{/if}<!-- end of authenticated/guest split -->
 </div>
 
-<!-- Edit modal -->
+<!-- Edit modal — works for both guest and authenticated -->
 {#if editOpen}
 <div class="modal active" role="dialog" aria-modal="true">
 	<div class="modal-content" style="max-width:480px">
 		<div class="modal-header"><h2 class="modal-title">Edit Profile</h2><button class="close-btn" onclick={() => editOpen=false}>&times;</button></div>
 		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
-			<div class="plan-field"><label class="form-label" for="e-nick">Callsign</label><input id="e-nick" class="form-control" bind:value={nickname} placeholder="Leave blank to use email" /></div>
-			<div class="plan-field"><label class="form-label" for="e-bio">Bio</label><textarea id="e-bio" class="form-control" rows="3" bind:value={bio}></textarea></div>
-			<div class="plan-field"><label class="form-label" for="e-lf">Looking For</label><input id="e-lf" class="form-control" bind:value={lookingFor} placeholder="e.g. Mutation breeding partner, boss tribe..." /></div>
-			{#if err}<div class="tek-login-error">{err}</div>{/if}
+			{#if isGuest}
+				<div class="plan-field"><label class="form-label" for="e-gname">Callsign</label><input id="e-gname" class="form-control" bind:value={guestName} placeholder="What should survivors call you?" /></div>
+				<div class="plan-field"><label class="form-label" for="e-gbio">Bio</label><textarea id="e-gbio" class="form-control" rows="3" bind:value={guestBio} placeholder="Tell survivors about yourself..."></textarea></div>
+				<div class="tek-login-error" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.3);color:#fbbf24">Guest profile is stored locally on this device only.</div>
+			{:else}
+				<div class="plan-field"><label class="form-label" for="e-nick">Callsign</label><input id="e-nick" class="form-control" bind:value={nickname} placeholder="Leave blank to use email" /></div>
+				<div class="plan-field"><label class="form-label" for="e-bio">Bio</label><textarea id="e-bio" class="form-control" rows="3" bind:value={bio}></textarea></div>
+				<div class="plan-field"><label class="form-label" for="e-lf">Looking For</label><input id="e-lf" class="form-control" bind:value={lookingFor} placeholder="e.g. Mutation breeding partner, boss tribe..." /></div>
+				{#if err}<div class="tek-login-error">{err}</div>{/if}
+			{/if}
 		</div>
-		<div class="modal-footer"><button class="btn btn-secondary" onclick={() => editOpen=false}>Cancel</button><button class="btn btn-primary" onclick={saveProfile} disabled={saving}>{saving?'Saving...':'Save'}</button></div>
+		<div class="modal-footer">
+			<button class="btn btn-secondary" onclick={() => editOpen=false}>Cancel</button>
+			<button class="btn btn-primary" onclick={isGuest ? saveGuestProfile : saveProfile} disabled={saving}>{saving?'Saving...':'Save'}</button>
+		</div>
 	</div>
 </div>
 {/if}
@@ -288,6 +351,8 @@
 
 <style>
 .dos-page { max-width:900px; }
+.dos-guest-banner { background:rgba(245,158,11,0.07); border-left:2px solid #f59e0b; padding:10px 14px; font-size:0.78rem; color:#fbbf24; margin-bottom:16px; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
+.dos-guest-banner a { color:#fcd34d; font-weight:600; }
 
 /* ── Character sheet header ──────────────────────────────────────────── */
 .dos-sheet-header {
