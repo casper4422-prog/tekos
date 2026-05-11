@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { Shield, Users, Dna, Plus, Check, X, LogOut, Megaphone, AlertTriangle, ChevronRight, Wand2, Swords } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
@@ -404,40 +404,40 @@
 			{#if createStep === 1}
 				<div class="tribe-step-title">What is your tribe called?</div>
 				<div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
-					<div class="plan-field"><label class="form-label">Tribe Name *</label><input class="form-control" bind:value={cName} placeholder="e.g. Iron Talons" /></div>
-					<div class="plan-field"><label class="form-label">Home Server / Map</label>
+					<div class="plan-field"><label class="form-label">Tribe Name *</button><input class="form-control" bind:value={cName} placeholder="e.g. Iron Talons" /></div>
+					<div class="plan-field"><label class="form-label">Home Server / Map</button>
 						<select class="form-control" bind:value={cMap}>
 							<option value="">Choose a map...</option>
 							{#each MAPS as m}<option value={m}>{m}</option>{/each}
 						</select>
 					</div>
-					<div class="plan-field"><label class="form-label">Description</label><textarea class="form-control" rows="2" bind:value={cDesc} placeholder="What does your tribe stand for?"></textarea></div>
+					<div class="plan-field"><label class="form-label">Description</button><textarea class="form-control" rows="2" bind:value={cDesc} placeholder="What does your tribe stand for?"></textarea></div>
 				</div>
 
 			{:else if createStep === 2}
 				<div class="tribe-step-title">Shape your tribe's identity.</div>
 				<div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
-					<div class="plan-field"><label class="form-label">Tribe Motto</label><input class="form-control" bind:value={cMotto} placeholder="e.g. We ride until the servers die" /></div>
+					<div class="plan-field"><label class="form-label">Tribe Motto</button><input class="form-control" bind:value={cMotto} placeholder="e.g. We ride until the servers die" /></div>
 					<div class="tribe-tip">Your motto appears on your tribe profile and is visible to all survivors.</div>
 				</div>
 
 			{:else if createStep === 3}
 				<div class="tribe-step-title">How will survivors join?</div>
 				<div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
-					<label class="tribe-policy-option" class:selected={cOpenPolicy==='open'} onclick={() => cOpenPolicy='open'}>
-						<div class="tribe-policy-check">{cOpenPolicy==='open' ? 'â—' : 'â—‹'}</div>
+					<button class="tribe-policy-option" class:selected={cOpenPolicy==='open'} onclick={() => cOpenPolicy='open'}>
+						<div class="tribe-policy-check">{cOpenPolicy==='open' ? '●' : '○'}</div>
 						<div>
 							<div class="tribe-policy-name">Open Recruitment</div>
 							<div class="tribe-policy-desc">Any survivor can join instantly. Good for casual tribes.</div>
 						</div>
-					</label>
-					<label class="tribe-policy-option" class:selected={cOpenPolicy==='application'} onclick={() => cOpenPolicy='application'}>
-						<div class="tribe-policy-check">{cOpenPolicy==='application' ? 'â—' : 'â—‹'}</div>
+					</button>
+					<button class="tribe-policy-option" class:selected={cOpenPolicy==='application'} onclick={() => cOpenPolicy='application'}>
+						<div class="tribe-policy-check">{cOpenPolicy==='application' ? '●' : '○'}</div>
 						<div>
 							<div class="tribe-policy-name">Application Required</div>
 							<div class="tribe-policy-desc">Survivors send a request. Admins review and approve. Better for serious tribes.</div>
 						</div>
-					</label>
+					</button>
 				</div>
 			{/if}
 
@@ -466,7 +466,7 @@
 	<div class="modal-content" style="max-width:420px">
 		<div class="modal-header"><h2 class="modal-title">Request to Join</h2><button class="close-btn" onclick={() => joinOpen=null}>&times;</button></div>
 		<div class="modal-body">
-			<div class="plan-field"><label class="form-label">Message (optional)</label><textarea class="form-control" rows="2" bind:value={jMsg} placeholder="Tell them about yourself..."></textarea></div>
+			<div class="plan-field"><label class="form-label">Message (optional)</button><textarea class="form-control" rows="2" bind:value={jMsg} placeholder="Tell them about yourself..."></textarea></div>
 			{#if err}<div class="tek-login-error">{err}</div>{/if}
 		</div>
 		<div class="modal-footer">
