@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Dna, Repeat2, Sword, UserPlus, Shield, Newspaper, ExternalLink, Rss } from 'lucide-svelte';
+	import { Dna, Repeat2, Sword, Users, Newspaper, ExternalLink, Rss } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 
