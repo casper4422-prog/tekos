@@ -1,445 +1,262 @@
 <script lang="ts">
-	import { Clipboard, ExternalLink, Wand2, Zap, ChevronRight } from 'lucide-svelte';
+	import { Clipboard, ExternalLink } from 'lucide-svelte';
 
-	// ── Archetypes ────────────────────────────────────────────────────────────
 	const ARCHETYPES = [
-		{
-			id:'boss_slayers',    label:'Boss Slayers',
-			desc:'We hunt the unkillable',
-			emoji:'⚔️',
-			creature:'Carcharodontosaurus', style:'battle-worn medieval', shape:'shield',
-			mood:'fierce and battle-hardened', bg:'corrupted obelisk wasteland under a blood-red sky',
-			element:'crossed trophy weapons and enemy skulls', col1:'#8b0000', col2:'#1c1c2e',
-		},
-		{
-			id:'mutation_breeders', label:'Mutation Breeders',
-			desc:'Science over brute force',
-			emoji:'🧬',
-			creature:'Deinonychus', style:'sci-fi holographic',shape:'circular seal',
-			mood:'mysterious and calculating', bg:'Aberration bioluminescent cave with glowing Element veins',
-			element:'DNA mutation helix and Element shards', col1:'#7c3aed', col2:'#064e3b',
-		},
-		{
-			id:'pvp_raiders',     label:'PvP Raiders',
-			desc:'We take what we want',
-			emoji:'💀',
-			creature:'Shadowmane', style:'dark gothic', shape:'torn flag',
-			mood:'menacing and predatory', bg:'Extinction wasteland with corrupted purple sky',
-			element:'ARK implant shattering and skull motifs', col1:'#1a0000', col2:'#4a0000',
-		},
-		{
-			id:'wyvern_riders',   label:'Wyvern Riders',
-			desc:'Lords of the sky',
-			emoji:'🐉',
-			creature:'Fire Wyvern', style:'heraldic fantasy', shape:'ornate crest',
-			mood:'noble and proud', bg:'Scorched Earth fire storm with twin suns',
-			element:'wings spread wide with flame motifs', col1:'#b45309', col2:'#292524',
-		},
-		{
-			id:'alpha_hunters',   label:'Alpha Hunters',
-			desc:'Only the apex survive',
-			emoji:'🏆',
-			creature:'Giganotosaurus', style:'mythological', shape:'shield',
-			mood:'glorious and triumphant', bg:'The Island obelisk beam piercing storm clouds',
-			element:'crown of tek metal and ARK engram glyphs', col1:'#d97706', col2:'#1e3a2f',
-		},
-		{
-			id:'traders',         label:'Marketplace Guild',
-			desc:'We deal, we profit',
-			emoji:'⚖️',
-			creature:'Rex', style:'painted banner art', shape:'banner',
-			mood:'authoritative and trustworthy', bg:'The Island obelisk beam at sunset',
-			element:'twin serpents coiled around trade scales', col1:'#1d4ed8', col2:'#854d0e',
-		},
-		{
-			id:'aberrant_dwellers', label:'Aberrant Dwellers',
-			desc:'We thrive in the dark',
-			emoji:'🌌',
-			creature:'Ravager', style:'neon cyberpunk', shape:'circular seal',
-			mood:'cunning and shadowed', bg:'deep Aberration cave with bioluminescent fungi',
-			element:'Element crystal formations and glowing tek circuits', col1:'#0e7490', col2:'#4c1d95',
-		},
-		{
-			id:'genesis_crew',    label:'Genesis Survivors',
-			desc:'Born of simulation',
-			emoji:'🚀',
-			creature:'Astrodelphis', style:'sci-fi holographic', shape:'square emblem',
-			mood:'futuristic and elite', bg:'Genesis Ship interior with holographic displays',
-			element:'TEK gears, HLN-A interface elements, and circuit patterns', col1:'#0284c7', col2:'#1e1b4b',
-		},
-		{
-			id:'lost_colony',     label:'Lost Colony Vanguard',
-			desc:'We carry the last light',
-			emoji:'🏛️',
-			creature:'Gigadesmodus', style:'painted banner art', shape:'banner',
-			mood:'ancient and resolute', bg:'Lost Colony Red Palace ruins with crumbling stone',
-			element:'ancient runic inscriptions and shattered obelisk fragments', col1:'#6b4226', col2:'#0f172a',
-		},
+		{ id:'boss',     emoji:'⚔️', label:'Boss Slayers',       desc:'We hunt the unkillable',
+		  col1:'#8b0000', col2:'#1c1c2e', creature:'Carcharodontosaurus',
+		  prompt:'fierce battle-hardened tribe, corrupted obelisk wasteland under a blood-red sky, crossed trophy weapons and skull motifs, battle-worn medieval heraldic art' },
+		{ id:'breeders', emoji:'🧬', label:'Mutation Breeders',   desc:'Science over brute force',
+		  col1:'#7c3aed', col2:'#064e3b', creature:'Deinonychus',
+		  prompt:'mysterious and calculating energy, Aberration bioluminescent cave with glowing Element veins, DNA mutation helix and Element shard decorations, sci-fi holographic art style' },
+		{ id:'raiders',  emoji:'💀', label:'PvP Raiders',         desc:'We take what we want',
+		  col1:'#450a0a', col2:'#0f0f0f', creature:'Shadowmane',
+		  prompt:'menacing and predatory energy, Extinction wasteland with corrupted purple sky, shattered ARK implants and skull motifs, dark gothic art style' },
+		{ id:'wyverns',  emoji:'🐉', label:'Wyvern Riders',       desc:'Lords of the sky',
+		  col1:'#b45309', col2:'#1c0a00', creature:'Fire Wyvern',
+		  prompt:'noble and proud aerial tribe, Scorched Earth fire storm with twin suns, wings spread wide and flame motifs, heraldic fantasy art style' },
+		{ id:'alpha',    emoji:'🏆', label:'Alpha Hunters',       desc:'Only the apex survive',
+		  col1:'#d97706', col2:'#1e3a2f', creature:'Giganotosaurus',
+		  prompt:'glorious and triumphant apex tribe, Island obelisk beam piercing storm clouds, crown of tek metal and ARK engram glyphs, mythological epic art style' },
+		{ id:'traders',  emoji:'⚖️', label:'Trading Guild',       desc:'We deal, we profit',
+		  col1:'#1d4ed8', col2:'#854d0e', creature:'Rex',
+		  prompt:'authoritative and trustworthy, Island obelisk beam at golden sunset, twin serpents coiled around trade scales, painted banner art style' },
+		{ id:'aberrant', emoji:'🌌', label:'Aberrant Dwellers',   desc:'We thrive in the dark',
+		  col1:'#0e7490', col2:'#4c1d95', creature:'Ravager',
+		  prompt:'cunning and shadowed underground tribe, deep Aberration cave with bioluminescent fungi, glowing Element crystal formations and tek circuits, neon cyberpunk art style' },
+		{ id:'genesis',  emoji:'🚀', label:'Genesis Crew',        desc:'Born of simulation',
+		  col1:'#0284c7', col2:'#1e1b4b', creature:'Astrodelphis',
+		  prompt:'futuristic and elite simulation survivors, Genesis Ship interior with holographic displays, HLN-A interface fragments and TEK gears, sci-fi holographic art style' },
+		{ id:'colony',   emoji:'🏛️', label:'Lost Colony',         desc:'We carry the last light',
+		  col1:'#6b4226', col2:'#0f172a', creature:'Gigadesmodus',
+		  prompt:'ancient and resolute last survivors, Lost Colony Red Palace ruins with crumbling stone, ancient runic inscriptions and shattered obelisk fragments, painted banner art style' },
 	];
 
-	// ── Creature list ─────────────────────────────────────────────────────────
-	const CREATURE_GROUPS = [
-		{ label:'ASA Apex', items:['Rex','Giganotosaurus','Carcharodontosaurus','Spinosaurus','Therizinosaurus','Megalodon','Mosasaurus'] },
-		{ label:'Flyers',   items:['Fire Wyvern','Lightning Wyvern','Crystal Wyvern','Argentavis','Griffin','Quetzal','Pteranodon','Tropeognathus'] },
-		{ label:'Hunters',  items:['Shadowmane','Carnotaurus','Allosaurus','Deinonychus','Thylacoleo','Managarmr','Snow Owl','Andrewsarchus'] },
-		{ label:'Aquatic',  items:['Mosasaurus','Megalodon','Tusoteuthis','Liopleurodon','Basilosaurus'] },
-		{ label:'Aberrant', items:['Basilisk','Ravager','Reaper King','Nameless','Karkinos','Bulbdog','Featherlight'] },
-		{ label:'Genesis',  items:['Astrodelphis','Bloodstalker','Noglin','Ferox','Megachelon','Moeder (Boss)'] },
-		{ label:'Exotic',   items:['Rock Drake','Desmodus','Fjordhawk','Amargasaurus','Shadowmane','Maewing'] },
-	];
+	const CREATURES = ['Rex','Giganotosaurus','Carcharodontosaurus','Fire Wyvern','Crystal Wyvern','Shadowmane','Carnotaurus','Deinonychus','Thylacoleo','Managarmr','Snow Owl','Spino','Ravager','Rock Drake','Reaper King','Astrodelphis','Argentavis','Griffin','Basilisk','Andrewsarchus'];
 
-	// ── Styles with ASA-specific quality notes ────────────────────────────────
-	const STYLES = [
-		{ id:'heraldic',     label:'Heraldic Fantasy',    qual:'classic medieval RPG guild crest, detailed hand-painted illustration' },
-		{ id:'battleborn',   label:'Battle-Worn',         qual:'aged war standard, scorched edges, battle damage, dark fantasy' },
-		{ id:'scifi_holo',   label:'Sci-Fi Holographic',  qual:'holographic HUD display, glowing neon energy lines, cyberpunk tech aesthetic' },
-		{ id:'mythological', label:'Mythological',        qual:'ancient mythology art, epic god-tier scale, divine energy' },
-		{ id:'gothic',       label:'Dark Gothic',         qual:'dark gothic art, deep shadows, ominous atmosphere, horror-fantasy' },
-		{ id:'banner_art',   label:'Painted Banner',      qual:'hand-painted game banner, bold colors, detailed illustration style' },
-		{ id:'neon_cyber',   label:'Neon Cyberpunk',      qual:'neon-lit cyberpunk aesthetic, electric glow, futuristic hologram' },
-		{ id:'tek_tier',     label:'TEK Tier',            qual:'ARK TEK technology aesthetic, metallic surfaces, blue energy circuits, UE5 rendered' },
-		{ id:'primitive',    label:'Primitive Tribal',    qual:'raw primitive art, cave painting style, tribal markings, natural earth tones' },
-	];
+	let picked    = $state<typeof ARCHETYPES[0] | null>(null);
+	let creature  = $state('Rex');
+	let col1      = $state('#8b0000');
+	let col2      = $state('#1c1c2e');
+	let tribeName = $state('');
+	let copied    = $state(false);
+	let customCreature = $state(false);
+	let customCreatureText = $state('');
 
-	// ── Shapes ────────────────────────────────────────────────────────────────
-	const SHAPES = ['shield','ornate crest','banner','circular seal','torn battle flag','square emblem','diamond sigil','angular war crest'];
-
-	// ── Moods ─────────────────────────────────────────────────────────────────
-	const MOODS = ['fierce and battle-hardened','noble and proud','ancient and mysterious','menacing and predatory','glorious and triumphant','cunning and shadowed','resilient and unyielding','chaotic and savage'];
-
-	// ── ARK-specific backgrounds ──────────────────────────────────────────────
-	const BACKGROUNDS = [
-		'The Island obelisk beam piercing storm clouds',
-		'corrupted obelisk wasteland under a blood-red sky',
-		'Aberration bioluminescent cave with glowing Element veins',
-		'Extinction wasteland with corrupted purple sky',
-		'Genesis Ship interior with holographic displays',
-		'Scorched Earth fire storm with twin suns',
-		'deep Aberration cave with glowing fungi',
-		'Fjordur frozen realm with Norse ruins in the distance',
-		'Lost Colony Red Palace ruins',
-		'Astraeos Greek temple ruins on a clifftop',
-		'deep ocean abyss with bioluminescent creatures',
-		'TEK Cave metallic corridor with glowing circuits',
-		'Island jungle canopy with dappled sunlight',
-		'volcanic hellscape with rivers of lava',
-		'starfield void of deep space',
-		'Element-corrupted biome with purple crystal formations',
-	];
-
-	// ── ARK-specific decorative elements ─────────────────────────────────────
-	const ELEMENTS = [
-		'Element shard crystals and glowing tek circuits',
-		'crossed trophy weapons and enemy skulls',
-		'DNA mutation helix and Element veins',
-		'wings spread wide with primal energy',
-		'ARK tek implant hologram shards',
-		'corrupted Element tendrils and runes',
-		'obelisk energy beams and engram glyphs',
-		'twin serpents coiled around ancient pillars',
-		'crown of tek metal and ARK engram symbols',
-		'supply drop beacon and tek gear motifs',
-		'ancient ARK runic inscriptions',
-		'breeding mutation helix and species silhouettes',
-		'tribe totem and ancestral creature bones',
-		'Aberration nameless creature shadows',
-		'primal crystal formations and fungal growths',
-		'Genesis HLN-A interface fragments',
-	];
-
-	// ── State ─────────────────────────────────────────────────────────────────
-	let activeArchetype = $state('');
-	let tribeText    = $state('');
-	let creature     = $state('Rex');
-	let styleId      = $state('heraldic');
-	let shape        = $state('shield');
-	let mood         = $state('fierce and battle-hardened');
-	let bg           = $state(BACKGROUNDS[0]);
-	let element      = $state(ELEMENTS[0]);
-	let col1         = $state('#8b0000');
-	let col2         = $state('#1c1c2e');
-	let copied       = $state(false);
-
-	function applyArchetype(a: typeof ARCHETYPES[0]) {
-		activeArchetype = a.id;
+	function pick(a: typeof ARCHETYPES[0]) {
+		picked   = a;
 		creature = a.creature;
-		styleId  = STYLES.find(s => a.style.includes(s.label.toLowerCase()) || a.style === s.id)?.id ?? styleId;
-		shape    = a.shape;
-		mood     = a.mood;
-		bg       = a.bg;
-		element  = a.element;
 		col1     = a.col1;
 		col2     = a.col2;
+		customCreature = false;
 	}
 
-	function currentStyleQual() { return STYLES.find(s => s.id === styleId)?.qual ?? ''; }
-	function currentStyleLabel() { return STYLES.find(s => s.id === styleId)?.label ?? styleId; }
+	function getCreature() { return customCreature ? customCreatureText || creature : creature; }
 
 	function buildPrompt(): string {
-		const textPart = tribeText.trim()
-			? `, with the tribe name "${tribeText.trim()}" rendered in bold stylized game lettering`
-			: '';
-		return [
-			`ARK: Survival Ascended official tribe emblem —`,
-			`a ${shape} flag design featuring a ${creature} as depicted in ARK: Survival Ascended's Unreal Engine 5 visuals,`,
-			`${mood} energy and composition,`,
-			`${col1} and ${col2} color scheme,`,
-			`set against ${bg},`,
-			`${currentStyleLabel()} art style (${currentStyleQual()}),`,
-			`incorporating ${element} as decorative motifs${textPart}.`,
-			`ARK Survival Ascended game concept art quality, cinematic lighting,`,
-			`ultra-detailed game guild insignia, UE5 rendered, professional game logo style,`,
-			`transparent background, no watermark, no text unless specified.`,
-		].join(' ');
+		if (!picked) return 'Pick a tribe identity above to generate your prompt.';
+		const nameClause = tribeName.trim() ? `, with tribe name "${tribeName.trim()}" in bold stylized lettering` : '';
+		return `ARK: Survival Ascended official tribe emblem — a heraldic flag featuring a ${getCreature()} as depicted in ARK Survival Ascended's Unreal Engine 5 visuals, ${col1} and ${col2} color scheme, ${picked.prompt}${nameClause}. Professional game concept art, cinematic lighting, ultra-detailed, transparent background, no watermark.`;
 	}
 
-	async function copyPrompt() {
+	async function copy() {
+		if (!picked) return;
 		await navigator.clipboard.writeText(buildPrompt());
 		copied = true;
-		setTimeout(() => copied = false, 2400);
+		setTimeout(() => copied = false, 2500);
 	}
 
-	const GENERATORS = [
-		{ name:'Bing Image Creator', url:'https://www.bing.com/images/create',    note:'Free · DALL-E 3 · Best quality · No account needed' },
-		{ name:'Adobe Firefly',      url:'https://firefly.adobe.com',             note:'Free · 25 credits/month · Great for emblems' },
-		{ name:'Leonardo.ai',        url:'https://app.leonardo.ai',               note:'Free · 150 tokens/day · Game art models available' },
-		{ name:'Ideogram',           url:'https://ideogram.ai',                   note:'Free tier · Excellent text rendering on flags' },
-		{ name:'NightCafe Studio',   url:'https://creator.nightcafe.studio',      note:'Free daily credits · Many art style models' },
+	const GENS = [
+		{ name:'Bing Image Creator', url:'https://www.bing.com/images/create',    note:'Free · DALL-E 3 · Best quality' },
+		{ name:'Adobe Firefly',      url:'https://firefly.adobe.com',             note:'Free · 25 credits/month' },
+		{ name:'Leonardo.ai',        url:'https://app.leonardo.ai',               note:'Free · 150 tokens/day' },
+		{ name:'Ideogram',           url:'https://ideogram.ai',                   note:'Free · Great for text on flags' },
+		{ name:'NightCafe',          url:'https://creator.nightcafe.studio',      note:'Free daily credits' },
 	];
 </script>
 
-<div class="std-page">
-	<div class="std-page-header">
-		<div class="page-title">
-			<h1>Flag Workshop</h1>
-			<div class="page-subtitle">ARK: Survival Ascended — AI prompt builder for tribe flags</div>
+<div class="std-page fw-page">
+
+	<div class="fw-header">
+		<div>
+			<h1 class="fw-title">Flag Workshop</h1>
+			<div class="fw-subtitle">ARK: Survival Ascended · AI prompt builder</div>
 		</div>
 		<a href="/tribe" class="btn btn-secondary btn-sm">← Tribe</a>
 	</div>
 
-	<!-- ── Step 1: Archetypes ──────────────────────────────────────────────── -->
-	<div class="fw-section-title">Quick Start — Pick Your Tribe's Identity</div>
-	<div class="fw-archetype-grid">
+	<!-- Step 1 -->
+	<div class="fw-step-label">1 — Choose your tribe's identity</div>
+	<div class="fw-arch-grid">
 		{#each ARCHETYPES as a}
-			<button class="fw-archetype" class:active={activeArchetype === a.id} onclick={() => applyArchetype(a)}>
-				<div class="fw-arch-emoji">{a.emoji}</div>
-				<div class="fw-arch-label">{a.label}</div>
-				<div class="fw-arch-desc">{a.desc}</div>
-				{#if activeArchetype === a.id}<div class="fw-arch-active-dot"></div>{/if}
+			<button
+				class="fw-arch-card"
+				class:selected={picked?.id === a.id}
+				onclick={() => pick(a)}
+				style="--c1:{a.col1};--c2:{a.col2}"
+			>
+				<div class="fw-arch-bg"></div>
+				<div class="fw-arch-content">
+					<div class="fw-arch-emoji">{a.emoji}</div>
+					<div class="fw-arch-label">{a.label}</div>
+					<div class="fw-arch-desc">{a.desc}</div>
+				</div>
+				{#if picked?.id === a.id}
+					<div class="fw-arch-selected-ring"></div>
+				{/if}
 			</button>
 		{/each}
 	</div>
 
-	<!-- ── Main builder ────────────────────────────────────────────────────── -->
-	<div class="fw-layout">
-		<div class="fw-builder-col">
-
-			<!-- Tribe identity -->
-			<div class="fw-card">
-				<div class="fw-card-title">🛡 Tribe Identity</div>
-				<div class="fw-fields">
-					<div class="plan-field">
-						<label class="form-label">Tribe Name on Flag (optional)</label>
-						<input class="form-control" bind:value={tribeText} placeholder="Leave blank for emblem only" />
-					</div>
-					<div class="fw-color-row">
-						<div class="plan-field">
-							<label class="form-label">Primary Color</label>
-							<div class="fw-color-input-row">
-								<input type="color" class="fw-color-swatch" bind:value={col1} />
-								<input class="form-control" bind:value={col1} style="max-width:110px" />
-							</div>
-						</div>
-						<div class="plan-field">
-							<label class="form-label">Secondary Color</label>
-							<div class="fw-color-input-row">
-								<input type="color" class="fw-color-swatch" bind:value={col2} />
-								<input class="form-control" bind:value={col2} style="max-width:110px" />
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
+	{#if picked}
+		<!-- Step 2 -->
+		<div class="fw-step-label">2 — Fine-tune the details</div>
+		<div class="fw-tune-row">
 
 			<!-- Creature -->
-			<div class="fw-card">
-				<div class="fw-card-title">🦖 Central Symbol — ARK Creature</div>
-				<div class="fw-creature-groups">
-					{#each CREATURE_GROUPS as g}
-						<div class="fw-group-label">{g.label}</div>
-						<div class="fw-creature-chips">
-							{#each g.items as c}
-								<button class="fw-chip" class:active={creature === c} onclick={() => creature = c}>{c}</button>
-							{/each}
-						</div>
+			<div class="fw-tune-block">
+				<div class="fw-tune-title">Creature / Symbol</div>
+				<div class="fw-creature-chips">
+					{#each CREATURES as c}
+						<button
+							class="fw-cchip"
+							class:active={!customCreature && creature === c}
+							onclick={() => { creature = c; customCreature = false; }}
+						>{c}</button>
 					{/each}
-					<div class="fw-group-label">Custom</div>
-					<input class="form-control" placeholder="Type any creature name..." bind:value={creature} style="margin-top:4px" />
+					<button class="fw-cchip" class:active={customCreature} onclick={() => customCreature = true}>Custom…</button>
 				</div>
+				{#if customCreature}
+					<input class="form-control fw-custom-input" placeholder="Type any creature name..." bind:value={customCreatureText} />
+				{/if}
 			</div>
 
-			<!-- Visual style -->
-			<div class="fw-card">
-				<div class="fw-card-title">🎨 Visual Style</div>
-				<div class="fw-style-grid">
-					{#each STYLES as s}
-						<button class="fw-style-btn" class:active={styleId === s.id} onclick={() => styleId = s.id}>
-							<div class="fw-style-label">{s.label}</div>
-						</button>
-					{/each}
+			<!-- Colors + Name -->
+			<div class="fw-tune-right">
+				<div class="fw-tune-block">
+					<div class="fw-tune-title">Colors</div>
+					<div class="fw-color-pair">
+						<label class="fw-color-label">
+							<input type="color" class="fw-swatch" bind:value={col1} />
+							<span>Primary</span>
+						</label>
+						<label class="fw-color-label">
+							<input type="color" class="fw-swatch" bind:value={col2} />
+							<span>Secondary</span>
+						</label>
+					</div>
 				</div>
-				<div class="plan-field" style="margin-top:14px">
-					<label class="form-label">Flag Shape</label>
-					<select class="form-control" bind:value={shape}>
-						{#each SHAPES as s}<option value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>{/each}
-					</select>
-				</div>
-				<div class="plan-field" style="margin-top:10px">
-					<label class="form-label">Mood / Energy</label>
-					<select class="form-control" bind:value={mood}>
-						{#each MOODS as m}<option value={m}>{m.charAt(0).toUpperCase()+m.slice(1)}</option>{/each}
-					</select>
-				</div>
-			</div>
-
-			<!-- ARK Setting -->
-			<div class="fw-card">
-				<div class="fw-card-title">🌍 ARK Setting</div>
-				<div class="plan-field">
-					<label class="form-label">Background — ARK Map / Biome</label>
-					<select class="form-control" bind:value={bg}>
-						{#each BACKGROUNDS as b}<option value={b}>{b.charAt(0).toUpperCase()+b.slice(1)}</option>{/each}
-					</select>
-				</div>
-				<div class="plan-field" style="margin-top:10px">
-					<label class="form-label">Decorative Element — ARK Themed</label>
-					<select class="form-control" bind:value={element}>
-						{#each ELEMENTS as e}<option value={e}>{e.charAt(0).toUpperCase()+e.slice(1)}</option>{/each}
-					</select>
+				<div class="fw-tune-block">
+					<div class="fw-tune-title">Tribe Name on Flag <span class="fw-optional">optional</span></div>
+					<input class="form-control" placeholder="e.g. Iron Talons" bind:value={tribeName} />
 				</div>
 			</div>
 		</div>
 
-		<!-- ── Right column ──────────────────────────────────────────────────── -->
-		<div class="fw-right-col">
-
-			<!-- Live prompt -->
-			<div class="fw-prompt-card">
-				<div class="fw-prompt-header">
-					<div class="fw-card-title" style="margin-bottom:0">Generated Prompt</div>
-					<div class="fw-prompt-tag">ARK: Survival Ascended</div>
-				</div>
-				<div class="fw-prompt-body">{buildPrompt()}</div>
-				<button class="btn btn-primary fw-copy-btn" onclick={copyPrompt}>
-					<Clipboard size={14} /> {copied ? '✓ Copied to clipboard!' : 'Copy Prompt'}
-				</button>
-				<div class="fw-prompt-hint">Paste this directly into any generator below. Regenerate if the result isn't perfect — it's free.</div>
-			</div>
-
-			<!-- Generators -->
-			<div class="fw-card">
-				<div class="fw-card-title">Free AI Generators</div>
-				<div class="fw-gen-list">
-					{#each GENERATORS as g}
-						<a href={g.url} target="_blank" rel="noopener" class="cham-shell fw-gen-item" style="--cut:6px">
-							<div class="fw-gen-inner">
-								<div>
-									<div class="fw-gen-name">{g.name}</div>
-									<div class="fw-gen-note">{g.note}</div>
-								</div>
-								<ExternalLink size={12} style="color:#334155;flex-shrink:0" />
-							</div>
-						</a>
-					{/each}
-				</div>
-			</div>
-
-			<!-- Tips -->
-			<div class="fw-card fw-tips-card">
-				<div class="fw-card-title">Tips for Best ARK Flags</div>
-				<ul class="fw-tips">
-					<li><strong>Bing Image Creator</strong> gives the best results — DALL-E 3 understands ARK creatures</li>
-					<li>Generate 3–4 times and pick the best — it's free</li>
-					<li>Add <em>"no background"</em> or <em>"transparent background"</em> to layer over any color</li>
-					<li>Leonardo.ai has game-art specific models — try "Signature" or "PhotoReal" mode</li>
-					<li>If text looks garbled in the image, use Ideogram — best at rendering words</li>
-					<li>Once happy with the image, upload it somewhere (Imgur, Discord) and paste the URL as your tribe's flag image</li>
-				</ul>
-			</div>
+		<!-- Step 3: Prompt + Copy -->
+		<div class="fw-step-label">3 — Copy your prompt and generate</div>
+		<div class="fw-prompt-area">
+			<div class="fw-prompt-text">{buildPrompt()}</div>
+			<button class="btn btn-primary fw-copy-btn" onclick={copy}>
+				<Clipboard size={15} />
+				{copied ? '✓ Copied!' : 'Copy Prompt'}
+			</button>
 		</div>
-	</div>
+
+		<!-- Generators -->
+		<div class="fw-gen-row">
+			{#each GENS as g}
+				<a href={g.url} target="_blank" rel="noopener" class="cham-shell fw-gen-pill" style="--cut:6px">
+					<div class="fw-gen-inner">
+						<div class="fw-gen-name">{g.name}</div>
+						<div class="fw-gen-note">{g.note}</div>
+						<ExternalLink size={11} style="color:#475569;margin-left:auto;flex-shrink:0" />
+					</div>
+				</a>
+			{/each}
+		</div>
+
+		<div class="fw-hint">Paste the prompt into any generator above. If you don't love the first result, generate again — it's free. For best results use Bing Image Creator (DALL-E 3).</div>
+	{:else}
+		<div class="fw-awaiting">Pick a tribe identity above to get started.</div>
+	{/if}
+
 </div>
 
 <style>
-.fw-section-title { font-size:0.65rem; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#475569; margin-bottom:14px; }
+.fw-page { max-width:900px; }
+.fw-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:28px; }
+.fw-title { font-size:1.6rem; font-weight:700; color:#f1f5f9; letter-spacing:-0.02em; line-height:1.1; }
+.fw-subtitle { font-size:0.78rem; color:#475569; margin-top:4px; letter-spacing:0.04em; }
 
-/* Archetypes */
-.fw-archetype-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px; margin-bottom:28px; }
-.fw-archetype {
-	background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);
-	padding:14px 12px; cursor:pointer; font-family:inherit; text-align:center;
-	display:flex; flex-direction:column; align-items:center; gap:5px;
-	position:relative; transition:all .15s;
+.fw-step-label { font-size:0.62rem; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#334155; margin-bottom:12px; margin-top:28px; display:flex; align-items:center; gap:10px; }
+.fw-step-label::after { content:''; flex:1; height:1px; background:rgba(255,255,255,0.04); }
+
+/* Archetype grid */
+.fw-arch-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+@media (max-width:640px) { .fw-arch-grid { grid-template-columns:repeat(2,1fr); } }
+
+.fw-arch-card {
+	position:relative; overflow:hidden; cursor:pointer;
+	border:1px solid rgba(255,255,255,0.06); font-family:inherit;
+	text-align:left; transition:transform .15s, border-color .15s;
 	clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);
+	min-height:100px; background:none; padding:0;
 }
-.fw-archetype:hover { background:rgba(255,255,255,0.07); border-color:rgba(0,180,255,0.2); }
-.fw-archetype.active { background:rgba(0,180,255,0.08); border-color:rgba(0,180,255,0.4); }
-.fw-arch-emoji { font-size:1.6rem; }
-.fw-arch-label { font-size:0.8rem; font-weight:700; color:#f1f5f9; }
-.fw-arch-desc  { font-size:0.68rem; color:#64748b; font-style:italic; }
-.fw-arch-active-dot { position:absolute; top:6px; right:8px; width:7px; height:7px; border-radius:50%; background:#00b4ff; box-shadow:0 0 6px #00b4ff; }
+.fw-arch-card:hover { transform:translateY(-2px); border-color:rgba(255,255,255,0.14); }
+.fw-arch-card.selected { border-color:rgba(255,255,255,0.4); transform:translateY(-2px); }
 
-/* Layout */
-.fw-layout { display:grid; grid-template-columns:1fr 360px; gap:16px; align-items:start; }
-@media (max-width:960px) { .fw-layout { grid-template-columns:1fr; } }
-.fw-builder-col { display:flex; flex-direction:column; gap:12px; }
-.fw-right-col   { display:flex; flex-direction:column; gap:12px; position:sticky; top:20px; }
+.fw-arch-bg {
+	position:absolute; inset:0;
+	background:linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%);
+	opacity:0.22;
+	transition:opacity .15s;
+}
+.fw-arch-card:hover .fw-arch-bg { opacity:0.32; }
+.fw-arch-card.selected .fw-arch-bg { opacity:0.38; }
 
-/* Cards */
-.fw-card { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:18px 20px; clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%); }
-.fw-card-title { font-size:0.68rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#475569; margin-bottom:14px; }
-.fw-fields { display:flex; flex-direction:column; gap:12px; }
-.fw-color-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.fw-color-input-row { display:flex; align-items:center; gap:8px; }
-.fw-color-swatch { width:36px; height:34px; padding:2px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); cursor:pointer; border-radius:0; flex-shrink:0; }
+.fw-arch-content { position:relative; z-index:1; padding:14px 14px 12px; display:flex; flex-direction:column; gap:4px; }
+.fw-arch-emoji { font-size:1.4rem; margin-bottom:2px; }
+.fw-arch-label { font-size:0.86rem; font-weight:700; color:#f1f5f9; }
+.fw-arch-desc  { font-size:0.68rem; color:#94a3b8; font-style:italic; }
 
-/* Creature selector */
-.fw-creature-groups { display:flex; flex-direction:column; gap:6px; }
-.fw-group-label { font-size:0.6rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#334155; margin-top:8px; }
+.fw-arch-selected-ring {
+	position:absolute; inset:0;
+	border:2px solid rgba(255,255,255,0.5);
+	clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);
+	pointer-events:none;
+}
+
+/* Fine-tune row */
+.fw-tune-row { display:grid; grid-template-columns:1fr 280px; gap:16px; align-items:start; }
+@media (max-width:700px) { .fw-tune-row { grid-template-columns:1fr; } }
+.fw-tune-right { display:flex; flex-direction:column; gap:14px; }
+.fw-tune-block { background:rgba(10,18,40,0.7); padding:14px 16px; clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%); }
+.fw-tune-title { font-size:0.62rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#475569; margin-bottom:10px; }
+.fw-optional { font-weight:400; color:#334155; text-transform:none; letter-spacing:0; }
+
 .fw-creature-chips { display:flex; flex-wrap:wrap; gap:4px; }
-.fw-chip { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); color:#64748b; font-size:0.74rem; padding:3px 10px; cursor:pointer; font-family:inherit; transition:all .12s; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
-.fw-chip:hover { background:rgba(255,255,255,0.09); color:#94a3b8; }
-.fw-chip.active { background:rgba(0,180,255,0.15); color:#7dd3fc; border-color:rgba(0,180,255,0.4); }
+.fw-cchip { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); color:#64748b; font-size:0.73rem; padding:3px 9px; cursor:pointer; font-family:inherit; transition:all .12s; clip-path:polygon(3px 0%,100% 0%,calc(100% - 3px) 100%,0% 100%); }
+.fw-cchip:hover { background:rgba(255,255,255,0.09); color:#94a3b8; }
+.fw-cchip.active { background:rgba(0,180,255,0.14); color:#7dd3fc; border-color:rgba(0,180,255,0.38); }
+.fw-custom-input { margin-top:8px; }
 
-/* Style grid */
-.fw-style-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
-.fw-style-btn { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); padding:8px 6px; cursor:pointer; font-family:inherit; transition:all .12s; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); text-align:center; }
-.fw-style-btn:hover { background:rgba(255,255,255,0.09); }
-.fw-style-btn.active { background:rgba(139,92,246,0.15); border-color:rgba(139,92,246,0.4); }
-.fw-style-label { font-size:0.72rem; font-weight:600; color:#94a3b8; }
-.fw-style-btn.active .fw-style-label { color:#c084fc; }
+.fw-color-pair { display:flex; gap:16px; }
+.fw-color-label { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.78rem; color:#64748b; }
+.fw-swatch { width:32px; height:32px; padding:2px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); cursor:pointer; border-radius:0; flex-shrink:0; }
 
-/* Prompt card */
-.fw-prompt-card { background:linear-gradient(160deg,rgba(0,30,60,0.97),rgba(0,10,30,1)); padding:18px 20px; clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%); border-left:3px solid rgba(0,180,255,0.5); display:flex; flex-direction:column; gap:12px; }
-.fw-prompt-header { display:flex; align-items:center; justify-content:space-between; }
-.fw-prompt-tag { font-size:0.6rem; font-weight:800; letter-spacing:0.1em; background:rgba(0,180,255,0.12); color:#7dd3fc; border:1px solid rgba(0,180,255,0.3); padding:2px 8px; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
-.fw-prompt-body { font-size:0.78rem; color:#94a3b8; line-height:1.75; font-style:italic; max-height:180px; overflow-y:auto; }
-.fw-copy-btn { align-self:flex-start; display:flex; align-items:center; gap:6px; }
-.fw-prompt-hint { font-size:0.68rem; color:#334155; line-height:1.5; }
+/* Prompt */
+.fw-prompt-area { background:linear-gradient(160deg,rgba(0,20,50,0.98),rgba(0,8,24,1)); padding:18px 20px; clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%); border-left:3px solid rgba(0,180,255,0.5); display:flex; gap:16px; align-items:flex-start; }
+.fw-prompt-text { flex:1; font-size:0.8rem; color:#94a3b8; line-height:1.75; font-style:italic; }
+.fw-copy-btn { flex-shrink:0; display:flex; align-items:center; gap:7px; align-self:flex-end; }
 
 /* Generators */
-.fw-gen-list { display:flex; flex-direction:column; gap:5px; }
-.fw-gen-item { display:block; text-decoration:none; color:inherit; }
-.fw-gen-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:9px 13px; display:flex; align-items:center; justify-content:space-between; gap:10px; transition:background .15s; }
-.fw-gen-item:hover .fw-gen-inner { background:rgba(14,26,54,0.98); }
-.fw-gen-name { font-size:0.84rem; font-weight:600; color:#f1f5f9; }
-.fw-gen-note { font-size:0.68rem; color:#64748b; margin-top:1px; }
+.fw-gen-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
+.fw-gen-pill { display:block; text-decoration:none; color:inherit; }
+.fw-gen-inner { background:rgba(10,18,40,0.9); padding:7px 13px; display:flex; align-items:center; gap:8px; transition:background .15s; }
+.fw-gen-pill:hover .fw-gen-inner { background:rgba(14,26,54,0.98); }
+.fw-gen-name { font-size:0.8rem; font-weight:600; color:#f1f5f9; }
+.fw-gen-note { font-size:0.66rem; color:#475569; }
 
-/* Tips */
-.fw-tips-card { background:linear-gradient(160deg,rgba(14,8,40,0.97),rgba(4,4,20,1)); }
-.fw-tips { list-style:none; display:flex; flex-direction:column; gap:9px; }
-.fw-tips li { font-size:0.76rem; color:#64748b; line-height:1.55; padding-left:14px; position:relative; }
-.fw-tips li::before { content:'›'; position:absolute; left:0; color:#8b5cf6; font-weight:700; }
-.fw-tips strong { color:#94a3b8; }
-.fw-tips em { color:#7dd3fc; font-style:normal; }
+.fw-hint { font-size:0.72rem; color:#334155; margin-top:12px; line-height:1.6; }
+.fw-awaiting { color:#334155; text-align:center; padding:40px 0; font-size:0.9rem; }
 </style>
