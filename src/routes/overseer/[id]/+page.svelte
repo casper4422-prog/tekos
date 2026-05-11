@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Send, X, Dna, Users, ScrollText } from 'lucide-svelte';
+	import { Send, X, Dna, Users, ScrollText, Lightbulb } from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
@@ -17,7 +17,65 @@
 	let creatures = $state<Record<string,unknown>[]>((session.creatures as Record<string,unknown>[]) ?? []);
 	let members   = $state<Record<string,unknown>[]>((session.members as Record<string,unknown>[]) ?? []);
 
-	let activeTab   = $state<'chat'|'roster'|'members'>('chat');
+	let activeTab   = $state<'chat'|'roster'|'members'|'tips'>('chat');
+
+	// Boss tips database — covers all ASA bosses
+	type BossTip = { creatures:string[]; consumables:string[]; tips:string[]; avoid:string[] };
+	const BOSS_TIPS: Record<string, BossTip> = {
+		default: {
+			creatures:['Rex (high HP + Melee)','Yutyrannus (courage buff)','Daeodon (passive healing)'],
+			consumables:['Focal Chili (player movement)','Lazarus Chowder (water saving)','Battle Tartare (player damage)'],
+			tips:['Bring a Yutyrannus for the +25% courage buff','Place Daeodon on passive — it will auto-heal nearby dinos','Put your best creatures on passive until you need them','Saddle armor matters more than creature level for survival'],
+			avoid:['Flyers (arenas are closed)','Creatures with low saddle armor','Overloading too many creatures — quality over quantity']
+		},
+		broodmother: {
+			creatures:['Megatherium (gets huge buff vs insects — BEST pick)','Rex','Yutyrannus','Daeodon'],
+			consumables:['Bug Repellant (reduces aggro from Araneo swarms)','Focal Chili','Mushroom Brew (Aberration)'],
+			tips:['Megatherium gets a massive damage buff when killing the Araneo swarms — it\'s the meta pick here','Kill the spider swarms quickly to reduce Megatherium\'s cooldown between buffs','Stay grouped and focus fire on the Broodmother directly','Daeodon heals through the venom DoT very effectively'],
+			avoid:['Creatures without saddles (venom DoT is brutal)','Spreading out — AoE webbing will isolate you','Ignoring the Araneo swarms']
+		},
+		megapithecus: {
+			creatures:['Rex','Yutyrannus','Daeodon','Therizinosaur'],
+			consumables:['Battle Tartare (player damage for rock cleanup)','Focal Chili','Medical Brew'],
+			tips:['Watch for rock throws — they deal massive AoE damage to grouped dinos','Spread your creatures slightly to avoid all being hit by rocks','Whistle passive during boulder throws, then attack after','Killing the summoned Mesopithecus reduces clutter and keeps the arena clear'],
+			avoid:['Stacking dinos in one spot (rock AoE wipes groups instantly)','Ignoring the summoned apes (they debuff survivors)']
+		},
+		dragon: {
+			creatures:['Therizinosaur (fire immune, high damage — META)','Allosaurus','Rex (with care)'],
+			consumables:['Battle Tartare (player DPS)','Medical Brew','Focal Chili'],
+			tips:['The Dragon is IMMUNE to fire — ranged/melee is the only option','Therizinosaur takes reduced fire damage making it the top pick','Focus on the Dragon early — summoned wyverns are a distraction','Keep moving — the fire breath sweeps, don\'t stay in one spot'],
+			avoid:['Rex (takes full fire damage, dies quickly on higher difficulties)','Creatures with no fire resistance','Standing still — the fire breath is a sweep attack']
+		},
+		king_titan: {
+			creatures:['All three tamed Titans (Forest, Ice, Desert) for Alpha','Meks (Genesis mechsuits)','High-HP Rexes for Gamma/Beta'],
+			consumables:['Broth of Enlightenment (Crafting Skill for better Meks)','Battle Tartare','Focal Chili'],
+			tips:['Alpha King Titan REQUIRES all three other Titans to be tamed first','Aim for the corruption nodes on the King Titan\'s body to deal significant damage','Meks deal excellent damage and can be repaired mid-fight','Coordinate Titan strikes — all three attacking simultaneously is devastating'],
+			avoid:['Attempting Alpha without all three Titans','Ignoring the corruption nodes','Going in without Meks on Alpha difficulty']
+		},
+		rockwell: {
+			creatures:['Ravager (no flyers allowed in Aberration)','Rock Drake','Reaper King','Karkinos'],
+			consumables:['Hazard Suit charge (for radiation)','Nameless Venom (for Reapers)','Lesser Antidote'],
+			tips:['No flyers allowed in Aberration — mount up on Ravagers or Drakes','Target the glowing Element tentacle nodes for massive damage','Dodge the Element spikes — they OneShot survivors','Reaper Kings deal excellent damage but require Nameless Venom upkeep'],
+			avoid:['Any flying creature (won\'t work here)','Standing in element surge zones','Ignoring the tentacle nodes — they do 25% of his health each']
+		},
+		lost_king: {
+			creatures:['High-level tames','Yutyrannus','Daeodon'],
+			consumables:['Battle Tartare','Medical Brew','Focal Chili'],
+			tips:['The Lost King rides a Gigadesmodus — watch for its grab attack','Phase transitions bring Thrall waves — clear them quickly','Coordinate damage during ground phases when the King is vulnerable','The arena has multiple elevation levels — use them for positioning'],
+			avoid:['Bunching up (AoE attacks during phase transitions)','Ignoring the Thralls between phases']
+		},
+		lost_queen: {
+			creatures:['Your best DPS creatures from the Lost King fight'],
+			consumables:['Medical Brew (you\'ll need it)','Battle Tartare'],
+			tips:['The Lost Queen\'s healing beam must be broken or she regenerates to full','Assign 2-3 tribe members to focus exclusively on breaking the beam','She has two phases — the second phase is more aggressive','This fight directly follows Lost King — prepare before entering the palace'],
+			avoid:['Letting the healing beam complete (she will reach 100% HP)','Splitting too much focus between her and the beam — beam break is priority']
+		}
+	};
+
+	function getBossTips(): BossTip {
+		const bossId = String(session.bossId ?? '');
+		return BOSS_TIPS[bossId] ?? BOSS_TIPS.default;
+	}
 	let draft       = $state('');
 	let addOpen     = $state(false);
 	let logOpen     = $state(false);
@@ -104,8 +162,8 @@
 	</div>
 
 	<div class="war-tabs">
-		{#each [['chat','Chat'],['roster','Roster'],['members','Members']] as [t,label]}
-			<button class="war-tab" class:active={activeTab === t} onclick={() => activeTab = t as 'chat'|'roster'|'members'}>{label}</button>
+		{#each [['chat','Chat'],['roster','Roster'],['members','Members'],['tips','Tips & Gear']] as [t,label]}
+			<button class="war-tab" class:active={activeTab === t} onclick={() => activeTab = t as 'chat'|'roster'|'members'|'tips'}>{label}</button>
 		{/each}
 	</div>
 
@@ -155,7 +213,7 @@
 			</div>
 		{/if}
 
-	{:else}
+	{:else if activeTab === 'members'}
 		<div class="war-member-list">
 			{#each members as m}
 				{@const md = m as Record<string,unknown>}
@@ -163,6 +221,53 @@
 					<div class="war-member-inner">{display(md.user as Record<string,unknown>)}</div>
 				</div>
 			{/each}
+		</div>
+
+	{:else}
+		<!-- Tips & Gear tab -->
+		{@const tips = getBossTips()}
+		<div class="war-tips">
+			<div class="war-tips-grid">
+				<!-- Recommended creatures -->
+				<div class="war-tip-card">
+					<div class="war-tip-title">Recommended Creatures</div>
+					{#each tips.creatures as c}
+						<div class="war-tip-item war-tip-creature">
+							<span class="war-tip-bullet" style="background:rgba(34,197,94,0.6)"></span>{c}
+						</div>
+					{/each}
+				</div>
+
+				<!-- Consumables -->
+				<div class="war-tip-card">
+					<div class="war-tip-title">Consumables & Gear</div>
+					{#each tips.consumables as c}
+						<div class="war-tip-item">
+							<span class="war-tip-bullet" style="background:rgba(59,130,246,0.6)"></span>{c}
+						</div>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Strategy tips -->
+			<div class="war-tip-card war-tip-full">
+				<div class="war-tip-title">Strategy</div>
+				{#each tips.tips as t}
+					<div class="war-tip-item">
+						<span class="war-tip-bullet" style="background:rgba(0,180,255,0.6)"></span>{t}
+					</div>
+				{/each}
+			</div>
+
+			<!-- What to avoid -->
+			<div class="war-tip-card war-tip-full war-tip-danger">
+				<div class="war-tip-title">What to Avoid</div>
+				{#each tips.avoid as a}
+					<div class="war-tip-item">
+						<span class="war-tip-bullet" style="background:rgba(239,68,68,0.6)"></span>{a}
+					</div>
+				{/each}
+			</div>
 		</div>
 	{/if}
 </div>
@@ -265,4 +370,16 @@
 .war-member-list { display:flex; flex-direction:column; gap:5px; }
 .war-member { --cut:5px; }
 .war-member-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:10px 14px; font-size:0.88rem; color:#f1f5f9; }
+
+/* Tips tab */
+.war-tips { display:flex; flex-direction:column; gap:10px; }
+.war-tips-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+@media (max-width:600px) { .war-tips-grid { grid-template-columns:1fr; } }
+.war-tip-card { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:14px 16px; clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%); display:flex; flex-direction:column; gap:7px; }
+.war-tip-full { }
+.war-tip-danger { background:linear-gradient(160deg,rgba(20,8,8,0.97),rgba(10,4,4,1)); }
+.war-tip-title { font-size:0.64rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#475569; margin-bottom:4px; }
+.war-tip-item { display:flex; align-items:flex-start; gap:9px; font-size:0.82rem; color:#94a3b8; line-height:1.5; }
+.war-tip-bullet { width:6px; height:6px; border-radius:50%; flex-shrink:0; margin-top:6px; }
+.war-tip-creature { color:#f1f5f9; }
 </style>

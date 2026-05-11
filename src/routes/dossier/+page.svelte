@@ -1,15 +1,16 @@
 <script lang="ts">
-	import { User, Dna, Users, Shield, Pin, Edit2, Sword, Repeat2, ChevronRight } from 'lucide-svelte';
+	import { User, Dna, Users, Shield, Pin, Edit2, Sword, Repeat2, ChevronRight, Star, Award } from 'lucide-svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 
-	const profile  = data.profile as Record<string,unknown> | null;
-	const creatures = data.creatures as Record<string,unknown>[];
-	const pinned    = data.pinned as Record<string,unknown>[];
-	const tribe     = data.tribe as Record<string,unknown> | null;
-	const bossRecords = data.bossRecords as Record<string,unknown>[];
+	const profile      = data.profile as Record<string,unknown> | null;
+	const creatures    = data.creatures as Record<string,unknown>[];
+	const pinned       = data.pinned as Record<string,unknown>[];
+	const tribe        = data.tribe as Record<string,unknown> | null;
+	const bossRecords  = data.bossRecords as Record<string,unknown>[];
 	const recentTrades = data.recentTrades as Record<string,unknown>[];
+	const topSpecies   = data.topSpecies as [string,number][];
 
 	let editOpen = $state(false);
 	let pinOpen  = $state(false);
@@ -21,13 +22,18 @@
 	let lookingFor = $state(String(profile?.lookingFor ?? ''));
 	let pinnedIds  = $state<number[]>(Array.isArray(profile?.pinnedCreatures) ? profile.pinnedCreatures as number[] : []);
 
-	const joined = profile?.createdAt ? new Date(profile.createdAt as string).toLocaleDateString('en-US', { month:'long', year:'numeric' }) : '';
+	const joined      = profile?.createdAt ? new Date(profile.createdAt as string).toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' }) : '';
 	const displayName = (profile?.nickname ?? profile?.email ?? 'Survivor') as string;
+	const wins        = bossRecords.filter((r:Record<string,unknown>) => r.outcome === 'success').length;
+	const totalMuts   = creatures.reduce((sum:number, c:Record<string,unknown>) => {
+		const m = (c.mutations as Record<string,number>) ?? {};
+		return sum + Object.values(m).reduce((a,b) => a+b, 0);
+	}, 0);
 
-	const CAT_RGB:   Record<string,string> = { combat:'239,68,68', flyer:'6,182,212', utility:'34,197,94', water:'59,130,246', boss:'245,158,11', mount:'249,115,22', resource:'167,139,250' };
-	const CAT_LABEL: Record<string,string> = { combat:'CMB', flyer:'FLY', utility:'UTL', water:'AQU', mount:'MNT', boss:'BSS', resource:'RES' };
+	const CAT_RGB:   Record<string,string> = { combat:'239,68,68', flyer:'6,182,212', utility:'34,197,94', water:'59,130,246', boss:'245,158,11', mount:'249,115,22', resource:'167,139,250', transport:'59,130,246', harvesting:'245,158,11' };
+	const CAT_LABEL: Record<string,string> = { combat:'CMB', flyer:'FLY', utility:'UTL', water:'AQU', boss:'BSS', transport:'MNT', harvesting:'HRV' };
 
-	function getCat(sp: string): string {
+	function getCat(sp: string) {
 		if (typeof window === 'undefined') return 'default';
 		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,Record<string,unknown>> | undefined;
 		return String(db?.[sp]?.category ?? 'default');
@@ -57,176 +63,189 @@
 	}
 </script>
 
-<div class="std-page">
+<div class="std-page dos-page">
 
-	<!-- Hero -->
-	<div class="cham-shell dos-hero" style="--cut:12px">
-		<div class="dos-hero-inner">
-			<div class="dos-avatar">
-				<User size={28} />
-			</div>
-			<div class="dos-hero-info">
-				<div class="dos-name">{displayName}</div>
-				<div class="dos-sub">ARK Survivor · Joined {joined}</div>
-				{#if tribe}
-					<div class="dos-tribe"><Shield size={12} /> {String(tribe.name)}{tribe.mainMap ? ` · ${String(tribe.mainMap)}` : ''}</div>
-				{/if}
-				{#if profile?.discordName}
-					<div class="dos-discord">Discord: {String(profile.discordName)}</div>
-				{/if}
-				{#if profile?.bio}<p class="dos-bio">{String(profile.bio)}</p>{/if}
-				{#if profile?.lookingFor}<div class="dos-looking">Looking for: {String(profile.lookingFor)}</div>{/if}
-			</div>
-			<button class="btn btn-secondary btn-sm dos-edit-btn" onclick={() => editOpen=true}>
-				<Edit2 size={13} /> Edit
-			</button>
+	<!-- ── Character sheet header ─────────────────────────────────────────── -->
+	<div class="dos-sheet-header">
+		<div class="dos-avatar-col">
+			<div class="dos-avatar"><User size={32} /></div>
+			<div class="dos-online-pip" title="Online"></div>
+		</div>
+
+		<div class="dos-identity">
+			<div class="dos-callsign">{displayName}</div>
+			{#if profile?.nickname && profile?.email}<div class="dos-email">{String(profile.email)}</div>{/if}
+			{#if tribe}
+				<div class="dos-tribe-line"><Shield size={13} /> {String(tribe.name)}{tribe.mainMap ? ` — ${String(tribe.mainMap)}` : ''}</div>
+			{/if}
+			{#if profile?.discordName}
+				<div class="dos-discord-line">Discord: {String(profile.discordName)}</div>
+			{/if}
+			<div class="dos-joined">Survivor since {joined}</div>
+		</div>
+
+		<div class="dos-header-actions">
+			<button class="btn btn-secondary btn-sm" onclick={() => editOpen=true}><Edit2 size={13} /> Edit</button>
 		</div>
 	</div>
 
-	<!-- Stats row -->
-	<div class="dos-stats">
-		<div class="cham-shell dos-stat" style="--cut:7px">
-			<div class="dos-stat-inner"><Dna size={14} /><span class="dos-stat-val">{creatures.length}</span><span class="dos-stat-lbl">Specimens</span></div>
+	<!-- ── Bio + Looking For ──────────────────────────────────────────────── -->
+	{#if profile?.bio || profile?.lookingFor}
+		<div class="dos-bio-row">
+			{#if profile?.bio}<div class="dos-bio-text">"{String(profile.bio)}"</div>{/if}
+			{#if profile?.lookingFor}<div class="dos-lf">Looking for: <span>{String(profile.lookingFor)}</span></div>{/if}
 		</div>
-		<div class="cham-shell dos-stat" style="--cut:7px">
-			<div class="dos-stat-inner"><span class="dos-stat-val">{data.speciesOwned}</span><span class="dos-stat-lbl">Species</span></div>
+	{/if}
+
+	<!-- ── Stat tiles ─────────────────────────────────────────────────────── -->
+	<div class="dos-stats-row">
+		<div class="cham-shell dos-stat-tile" style="--cut:7px">
+			<div class="dos-stat-inner"><Dna size={15} class="dos-stat-icon" /><div class="dos-stat-val">{creatures.length}</div><div class="dos-stat-lbl">Specimens</div></div>
 		</div>
-		<div class="cham-shell dos-stat" style="--cut:7px">
-			<div class="dos-stat-inner"><Users size={14} /><span class="dos-stat-val">{data.friendCount}</span><span class="dos-stat-lbl">Friends</span></div>
+		<div class="cham-shell dos-stat-tile" style="--cut:7px">
+			<div class="dos-stat-inner"><span class="dos-stat-icon" style="font-size:0.9rem">🦕</span><div class="dos-stat-val">{data.speciesOwned}</div><div class="dos-stat-lbl">Species</div></div>
 		</div>
-		{#if (data.bossWins as number) > 0}
-			<div class="cham-shell dos-stat" style="--cut:7px">
-				<div class="dos-stat-inner"><Sword size={14} /><span class="dos-stat-val">{data.bossWins}</span><span class="dos-stat-lbl">Boss Wins</span></div>
-			</div>
-		{/if}
+		<div class="cham-shell dos-stat-tile" style="--cut:7px">
+			<div class="dos-stat-inner"><Users size={15} class="dos-stat-icon" /><div class="dos-stat-val">{data.friendCount}</div><div class="dos-stat-lbl">Friends</div></div>
+		</div>
+		<div class="cham-shell dos-stat-tile" style="--cut:7px">
+			<div class="dos-stat-inner"><Sword size={15} class="dos-stat-icon" /><div class="dos-stat-val">{wins}</div><div class="dos-stat-lbl">Boss Wins</div></div>
+		</div>
+		<div class="cham-shell dos-stat-tile" style="--cut:7px">
+			<div class="dos-stat-inner"><Star size={15} class="dos-stat-icon" /><div class="dos-stat-val">{totalMuts}</div><div class="dos-stat-lbl">Total Muts</div></div>
+		</div>
 		{#if recentTrades.length > 0}
-			<div class="cham-shell dos-stat" style="--cut:7px">
-				<div class="dos-stat-inner"><Repeat2 size={14} /><span class="dos-stat-val">{recentTrades.length}</span><span class="dos-stat-lbl">Listings</span></div>
+			<div class="cham-shell dos-stat-tile" style="--cut:7px">
+				<div class="dos-stat-inner"><Repeat2 size={15} class="dos-stat-icon" /><div class="dos-stat-val">{recentTrades.length}</div><div class="dos-stat-lbl">Listings</div></div>
 			</div>
 		{/if}
 	</div>
 
-	<!-- Achievements -->
+	<!-- ── Achievements ───────────────────────────────────────────────────── -->
 	{#if getCollectorBadges()}
-		<div class="dos-section-header"><div class="dos-section-title">Achievements</div></div>
+		<div class="dos-section-row">
+			<div class="dos-section-label"><Award size={13} /> Achievements</div>
+		</div>
 		<div class="dos-badges">{@html getCollectorBadges()}</div>
 	{/if}
 
-	<!-- Pinned Specimens -->
-	<div class="dos-section-header">
-		<div class="dos-section-title">Pinned Specimens</div>
-		<button class="btn btn-secondary btn-sm" onclick={() => { pinnedIds = Array.isArray(profile?.pinnedCreatures) ? profile.pinnedCreatures as number[] : []; pinOpen=true; }}>
-			<Pin size={13} /> Edit Pins
-		</button>
-	</div>
-	{#if pinned.length === 0}
-		<div class="dos-empty">No pinned specimens. Click "Edit Pins" to feature your best.</div>
-	{:else}
-		<div class="dos-pinned-grid">
-			{#each pinned as c}
-				{@const cd = c as Record<string,unknown>}
-				{@const bs = (cd.baseStats as Record<string,number>) ?? {}}
-				{@const muts = (cd.mutations as Record<string,number>) ?? {}}
-				{@const tm = Object.values(muts).reduce((a,b)=>a+b,0)}
-				{@const cat = getCat(String(cd.species ?? ''))}
-				{@const rgb = CAT_RGB[cat] ?? '0,180,255'}
-				<div class="cham-shell dos-pin-card {cat}" style="--cut:8px;--cat-rgb:{rgb}">
-					<div class="dos-pin-inner">
-						<div class="dos-pin-header">
-							<div class="cat-badge-v3" style="--cat-rgb:{rgb}"><CategoryIcon category={cat} size={10} />{CAT_LABEL[cat]??'GEN'}</div>
-							<span class="dos-pin-level">Lvl {Number(cd.level??1)}</span>
-						</div>
-						<div class="dos-pin-species">{String(cd.species??'?')}</div>
-						<div class="dos-pin-name">{String(cd.name??'Unnamed')}</div>
-						<div class="dos-pin-stats">
-							<span>HP {(bs.Health??0).toLocaleString()}</span>
-							<span>Mel {bs.Melee??0}%</span>
-							{#if tm > 0}<span class="dos-pin-muts">{tm}m</span>{/if}
-						</div>
-					</div>
-				</div>
-			{/each}
-		</div>
-	{/if}
+	<!-- ── Main two-column body ───────────────────────────────────────────── -->
+	<div class="dos-body">
 
-	<!-- Two column section: Species + Boss History -->
-	<div class="dos-two-col">
+		<!-- Left: Pinned + Species -->
+		<div class="dos-left-col">
+			<div class="dos-section-row">
+				<div class="dos-section-label"><Pin size={13} /> Pinned Specimens</div>
+				<button class="btn btn-ghost btn-sm" onclick={() => { pinnedIds = Array.isArray(profile?.pinnedCreatures) ? profile.pinnedCreatures as number[] : []; pinOpen=true; }}>Edit</button>
+			</div>
 
-		<!-- Species breakdown -->
-		{#if (data.topSpecies as [string,number][]).length > 0}
-			<div>
-				<div class="dos-section-title" style="margin-bottom:10px">Species Vault</div>
-				<div class="dos-species-list">
-					{#each data.topSpecies as [sp, count]}
-						{@const cat = getCat(sp)}
+			{#if pinned.length === 0}
+				<div class="dos-empty">No pinned specimens — click Edit to feature up to 6.</div>
+			{:else}
+				<div class="dos-pinned-grid">
+					{#each pinned as c}
+						{@const cd = c as Record<string,unknown>}
+						{@const bs = (cd.baseStats as Record<string,number>) ?? {}}
+						{@const muts = (cd.mutations as Record<string,number>) ?? {}}
+						{@const tm = Object.values(muts).reduce((a,b)=>a+b,0)}
+						{@const cat = getCat(String(cd.species ?? ''))}
 						{@const rgb = CAT_RGB[cat] ?? '0,180,255'}
-						<div class="cham-shell dos-species-row" style="--cut:5px;--cat-rgb:{rgb}">
-							<div class="dos-species-inner">
-								<div class="cat-badge-v3" style="--cat-rgb:{rgb};font-size:0.52rem;padding:2px 5px"><CategoryIcon category={cat} size={9} /></div>
-								<span class="dos-species-name">{sp}</span>
-								<span class="dos-species-count">{count}</span>
+						<div class="cham-shell dos-pin-card {cat}" style="--cut:7px;--cat-rgb:{rgb}">
+							<div class="dos-pin-inner">
+								<div class="dos-pin-top">
+									<div class="cat-badge-v3" style="--cat-rgb:{rgb}"><CategoryIcon category={cat} size={9} />{CAT_LABEL[cat]??'GEN'}</div>
+									<span class="dos-pin-lvl">Lvl {Number(cd.level??1)}</span>
+								</div>
+								<div class="dos-pin-species">{String(cd.species??'?')}</div>
+								<div class="dos-pin-name">{String(cd.name??'Unnamed')}</div>
+								<div class="dos-pin-stats">
+									<span>HP {(bs.Health??0).toLocaleString()}</span>
+									<span>Mel {bs.Melee??0}</span>
+									{#if tm > 0}<span class="dos-pin-muts">{tm}m</span>{/if}
+								</div>
 							</div>
 						</div>
 					{/each}
-					{#if (data.speciesOwned as number) > 6}
-						<div class="dos-species-more">+{(data.speciesOwned as number) - 6} more species</div>
-					{/if}
 				</div>
-			</div>
-		{/if}
+			{/if}
 
-		<!-- Boss fight history -->
-		{#if bossRecords.length > 0}
-			<div>
-				<div class="dos-section-title" style="margin-bottom:10px">Recent Boss Fights</div>
+			{#if topSpecies.length > 0}
+				<div class="dos-section-row" style="margin-top:20px">
+					<div class="dos-section-label">Species Vault</div>
+					<span class="dos-section-sub">{data.speciesOwned} species</span>
+				</div>
+				<div class="dos-species-bars">
+					{#each topSpecies as [sp, count]}
+						{@const cat = getCat(sp)}
+						{@const rgb = CAT_RGB[cat] ?? '0,180,255'}
+						{@const maxCount = topSpecies[0][1]}
+						<div class="dos-sp-row">
+							<div class="dos-sp-name">{sp}</div>
+							<div class="dos-sp-bar-wrap">
+								<div class="dos-sp-bar" style="width:{Math.round((count/maxCount)*100)}%;background:rgba({rgb},0.6)"></div>
+							</div>
+							<div class="dos-sp-count">{count}</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Right: Boss history + Trades -->
+		<div class="dos-right-col">
+			{#if bossRecords.length > 0}
+				<div class="dos-section-row">
+					<div class="dos-section-label"><Sword size={13} /> Boss Fights</div>
+					<a href="/overseer" class="btn btn-ghost btn-sm">Overseer <ChevronRight size={11} /></a>
+				</div>
 				<div class="dos-boss-list">
 					{#each bossRecords as r}
 						{@const rd = r as Record<string,unknown>}
-						<div class="cham-shell dos-boss-row" style="--cut:5px;--cat-rgb:{rd.outcome==='success' ? '34,197,94' : '239,68,68'}">
+						{@const win = rd.outcome === 'success'}
+						<div class="cham-shell dos-boss-row" style="--cut:5px;--cat-rgb:{win?'34,197,94':'239,68,68'}">
 							<div class="dos-boss-inner">
-								<div>
+								<div class="dos-boss-outcome-dot" class:win></div>
+								<div class="dos-boss-info">
 									<div class="dos-boss-name">{String(rd.bossName)}</div>
 									<div class="dos-boss-meta">{String(rd.difficulty??'').toUpperCase()}</div>
 								</div>
-								<span class="dos-boss-outcome" class:win={rd.outcome==='success'}>
-									{rd.outcome==='success' ? 'Victory' : 'Defeat'}
-								</span>
+								<span class="dos-boss-result" class:win>{win?'Victory':'Defeat'}</span>
 							</div>
 						</div>
 					{/each}
-					<a href="/overseer" class="dos-see-more">View War Rooms <ChevronRight size={12} /></a>
 				</div>
-			</div>
-		{/if}
+			{:else}
+				<div class="dos-section-row">
+					<div class="dos-section-label"><Sword size={13} /> Boss Fights</div>
+				</div>
+				<div class="dos-empty">No boss fights recorded yet. Log them from a War Room.</div>
+			{/if}
 
-	</div>
-
-	<!-- Recent trade listings -->
-	{#if recentTrades.length > 0}
-		<div class="dos-section-header" style="margin-top:20px">
-			<div class="dos-section-title">Active Listings</div>
-			<a href="/marketplace?tab=mine" class="btn btn-ghost btn-sm">View all</a>
-		</div>
-		<div class="dos-trade-list">
-			{#each recentTrades as t}
-				{@const td = t as Record<string,unknown>}
-				{@const cd = (td.creatureData ?? {}) as Record<string,unknown>}
-				<div class="cham-shell dos-trade-row" style="--cut:5px">
-					<div class="dos-trade-inner">
-						<div class="dos-trade-info">
-							<span class="dos-trade-species">{String(cd.species??'?')} — {String(cd.name??'Unnamed')}</span>
-							<span class="dos-trade-meta">{String(td.status)} · {(td.offerCount as number)??0} offer{(td.offerCount as number)!==1?'s':''}</span>
+			{#if recentTrades.length > 0}
+				<div class="dos-section-row" style="margin-top:20px">
+					<div class="dos-section-label"><Repeat2 size={13} /> Active Listings</div>
+					<a href="/marketplace" class="btn btn-ghost btn-sm">View <ChevronRight size={11} /></a>
+				</div>
+				<div class="dos-trade-list">
+					{#each recentTrades as t}
+						{@const td = t as Record<string,unknown>}
+						{@const cd = (td.creatureData??{}) as Record<string,unknown>}
+						<div class="cham-shell dos-trade-row" style="--cut:5px">
+							<div class="dos-trade-inner">
+								<div class="dos-trade-info">
+									<div class="dos-trade-species">{String(cd.species??'?')} — {String(cd.name??'Unnamed')}</div>
+									<div class="dos-trade-meta">{String(td.status)} · {(td.offerCount as number)??0} offer{(td.offerCount as number)!==1?'s':''}{td.wanted ? ` · Wants: ${td.wanted}` : ''}</div>
+								</div>
+							</div>
 						</div>
-						{#if td.wanted}<span class="dos-trade-wanted">Wants: {String(td.wanted)}</span>{/if}
-					</div>
+					{/each}
 				</div>
-			{/each}
+			{/if}
 		</div>
-	{/if}
-
+	</div>
 </div>
 
-<!-- Edit profile modal -->
+<!-- Edit modal -->
 {#if editOpen}
 <div class="modal active" role="dialog" aria-modal="true">
 	<div class="modal-content" style="max-width:480px">
@@ -234,7 +253,7 @@
 		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
 			<div class="plan-field"><label class="form-label" for="e-nick">Callsign</label><input id="e-nick" class="form-control" bind:value={nickname} placeholder="Leave blank to use email" /></div>
 			<div class="plan-field"><label class="form-label" for="e-bio">Bio</label><textarea id="e-bio" class="form-control" rows="3" bind:value={bio}></textarea></div>
-			<div class="plan-field"><label class="form-label" for="e-lf">Looking For</label><input id="e-lf" class="form-control" bind:value={lookingFor} placeholder="e.g. Mutation breeding partner" /></div>
+			<div class="plan-field"><label class="form-label" for="e-lf">Looking For</label><input id="e-lf" class="form-control" bind:value={lookingFor} placeholder="e.g. Mutation breeding partner, boss tribe..." /></div>
 			{#if err}<div class="tek-login-error">{err}</div>{/if}
 		</div>
 		<div class="modal-footer"><button class="btn btn-secondary" onclick={() => editOpen=false}>Cancel</button><button class="btn btn-primary" onclick={saveProfile} disabled={saving}>{saving?'Saving...':'Save'}</button></div>
@@ -268,75 +287,109 @@
 {/if}
 
 <style>
-.dos-hero { --cut:12px; margin-bottom:20px; }
-.dos-hero-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:24px; display:flex; align-items:flex-start; gap:18px; position:relative; flex-wrap:wrap; }
-.dos-avatar { width:56px; height:56px; border-radius:50%; background:rgba(0,180,255,0.1); border:1px solid rgba(0,180,255,0.25); display:flex; align-items:center; justify-content:center; color:rgba(0,180,255,0.8); flex-shrink:0; }
-.dos-hero-info { flex:1; min-width:180px; }
-.dos-name { font-size:1.5rem; font-weight:700; color:#f1f5f9; letter-spacing:-0.02em; }
-.dos-sub { font-size:0.75rem; color:#64748b; margin-top:3px; }
-.dos-tribe { display:flex; align-items:center; gap:5px; font-size:0.78rem; color:#a78bfa; margin-top:5px; }
-.dos-discord { font-size:0.74rem; color:#5865f2; margin-top:4px; }
-.dos-bio { font-size:0.86rem; color:#94a3b8; margin-top:8px; line-height:1.6; }
-.dos-looking { font-size:0.78rem; color:#60a5fa; margin-top:6px; }
-.dos-edit-btn { position:absolute; top:18px; right:18px; display:flex; align-items:center; gap:5px; }
+.dos-page { max-width:900px; }
 
-.dos-stats { display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; }
-.dos-stat { min-width:90px; }
-.dos-stat-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:12px 16px; display:flex; flex-direction:column; align-items:center; gap:4px; }
-.dos-stat-val { font-size:1.4rem; font-weight:700; color:#f1f5f9; }
-.dos-stat-lbl { font-size:0.6rem; color:#475569; text-transform:uppercase; letter-spacing:.06em; }
+/* ── Character sheet header ──────────────────────────────────────────── */
+.dos-sheet-header {
+	display:flex; align-items:flex-start; gap:20px;
+	background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1));
+	padding:24px; margin-bottom:16px;
+	clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%);
+	border-left:3px solid rgba(0,180,255,0.5);
+	position:relative;
+}
+.dos-avatar-col { position:relative; flex-shrink:0; }
+.dos-avatar {
+	width:64px; height:64px; border-radius:50%;
+	background:rgba(0,180,255,0.08); border:1px solid rgba(0,180,255,0.2);
+	display:flex; align-items:center; justify-content:center;
+	color:rgba(0,180,255,0.7);
+}
+.dos-online-pip {
+	position:absolute; bottom:2px; right:2px;
+	width:12px; height:12px; border-radius:50%;
+	background:#4ade80; border:2px solid #050812;
+	box-shadow:0 0 6px rgba(74,222,128,0.6);
+}
+.dos-identity { flex:1; min-width:0; }
+.dos-callsign { font-size:1.7rem; font-weight:800; color:#f1f5f9; letter-spacing:-0.03em; line-height:1; margin-bottom:6px; }
+.dos-email { font-size:0.74rem; color:#334155; margin-bottom:4px; }
+.dos-tribe-line { display:flex; align-items:center; gap:6px; font-size:0.8rem; color:#a78bfa; margin-bottom:4px; }
+.dos-discord-line { font-size:0.74rem; color:#5865f2; margin-bottom:4px; }
+.dos-joined { font-size:0.7rem; color:#334155; letter-spacing:0.02em; }
+.dos-header-actions { flex-shrink:0; }
+.dos-header-actions .btn { display:flex; align-items:center; gap:5px; }
 
-.dos-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-.dos-section-title { font-size:0.65rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#475569; }
-.dos-empty { color:#475569; padding:16px 0; font-size:0.88rem; }
+/* Bio strip */
+.dos-bio-row { background:rgba(255,255,255,0.02); border-left:2px solid rgba(255,255,255,0.06); padding:10px 16px; margin-bottom:16px; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
+.dos-bio-text { font-size:0.86rem; color:#94a3b8; font-style:italic; line-height:1.55; }
+.dos-lf { font-size:0.78rem; color:#64748b; margin-top:4px; }
+.dos-lf span { color:#60a5fa; }
+
+/* Stat tiles */
+.dos-stats-row { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+.dos-stat-tile { flex:1; min-width:80px; }
+.dos-stat-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:12px 10px; display:flex; flex-direction:column; align-items:center; gap:3px; }
+:global(.dos-stat-icon) { color:#475569; }
+.dos-stat-val { font-size:1.4rem; font-weight:800; color:#f1f5f9; line-height:1; }
+.dos-stat-lbl { font-size:0.58rem; color:#475569; text-transform:uppercase; letter-spacing:.07em; }
+
+/* Section label */
+.dos-section-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.dos-section-label { font-size:0.62rem; font-weight:700; letter-spacing:0.13em; text-transform:uppercase; color:#334155; display:flex; align-items:center; gap:6px; }
+.dos-section-sub { font-size:0.68rem; color:#334155; }
+.dos-empty { color:#334155; font-size:0.82rem; padding:12px 0; }
 .dos-badges { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px; }
 
-.dos-pinned-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; margin-bottom:28px; }
-.dos-pin-card { --cut:8px; }
-.dos-pin-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:13px; display:flex; flex-direction:column; gap:4px; }
-.dos-pin-header { display:flex; align-items:center; justify-content:space-between; }
-.dos-pin-level { font-size:0.66rem; color:#64748b; }
-.dos-pin-species { font-size:0.9rem; font-weight:700; color:#f1f5f9; }
-.dos-pin-name { font-size:0.72rem; color:rgb(var(--cat-rgb,0,180,255)); opacity:0.8; font-style:italic; }
-.dos-pin-stats { display:flex; gap:10px; font-size:0.7rem; color:#64748b; margin-top:3px; }
+/* Two-column body */
+.dos-body { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media (max-width:640px) { .dos-body { grid-template-columns:1fr; } }
+
+/* Pinned grid */
+.dos-pinned-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+.dos-pin-card { --cut:7px; }
+.dos-pin-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:11px 13px; display:flex; flex-direction:column; gap:4px; }
+.dos-pin-top { display:flex; align-items:center; justify-content:space-between; }
+.dos-pin-lvl { font-size:0.64rem; color:#475569; }
+.dos-pin-species { font-size:0.88rem; font-weight:700; color:#f1f5f9; }
+.dos-pin-name { font-size:0.7rem; color:rgb(var(--cat-rgb,0,180,255)); opacity:0.8; font-style:italic; }
+.dos-pin-stats { display:flex; gap:8px; font-size:0.68rem; color:#64748b; margin-top:2px; }
 .dos-pin-muts { color:#a78bfa; font-weight:600; }
 
-/* Two column layout */
-.dos-two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
-@media (max-width:640px) { .dos-two-col { grid-template-columns:1fr; } }
+/* Species bars */
+.dos-species-bars { display:flex; flex-direction:column; gap:5px; }
+.dos-sp-row { display:grid; grid-template-columns:110px 1fr 28px; gap:8px; align-items:center; }
+.dos-sp-name { font-size:0.76rem; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dos-sp-bar-wrap { height:4px; background:rgba(255,255,255,0.04); border-radius:0; overflow:hidden; }
+.dos-sp-bar { height:100%; border-radius:0; transition:width .3s; }
+.dos-sp-count { font-size:0.7rem; color:#475569; text-align:right; }
 
-.dos-species-list { display:flex; flex-direction:column; gap:4px; }
-.dos-species-row { }
-.dos-species-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:8px 12px; display:flex; align-items:center; gap:8px; }
-.dos-species-name { flex:1; font-size:0.86rem; color:#f1f5f9; }
-.dos-species-count { font-size:0.75rem; color:#64748b; font-weight:600; }
-.dos-species-more { font-size:0.72rem; color:#334155; padding:6px 12px; }
-
+/* Boss history */
 .dos-boss-list { display:flex; flex-direction:column; gap:4px; }
 .dos-boss-row { }
-.dos-boss-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:9px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.dos-boss-name { font-size:0.86rem; font-weight:600; color:#f1f5f9; }
+.dos-boss-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:9px 13px; display:flex; align-items:center; gap:10px; }
+.dos-boss-outcome-dot { width:7px; height:7px; border-radius:50%; background:#ef4444; flex-shrink:0; }
+.dos-boss-outcome-dot.win { background:#4ade80; box-shadow:0 0 5px rgba(74,222,128,0.5); }
+.dos-boss-info { flex:1; }
+.dos-boss-name { font-size:0.84rem; font-weight:600; color:#f1f5f9; }
 .dos-boss-meta { font-size:0.66rem; color:#475569; margin-top:1px; }
-.dos-boss-outcome { font-size:0.7rem; font-weight:700; color:#ef4444; }
-.dos-boss-outcome.win { color:#4ade80; }
-.dos-see-more { display:flex; align-items:center; gap:4px; font-size:0.72rem; color:#475569; text-decoration:none; padding:6px 12px; }
-.dos-see-more:hover { color:#7dd3fc; }
+.dos-boss-result { font-size:0.68rem; font-weight:700; color:#ef4444; }
+.dos-boss-result.win { color:#4ade80; }
 
+/* Trades */
 .dos-trade-list { display:flex; flex-direction:column; gap:4px; }
 .dos-trade-row { }
-.dos-trade-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:9px 12px; display:flex; align-items:center; gap:12px; }
-.dos-trade-info { flex:1; min-width:0; }
-.dos-trade-species { font-size:0.86rem; font-weight:600; color:#f1f5f9; display:block; }
-.dos-trade-meta { font-size:0.7rem; color:#64748b; }
-.dos-trade-wanted { font-size:0.72rem; color:#60a5fa; white-space:nowrap; }
+.dos-trade-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:9px 13px; }
+.dos-trade-species { font-size:0.84rem; font-weight:600; color:#f1f5f9; }
+.dos-trade-meta { font-size:0.7rem; color:#64748b; margin-top:2px; }
 
 /* Pin picker */
 .dos-pin-picker { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px; max-height:380px; overflow-y:auto; padding:2px; }
 .dos-pick-btn { background:none; border:none; cursor:pointer; text-align:left; width:100%; }
 .dos-pick-btn:disabled { opacity:.4; cursor:not-allowed; }
 .dos-pick-btn.selected .dos-pick-inner { background:rgba(34,197,94,0.08); }
-.dos-pick-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:12px; position:relative; }
+.dos-pick-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:11px; position:relative; }
 .dos-pick-species { font-size:0.85rem; font-weight:600; color:#f1f5f9; }
 .dos-pick-name { font-size:0.72rem; color:#64748b; margin-top:2px; }
-.dos-pick-check { position:absolute; top:8px; right:10px; color:#4ade80; font-weight:700; font-size:0.9rem; }
+.dos-pick-check { position:absolute; top:8px; right:10px; color:#4ade80; font-weight:700; }
 </style>
