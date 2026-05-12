@@ -52,6 +52,8 @@ model User {
   bossInvitesReceived  BossInvite[]         @relation("BossInvited")
   bossTimers           BossTimer[]
   bossPlanner          BossPlanner?
+  tribalActivity       TribalActivity[]     @relation("TribalActivityUser")
+  warRoomsCreated      WarRoom[]            @relation("WarRoomCreator")
 
   @@map("users")
 }
@@ -137,14 +139,19 @@ model DirectMessage {
 }
 
 model Tribe {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  mainMap     String?  @map("main_map")
-  description String?
-  flagImage   String?  @map("flag_image")
-  colors      Json?
-  ownerUserId Int      @map("owner_user_id")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id              Int      @id @default(autoincrement())
+  name            String   @unique
+  mainMap         String?  @map("main_map")
+  description     String?
+  flagImage       String?  @map("flag_image")
+  colors          Json?
+  motto           String?
+  bannerUrl       String?  @map("banner_url")
+  sigilUrl        String?  @map("sigil_url")
+  recruitmentOpen Boolean  @default(false) @map("recruitment_open")
+  lookingFor      String?  @map("looking_for")
+  ownerUserId     Int      @map("owner_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   owner        User               @relation(fields: [ownerUserId], references: [id])
   members      TribeMembership[]
@@ -152,19 +159,23 @@ model Tribe {
   joinRequests TribeJoinRequest[]
   alliancesAs1 TribeAlliance[]    @relation("Tribe1")
   alliancesAs2 TribeAlliance[]    @relation("Tribe2")
+  activity     TribalActivity[]
+  warRooms     WarRoom[]
 
   @@map("tribes")
 }
 
 model TribeMembership {
-  id        Int      @id @default(autoincrement())
-  tribeId   Int      @map("tribe_id")
-  userId    Int      @map("user_id")
-  role      String   @default("member")
-  createdAt DateTime @default(now()) @map("created_at")
+  id               Int      @id @default(autoincrement())
+  tribeId          Int      @map("tribe_id")
+  userId           Int      @map("user_id")
+  role             String   @default("member")
+  pinnedCreatureId Int?     @map("pinned_creature_id")
+  createdAt        DateTime @default(now()) @map("created_at")
 
-  tribe Tribe @relation(fields: [tribeId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tribe          Tribe          @relation(fields: [tribeId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pinnedCreature TribeCreature? @relation("PinnedCreature", fields: [pinnedCreatureId], references: [id], onDelete: SetNull)
 
   @@unique([tribeId, userId])
   @@map("tribe_memberships")
@@ -181,8 +192,42 @@ model TribeCreature {
   tribe    Tribe     @relation(fields: [tribeId], references: [id], onDelete: Cascade)
   creator  User      @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
   creature Creature? @relation(fields: [creatureId], references: [id], onDelete: SetNull)
+  pinnedBy TribeMembership[] @relation("PinnedCreature")
 
   @@map("tribe_creatures")
+}
+
+model TribalActivity {
+  id        Int      @id @default(autoincrement())
+  tribeId   Int      @map("tribe_id")
+  userId    Int?     @map("user_id")
+  eventType String   @map("event_type")
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tribe Tribe @relation(fields: [tribeId], references: [id], onDelete: Cascade)
+  user  User? @relation("TribalActivityUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tribeId, createdAt])
+  @@map("tribal_activity")
+}
+
+model WarRoom {
+  id              Int       @id @default(autoincrement())
+  tribeId         Int       @map("tribe_id")
+  bossName        String    @map("boss_name")
+  difficulty      String?
+  scheduledAt     DateTime  @map("scheduled_at")
+  notes           String?
+  status          String    @default("scheduled")
+  createdByUserId Int       @map("created_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  tribe     Tribe @relation(fields: [tribeId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("WarRoomCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([tribeId, scheduledAt])
+  @@map("war_rooms")
 }
 
 model TribeJoinRequest {

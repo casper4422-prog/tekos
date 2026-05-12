@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 						include: { user: { select: { id:true, nickname:true, email:true, lastSeen:true } } },
 						orderBy: { role: 'asc' }
 					},
-					creatures: { include: { creator: { select: { nickname:true, email:true } } }, orderBy: { createdAt: 'desc' } },
+					creatures: { include: { creator: { select: { id:true, nickname:true, email:true } } }, orderBy: { createdAt: 'desc' } },
 					joinRequests: {
 						where: { status: 'pending' },
 						include: { user: { select: { id:true, nickname:true, email:true } } }
@@ -23,10 +23,29 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 	});
 
+	let activity: unknown[] = [];
+	let warRooms: unknown[] = [];
+	if (membership) {
+		const tribeId = membership.tribe.id;
+		[activity, warRooms] = await Promise.all([
+			db.tribalActivity.findMany({
+				where: { tribeId },
+				orderBy: { createdAt: 'desc' },
+				take: 30,
+				include: { user: { select: { id:true, nickname:true, email:true } } }
+			}),
+			db.warRoom.findMany({
+				where: { tribeId, status: { in: ['scheduled','in_progress'] } },
+				orderBy: { scheduledAt: 'asc' },
+				include: { createdBy: { select: { id:true, nickname:true, email:true } } }
+			})
+		]);
+	}
+
 	const allTribes = membership ? null : await db.tribe.findMany({
 		orderBy: { createdAt: 'desc' },
 		include: { _count: { select: { members: true } } }
 	});
 
-	return { membership, myId: uid, allTribes };
+	return { membership, myId: uid, allTribes, activity, warRooms };
 };

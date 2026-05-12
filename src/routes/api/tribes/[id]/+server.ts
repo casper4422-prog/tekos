@@ -61,6 +61,27 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	return json({ error: 'Unknown action' }, { status: 400 });
 };
 
+// Edit tribe (owner-only): motto, banner, sigil, recruitment, looking-for, map, description, name.
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
+	const uid = locals.user!.id;
+	const id = parseInt(params.id);
+	const tribe = await db.tribe.findUnique({ where: { id }, select: { ownerUserId: true } });
+	if (!tribe) return json({ error: 'Not found' }, { status: 404 });
+	if (tribe.ownerUserId !== uid) return json({ error: 'Owner only' }, { status: 403 });
+
+	const body = await request.json().catch(() => ({}));
+	const data: Record<string, unknown> = {};
+	const allowed = ['name','mainMap','description','motto','bannerUrl','sigilUrl','recruitmentOpen','lookingFor'] as const;
+	for (const k of allowed) {
+		if (k in body) data[k] = body[k];
+	}
+	if (Object.keys(data).length === 0) return json({ error: 'Nothing to update' }, { status: 400 });
+
+	const updated = await db.tribe.update({ where: { id }, data });
+	await db.tribalActivity.create({ data: { tribeId: id, userId: uid, eventType: 'tribe_edited', metadata: { fields: Object.keys(data) } } });
+	return json(updated);
+};
+
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	const uid = locals.user!.id;
 	const id = parseInt(params.id);

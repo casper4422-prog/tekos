@@ -43,6 +43,72 @@
 
 	const sessions = data.sessions as Session[];
 	const records  = data.records as Record<string,unknown>[];
+	const wins     = (data.wins ?? {}) as Record<string, string[]>;
+
+	// Per-boss visual mapping (color class + hex-glyph letter)
+	const BOSS_COLOR: Record<string,string> = {
+		broodmother:'brood', center_broodmother:'brood', val_broodmother:'brood',
+		megapithecus:'mega', center_megapithecus:'mega', val_megapithecus:'mega',
+		dragon:'dragon', center_dragon:'dragon', val_dragon:'dragon',
+		overseer:'overseer',
+		manticore:'manticore', ragnarok_boss:'manticore',
+		rockwell:'rockwell', rockwell_prime:'rockwell',
+		forest_titan:'forest', desert_titan:'desert', ice_titan:'ice', king_titan:'king',
+		moeder:'ice', master_controller:'overseer',
+		hydraskos:'rockwell', natrix:'forest', thodes:'desert', thanatos:'dragon',
+		pulmonoscorpius_monarch:'manticore',
+		lost_king:'king', lost_queen:'rockwell',
+		svartalfheim_dinopithecus:'mega'
+	};
+	const BOSS_LETTER: Record<string,string> = {
+		broodmother:'B', center_broodmother:'B', val_broodmother:'B',
+		megapithecus:'Mp', center_megapithecus:'Mp', val_megapithecus:'Mp',
+		dragon:'D', center_dragon:'D', val_dragon:'D',
+		overseer:'O',
+		manticore:'M', ragnarok_boss:'D&M',
+		rockwell:'R', rockwell_prime:'Rp',
+		forest_titan:'FT', desert_titan:'DT', ice_titan:'IT', king_titan:'KT',
+		moeder:'Mo', master_controller:'CM',
+		hydraskos:'H', natrix:'N', thodes:'T', thanatos:'Th',
+		pulmonoscorpius_monarch:'PM',
+		lost_king:'LK', lost_queen:'LQ',
+		svartalfheim_dinopithecus:'DK'
+	};
+	const MAP_THEME: Record<string,string> = {
+		'The Island':'island',
+		'The Center':'island',
+		'Scorched Earth':'scorched',
+		'Aberration':'aberration',
+		'Extinction':'extinction',
+		'Ragnarok':'ragnarok',
+		'Valguero':'island',
+		'Genesis: Part 1':'genesis',
+		'Genesis: Part 2':'genesis',
+		'Astraeos':'aberration',
+		'Lost Colony':'ragnarok',
+		'Svartalfheim · Mod':'extinction'
+	};
+
+	function bossColor(id: string) { return BOSS_COLOR[id] ?? 'overseer'; }
+	function bossLetter(id: string, name: string) { return BOSS_LETTER[id] ?? name.charAt(0); }
+	function mapClass(map: string) { return MAP_THEME[map] ?? 'island'; }
+	function wonOn(b: Boss, d: string) { return (wins[b.name] ?? []).includes(d); }
+	function diffOrder(d: string) { return d==='gamma'?0 : d==='beta'?1 : 2; }
+	function statusFor(b: Boss) {
+		const won = b.difficulties.filter(d => wonOn(b, d));
+		if (won.length === 0) return { cls:'notready', label:'Not Ready', hint:'Untouched' };
+		if (won.length === b.difficulties.length) return { cls:'complete', label:'Complete', hint:`${won.length} cleared` };
+		const remaining = b.difficulties.filter(d => !wonOn(b, d)).sort((a,c)=>diffOrder(a)-diffOrder(c));
+		const next = remaining[0];
+		return { cls:'partial', label:`Partial · ${next.charAt(0).toUpperCase()+next.slice(1)}`, hint:`${won.length}/${b.difficulties.length} cleared` };
+	}
+	function pipClass(b: Boss, d: string) {
+		if (!wonOn(b, d)) return '';
+		return d==='gamma' ? 'won-bronze' : d==='beta' ? 'won-silver' : 'won-gold';
+	}
+	function activeWarRoom(bossName: string) {
+		return sessions.some(s => (s as Record<string,unknown>).bossName === bossName && (s as Record<string,unknown>).status === 'open');
+	}
 
 	let mapFilter  = $state('all');
 	let joinCode   = $state('');
@@ -191,23 +257,25 @@
 		<PageHeader
 			title="Overseer"
 			crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Overseer' }]}
-			sub={`${BOSSES.length} bosses · ${MAPS.length - 1} maps · the wild remembers each one`}
+			sub={`Boss arena · ${BOSSES.length} bosses · ${MAPS.length - 1} maps · ${sessions.length} war rooms active`}
 			subMono={true}
+			variant="red"
 		/>
 
-		<!-- Join + map filter -->
-		<div class="ov-top-row">
-			<div style="display:flex; gap:8px; align-items:center;">
-				<input class="tek-input-v2" style="max-width:160px; text-transform:uppercase; letter-spacing:0.10em;" placeholder="Join Code" bind:value={joinCode} maxlength={6} onkeydown={(e) => e.key==='Enter' && joinByCode()} />
-				<button class="tek-btn-v2" onclick={joinByCode}><LogIn size={13} strokeWidth={2.5} /> Join Room</button>
-			</div>
-			<div class="ov-map-filters">
-				{#each MAPS as m}
-					<button class="tek-chip" class:on={mapFilter === m} onclick={() => mapFilter = m}>
-						{m === 'all' ? 'All Maps' : m}
-					</button>
-				{/each}
-			</div>
+		<!-- Join code row -->
+		<div class="ov-join-row">
+			<input class="tek-input-v2" style="max-width:180px; text-transform:uppercase; letter-spacing:0.10em;" placeholder="Join Code" bind:value={joinCode} maxlength={6} onkeydown={(e) => e.key==='Enter' && joinByCode()} />
+			<button class="tek-btn-v2" onclick={joinByCode}><LogIn size={13} strokeWidth={2.5} /> Join Room</button>
+		</div>
+
+		<!-- Map filter bar -->
+		<div class="map-filter">
+			{#each MAPS as m}
+				{@const count = m === 'all' ? BOSSES.length : BOSSES.filter(b => b.map === m).length}
+				<button class="map-chip" class:active={mapFilter === m} onclick={() => mapFilter = m}>
+					{m === 'all' ? 'All Maps' : m} <span class="count">{count}</span>
+				</button>
+			{/each}
 		</div>
 
 		<!-- Open sessions -->
@@ -231,20 +299,44 @@
 
 		<!-- Boss grid by map -->
 		{#each grouped() as [mapName, bosses]}
-			<div class="ov-section-title">{mapName}</div>
-			<div class="ov-boss-grid">
-				{#each bosses as b}
-					<button class="cham-shell ov-boss-card" onclick={() => { detailBoss = b; difficulty = 'alpha'; }} style="--cut:9px;background:none;border:none;cursor:pointer;width:100%;text-align:left;font-family:inherit">
-						<div class="ov-boss-inner">
-							<div class="ov-boss-name">{b.name}</div>
-							<div class="ov-boss-diffs">
-								{#each b.difficulties as d}<span class="ov-diff-chip {d}">{d.charAt(0).toUpperCase()}</span>{/each}
+			<section class="map-section {mapClass(mapName)}">
+				<div class="map-section-header">
+					<span class="map-glyph">◆</span>
+					<span class="map-name">{mapName}</span>
+					<span class="rule"></span>
+					<span class="map-count">{bosses.length} {bosses.length === 1 ? 'BOSS' : 'BOSSES'}</span>
+				</div>
+				<div class="boss-grid">
+					{#each bosses as b}
+						{@const letter = bossLetter(b.id, b.name)}
+						{@const st = statusFor(b)}
+						<button class="boss-card {bossColor(b.id)}" onclick={() => { detailBoss = b; difficulty = 'alpha'; }}>
+							{#if activeWarRoom(b.name)}<span class="boss-warroom-flag">● War Room Active</span>{/if}
+							<div class="boss-top">
+								<div class="boss-glyph">
+									<svg viewBox="0 0 100 110">
+										<polygon points="50,2 96,28 96,82 50,108 4,82 4,28" style="fill:rgba(var(--boss-rgb),0.15); stroke:rgb(var(--boss-rgb)); stroke-width:2" />
+										<text x="50" y="72" font-family="Orbitron" font-size={letter.length === 1 ? 44 : letter.length === 2 ? 36 : 26} font-weight="900" text-anchor="middle" style="fill:rgb(var(--boss-rgb)); filter:brightness(1.6)">{letter}</text>
+									</svg>
+								</div>
+								<div class="boss-id">
+									<div class="boss-card-name">{b.name}</div>
+									<div class="boss-card-map">{b.map}</div>
+								</div>
 							</div>
-							<div class="ov-boss-hint">Click for details</div>
-						</div>
-					</button>
-				{/each}
-			</div>
+							<div class="boss-diff">
+								{#each b.difficulties as d}
+									<div class="boss-pip {pipClass(b, d)}">{d.charAt(0).toUpperCase()+d.slice(1)}{wonOn(b, d) ? ' ✓' : ''}</div>
+								{/each}
+							</div>
+							<div class="boss-status">
+								<span class="status-badge {st.cls}"><span class="status-pip"></span>{st.label}</span>
+								<span class="boss-extra">{st.hint}</span>
+							</div>
+						</button>
+					{/each}
+				</div>
+			</section>
 		{/each}
 
 		<!-- Fight history -->
@@ -456,13 +548,12 @@
 {/if}
 
 <style>
-.ov-page { max-width:900px; }
-.ov-top-row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; margin-bottom:20px; }
-.ov-map-filters { display:flex; gap:5px; flex-wrap:wrap; }
-.ov-map-btn { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); color:#64748b; font-size:0.72rem; padding:4px 10px; cursor:pointer; font-family:inherit; transition:all .15s; clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%); }
-.ov-map-btn:hover { background:rgba(255,255,255,0.08); color:#94a3b8; }
-.ov-map-btn.active { background:rgba(0,180,255,0.12); color:#7dd3fc; border-color:rgba(0,180,255,0.35); }
+.ov-page { max-width:1100px; }
 
+/* Join code row */
+.ov-join-row { display:flex; gap:8px; align-items:center; margin-bottom:18px; flex-wrap:wrap; }
+
+/* Section title (shared with Open War Rooms / fight history) */
 .ov-section-title {
 	font-family: var(--tek-display);
 	font-size: 0.86rem;
@@ -478,28 +569,249 @@
 .ov-section-title::before { content: '▸'; color: var(--tek-blue); }
 .ov-section-title::after { content: ''; flex: 1; height: 1px; background: rgba(0,180,255,0.10); }
 
-.ov-top-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; align-items: center; justify-content: space-between; }
-.ov-map-filters { display: flex; gap: 5px; flex-wrap: wrap; }
-
+/* Open-room session list */
 .ov-sessions { display:flex; flex-direction:column; gap:5px; margin-bottom:16px; }
-.ov-session { }
 .ov-session-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:11px 15px; display:flex; align-items:center; gap:12px; transition:background .15s; }
 .ov-session:hover .ov-session-inner { background:rgba(14,26,54,0.98); }
 .ov-session-info { flex:1; }
 .ov-session-boss { font-size:0.9rem; font-weight:600; color:#f1f5f9; }
 .ov-session-meta { font-size:0.72rem; color:#64748b; margin-top:2px; }
 
-.ov-boss-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:8px; margin-bottom:8px; }
-.ov-boss-card { }
-.ov-boss-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:14px 16px; display:flex; flex-direction:column; gap:6px; transition:background .15s; }
-.ov-boss-card:hover .ov-boss-inner { background:rgba(14,26,54,0.98); }
-.ov-boss-name { font-size:0.9rem; font-weight:700; color:#f1f5f9; }
-.ov-boss-diffs { display:flex; gap:5px; }
-.ov-diff-chip { font-size:0.65rem; font-weight:800; width:20px; height:20px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
-.ov-diff-chip.gamma { background:rgba(34,197,94,0.15); color:#4ade80; }
-.ov-diff-chip.beta  { background:rgba(59,130,246,0.15); color:#60a5fa; }
-.ov-diff-chip.alpha { background:rgba(239,68,68,0.15);  color:#f87171; }
-.ov-boss-hint { font-size:0.65rem; color:#334155; }
+/* ────── Map filter bar (preview parity) ────── */
+.map-filter {
+	background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+	padding: 12px 18px;
+	margin-bottom: 28px;
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.map-filter::before {
+	content: '';
+	position: absolute;
+	left: 0; top: 12px; bottom: 0;
+	width: 2px;
+	background: linear-gradient(180deg, #ef4444, #f59e0b);
+	box-shadow: 0 0 7px rgba(239,68,68,0.55);
+}
+.map-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: rgba(255,255,255,0.04);
+	border: 1px solid rgba(255,255,255,0.06);
+	color: var(--tek-text-dim);
+	font-family: var(--tek-mono);
+	font-size: 0.66rem;
+	font-weight: 600;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	padding: 6px 11px;
+	cursor: pointer;
+	clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+	transition: all 0.18s;
+}
+.map-chip:hover { color: var(--tek-text); border-color: rgba(239,68,68,0.40); }
+.map-chip.active { background: #ef4444; color: #fff; border-color: #ef4444; }
+.map-chip .count {
+	font-family: var(--tek-mono);
+	font-size: 0.58rem;
+	opacity: 0.6;
+	background: rgba(0,0,0,0.30);
+	padding: 1px 6px;
+	border-radius: 6px;
+}
+.map-chip.active .count { background: rgba(0,0,0,0.25); opacity: 0.85; }
+
+/* ────── Map section + per-map theming ────── */
+.map-section { margin-bottom: 28px; }
+.map-section-header {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	margin: 0 0 14px;
+	font-family: var(--tek-mono);
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.24em;
+	text-transform: uppercase;
+}
+.map-section-header .map-glyph {
+	color: #ef4444;
+	filter: drop-shadow(0 0 4px rgba(239,68,68,0.6));
+	font-size: 0.9rem;
+}
+.map-section-header .map-name { color: var(--tek-text); }
+.map-section-header .rule {
+	flex: 1; height: 1px;
+	background: linear-gradient(90deg, rgba(239,68,68,0.20), transparent);
+}
+.map-section-header .map-count { color: var(--tek-text-faint); font-size: 0.62rem; }
+
+.map-section.island      .map-section-header .map-glyph { color: #34d399; filter: drop-shadow(0 0 4px rgba(52,211,153,0.6)); }
+.map-section.island      .map-section-header .rule      { background: linear-gradient(90deg, rgba(52,211,153,0.25), transparent); }
+.map-section.scorched    .map-section-header .map-glyph { color: #fbbf24; filter: drop-shadow(0 0 4px rgba(251,191,36,0.6)); }
+.map-section.scorched    .map-section-header .rule      { background: linear-gradient(90deg, rgba(251,191,36,0.25), transparent); }
+.map-section.aberration  .map-section-header .map-glyph { color: #d946ef; filter: drop-shadow(0 0 4px rgba(217,70,239,0.6)); }
+.map-section.aberration  .map-section-header .rule      { background: linear-gradient(90deg, rgba(217,70,239,0.25), transparent); }
+.map-section.extinction  .map-section-header .map-glyph { color: #94a3b8; filter: drop-shadow(0 0 4px rgba(148,163,184,0.5)); }
+.map-section.extinction  .map-section-header .rule      { background: linear-gradient(90deg, rgba(148,163,184,0.25), transparent); }
+.map-section.ragnarok    .map-section-header .map-glyph { color: #f97316; filter: drop-shadow(0 0 4px rgba(249,115,22,0.6)); }
+.map-section.ragnarok    .map-section-header .rule      { background: linear-gradient(90deg, rgba(249,115,22,0.25), transparent); }
+.map-section.genesis     .map-section-header .map-glyph { color: #06b6d4; filter: drop-shadow(0 0 4px rgba(6,182,212,0.6)); }
+.map-section.genesis     .map-section-header .rule      { background: linear-gradient(90deg, rgba(6,182,212,0.25), transparent); }
+
+/* ────── Boss grid ────── */
+.boss-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 12px;
+}
+@media (max-width: 980px) { .boss-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 540px) { .boss-grid { grid-template-columns: 1fr; } }
+
+/* ────── Boss card ────── */
+.boss-card {
+	--boss-rgb: 239,68,68;
+	position: relative;
+	background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.98) 100%);
+	backdrop-filter: blur(12px);
+	clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+	padding: 16px 18px 14px 20px;
+	cursor: pointer;
+	transition: transform 0.22s ease, filter 0.25s ease;
+	filter: drop-shadow(0 0 1px rgba(var(--boss-rgb), 0.30)) drop-shadow(0 8px 22px rgba(0,0,0,0.40));
+	overflow: hidden;
+	color: inherit;
+	display: block;
+	border: none;
+	font-family: inherit;
+	text-align: left;
+	width: 100%;
+}
+.boss-card:hover {
+	transform: translateY(-2px);
+	filter: drop-shadow(0 0 2px rgba(var(--boss-rgb), 0.75)) drop-shadow(0 12px 30px rgba(0,0,0,0.55));
+}
+.boss-card::before {
+	content: '';
+	position: absolute;
+	left: 0; top: 12px; bottom: 0;
+	width: 2px;
+	background: rgb(var(--boss-rgb));
+	box-shadow: 0 0 6px rgba(var(--boss-rgb), 0.7);
+}
+
+.boss-card.brood     { --boss-rgb: 34,197,94;   }
+.boss-card.mega      { --boss-rgb: 139,92,246;  }
+.boss-card.dragon    { --boss-rgb: 239,68,68;   }
+.boss-card.overseer  { --boss-rgb: 148,163,184; }
+.boss-card.manticore { --boss-rgb: 245,158,11;  }
+.boss-card.rockwell  { --boss-rgb: 217,70,239;  }
+.boss-card.forest    { --boss-rgb: 34,197,94;   }
+.boss-card.desert    { --boss-rgb: 245,158,11;  }
+.boss-card.ice       { --boss-rgb: 6,182,212;   }
+.boss-card.king      { --boss-rgb: 239,68,68;   }
+
+.boss-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.boss-glyph { width: 44px; height: 50px; flex-shrink: 0; }
+.boss-glyph svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgba(var(--boss-rgb), 0.55)); }
+.boss-id { min-width: 0; line-height: 1.2; }
+.boss-card-name {
+	font-family: var(--tek-display);
+	font-size: 0.95rem;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	color: var(--tek-text);
+	text-transform: uppercase;
+	line-height: 1.1;
+	margin-bottom: 3px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.boss-card-map {
+	font-family: var(--tek-mono);
+	font-size: 0.58rem;
+	letter-spacing: 0.16em;
+	color: var(--tek-text-faint);
+	text-transform: uppercase;
+}
+
+.boss-diff { display: flex; gap: 4px; margin-bottom: 12px; }
+.boss-pip {
+	flex: 1;
+	text-align: center;
+	padding: 5px 4px;
+	background: rgba(0,0,0,0.30);
+	border: 1px solid rgba(255,255,255,0.05);
+	font-family: var(--tek-mono);
+	font-size: 0.56rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	color: var(--tek-text-faint);
+	clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+	text-transform: uppercase;
+}
+.boss-pip.won-bronze  { background: rgba(205,127,50,0.18);  border-color: rgba(205,127,50,0.50);  color: #fbbf24; box-shadow: 0 0 5px rgba(205,127,50,0.30); }
+.boss-pip.won-silver  { background: rgba(200,200,210,0.18); border-color: rgba(200,200,210,0.50); color: #f3f4f6; box-shadow: 0 0 5px rgba(200,200,210,0.30); }
+.boss-pip.won-gold    { background: rgba(255,215,0,0.18);   border-color: rgba(255,215,0,0.55);   color: #fde047; box-shadow: 0 0 7px rgba(255,215,0,0.40); }
+
+.boss-status { display: flex; align-items: center; justify-content: space-between; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+.status-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-family: var(--tek-mono);
+	font-size: 0.6rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	padding: 4px 9px;
+	clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.status-badge.ready    { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.40); color: #86efac; }
+.status-badge.partial  { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.40); color: #fcd34d; }
+.status-badge.notready { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.32);  color: #fca5a5; }
+.status-badge.complete { background: rgba(0,180,255,0.15);  border: 1px solid rgba(0,180,255,0.50);  color: #7dd3fc; text-shadow: 0 0 6px rgba(0,180,255,0.6); }
+.status-badge .status-pip {
+	width: 6px; height: 6px;
+	border-radius: 50%;
+	background: currentColor;
+	box-shadow: 0 0 5px currentColor;
+}
+.status-badge.partial .status-pip { animation: amber-pulse 1.6s ease-in-out infinite; }
+@keyframes amber-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+.boss-extra {
+	font-family: var(--tek-mono);
+	font-size: 0.58rem;
+	color: var(--tek-text-faint);
+	letter-spacing: 0.10em;
+	text-transform: uppercase;
+}
+
+.boss-warroom-flag {
+	position: absolute;
+	top: 10px; right: 10px;
+	background: rgba(239,68,68,0.20);
+	border: 1px solid #ef4444;
+	color: #fca5a5;
+	font-family: var(--tek-mono);
+	font-size: 0.5rem;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	padding: 2px 6px;
+	clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+	text-transform: uppercase;
+	z-index: 3;
+	box-shadow: 0 0 6px rgba(239,68,68,0.45);
+	animation: amber-pulse 1.6s ease-in-out infinite;
+}
 
 .ov-records { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:7px; margin-bottom:16px; }
 .ov-record-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:9px 13px; display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:10px; }
