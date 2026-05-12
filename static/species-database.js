@@ -27165,7 +27165,136 @@ const SPECIES_DATABASE = {
   badgeCategories: ['combat', 'utility', 'pvp']
 },
 'Fenrir': {
+  // Basic Info
+  id: 'FENRIR_249',
+  name: 'Fenrir',
+  icon: '🐺',
+  category: 'combat',
+  rarity: 'mythical',
+  source: 'Fjordur DLC (Boss Reward)',
+  variants: ['Standard'],
 
+  // Biology & Lore
+  dossierText: "Fenrir is the legendary frost wolf of Fjordur, awarded as a one-time tame only to survivors who triumph over Fenrisulfr on Alpha difficulty. Unlike its god-like progenitor, this Fenrir is sized to be a viable mount — a smaller, but no less ferocious, manifestation of Norse legend. Its bite slows enemies with creeping frost, and when it howls, an aura of ice armor envelops its body, mitigating incoming damage. Fenrir's inventory acts as a natural refrigerator, preserving perishables and Wyvern Milk far longer than any standard tame. Unlike most other creatures, Fenrir cannot be bred — it is a singular reward, one cryopodded Fenrir per player per successful Alpha clear, making it a true trophy tame.",
+  temperament: 'Aggressive',
+  diet: 'Carnivore',
+  habitat: 'Boss reward only (originates from Fenrisulfr arena, Fjordur)',
+  realWorldBasis: 'Fenrir (Norse mythology - tameable form)',
+  sizeClass: 'Large',
+
+  // Taming System
+  tamingMethod: 'Boss reward (Cannot be tamed conventionally)',
+  tamingType: 'Awarded to survivors who defeat Fenrisulfr on Alpha difficulty',
+  preferredKibble: 'N/A',
+  favoriteFood: 'N/A',
+  tamingSpeed: 'N/A (instant reward)',
+  torpor: {
+    baseValue: 2000,
+    depleteRate: 'N/A'
+  },
+  specialRequirements: 'Only obtainable by defeating Fenrisulfr on Alpha difficulty in Fjordur. One cryopodded Fenrir per player per Alpha kill. Cannot be bred.',
+
+  // Base Statistics (Level 1 Wild)
+  baseStats: {
+    health: 950,
+    stamina: 450,
+    oxygen: 150,
+    food: 2500,
+    weight: 400,
+    melee: 50,
+    speed: 100,
+    torpor: 2000
+  },
+
+  // Stat Scaling (Per Level)
+  statScaling: {
+    health: 190,
+    stamina: 45,
+    oxygen: 15,
+    food: 250,
+    weight: 8,
+    melee: 2.5,
+    speed: 2
+  },
+
+  // Equipment & Combat
+  saddleLevel: 0,
+  saddleType: 'Cannot be saddled (ridden bareback)',
+  saddleArmor: 0,
+  platformLimit: 0,
+  specialAbilities: ['Frost bite (slows enemies)', 'Ice armor howl (damage reduction aura)', 'Pack damage bonus', 'Refrigerator inventory'],
+  attackTypes: ['Frost bite', 'Claw swipes', 'Ice howl (AoE)'],
+  canCarry: ['Small to medium creatures'],
+
+  // Utility & Roles
+  primaryRole: 'Elite mid-size combat mount with crowd control',
+  secondaryRoles: ['Cold biome explorer', 'Wyvern Milk transport (refrigeration)', 'Cave runner'],
+  gatheringResources: ['Raw Meat', 'Raw Prime Meat', 'Hide', 'Pelt'],
+  gatheringEfficiency: {
+    'Raw Prime Meat': 8,
+    'Pelt': 7
+  },
+  ratings: {
+    combat: 9,
+    transport: 5,
+    speed: 8,
+    survivability: 9
+  },
+
+  // Environmental Data
+  speeds: {
+    land: 32,
+    flying: 0,
+    swimming: 18,
+    climbing: 0
+  },
+  environmentalResistances: ['Cold immunity', 'Frost damage resistance'],
+  preferredBiome: 'Snow and ice biomes (Fjordur)',
+  temperatureRange: {
+    min: -50,
+    max: 25
+  },
+  oxygenRequirement: 'Air breathing',
+
+  // Breeding Genetics
+  breeding: {
+    cooldown: 'Cannot breed',
+    gestationTime: 'N/A',
+    babyFoodConsumption: 'N/A',
+    maturationTime: 'N/A',
+    colorRegions: 6,
+    colorRegionNames: ['Body', 'Mane', 'Belly', 'Legs', 'Frost markings', 'Eye glow'],
+    mutationChance: 0,
+    breedingDifficulty: 'Cannot breed'
+  },
+
+  // Special Functions
+  workstation: 'None',
+  resourceProduction: 'Inventory acts as a refrigerator (extends perishable spoil time)',
+  structureFunctions: 'None',
+  buffAuras: ['Pack damage bonus when multiple Fenrirs hunt together'],
+  debuffAbilities: ['Frost bite slows enemy movement and attack speed'],
+  uniqueMechanics: ['Boss-reward only (no wild spawns, cannot be bred)', 'Refrigerator inventory for perishables', 'Ice armor howl'],
+
+  // Spawn & Location
+  spawnMaps: ['Fjordur (boss reward only)'],
+  spawnZones: ['N/A (does not spawn in the wild)'],
+  rarityRating: 'Mythical',
+  levelRange: 'Awarded at variable levels based on boss difficulty',
+  packBehavior: 'Pack hunter (bonuses when grouped)',
+  territorialBehavior: 'Aggressive',
+
+  // Management Metadata
+  difficultyRating: 'Extreme (must beat Alpha Fenrisulfr to obtain)',
+  beginnerFriendly: false,
+  endGameViable: true,
+  bossFightCapable: true,
+  pvpMeta: 'Very High',
+  resourceInvestment: 'Extreme',
+  maintenanceLevel: 'Medium',
+
+  // Badge Categories
+  badgeCategories: ['combat', 'pvp']
 },
 'Giant Tortoise': {
   // Basic Info
@@ -36628,138 +36757,8 @@ const SPECIES_DATABASE = {
 
     // Badge Categories
     badgeCategories: ['utility', 'transport', 'boss']
-  },'Fenrir': {
-    // Basic Info
-    id: 'FENRIR_331',
-    name: 'Fenrir',
-    icon: '🐺',
-    category: 'combat',
-    rarity: 'mythical',
-    source: 'Fjordur DLC',
-    variants: ['Standard'],
+  },
 
-    // Biology & Lore
-    dossierText: "Fenrir is a creature of myth, a monstrous wolf with a heart of ice, born from the harsh, frozen landscapes of Fjordur. What makes this beast truly legendary is its mastery over ice and its unnatural strength. Fenrir is not a creature that can be found in the wild; it is a reward for those who prove their worth by conquering all of the challenges Fjordur has to offer. Its body is covered in a thick, armored hide of ice, and its howl can freeze enemies solid. It moves with a supernatural speed and agility, making it a terrifying opponent in battle. A tamed Fenrir is a symbol of ultimate power, a loyal and devastating companion capable of turning the tide of any conflict.",
-    temperament: 'Aggressive (Mythical)',
-    diet: 'Carnivore',
-    habitat: 'Only obtainable by defeating the Fenrisulfr boss',
-    realWorldBasis: 'Fenrir (Norse mythology)',
-    sizeClass: 'Large',
-
-    // Taming System
-    tamingMethod: 'Special',
-    tamingType: 'Reward for defeating the Fenrisulfr boss on Fjordur. One cryo-podded Fenrir is given to each player.',
-    preferredKibble: 'N/A',
-    favoriteFood: 'N/A',
-    tamingSpeed: 'N/A',
-    torpor: {
-      baseValue: 2000,
-      depleteRate: 'N/A'
-    },
-    specialRequirements: 'Cannot be tamed or bred, only obtained as a boss reward.',
-
-    // Base Statistics (Level 1 Wild)
-    baseStats: {
-      health: 950,
-      stamina: 450,
-      oxygen: 150,
-      food: 2500,
-      weight: 400,
-      melee: 50,
-      speed: 100,
-      torpor: 2000
-    },
-
-    // Stat Scaling (Per Level)
-    statScaling: {
-      health: 190,
-      stamina: 45,
-      oxygen: 15,
-      food: 250,
-      weight: 8,
-      melee: 2.5,
-      speed: 2
-    },
-
-    // Equipment & Combat
-    saddleLevel: 0,
-    saddleType: 'No saddle required',
-    saddleArmor: 0,
-    platformLimit: 0,
-    specialAbilities: ['Ice armor (howl)', 'freezing bite', 'unnatural speed', 'pack howl'],
-    attackTypes: ['Bite', 'claw swipe', 'howl (freezes enemies in ice armor)'],
-    canCarry: ['Moderate weight'],
-
-    // Utility & Roles
-    primaryRole: 'Ultimate ice combat mount',
-    secondaryRoles: ['Boss fighting', 'PVP specialist', 'crowd control'],
-    gatheringResources: ['Meat', 'hide', 'pelt'],
-    gatheringEfficiency: {
-      Pelt: 9,
-      Meat: 8
-    },
-    ratings: {
-      combat: 10,
-      transport: 7,
-      speed: 9,
-      survivability: 9
-    },
-
-    // Environmental Data
-    speeds: {
-      land: 45,
-      flying: 0,
-      swimming: 30,
-      climbing: 0
-    },
-    environmentalResistances: ['Ice immunity', 'cold immunity'],
-    preferredBiome: 'Cold regions, snow biomes',
-    temperatureRange: {
-      min: -100,
-      max: 10
-    },
-    oxygenRequirement: 'Air breathing',
-
-    // Breeding Genetics
-    breeding: {
-      cooldown: 'Cannot breed',
-      gestationTime: 'N/A',
-      babyFoodConsumption: 'N/A',
-      maturationTime: 'N/A',
-      colorRegions: 6,
-      colorRegionNames: ['Body', 'fur', 'ice armor', 'eyes', 'claws', 'patterns'],
-      mutationChance: 0,
-      breedingDifficulty: 'Cannot breed'
-    },
-
-    // Special Functions
-    workstation: 'None',
-    resourceProduction: 'Inventory acts as a refrigerator.',
-    structureFunctions: 'None',
-    buffAuras: ['None'],
-    debuffAbilities: ['Ice attacks freeze enemies'],
-    uniqueMechanics: ['Obtained as a boss reward', 'cannot be bred', 'Ice Armor'],
-
-    // Spawn & Location
-    spawnMaps: ['Fjordur'],
-    spawnZones: ['Fenrisulfr boss arena (reward)'],
-    rarityRating: 'Mythical',
-    levelRange: '1 (scales with boss difficulty)',
-    packBehavior: 'Solitary',
-    territorialBehavior: 'Extremely aggressive',
-
-    // Management Metadata
-    difficultyRating: 'Mythical',
-    beginnerFriendly: false,
-    endGameViable: true,
-    bossFightCapable: true,
-    pvpMeta: 'Ultimate',
-    resourceInvestment: 'Mythical',
-    maintenanceLevel: 'Medium',
-
-    // Badge Categories
-    badgeCategories: ['boss', 'combat']
-},
 'GachaClaus': {
     // Basic Info
     id: 'GACHACLAUS_325',
@@ -48806,7 +48805,9 @@ const SPECIES_DATABASE = {
 
     // Badge Categories
     badgeCategories: ['harvesting', 'combat', 'boss']
-  },'X-Yutyrannus': {
+  },
+
+'X-Yutyrannus': {
     // Basic Info
     id: 'X_YUTYRANNUS_421',
     name: 'X-Yutyrannus',
@@ -48817,7 +48818,7 @@ const SPECIES_DATABASE = {
     variants: ['Yutyrannus Variant'],
 
     // Biology & Lore
-    dossierText: "The X-Yutyrannus is the undisputed pack-leading apex predator of the Genesis Simulation's Arctic Biome. Its feathered coat is thicker and patterned with frosty, intricate designs, allowing it to blend into the snow-covered landscapes. This variant is a more potent leader, with a stronger physical presence and a more commanding roar. Like all X-Creatures, it trades a small amount of health for increased damage, making its already powerful bite even more lethal. The X-Yutyrannus is the ultimate arctic commander, leading its pack of X-Carnotaurus with chilling efficiency.",
+    dossierText: "The X-Yutyrannus is the Arctic Biome's commanding general within the Genesis Simulation, a feathered tyrannosaurid evolved to thrive in the perpetual frost. Where the standard Yutyrannus relies on its dual roar to inspire allies and panic foes, the X-Variant has refined its psychological arsenal to a sharper edge — its courage roar burns brighter and its fear roar reaches further. Frost-tipped feathers grant it natural insulation, and its slightly leaner frame trades a hint of bulk for greater raw striking power. As with all X-Creatures, it benefits from significant damage resistance and dealt-damage bonuses while wild, making it one of the most dangerous tames a survivor can attempt in Gen 1's frozen reaches.",
     temperament: 'Aggressive (Pack Leader)',
     diet: 'Carnivore',
     habitat: 'Arctic Biome (Genesis 1)',
@@ -48834,7 +48835,7 @@ const SPECIES_DATABASE = {
       baseValue: 1500,
       depleteRate: 'Very Slow'
     },
-    specialRequirements: 'X-Creatures take reduced damage in the wild. Its fear roar and carno minions make it extremely dangerous to tame.',
+    specialRequirements: 'X-Creatures take reduced damage and deal increased damage in the wild. Pack-leader mechanics make taming extremely dangerous.',
 
     // Base Statistics (Level 1 Wild)
     baseStats: {
@@ -48855,7 +48856,7 @@ const SPECIES_DATABASE = {
       oxygen: 15,
       food: 300,
       weight: 10,
-      melee: 3.1, // No bonus on tamed stat gain
+      melee: 3.255, // +5% from base 3.1
       speed: 1
     },
 
@@ -48864,13 +48865,13 @@ const SPECIES_DATABASE = {
     saddleType: 'Yutyrannus Saddle',
     saddleArmor: 25,
     platformLimit: 0,
-    specialAbilities: ['Fear roar (debuffs enemies)', 'Courage roar (buffs allies)'],
+    specialAbilities: ['Fear roar (debuffs enemies)', 'Courage roar (buffs allies)', 'X-Variant damage resistance (wild)'],
     attackTypes: ['Bite', 'Roar'],
     canCarry: ['None'],
 
     // Utility & Roles
-    primaryRole: 'Pack leader and support mount',
-    secondaryRoles: ['Boss fight support', 'alpha creature hunter'],
+    primaryRole: 'Pack leader and support mount (Arctic-adapted)',
+    secondaryRoles: ['Boss fight support', 'Alpha creature hunter', 'Cold-biome ops'],
     gatheringResources: ['Raw Prime Meat', 'Raw Meat', 'Hide'],
     gatheringEfficiency: {
       'Raw Prime Meat': 9
@@ -48889,11 +48890,11 @@ const SPECIES_DATABASE = {
       swimming: 20,
       climbing: 0
     },
-    environmentalResistances: ['Cold immunity'],
-    preferredBiome: 'Arctic regions',
+    environmentalResistances: ['Cold immunity (improved over base)', 'Hypothermia resistance'],
+    preferredBiome: 'Arctic Biome',
     temperatureRange: {
-      min: -100,
-      max: 10
+      min: -50,
+      max: 25
     },
     oxygenRequirement: 'Air breathing',
 
@@ -48913,16 +48914,16 @@ const SPECIES_DATABASE = {
     workstation: 'None',
     resourceProduction: 'None',
     structureFunctions: 'None',
-    buffAuras: ['Courage roar buffs ally damage and resistance'],
-    debuffAbilities: ['Fear roar causes enemies to flee'],
-    uniqueMechanics: ['X-Variant: Takes reduced damage and deals increased damage in the wild.'],
+    buffAuras: ['Courage roar buffs ally damage by 25% and reduces incoming damage by 20%.'],
+    debuffAbilities: ['Fear roar causes smaller enemies to flee.'],
+    uniqueMechanics: ['Dual-roar system (Courage / Fear)', 'X-Variant: Takes reduced damage and deals increased damage in the wild.'],
 
     // Spawn & Location
     spawnMaps: ['Genesis Part 1'],
     spawnZones: ['Arctic Biome'],
     rarityRating: 'Rare',
     levelRange: '1-150',
-    packBehavior: 'Leads a pack of X-Carnotaurus',
+    packBehavior: 'Leads a pack of Carnotaurus',
     territorialBehavior: 'Aggressive',
 
     // Management Metadata
@@ -48936,10 +48937,6 @@ const SPECIES_DATABASE = {
 
     // Badge Categories
     badgeCategories: ['combat', 'boss']
-},
-'X-Yutyrannus': {
-  category: "combat",
-  source: "Genesis Part 1 DLC"
 },
 'Zombie Fire Wyvern': {
     // Basic Info
@@ -53260,24 +53257,26 @@ const SPECIES_DATABASE = {
 
     // Badge Categories
     badgeCategories: ['combat', 'boss']
-  },'Alpha Fire Wyvern': {
+  },
+
+'Alpha Fire Wyvern': {
     // Basic Info
-    id: 'ALPHA_FIRE_WYVERN_459',
+    id: 'ALPHA_FIRE_WYVERN_461',
     name: 'Alpha Fire Wyvern',
     icon: '🔥',
     category: 'combat',
     rarity: 'rare',
     source: 'Scorched Earth DLC',
-    variants: ['Wyvern Alpha Variant'],
-  
+    variants: ['Alpha Variant'],
+
     // Biology & Lore
-    dossierText: "The Alpha Fire Wyvern is the undisputed matriarch or patriarch of the volcanic trenches, a Wyvern of immense size and power wreathed in a menacing red aura. Its fire breath is hotter and more destructive, and its physical strength is far greater than that of its lesser kin. It leads its flight with terrifying authority, serving as the ultimate guardian of the Wyvern nests. This creature cannot be tamed and represents one of the greatest aerial threats on the ARK. Slaying one is a legendary feat, rewarding survivors with valuable trophies and a massive amount of experience.",
+    dossierText: "The Alpha Fire Wyvern is a vastly more powerful and feared version of its already legendary kin. Distinguished by its blood-red aura and oversized frame, this apex flier scorches the canyons and trenches of Scorched Earth with breath far more devastating than that of a standard Fire Wyvern. Its alpha presence radiates intimidation, weakening lesser predators in its vicinity while emboldening other wild carnivores nearby. Untameable and immune to most forms of crowd control, the Alpha Fire Wyvern is an end-game challenge — a rare wild spawn that drops superior loot and yields elite Wyvern materials to the survivors strong enough to kill it. Unlike the Alpha Wyverns of legend (the Final Boss tier), this is a wild encounter, not an arena fight.",
     temperament: 'Extremely Aggressive',
     diet: 'N/A (Alpha)',
-    habitat: 'Wyvern trenches, volcanic areas',
-    realWorldBasis: 'Draco (Dragon mythology)',
+    habitat: 'Wyvern trenches, canyons, high-altitude scorched zones',
+    realWorldBasis: 'Draco (Dragon mythology - Alpha tier)',
     sizeClass: 'Colossal',
-  
+
     // Taming System
     tamingMethod: 'Cannot be tamed',
     tamingType: 'N/A',
@@ -53288,8 +53287,8 @@ const SPECIES_DATABASE = {
       baseValue: 10000,
       depleteRate: 'N/A'
     },
-    specialRequirements: 'Alpha variant, untameable.',
-  
+    specialRequirements: 'Alpha variant, untameable. Wild kill only.',
+
     // Base Statistics (Level 1 Wild)
     baseStats: {
       health: 17500,
@@ -53301,7 +53300,7 @@ const SPECIES_DATABASE = {
       speed: 100,
       torpor: 10000
     },
-  
+
     // Stat Scaling (Per Level)
     statScaling: {
       health: 3500,
@@ -53312,45 +53311,46 @@ const SPECIES_DATABASE = {
       melee: 15,
       speed: 1
     },
-  
+
     // Equipment & Combat
     saddleLevel: 0,
     saddleType: 'N/A',
     saddleArmor: 0,
     platformLimit: 0,
-    specialAbilities: ['Fire breath', 'alpha buff', 'high damage resistance'],
-    attackTypes: ['Fire breath (long range AoE)', 'bite', 'claw strikes'],
-    canCarry: ['N/A'],
-  
+    specialAbilities: ['Devastating fire breath', 'Alpha damage buff aura', 'Damage resistance', 'Aerial dominance'],
+    attackTypes: ['Long-range fire breath (AoE)', 'Bite', 'Claw strikes', 'Tail attacks'],
+    canCarry: ['N/A (does not pick up prey)'],
+
     // Utility & Roles
-    primaryRole: 'Alpha Predator',
-    secondaryRoles: ['High-tier loot source', 'XP farm'],
-    gatheringResources: ['Alpha Wyvern Trophy', 'Primal Crystal', 'Raw Prime Meat'],
+    primaryRole: 'Alpha Predator (wild encounter)',
+    secondaryRoles: ['Elite loot source', 'Alpha Wyvern Trophy drop', 'XP farm'],
+    gatheringResources: ['Alpha Wyvern Trophy', 'Raw Prime Meat', 'Hide', 'Wyvern Blood (rare)'],
     gatheringEfficiency: {
-      'Alpha Wyvern Trophy': 10
+      'Alpha Wyvern Trophy': 10,
+      'Raw Prime Meat': 8
     },
     ratings: {
       combat: 10,
       transport: 0,
       speed: 9,
-      survivability: 9
+      survivability: 10
     },
-  
+
     // Environmental Data
     speeds: {
       land: 10,
-      flying: 50,
+      flying: 55,
       swimming: 20,
       climbing: 0
     },
-    environmentalResistances: ['Fire immunity', 'heat immunity'],
-    preferredBiome: 'Wyvern trenches, volcanic areas',
+    environmentalResistances: ['Fire immunity', 'Heat immunity', 'Lava resistance', 'High generalized damage resistance'],
+    preferredBiome: 'Wyvern trenches, high-altitude canyons',
     temperatureRange: {
       min: 20,
       max: 100
     },
     oxygenRequirement: 'Air breathing',
-  
+
     // Breeding Genetics
     breeding: {
       cooldown: 'Cannot breed',
@@ -53358,42 +53358,38 @@ const SPECIES_DATABASE = {
       babyFoodConsumption: 'N/A',
       maturationTime: 'N/A',
       colorRegions: 1,
-      colorRegionNames: ['Body'],
+      colorRegionNames: ['Body (red alpha aura)'],
       mutationChance: 0,
       breedingDifficulty: 'Cannot breed'
     },
-  
+
     // Special Functions
     workstation: 'None',
     resourceProduction: 'None',
-    structureFunctions: 'None',
+    structureFunctions: 'Can ignite and destroy structures with fire breath (higher tier than standard Fire Wyvern)',
     buffAuras: ['Boosts damage and resistance of nearby wild carnivores.'],
-    debuffAbilities: ['Fire breath causes burning damage over time'],
-    uniqueMechanics: ['Alpha variant mechanics'],
-  
+    debuffAbilities: ['Fire breath causes sustained burning damage over time'],
+    uniqueMechanics: ['Alpha variant mechanics (damage buff to nearby wilds, damage resistance)'],
+
     // Spawn & Location
     spawnMaps: ['Scorched Earth', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur'],
-    spawnZones: ['Wyvern trenches, volcanic areas'],
-    rarityRating: 'Rare',
-    levelRange: '1-150',
-    packBehavior: 'Solitary',
+    spawnZones: ['Wyvern trenches', 'Volcanic regions', 'High-altitude nesting sites'],
+    rarityRating: 'Legendary',
+    levelRange: '1-150 (Alpha multiplier applied)',
+    packBehavior: 'Solitary (does not nest with standard Wyverns)',
     territorialBehavior: 'Extremely aggressive',
-  
+
     // Management Metadata
-    difficultyRating: 'N/A',
+    difficultyRating: 'Extreme',
     beginnerFriendly: false,
     endGameViable: true,
     bossFightCapable: false,
-    pvpMeta: 'None',
+    pvpMeta: 'None (untameable)',
     resourceInvestment: 'N/A',
     maintenanceLevel: 'N/A',
-  
+
     // Badge Categories
     badgeCategories: ['combat']
-},
-'Alpha Fire Wyvern': {
-  category: "boss",
-  source: "Scorched Earth DLC"
 },
 'Alpha Karkinos': {
     // Basic Info
