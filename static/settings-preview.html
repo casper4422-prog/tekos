@@ -1,0 +1,1965 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>⬡ TEKOS — Settings · Casper4422</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&family=Crimson+Pro:ital,wght@1,400&display=swap" rel="stylesheet" />
+<style>
+:root {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.30);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.50);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-pink:         #f472b6;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --tek-serif:        'Crimson Pro', Georgia, serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 50% at 20% 10%, rgba(0,180,255,0.10) 0%, transparent 50%),
+        radial-gradient(ellipse 55% 50% at 85% 90%, rgba(139,92,246,0.08) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+}
+#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.demo-banner {
+    position: fixed; top: 14px; left: 14px; z-index: 60;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--tek-amber);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; letter-spacing: 0.12em;
+    padding: 5px 10px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.return-link {
+    position: fixed; top: 18px; right: 22px; z-index: 50;
+    font-family: var(--tek-mono); font-size: 0.7rem;
+    letter-spacing: 0.18em; color: var(--tek-text-dim);
+    text-decoration: none; transition: color 0.2s;
+}
+.return-link:hover { color: var(--tek-blue); }
+.return-link .arrow { display: inline-block; transform: rotate(180deg); margin-right: 4px; }
+
+.stage {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    padding: 60px 24px 80px;
+    max-width: 1240px;
+    margin: 0 auto;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PAGE HEADER
+   ═════════════════════════════════════════════════════════════════════════ */
+.page-header { margin-bottom: 28px; }
+.breadcrumb {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.breadcrumb a { color: var(--tek-text-dim); text-decoration: none; transition: color 0.15s; }
+.breadcrumb a:hover { color: var(--tek-blue); }
+.breadcrumb .sep { color: var(--tek-text-faint); margin: 0 6px; }
+.page-title {
+    font-family: var(--tek-display);
+    font-size: clamp(1.8rem, 3.6vw, 2.5rem);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(0,180,255,0.30));
+}
+.page-sub {
+    font-family: var(--tek-mono); font-size: 0.72rem;
+    letter-spacing: 0.14em; color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-top: 6px;
+}
+.page-sub .signed {
+    color: var(--tek-blue);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   LAYOUT — LEFT NAV + RIGHT PANEL
+   ═════════════════════════════════════════════════════════════════════════ */
+.settings-shell {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 28px;
+    align-items: start;
+}
+@media (max-width: 880px) {
+    .settings-shell { grid-template-columns: 1fr; }
+}
+
+/* Left nav */
+.side-nav {
+    position: sticky;
+    top: 24px;
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(0,180,255,0.18);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 8px;
+    backdrop-filter: blur(8px);
+}
+.side-nav-label {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.20em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    padding: 6px 12px 10px;
+}
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--tek-text-dim);
+    transition: all 0.15s;
+    user-select: none;
+}
+.nav-item:hover {
+    color: var(--tek-text);
+    background: rgba(0,180,255,0.05);
+}
+.nav-item.active {
+    color: var(--tek-blue);
+    border-left-color: var(--tek-blue);
+    background: linear-gradient(90deg, rgba(0,180,255,0.10) 0%, rgba(0,180,255,0) 100%);
+    text-shadow: 0 0 8px var(--tek-blue-glow);
+}
+.nav-item .icon {
+    width: 14px; height: 14px;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+.nav-item.active .icon { opacity: 1; }
+.nav-item .nav-pip {
+    margin-left: auto;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--tek-amber);
+    box-shadow: 0 0 5px rgba(245,158,11,0.6);
+    flex-shrink: 0;
+    display: none;
+}
+.nav-item.unsaved .nav-pip { display: block; }
+
+/* Right panel */
+.panel {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(0,180,255,0.18);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 28px 32px 32px;
+    backdrop-filter: blur(8px);
+    min-height: 600px;
+}
+.panel::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 8px var(--tek-blue-glow);
+}
+.panel-section { display: none; }
+.panel-section.active { display: block; animation: panelFade 0.35s ease; }
+@keyframes panelFade {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.section-header {
+    margin-bottom: 22px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(0,180,255,0.12);
+}
+.section-title {
+    font-family: var(--tek-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+    margin-bottom: 4px;
+}
+.section-desc {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   SETTING ROWS / CONTROLS
+   ═════════════════════════════════════════════════════════════════════════ */
+.group {
+    margin-bottom: 28px;
+}
+.group:last-child { margin-bottom: 0; }
+.group-label {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.20em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-left: 2px;
+}
+
+.row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 20px;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(100,116,139,0.10);
+}
+.row:last-child { border-bottom: none; }
+.row-info { min-width: 0; }
+.row-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--tek-text);
+    margin-bottom: 3px;
+}
+.row-hint {
+    font-size: 0.78rem;
+    color: var(--tek-text-dim);
+    line-height: 1.4;
+}
+.row-hint code {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-blue);
+    background: rgba(0,180,255,0.07);
+    padding: 1px 6px;
+    border-radius: 2px;
+}
+
+/* Toggle switch */
+.toggle {
+    position: relative;
+    width: 44px; height: 24px;
+    background: rgba(15,23,42,0.9);
+    border: 1px solid rgba(100,116,139,0.30);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    background: var(--tek-text-dim);
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+.toggle.on {
+    background: rgba(0,180,255,0.20);
+    border-color: var(--tek-blue);
+    box-shadow: 0 0 8px rgba(0,180,255,0.30);
+}
+.toggle.on::after {
+    transform: translateX(20px);
+    background: var(--tek-blue);
+    box-shadow: 0 0 6px var(--tek-blue-glow);
+}
+
+/* Text input */
+.input {
+    background: rgba(5,8,18,0.6);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.82rem;
+    padding: 9px 12px;
+    min-width: 220px;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.input:focus {
+    outline: none;
+    border-color: var(--tek-blue);
+    box-shadow: 0 0 0 1px var(--tek-blue), 0 0 10px rgba(0,180,255,0.20);
+}
+.input.wide { min-width: 320px; }
+
+/* Select dropdown styled */
+.select {
+    background: rgba(5,8,18,0.6);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.78rem;
+    padding: 9px 32px 9px 12px;
+    min-width: 200px;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--tek-blue) 50%), linear-gradient(135deg, var(--tek-blue) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+}
+.select:focus {
+    outline: none;
+    border-color: var(--tek-blue);
+}
+
+/* Button */
+.btn {
+    background: rgba(0,180,255,0.08);
+    border: 1px solid var(--tek-blue-border);
+    color: var(--tek-blue);
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 9px 16px;
+    cursor: pointer;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.btn:hover {
+    background: rgba(0,180,255,0.18);
+    box-shadow: 0 0 12px rgba(0,180,255,0.30);
+}
+.btn.ghost {
+    background: transparent;
+    border-color: rgba(100,116,139,0.30);
+    color: var(--tek-text-dim);
+}
+.btn.ghost:hover {
+    border-color: var(--tek-text);
+    color: var(--tek-text);
+    background: rgba(100,116,139,0.10);
+    box-shadow: none;
+}
+.btn.danger {
+    background: rgba(239,68,68,0.08);
+    border-color: rgba(239,68,68,0.40);
+    color: var(--tek-red);
+}
+.btn.danger:hover {
+    background: rgba(239,68,68,0.18);
+    box-shadow: 0 0 12px rgba(239,68,68,0.30);
+}
+.btn.solid {
+    background: linear-gradient(90deg, var(--tek-blue), var(--tek-purple));
+    color: #050812;
+    border: none;
+    font-weight: 700;
+    padding: 10px 18px;
+}
+.btn.solid:hover {
+    box-shadow: 0 0 16px rgba(0,180,255,0.45);
+}
+
+/* Sticky save bar */
+.save-bar {
+    position: sticky;
+    bottom: 0;
+    margin: 24px -32px -32px;
+    padding: 14px 32px;
+    background: linear-gradient(180deg, rgba(5,8,18,0.7) 0%, rgba(10,18,44,0.95) 100%);
+    border-top: 1px solid rgba(0,180,255,0.20);
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    backdrop-filter: blur(8px);
+    z-index: 5;
+}
+.save-bar.show { display: flex; }
+.save-bar-msg {
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.12em;
+    color: var(--tek-amber);
+    text-transform: uppercase;
+}
+.save-bar-msg .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--tek-amber);
+    box-shadow: 0 0 6px rgba(245,158,11,0.6);
+    margin-right: 8px;
+    animation: pulseAmber 1.6s ease-in-out infinite;
+}
+@keyframes pulseAmber {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.5; transform: scale(0.7); }
+}
+.save-actions { display: flex; gap: 10px; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   ACCOUNT — avatar uploader / linked accounts
+   ═════════════════════════════════════════════════════════════════════════ */
+.identity-strip {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 18px;
+    background: linear-gradient(135deg, rgba(0,180,255,0.06) 0%, rgba(139,92,246,0.04) 100%);
+    border: 1px solid rgba(0,180,255,0.18);
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    margin-bottom: 22px;
+}
+.id-avatar {
+    width: 72px; height: 80px;
+    flex-shrink: 0;
+    position: relative;
+}
+.id-avatar svg { width: 100%; height: 100%; filter: drop-shadow(0 0 10px var(--tek-blue-glow)); }
+.id-info { flex: 1; min-width: 0; }
+.id-name {
+    font-family: var(--tek-display);
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+    margin-bottom: 4px;
+}
+.id-meta {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.id-meta .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    background: rgba(0,180,255,0.10);
+    border: 1px solid var(--tek-blue-border);
+    color: var(--tek-blue);
+    font-size: 0.62rem;
+    margin-left: 8px;
+}
+.id-actions { display: flex; gap: 8px; }
+
+/* Linked account row */
+.linked-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: rgba(5,8,18,0.4);
+    border: 1px solid rgba(100,116,139,0.15);
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    margin-bottom: 10px;
+}
+.linked-icon {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--tek-mono);
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.linked-icon.discord { background: rgba(88,101,242,0.15); color: #5865f2; border: 1px solid rgba(88,101,242,0.4); }
+.linked-icon.email { background: rgba(0,180,255,0.10); color: var(--tek-blue); border: 1px solid var(--tek-blue-border); }
+.linked-info { flex: 1; min-width: 0; }
+.linked-name {
+    font-size: 0.86rem; font-weight: 600;
+    color: var(--tek-text);
+    margin-bottom: 2px;
+}
+.linked-handle {
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.08em;
+}
+.linked-status {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tek-green);
+}
+.linked-status .dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--tek-green);
+    box-shadow: 0 0 5px rgba(16,185,129,0.6);
+    margin-right: 5px;
+}
+
+/* Session row */
+.session-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    background: rgba(5,8,18,0.4);
+    border-left: 2px solid rgba(100,116,139,0.3);
+    margin-bottom: 8px;
+    font-family: var(--tek-mono);
+    font-size: 0.76rem;
+}
+.session-row.current { border-left-color: var(--tek-green); }
+.session-device {
+    flex: 1;
+    color: var(--tek-text);
+}
+.session-when {
+    color: var(--tek-text-dim);
+    font-size: 0.7rem;
+}
+.session-curr {
+    color: var(--tek-green);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-left: 10px;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   THEMES — map palette grid + unlockables + AI companion voice
+   ═════════════════════════════════════════════════════════════════════════ */
+.themes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+}
+.theme-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.6) 0%, rgba(4,8,20,0.85) 100%);
+    border: 1px solid rgba(100,116,139,0.20);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    overflow: hidden;
+}
+.theme-card:hover {
+    border-color: var(--tek-blue-border);
+    transform: translateY(-2px);
+}
+.theme-card.active {
+    border-color: var(--tek-blue);
+    box-shadow: 0 0 0 1px var(--tek-blue), 0 0 18px rgba(0,180,255,0.30);
+}
+.theme-card.active::before {
+    content: 'ACTIVE';
+    position: absolute;
+    top: 8px; right: 8px;
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-blue);
+    background: rgba(0,180,255,0.15);
+    border: 1px solid var(--tek-blue);
+    padding: 2px 6px;
+    z-index: 2;
+}
+.theme-preview {
+    position: relative;
+    height: 90px;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    background-image:
+        repeating-linear-gradient(60deg, var(--prv-line) 0 1px, transparent 1px 16px),
+        repeating-linear-gradient(-60deg, var(--prv-line) 0 1px, transparent 1px 16px),
+        radial-gradient(ellipse at 30% 40%, var(--prv-glow1) 0%, transparent 60%),
+        radial-gradient(ellipse at 75% 65%, var(--prv-glow2) 0%, transparent 60%),
+        var(--prv-bg);
+}
+.theme-preview::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.4) 100%);
+}
+.theme-swatches {
+    position: absolute;
+    bottom: 6px; left: 6px;
+    display: flex; gap: 4px;
+    z-index: 2;
+}
+.swatch {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+.theme-name {
+    font-family: var(--tek-display);
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+    margin-bottom: 2px;
+}
+.theme-tag {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+
+/* Locked / unlockable theme */
+.theme-card.locked {
+    cursor: default;
+    opacity: 0.78;
+}
+.theme-card.locked .theme-preview {
+    filter: grayscale(0.5) brightness(0.55);
+}
+.theme-card.locked::after {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+        repeating-linear-gradient(45deg, rgba(0,0,0,0.15) 0 8px, transparent 8px 16px);
+    pointer-events: none;
+}
+.lock-overlay {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(245,158,11,0.15);
+    border: 1px solid rgba(245,158,11,0.4);
+    color: var(--tek-amber);
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+    padding: 2px 6px;
+    z-index: 3;
+    display: flex; align-items: center; gap: 4px;
+}
+.unlock-req {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    color: var(--tek-amber);
+    letter-spacing: 0.06em;
+    margin-top: 4px;
+    line-height: 1.3;
+}
+.unlock-progress {
+    height: 3px;
+    background: rgba(245,158,11,0.15);
+    margin-top: 8px;
+    overflow: hidden;
+}
+.unlock-progress-bar {
+    height: 100%;
+    background: var(--tek-amber);
+    box-shadow: 0 0 5px rgba(245,158,11,0.6);
+}
+
+/* AI Companion voice picker */
+.voice-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+.voice-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.5) 0%, rgba(4,8,20,0.85) 100%);
+    border: 1px solid rgba(100,116,139,0.20);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.voice-card:hover {
+    border-color: var(--tek-purple);
+}
+.voice-card.active {
+    border-color: var(--tek-purple);
+    background: linear-gradient(160deg, rgba(139,92,246,0.10) 0%, rgba(4,8,20,0.85) 100%);
+    box-shadow: 0 0 0 1px var(--tek-purple), 0 0 14px rgba(139,92,246,0.30);
+}
+.voice-card.active::after {
+    content: '●';
+    position: absolute;
+    top: 10px; right: 12px;
+    color: var(--tek-purple);
+    font-size: 0.7rem;
+    text-shadow: 0 0 6px var(--tek-purple);
+}
+.voice-name {
+    font-family: var(--tek-display);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+    margin-bottom: 6px;
+}
+.voice-sample {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 0.86rem;
+    color: var(--tek-text-dim);
+    line-height: 1.4;
+}
+.voice-card.active .voice-sample { color: var(--tek-text); }
+.voice-meta {
+    margin-top: 8px;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   CLUSTER — followed servers + RCON
+   ═════════════════════════════════════════════════════════════════════════ */
+.cluster-card {
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(0,180,255,0.18);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 18px 20px;
+    margin-bottom: 14px;
+}
+.cluster-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(0,180,255,0.10);
+}
+.cluster-name-wrap { display: flex; align-items: center; gap: 10px; }
+.cluster-emblem {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--tek-blue), var(--tek-purple));
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--tek-display);
+    font-size: 0.78rem;
+    font-weight: 900;
+    color: #050812;
+}
+.cluster-name {
+    font-family: var(--tek-display);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+}
+.cluster-meta {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+.server-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.server-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(100,116,139,0.18);
+    font-family: var(--tek-mono);
+    font-size: 0.76rem;
+    color: var(--tek-text);
+}
+.server-chip .pip {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--tek-green);
+    box-shadow: 0 0 5px rgba(16,185,129,0.6);
+    flex-shrink: 0;
+}
+.server-chip.offline .pip { background: var(--tek-text-faint); box-shadow: none; }
+.server-chip .name { flex: 1; min-width: 0; }
+.server-chip .x {
+    color: var(--tek-text-faint);
+    cursor: pointer;
+    transition: color 0.15s;
+}
+.server-chip .x:hover { color: var(--tek-red); }
+
+.add-server-row {
+    display: flex; gap: 8px; align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0,180,255,0.10);
+}
+.add-server-row .input { flex: 1; min-width: 0; }
+
+/* RCON Block */
+.rcon-block {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: rgba(139,92,246,0.05);
+    border: 1px solid rgba(139,92,246,0.25);
+    border-left-width: 2px;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+}
+.rcon-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+}
+.rcon-title {
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tek-purple);
+}
+.rcon-status {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.rcon-status.connected { color: var(--tek-green); }
+.rcon-status .dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+.rcon-status.connected .dot { background: var(--tek-green); box-shadow: 0 0 5px rgba(16,185,129,0.6); }
+.rcon-status.unconfigured .dot { background: var(--tek-text-faint); }
+.rcon-desc {
+    font-size: 0.76rem;
+    color: var(--tek-text-dim);
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+.rcon-inputs {
+    display: grid;
+    grid-template-columns: 1fr 100px 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+@media (max-width: 600px) {
+    .rcon-inputs { grid-template-columns: 1fr; }
+}
+.rcon-inputs .input { min-width: 0; }
+.rcon-actions { display: flex; gap: 8px; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   DATA / INTEGRATIONS / DANGER ZONE
+   ═════════════════════════════════════════════════════════════════════════ */
+.action-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px;
+    background: rgba(5,8,18,0.4);
+    border: 1px solid rgba(100,116,139,0.18);
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    margin-bottom: 10px;
+}
+.action-info { flex: 1; min-width: 0; }
+.action-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--tek-text);
+    margin-bottom: 3px;
+}
+.action-desc {
+    font-size: 0.78rem;
+    color: var(--tek-text-dim);
+    line-height: 1.4;
+}
+
+.danger-zone {
+    margin-top: 24px;
+    padding: 16px 20px 18px;
+    background: rgba(239,68,68,0.04);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-left-width: 2px;
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+}
+.danger-title {
+    font-family: var(--tek-display);
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    color: var(--tek-red);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.danger-desc {
+    font-size: 0.78rem;
+    color: var(--tek-text-dim);
+    margin-bottom: 14px;
+    line-height: 1.4;
+}
+.danger-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   NOTIFICATIONS — channel pills
+   ═════════════════════════════════════════════════════════════════════════ */
+.notif-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 4px;
+}
+.notif-table th {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    text-align: center;
+    padding: 8px 4px;
+    border-bottom: 1px solid rgba(0,180,255,0.10);
+}
+.notif-table th.cat { text-align: left; padding-left: 0; }
+.notif-table td {
+    padding: 12px 4px;
+    border-bottom: 1px solid rgba(100,116,139,0.10);
+    text-align: center;
+}
+.notif-table td.cat { text-align: left; padding-left: 0; }
+.notif-table tr:last-child td { border-bottom: none; }
+.notif-cat-name {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--tek-text);
+    margin-bottom: 2px;
+}
+.notif-cat-hint {
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+}
+.notif-cell-toggle {
+    display: inline-flex;
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    background: rgba(15,23,42,0.6);
+    border: 1px solid rgba(100,116,139,0.25);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+}
+.notif-cell-toggle.on {
+    background: rgba(0,180,255,0.15);
+    border-color: var(--tek-blue);
+    box-shadow: 0 0 5px rgba(0,180,255,0.30);
+}
+.notif-cell-toggle.on::after {
+    content: '✓';
+    position: absolute;
+    inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--tek-blue);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+/* tiny chip for inline badges */
+.chip {
+    display: inline-block;
+    padding: 2px 7px;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border: 1px solid rgba(100,116,139,0.3);
+    color: var(--tek-text-dim);
+    margin-left: 6px;
+}
+.chip.blue { color: var(--tek-blue); border-color: var(--tek-blue-border); }
+.chip.purple { color: var(--tek-purple); border-color: rgba(139,92,246,0.4); }
+.chip.green { color: var(--tek-green); border-color: rgba(16,185,129,0.4); }
+.chip.amber { color: var(--tek-amber); border-color: rgba(245,158,11,0.4); }
+</style>
+</head>
+<body>
+
+<canvas id="tekHexCanvas"></canvas>
+<div class="demo-banner">⬡ DESIGN PREVIEW · SETTINGS</div>
+<a href="#" class="return-link"><span class="arrow">▸</span> RETURN TO DASHBOARD</a>
+
+<div class="stage">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div class="breadcrumb">
+            <a href="#">DASHBOARD</a><span class="sep">/</span><span>SETTINGS</span>
+        </div>
+        <h1 class="page-title">Settings</h1>
+        <div class="page-sub">
+            Signed in as <span class="signed">CASPER4422</span> · Survivor since 2024-03-11
+        </div>
+    </div>
+
+    <!-- Shell -->
+    <div class="settings-shell">
+
+        <!-- LEFT NAV -->
+        <nav class="side-nav">
+            <div class="side-nav-label">Configure</div>
+            <div class="nav-item active" data-section="account">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+                Account
+            </div>
+            <div class="nav-item" data-section="privacy">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 6v6c0 5 4 9 9 10 5-1 9-5 9-10V6l-9-4z"/></svg>
+                Privacy
+            </div>
+            <div class="nav-item" data-section="notifications">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0112 0v5l2 3H4l2-3V8z"/><path d="M10 19a2 2 0 004 0"/></svg>
+                Notifications
+            </div>
+            <div class="nav-item" data-section="themes">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
+                Themes
+            </div>
+            <div class="nav-item" data-section="cluster">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="17" r="1" fill="currentColor"/></svg>
+                Cluster
+            </div>
+            <div class="nav-item" data-section="data">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg>
+                Data
+            </div>
+            <div class="nav-item" data-section="integrations">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>
+                Integrations
+            </div>
+        </nav>
+
+        <!-- RIGHT PANEL -->
+        <div class="panel">
+
+            <!-- ============ ACCOUNT ============ -->
+            <div class="panel-section active" id="section-account">
+                <div class="section-header">
+                    <div class="section-title">Account</div>
+                    <div class="section-desc">Survivor identity, authentication, active sessions</div>
+                </div>
+
+                <!-- Identity strip -->
+                <div class="identity-strip">
+                    <div class="id-avatar">
+                        <svg viewBox="0 0 88 100">
+                            <defs>
+                                <linearGradient id="avGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#00b4ff"/>
+                                    <stop offset="100%" stop-color="#8b5cf6"/>
+                                </linearGradient>
+                            </defs>
+                            <polygon points="44,4 84,26 84,74 44,96 4,74 4,26" fill="rgba(10,18,44,0.9)" stroke="url(#avGrad)" stroke-width="2"/>
+                            <text x="44" y="62" font-family="Orbitron" font-size="32" font-weight="900" fill="url(#avGrad)" text-anchor="middle">C</text>
+                        </svg>
+                    </div>
+                    <div class="id-info">
+                        <div class="id-name">Casper4422</div>
+                        <div class="id-meta">SURVIVOR-ID · 0xC4-A4422 <span class="badge">FOUNDER</span></div>
+                    </div>
+                    <div class="id-actions">
+                        <button class="btn ghost">CHANGE AVATAR</button>
+                        <button class="btn ghost">CHANGE BANNER</button>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Identity</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Display name</div>
+                            <div class="row-hint">Shown on your Dossier, in trades, and across the feed.</div>
+                        </div>
+                        <input class="input" value="Casper4422" />
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Survivor handle</div>
+                            <div class="row-hint">Used in URLs and mentions, e.g. <code>tekos.app/@casper</code>. Locked once set.</div>
+                        </div>
+                        <input class="input" value="@casper" disabled style="opacity:0.6;" />
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Bio</div>
+                            <div class="row-hint">Up to 140 characters. Shown on your Dossier.</div>
+                        </div>
+                        <input class="input wide" value="Hardcore breeder. Loaded Crysis cluster. Boss prep — gear, tames, gameplan." />
+                    </div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Linked accounts</div>
+                    <div class="linked-row">
+                        <div class="linked-icon discord">D</div>
+                        <div class="linked-info">
+                            <div class="linked-name">Discord</div>
+                            <div class="linked-handle">casper4422 · loaded-crysis-cluster</div>
+                        </div>
+                        <div class="linked-status"><span class="dot"></span>LINKED</div>
+                        <button class="btn ghost">Unlink</button>
+                    </div>
+                    <div class="linked-row">
+                        <div class="linked-icon email">@</div>
+                        <div class="linked-info">
+                            <div class="linked-name">Email</div>
+                            <div class="linked-handle">casper4422@gmail.com</div>
+                        </div>
+                        <div class="linked-status"><span class="dot"></span>VERIFIED</div>
+                        <button class="btn ghost">Change</button>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Security</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Password</div>
+                            <div class="row-hint">Last changed 41 days ago.</div>
+                        </div>
+                        <button class="btn">CHANGE PASSWORD</button>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Two-factor authentication</div>
+                            <div class="row-hint">Require a code from your authenticator app on sign-in.</div>
+                        </div>
+                        <div class="toggle" data-toggle></div>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Active sessions</div>
+                    <div class="session-row current">
+                        <div class="session-device">▸ Windows · Chrome 142 · Cleveland, OH</div>
+                        <div class="session-when">Active now</div>
+                        <div class="session-curr">CURRENT</div>
+                    </div>
+                    <div class="session-row">
+                        <div class="session-device">▸ Android · TekOS App · Cleveland, OH</div>
+                        <div class="session-when">2 hours ago</div>
+                    </div>
+                    <div class="session-row">
+                        <div class="session-device">▸ macOS · Safari · last seen Akron, OH</div>
+                        <div class="session-when">3 days ago</div>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <button class="btn ghost">SIGN OUT ALL OTHER DEVICES</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ PRIVACY ============ -->
+            <div class="panel-section" id="section-privacy">
+                <div class="section-header">
+                    <div class="section-title">Privacy</div>
+                    <div class="section-desc">Control what the rest of the Survivor network can see</div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Profile visibility</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Who can see your Dossier</div>
+                            <div class="row-hint">Includes your Badge Wall, stats summary, and tribe affiliation.</div>
+                        </div>
+                        <select class="select">
+                            <option>Everyone</option>
+                            <option selected>Signed-in Survivors</option>
+                            <option>Friends only</option>
+                            <option>Just me</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Who can see your Vault</div>
+                            <div class="row-hint">Your saved specimens and their stat lines.</div>
+                        </div>
+                        <select class="select">
+                            <option>Everyone</option>
+                            <option>Friends only</option>
+                            <option selected>Tribe + Friends</option>
+                            <option>Just me</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Show Active Breeding Projects</div>
+                            <div class="row-hint">When off, your in-progress mutation stacking stays private.</div>
+                        </div>
+                        <div class="toggle on" data-toggle></div>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Show Founders Index</div>
+                            <div class="row-hint">Reveals the wild tames that seeded your stat genealogy.</div>
+                        </div>
+                        <div class="toggle on" data-toggle></div>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Contact & requests</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Who can send you DMs</div>
+                            <div class="row-hint">War Room and Trade messages from listings always go through.</div>
+                        </div>
+                        <select class="select">
+                            <option>Everyone</option>
+                            <option selected>Friends + Tribe</option>
+                            <option>Friends only</option>
+                            <option>No one</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Who can send friend requests</div>
+                            <div class="row-hint">Mutual friends always count.</div>
+                        </div>
+                        <select class="select">
+                            <option selected>Everyone</option>
+                            <option>Friends of friends</option>
+                            <option>No one</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Allow tribe invites</div>
+                            <div class="row-hint">When off, tribes cannot send you recruitment requests.</div>
+                        </div>
+                        <div class="toggle on" data-toggle></div>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Discoverability</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Appear in Network suggestions</div>
+                            <div class="row-hint">Surface in Friend page Discovery and Tribe recruitment.</div>
+                        </div>
+                        <div class="toggle on" data-toggle></div>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Show online status</div>
+                            <div class="row-hint">Off hides your green pip — friends will see you as offline.</div>
+                        </div>
+                        <div class="toggle on" data-toggle></div>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Show current activity</div>
+                            <div class="row-hint">e.g. "Editing Ragnarok·07 boss prep" on your Friends row.</div>
+                        </div>
+                        <div class="toggle on" data-toggle></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ NOTIFICATIONS ============ -->
+            <div class="panel-section" id="section-notifications">
+                <div class="section-header">
+                    <div class="section-title">Notifications</div>
+                    <div class="section-desc">Pick which alerts reach you, and through which channel</div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Channel matrix</div>
+                    <table class="notif-table">
+                        <thead>
+                            <tr>
+                                <th class="cat">Category</th>
+                                <th>In-App</th>
+                                <th>Email</th>
+                                <th>Discord</th>
+                                <th>Push</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="cat">
+                                    <div class="notif-cat-name">Tribe activity</div>
+                                    <div class="notif-cat-hint">Join requests, rank changes, war room pings</div>
+                                </td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                            </tr>
+                            <tr>
+                                <td class="cat">
+                                    <div class="notif-cat-name">Trade requests</div>
+                                    <div class="notif-cat-hint">New offers on your Marketplace listings</div>
+                                </td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                            </tr>
+                            <tr>
+                                <td class="cat">
+                                    <div class="notif-cat-name">Direct messages</div>
+                                    <div class="notif-cat-hint">New DMs from friends or trade contacts</div>
+                                </td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                            </tr>
+                            <tr>
+                                <td class="cat">
+                                    <div class="notif-cat-name">Friend requests</div>
+                                    <div class="notif-cat-hint">Incoming Network requests</div>
+                                </td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                            </tr>
+                            <tr>
+                                <td class="cat">
+                                    <div class="notif-cat-name">Boss timers</div>
+                                    <div class="notif-cat-hint">Tribe-scheduled fights coming up — 24h, 1h, 15min</div>
+                                </td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                            </tr>
+                            <tr>
+                                <td class="cat">
+                                    <div class="notif-cat-name">Server events</div>
+                                    <div class="notif-cat-hint">Boss spawns, admin announcements (requires RCON)</div>
+                                </td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                            </tr>
+                            <tr>
+                                <td class="cat">
+                                    <div class="notif-cat-name">Server status</div>
+                                    <div class="notif-cat-hint">A subscribed server goes down or comes back up</div>
+                                </td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                            </tr>
+                            <tr>
+                                <td class="cat">
+                                    <div class="notif-cat-name">Badge milestones</div>
+                                    <div class="notif-cat-hint">A new badge unlocks on your Badge Wall</div>
+                                </td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                            </tr>
+                            <tr>
+                                <td class="cat">
+                                    <div class="notif-cat-name">Global feed digest</div>
+                                    <div class="notif-cat-hint">Weekly summary of news from sources you follow</div>
+                                </td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle on"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                                <td><div class="notif-cell-toggle"></div></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Quiet hours</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Mute push & Discord pings during quiet hours</div>
+                            <div class="row-hint">In-app and email still arrive. Boss timer alerts override quiet hours.</div>
+                        </div>
+                        <div class="toggle on" data-toggle></div>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Quiet hours window</div>
+                            <div class="row-hint">Local time. Set both to the same value to disable.</div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input class="input" value="23:00" style="min-width:90px;" />
+                            <span style="color: var(--tek-text-faint); font-family: var(--tek-mono); font-size:0.74rem;">→</span>
+                            <input class="input" value="07:00" style="min-width:90px;" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ THEMES ============ -->
+            <div class="panel-section" id="section-themes">
+                <div class="section-header">
+                    <div class="section-title">Themes</div>
+                    <div class="section-desc">Recolor your TekOS instance to match your home map · unlock more by earning badges</div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Map palettes <span style="color: var(--tek-text-dim); text-transform: none; letter-spacing: 0.05em;">— 6 available · 3 locked</span></div>
+                    <div class="themes-grid">
+                        <!-- Island (current) -->
+                        <div class="theme-card active" style="--prv-bg:#050812; --prv-line:rgba(0,180,255,0.18); --prv-glow1:rgba(0,180,255,0.40); --prv-glow2:rgba(139,92,246,0.30);">
+                            <div class="theme-preview"></div>
+                            <div class="theme-name">The Island</div>
+                            <div class="theme-tag">CYAN · DEFAULT</div>
+                            <div class="theme-swatches">
+                                <div class="swatch" style="background:#00b4ff;"></div>
+                                <div class="swatch" style="background:#8b5cf6;"></div>
+                                <div class="swatch" style="background:#0a1228;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Aberration -->
+                        <div class="theme-card" style="--prv-bg:#0c0418; --prv-line:rgba(168,85,247,0.20); --prv-glow1:rgba(168,85,247,0.45); --prv-glow2:rgba(16,185,129,0.35);">
+                            <div class="theme-preview"></div>
+                            <div class="theme-name">Aberration</div>
+                            <div class="theme-tag">BIO · PURPLE/GREEN</div>
+                            <div class="theme-swatches">
+                                <div class="swatch" style="background:#a855f7;"></div>
+                                <div class="swatch" style="background:#10b981;"></div>
+                                <div class="swatch" style="background:#180a28;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Scorched -->
+                        <div class="theme-card" style="--prv-bg:#1a0a04; --prv-line:rgba(245,158,11,0.20); --prv-glow1:rgba(245,158,11,0.45); --prv-glow2:rgba(239,68,68,0.35);">
+                            <div class="theme-preview"></div>
+                            <div class="theme-name">Scorched Earth</div>
+                            <div class="theme-tag">DESERT · AMBER/RED</div>
+                            <div class="theme-swatches">
+                                <div class="swatch" style="background:#f59e0b;"></div>
+                                <div class="swatch" style="background:#ef4444;"></div>
+                                <div class="swatch" style="background:#2a1408;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Genesis -->
+                        <div class="theme-card" style="--prv-bg:#040818; --prv-line:rgba(34,211,238,0.20); --prv-glow1:rgba(34,211,238,0.45); --prv-glow2:rgba(217,70,239,0.30);">
+                            <div class="theme-preview"></div>
+                            <div class="theme-name">Genesis</div>
+                            <div class="theme-tag">SIM · TEAL/MAGENTA</div>
+                            <div class="theme-swatches">
+                                <div class="swatch" style="background:#22d3ee;"></div>
+                                <div class="swatch" style="background:#d946ef;"></div>
+                                <div class="swatch" style="background:#091230;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Extinction -->
+                        <div class="theme-card" style="--prv-bg:#180a04; --prv-line:rgba(251,146,60,0.20); --prv-glow1:rgba(251,146,60,0.45); --prv-glow2:rgba(20,184,166,0.35);">
+                            <div class="theme-preview"></div>
+                            <div class="theme-name">Extinction</div>
+                            <div class="theme-tag">RUIN · ORANGE/TEAL</div>
+                            <div class="theme-swatches">
+                                <div class="swatch" style="background:#fb923c;"></div>
+                                <div class="swatch" style="background:#14b8a6;"></div>
+                                <div class="swatch" style="background:#2a1208;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Ragnarok -->
+                        <div class="theme-card" style="--prv-bg:#040818; --prv-line:rgba(96,165,250,0.20); --prv-glow1:rgba(96,165,250,0.45); --prv-glow2:rgba(252,211,77,0.30);">
+                            <div class="theme-preview"></div>
+                            <div class="theme-name">Ragnarok</div>
+                            <div class="theme-tag">NORDIC · BLUE/GOLD</div>
+                            <div class="theme-swatches">
+                                <div class="swatch" style="background:#60a5fa;"></div>
+                                <div class="swatch" style="background:#fcd34d;"></div>
+                                <div class="swatch" style="background:#08142d;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Locked: Alpha Survivor -->
+                        <div class="theme-card locked" style="--prv-bg:#0c0a02; --prv-line:rgba(250,204,21,0.20); --prv-glow1:rgba(250,204,21,0.45); --prv-glow2:rgba(255,255,255,0.20);">
+                            <div class="lock-overlay">🔒 LOCKED</div>
+                            <div class="theme-preview"></div>
+                            <div class="theme-name">Alpha Survivor</div>
+                            <div class="theme-tag">REWARD · GOLD</div>
+                            <div class="theme-swatches">
+                                <div class="swatch" style="background:#fcd34d;"></div>
+                                <div class="swatch" style="background:#ffffff;"></div>
+                                <div class="swatch" style="background:#1a1408;"></div>
+                            </div>
+                            <div class="unlock-req">Defeat every Alpha boss across all maps · 6 / 11</div>
+                            <div class="unlock-progress"><div class="unlock-progress-bar" style="width:54%;"></div></div>
+                        </div>
+
+                        <!-- Locked: Tek Prototype -->
+                        <div class="theme-card locked" style="--prv-bg:#020c0c; --prv-line:rgba(45,212,191,0.25); --prv-glow1:rgba(45,212,191,0.50); --prv-glow2:rgba(165,243,252,0.30);">
+                            <div class="lock-overlay">🔒 LOCKED</div>
+                            <div class="theme-preview"></div>
+                            <div class="theme-name">Tek Prototype</div>
+                            <div class="theme-tag">REWARD · BLUEPRINT</div>
+                            <div class="theme-swatches">
+                                <div class="swatch" style="background:#2dd4bf;"></div>
+                                <div class="swatch" style="background:#a5f3fc;"></div>
+                                <div class="swatch" style="background:#021818;"></div>
+                            </div>
+                            <div class="unlock-req">Collect 25 Prize Bloodline badges · 8 / 25</div>
+                            <div class="unlock-progress"><div class="unlock-progress-bar" style="width:32%;"></div></div>
+                        </div>
+
+                        <!-- Locked: Element Corrupted -->
+                        <div class="theme-card locked" style="--prv-bg:#100214; --prv-line:rgba(217,70,239,0.25); --prv-glow1:rgba(217,70,239,0.50); --prv-glow2:rgba(244,114,182,0.30);">
+                            <div class="lock-overlay">🔒 LOCKED</div>
+                            <div class="theme-preview"></div>
+                            <div class="theme-name">Element Corrupted</div>
+                            <div class="theme-tag">REWARD · CORRUPTION</div>
+                            <div class="theme-swatches">
+                                <div class="swatch" style="background:#d946ef;"></div>
+                                <div class="swatch" style="background:#f472b6;"></div>
+                                <div class="swatch" style="background:#200628;"></div>
+                            </div>
+                            <div class="unlock-req">Earn the Underdog badge on any Alpha boss · 0 / 1</div>
+                            <div class="unlock-progress"><div class="unlock-progress-bar" style="width:0%;"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">AI Companion voice</div>
+                    <div style="font-size: 0.8rem; color: var(--tek-text-dim); line-height: 1.5; margin-bottom: 6px;">
+                        Sets the tone of boot messages, the Landing greeting, and flavor text throughout TekOS. The information is the same — only the voice changes.
+                    </div>
+                    <div class="voice-grid">
+                        <div class="voice-card">
+                            <div class="voice-name">Stoic Tek</div>
+                            <div class="voice-sample">"Implant link established. 47 specimens catalogued. No anomalies detected."</div>
+                            <div class="voice-meta">FORMAL · MINIMAL</div>
+                        </div>
+                        <div class="voice-card active">
+                            <div class="voice-name">Wry Survivor</div>
+                            <div class="voice-sample">"Welcome back, Casper. Your Yutyrannus still hasn't slept. Neither have you."</div>
+                            <div class="voice-meta">FRIENDLY · DRY</div>
+                        </div>
+                        <div class="voice-card">
+                            <div class="voice-name">Lore-Keeper</div>
+                            <div class="voice-sample">"The Obelisk hums. Forty-seven bloodlines stir in your vault. Long is the road of the Survivor."</div>
+                            <div class="voice-meta">FLOWERY · LORE-HEAVY</div>
+                        </div>
+                        <div class="voice-card">
+                            <div class="voice-name">Mute</div>
+                            <div class="voice-sample">— No flavor text. Just the data.</div>
+                            <div class="voice-meta">SILENT · DATA-ONLY</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ CLUSTER ============ -->
+            <div class="panel-section" id="section-cluster">
+                <div class="section-header">
+                    <div class="section-title">Cluster</div>
+                    <div class="section-desc">Servers you follow and how TekOS reads their data</div>
+                </div>
+
+                <!-- Loaded Crysis cluster -->
+                <div class="cluster-card">
+                    <div class="cluster-head">
+                        <div>
+                            <div class="cluster-name-wrap">
+                                <div class="cluster-emblem">LC</div>
+                                <div>
+                                    <div class="cluster-name">Loaded Crysis Cluster</div>
+                                    <div class="cluster-meta">10 SERVERS · YOUR HOME CLUSTER <span class="chip green">PRIMARY</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn ghost">Rename</button>
+                            <button class="btn ghost">Leave</button>
+                        </div>
+                    </div>
+
+                    <div class="server-list">
+                        <div class="server-chip"><span class="pip"></span><span class="name">Ragnarok·07</span><span class="x">✕</span></div>
+                        <div class="server-chip"><span class="pip"></span><span class="name">The Island·12</span><span class="x">✕</span></div>
+                        <div class="server-chip"><span class="pip"></span><span class="name">Aberration·03</span><span class="x">✕</span></div>
+                        <div class="server-chip"><span class="pip"></span><span class="name">Extinction·05</span><span class="x">✕</span></div>
+                        <div class="server-chip"><span class="pip"></span><span class="name">Scorched·09</span><span class="x">✕</span></div>
+                        <div class="server-chip"><span class="pip"></span><span class="name">Center·14</span><span class="x">✕</span></div>
+                        <div class="server-chip"><span class="pip"></span><span class="name">Valguero·02</span><span class="x">✕</span></div>
+                        <div class="server-chip offline"><span class="pip"></span><span class="name">Genesis·06</span><span class="x">✕</span></div>
+                        <div class="server-chip"><span class="pip"></span><span class="name">Crystal Isles·11</span><span class="x">✕</span></div>
+                        <div class="server-chip"><span class="pip"></span><span class="name">Lost Island·08</span><span class="x">✕</span></div>
+                    </div>
+
+                    <div class="add-server-row">
+                        <input class="input" placeholder="ADD SERVER · paste connection string or query address" />
+                        <button class="btn">ADD</button>
+                    </div>
+
+                    <!-- RCON block (Option B from build decision) -->
+                    <div class="rcon-block">
+                        <div class="rcon-head">
+                            <div class="rcon-title">▸ RCON Connection <span style="color:var(--tek-text-faint); font-weight:400;">— Optional</span></div>
+                            <div class="rcon-status connected"><span class="dot"></span>CONNECTED · LISTENING</div>
+                        </div>
+                        <div class="rcon-desc">
+                            Required for the rich Server feed (chat, admin announcements, boss spawns, taming events). Without it, TekOS still polls server status and player count via Steam A2S — you just won't get the event stream below the cluster card.
+                        </div>
+                        <div class="rcon-inputs">
+                            <input class="input" value="rcon.loadedcrysis.gg" placeholder="Host" />
+                            <input class="input" value="27020" placeholder="Port" />
+                            <input class="input" value="••••••••••••" type="password" placeholder="Password" />
+                        </div>
+                        <div class="rcon-actions">
+                            <button class="btn">TEST CONNECTION</button>
+                            <button class="btn ghost">DISCONNECT</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; padding: 14px 0;">
+                    <button class="btn ghost" style="font-size: 0.78rem; padding: 12px 22px;">＋ FOLLOW ANOTHER CLUSTER</button>
+                </div>
+
+                <div class="group" style="margin-top: 22px;">
+                    <div class="group-label">Polling preferences</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">A2S poll interval</div>
+                            <div class="row-hint">How often we ping each server for status, player count, current map.</div>
+                        </div>
+                        <select class="select">
+                            <option>Every 30 seconds</option>
+                            <option selected>Every 60 seconds</option>
+                            <option>Every 2 minutes</option>
+                            <option>Every 5 minutes</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Auto-pause when you're offline</div>
+                            <div class="row-hint">Stop polling your subscribed servers when you haven't been active for 24h.</div>
+                        </div>
+                        <div class="toggle on" data-toggle></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ DATA ============ -->
+            <div class="panel-section" id="section-data">
+                <div class="section-header">
+                    <div class="section-title">Data</div>
+                    <div class="section-desc">Export your Vault, import from saves, manage what TekOS stores</div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Export</div>
+                    <div class="action-card">
+                        <div class="action-info">
+                            <div class="action-title">Export Vault</div>
+                            <div class="action-desc">All 47 specimens with stat lines, mutations, parents, genealogy and badges. Download as JSON or CSV.</div>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn ghost">CSV</button>
+                            <button class="btn">JSON</button>
+                        </div>
+                    </div>
+                    <div class="action-card">
+                        <div class="action-info">
+                            <div class="action-title">Export Dossier snapshot</div>
+                            <div class="action-desc">Your profile, badge wall, trade rep, active breeding projects as of right now.</div>
+                        </div>
+                        <button class="btn ghost">DOWNLOAD</button>
+                    </div>
+                    <div class="action-card">
+                        <div class="action-info">
+                            <div class="action-title">Export full archive</div>
+                            <div class="action-desc">Everything above plus messages, marketplace history, tribe membership records. Email link when ready (~3 min).</div>
+                        </div>
+                        <button class="btn">REQUEST ARCHIVE</button>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Import</div>
+                    <div class="action-card">
+                        <div class="action-info">
+                            <div class="action-title">Import from ARK save file</div>
+                            <div class="action-desc">Drop a <code style="font-family:var(--tek-mono); font-size:0.72rem; color:var(--tek-blue);">.ark</code> save and we'll extract your tames into the Vault. Stats only — you'll still want to enter mutation lineage manually.</div>
+                        </div>
+                        <button class="btn">UPLOAD SAVE</button>
+                    </div>
+                    <div class="action-card">
+                        <div class="action-info">
+                            <div class="action-title">Import Vault from JSON</div>
+                            <div class="action-desc">Restore a previous TekOS export. Merges by Survivor-ID — won't overwrite existing entries.</div>
+                        </div>
+                        <button class="btn ghost">UPLOAD JSON</button>
+                    </div>
+                </div>
+
+                <!-- Danger zone -->
+                <div class="danger-zone">
+                    <div class="danger-title">⚠ Danger Zone</div>
+                    <div class="danger-desc">
+                        These actions cannot be undone. We strongly recommend exporting your archive first.
+                    </div>
+                    <div class="danger-actions">
+                        <button class="btn danger">CLEAR VAULT</button>
+                        <button class="btn danger">LEAVE ALL TRIBES</button>
+                        <button class="btn danger">DELETE ACCOUNT</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ INTEGRATIONS ============ -->
+            <div class="panel-section" id="section-integrations">
+                <div class="section-header">
+                    <div class="section-title">Integrations</div>
+                    <div class="section-desc">Connect TekOS to the rest of your survivor toolkit</div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Outbound webhooks</div>
+                    <div class="action-card">
+                        <div class="action-info">
+                            <div class="action-title">Discord webhook <span class="chip blue">CONNECTED</span></div>
+                            <div class="action-desc">Tribe boss timers, war room alerts, and trade requests post to your Discord channel. Currently posting to <code style="font-family:var(--tek-mono); font-size:0.72rem; color:var(--tek-blue);">#loaded-crysis-tek</code>.</div>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn ghost">CONFIGURE</button>
+                            <button class="btn ghost">DISCONNECT</button>
+                        </div>
+                    </div>
+                    <div class="action-card">
+                        <div class="action-info">
+                            <div class="action-title">Twitch link <span class="chip" style="color:var(--tek-text-dim);">NOT LINKED</span></div>
+                            <div class="action-desc">Link your Twitch to display a live indicator on your Dossier and unlock the Creator badge.</div>
+                        </div>
+                        <button class="btn">LINK TWITCH</button>
+                    </div>
+                    <div class="action-card">
+                        <div class="action-info">
+                            <div class="action-title">YouTube channel <span class="chip" style="color:var(--tek-text-dim);">NOT LINKED</span></div>
+                            <div class="action-desc">Pin your latest video to your Dossier and feed it into the Global tab when your followers are signed in.</div>
+                        </div>
+                        <button class="btn">LINK YOUTUBE</button>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">API access <span class="chip amber">POWER USER</span></div>
+                    <div style="font-size: 0.8rem; color: var(--tek-text-dim); line-height: 1.5; margin-bottom: 10px;">
+                        Build your own tools against your TekOS data. Tokens grant read access to your Vault, Dossier, and tribe — never to other Survivors.
+                    </div>
+                    <div class="action-card">
+                        <div class="action-info">
+                            <div class="action-title">Personal access tokens</div>
+                            <div class="action-desc">No tokens generated yet. Tokens expire after 90 days and can be revoked anytime.</div>
+                        </div>
+                        <button class="btn">GENERATE TOKEN</button>
+                    </div>
+                    <div class="action-card">
+                        <div class="action-info">
+                            <div class="action-title">Developer docs</div>
+                            <div class="action-desc">Endpoint reference, rate limits, examples for the read-only Vault API.</div>
+                        </div>
+                        <button class="btn ghost">OPEN DOCS</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save bar (shared across sections) -->
+            <div class="save-bar" id="saveBar">
+                <div class="save-bar-msg"><span class="dot"></span>UNSAVED CHANGES</div>
+                <div class="save-actions">
+                    <button class="btn ghost" id="discardBtn">DISCARD</button>
+                    <button class="btn solid" id="saveBtn">SAVE CHANGES</button>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+/* Hex canvas background — same routine as other previews */
+(function(){
+    const canvas = document.getElementById('tekHexCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let w, h, hexes = [];
+    function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+        hexes = [];
+        const size = 36, hSpace = size * 1.5, vSpace = size * Math.sqrt(3);
+        for (let y = -size; y < h + size; y += vSpace) {
+            for (let x = -size; x < w + size; x += hSpace) {
+                const offsetY = (Math.floor(x / hSpace) % 2) * vSpace / 2;
+                hexes.push({ x, y: y + offsetY, size, glow: Math.random() });
+            }
+        }
+    }
+    function draw() {
+        ctx.clearRect(0, 0, w, h);
+        ctx.strokeStyle = 'rgba(0,180,255,0.05)';
+        ctx.lineWidth = 1;
+        const t = Date.now() / 4000;
+        hexes.forEach((hex, i) => {
+            const phase = (Math.sin(t + i * 0.3) + 1) / 2;
+            ctx.strokeStyle = `rgba(0,180,255,${0.03 + phase * 0.04})`;
+            ctx.beginPath();
+            for (let a = 0; a < 6; a++) {
+                const angle = (Math.PI / 3) * a;
+                const px = hex.x + hex.size * Math.cos(angle);
+                const py = hex.y + hex.size * Math.sin(angle);
+                if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        });
+        requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', resize);
+    resize(); draw();
+})();
+
+/* Section nav */
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+        const target = item.dataset.section;
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.querySelectorAll('.panel-section').forEach(p => p.classList.remove('active'));
+        item.classList.add('active');
+        document.getElementById('section-' + target).classList.add('active');
+    });
+});
+
+/* Toggles — flip state + trigger save bar */
+document.querySelectorAll('.toggle').forEach(tg => {
+    tg.addEventListener('click', () => {
+        tg.classList.toggle('on');
+        showSaveBar();
+        markSectionUnsaved(tg);
+    });
+});
+document.querySelectorAll('.notif-cell-toggle').forEach(tg => {
+    tg.addEventListener('click', () => {
+        tg.classList.toggle('on');
+        showSaveBar();
+        markSectionUnsaved(tg);
+    });
+});
+
+/* Inputs and selects */
+document.querySelectorAll('.input:not([disabled]), .select').forEach(inp => {
+    inp.addEventListener('change', () => {
+        showSaveBar();
+        markSectionUnsaved(inp);
+    });
+    inp.addEventListener('input', () => {
+        showSaveBar();
+        markSectionUnsaved(inp);
+    });
+});
+
+/* Theme cards (non-locked) become active */
+document.querySelectorAll('.theme-card:not(.locked)').forEach(card => {
+    card.addEventListener('click', () => {
+        document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        showSaveBar();
+    });
+});
+
+/* Voice cards */
+document.querySelectorAll('.voice-card').forEach(card => {
+    card.addEventListener('click', () => {
+        document.querySelectorAll('.voice-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        showSaveBar();
+    });
+});
+
+function showSaveBar() {
+    document.getElementById('saveBar').classList.add('show');
+}
+function hideSaveBar() {
+    document.getElementById('saveBar').classList.remove('show');
+}
+function markSectionUnsaved(el) {
+    const sec = el.closest('.panel-section');
+    if (!sec) return;
+    const id = sec.id.replace('section-', '');
+    const nav = document.querySelector(`.nav-item[data-section="${id}"]`);
+    if (nav) nav.classList.add('unsaved');
+}
+
+document.getElementById('discardBtn').addEventListener('click', () => {
+    hideSaveBar();
+    document.querySelectorAll('.nav-item.unsaved').forEach(n => n.classList.remove('unsaved'));
+});
+document.getElementById('saveBtn').addEventListener('click', () => {
+    hideSaveBar();
+    document.querySelectorAll('.nav-item.unsaved').forEach(n => n.classList.remove('unsaved'));
+});
+</script>
+
+</body>
+</html>

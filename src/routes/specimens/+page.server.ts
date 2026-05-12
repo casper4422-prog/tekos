@@ -1,14 +1,44 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/db';
+import type { Stats } from '$lib/badges';
+
+export type VaultCreature = {
+    id: number;
+    createdAt: Date;
+    name: string;
+    species: string;
+    level: number;
+    gender: string;
+    baseStats: Stats;
+    mutations: Stats;
+    notes?: string;
+    server?: string;
+};
 
 export const load: PageServerLoad = async ({ locals }) => {
-	// Guest mode — return empty, page uses localStorage client-side
-	if (!locals.user) return { creatures: [] };
+    // Guest mode — empty vault, page uses localStorage client-side
+    if (!locals.user) return { creatures: [] as VaultCreature[] };
 
-	const rows = await db.creature.findMany({
-		where: { userId: locals.user.id },
-		orderBy: { createdAt: 'desc' }
-	});
-	const creatures = rows.map(r => ({ ...r.data as Record<string,unknown>, id: r.id, createdAt: r.createdAt }));
-	return { creatures };
+    const rows = await db.creature.findMany({
+        where: { userId: locals.user.id },
+        orderBy: { createdAt: 'desc' }
+    });
+
+    const creatures: VaultCreature[] = rows.map(r => {
+        const d = r.data as Record<string, unknown>;
+        return {
+            id:        r.id,
+            createdAt: r.createdAt,
+            name:      String(d.name ?? 'Unnamed'),
+            species:   String(d.species ?? 'Unknown'),
+            level:     Number(d.level ?? 1),
+            gender:    String(d.gender ?? 'Unknown'),
+            baseStats: (d.baseStats as Stats) ?? {},
+            mutations: (d.mutations as Stats) ?? {},
+            notes:     typeof d.notes === 'string' ? d.notes : undefined,
+            server:    typeof d.server === 'string' ? d.server : undefined
+        };
+    });
+
+    return { creatures };
 };

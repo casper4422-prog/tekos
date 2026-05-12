@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 
 	type SpeciesEntry = {
 		name: string;
@@ -49,7 +50,7 @@
 	};
 
 	onMount(() => {
-		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,SpeciesEntry> | undefined;
+		const db = window.EXPANDED_SPECIES_DATABASE as Record<string,SpeciesEntry> | undefined;
 		if (db) allSpecies = Object.entries(db)
 			.filter(([, v]) => v && typeof v === 'object')
 			.map(([key, v]) => ({ ...v, name: v.name || key }))
@@ -96,19 +97,21 @@
 	}
 </script>
 
-<div class="std-page">
-	<div class="std-page-header">
-		<div class="page-title">
-			<h1>Dex</h1>
-			<div class="page-subtitle">{allSpecies.length} species in database</div>
-		</div>
-	</div>
+<div class="tek-stage">
+	<PageHeader
+		title="Dex"
+		crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Dex' }]}
+		sub={allSpecies.length > 0
+			? `${allSpecies.length} species catalogued`
+			: 'Loading species database…'}
+		subMono={true}
+	/>
 
 	<div class="dex-controls">
-		<input class="form-control dex-search" placeholder="Search species..." bind:value={search} />
+		<input class="tek-input-v2 dex-search" placeholder="Search species…" bind:value={search} />
 		<div class="dex-cats">
 			{#each CATEGORIES as cat}
-				<button class="dex-cat-btn" class:active={category === cat} onclick={() => category = cat}>
+				<button class="tek-chip" class:on={category === cat} onclick={() => category = cat}>
 					{CAT_DISPLAY[cat]}
 				</button>
 			{/each}
@@ -144,7 +147,7 @@
 				{@const rgb = catRgb(s)}
 				{@const code = catCode(s)}
 				{@const cat = (s.category ?? 'default') as string}
-				<a class="cham-shell dex-card-link" href="/dex/{encodeURIComponent(s.name)}" style="--cat-rgb:{rgb}">
+				<a class="dex-card-link" href="/dex/{encodeURIComponent(s.name)}" style="--cat-rgb: {rgb};">
 				<div class="dex-card">
 					<div class="dex-card-header">
 						<div class="cat-badge-v3" style="--cat-rgb:{rgb}"><CategoryIcon category={cat} size={11} />{code}</div>
@@ -178,34 +181,161 @@
 </div>
 
 <style>
-.dex-controls { display:flex; flex-direction:column; gap:12px; margin-bottom:16px; }
-.dex-search { max-width:380px; }
-.dex-cats { display:flex; gap:5px; flex-wrap:wrap; }
-.dex-cat-btn { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); color:#64748b; border-radius:0; padding:5px 12px; font-size:0.75rem; font-weight:500; cursor:pointer; transition:all .15s; font-family:inherit; clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%); }
-.dex-cat-btn:hover { background:rgba(255,255,255,0.07); color:#94a3b8; }
-.dex-cat-btn.active { background:rgba(0,180,255,0.1); color:#7dd3fc; border-color:rgba(0,180,255,0.3); font-weight:600; }
-.dex-loading { color:#334155; padding:48px 0; text-align:center; font-size:0.88rem; max-width:540px; line-height:1.6; }
+.dex-controls { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
+.dex-search { max-width: 380px; }
+.dex-cats { display: flex; gap: 5px; flex-wrap: wrap; }
+.dex-loading {
+    color: var(--tek-text-faint);
+    padding: 48px 0;
+    text-align: center;
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 0.95rem;
+    max-width: 540px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
 
-.dex-cat-note { background:rgba(0,180,255,0.04); border-left:2px solid rgba(0,180,255,0.25); padding:10px 14px; font-size:0.78rem; color:#64748b; line-height:1.6; margin-bottom:16px; max-width:680px; }
-.dex-cat-note strong { color:#94a3b8; }
+.dex-cat-note {
+    background: rgba(0,180,255,0.04);
+    border: 1px solid rgba(0,180,255,0.15);
+    border-left: 2px solid var(--tek-blue);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 12px 16px;
+    font-family: var(--tek-mono);
+    font-size: 0.78rem;
+    color: var(--tek-text-dim);
+    line-height: 1.5;
+    margin-bottom: 18px;
+    max-width: 720px;
+}
+.dex-cat-note strong { color: var(--tek-text); }
 
-.dex-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; }
-.dex-card-link { display:block; text-decoration:none; color:inherit; }
-.dex-card { display:flex; flex-direction:column; gap:8px; background:linear-gradient(160deg,rgba(10,18,40,0.97) 0%,rgba(4,8,20,1) 100%); padding:15px 17px; }
-.dex-card-header { display:flex; align-items:center; gap:8px; }
-.dex-name { font-size:1rem; font-weight:700; color:#f1f5f9; letter-spacing:-0.01em; }
-.dex-sub { font-size:0.71rem; color:#64748b; }
-.dex-accent { opacity:0.85; }
-.dex-divider { height:1px; background:rgba(255,255,255,0.05); }
-.dex-snippet { font-size:0.77rem; line-height:1.65; color:#64748b; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-.dex-footer { display:flex; justify-content:space-between; align-items:center; margin-top:2px; }
-.dex-source { font-size:0.67rem; color:#334155; font-weight:500; letter-spacing:0.04em; text-transform:uppercase; }
-.dex-rarity { font-size:0.67rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; }
-.dex-rarity.common    { color:#475569; }
-.dex-rarity.uncommon  { color:#22c55e; }
-.dex-rarity.rare      { color:#3b82f6; }
-.dex-rarity.epic      { color:#a855f7; }
-.dex-rarity.legendary { color:#f59e0b; }
-.dex-rarity.boss      { color:#ef4444; }
-.dex-asa-notice { margin-top:24px; font-size:0.75rem; color:#1e293b; border-left:2px solid rgba(255,255,255,0.06); padding:8px 12px; max-width:600px; line-height:1.6; }
+.dex-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+}
+.dex-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s;
+}
+.dex-card-link:hover { transform: translateY(-2px); }
+
+.dex-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.97) 100%);
+    border: 1px solid rgba(var(--cat-rgb, 0,180,255), 0.20);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: all 0.2s;
+}
+.dex-card-link:hover .dex-card {
+    border-color: rgba(var(--cat-rgb, 0,180,255), 0.50);
+    box-shadow: 0 6px 18px rgba(var(--cat-rgb), 0.10);
+}
+.dex-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: rgb(var(--cat-rgb, 0,180,255));
+    box-shadow: 0 0 6px rgba(var(--cat-rgb), 0.45);
+}
+.dex-card-header { display: flex; align-items: center; gap: 8px; }
+.cat-badge-v3 {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(var(--cat-rgb, 0,180,255), 0.10);
+    border: 1px solid rgba(var(--cat-rgb, 0,180,255), 0.40);
+    color: rgb(var(--cat-rgb, 0,180,255));
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    padding: 3px 7px;
+    text-transform: uppercase;
+}
+
+.dex-name {
+    font-family: var(--tek-display);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+}
+.dex-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.dex-accent { opacity: 0.9; }
+.dex-divider {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(0,180,255,0.10), transparent);
+}
+.dex-snippet {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--tek-text-dim);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.dex-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0,180,255,0.06);
+}
+.dex-source {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    color: var(--tek-text-faint);
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.dex-rarity {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border: 1px solid currentColor;
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+.dex-rarity.common    { color: #94a3b8; }
+.dex-rarity.uncommon  { color: var(--tek-green); }
+.dex-rarity.rare      { color: var(--tek-blue); }
+.dex-rarity.epic      { color: var(--tek-purple); }
+.dex-rarity.legendary { color: var(--tek-amber); }
+.dex-rarity.boss      { color: var(--tek-red); }
+
+.dex-asa-notice {
+    margin-top: 28px;
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    color: var(--tek-text-faint);
+    border-left: 2px solid rgba(100,116,139,0.20);
+    padding: 10px 14px;
+    max-width: 720px;
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+}
 </style>

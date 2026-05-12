@@ -1,242 +1,674 @@
 <script lang="ts">
-	import { User, Dna, Users, Shield, Edit2, Sword, Repeat2, ChevronRight, Star } from 'lucide-svelte';
-	import { onMount } from 'svelte';
-	import type { PageData } from './$types';
-	let { data }: { data: PageData } = $props();
+    import { Edit2, Plus, Minus, ChevronRight, Shield, Sword, Award, Repeat2 } from 'lucide-svelte';
+    import type { PageData } from './$types';
+    import HexAvatar from '$lib/components/HexAvatar.svelte';
+    import PageHeader from '$lib/components/PageHeader.svelte';
 
-	const profile      = data.profile as Record<string,unknown> | null;
-	const creatures    = data.creatures as Record<string,unknown>[];
-	const tribe        = data.tribe as Record<string,unknown> | null;
-	const bossRecords  = data.bossRecords as Record<string,unknown>[];
-	const recentTrades = data.recentTrades as Record<string,unknown>[];
+    let { data }: { data: PageData } = $props();
 
-	let isGuest  = $state(false);
-	let editOpen = $state(false);
-	let saving   = $state(false);
-	let err      = $state('');
+    const displayName = $derived(data.profile?.nickname ?? data.profile?.email ?? 'Survivor');
+    const memberSince = $derived(
+        data.profile?.createdAt
+            ? new Date(data.profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+            : '—'
+    );
 
-	// Guest state
-	let guestName      = $state('Survivor');
-	let guestBio       = $state('');
-	let guestCreatures = $state<Record<string,unknown>[]>([]);
+    // Pinned creatures shown as "Active Breeding Projects"
+    const pinned = $derived(
+        data.pinnedIds
+            .map(id => data.creatures.find(c => c.id === id))
+            .filter((c): c is NonNullable<typeof c> => !!c)
+            .slice(0, 4)
+    );
 
-	// Authenticated edit fields
-	let nickname   = $state(String(profile?.nickname ?? ''));
-	let bio        = $state(String(profile?.bio ?? ''));
-	let lookingFor = $state(String(profile?.lookingFor ?? ''));
+    // Tier order for badge wall sorting (highest tier first within each species)
+    const bloodlineOrder = { diamond: 4, gold: 3, silver: 2, bronze: 1 } as const;
+    const bossOrder = { titan: 4, alpha: 3, beta: 2, gamma: 1 } as const;
+    const sortedBloodline = $derived(
+        [...data.badgeWall.bloodline].sort((a, b) => {
+            const ao = a.tier ? bloodlineOrder[a.tier] : 0;
+            const bo = b.tier ? bloodlineOrder[b.tier] : 0;
+            return bo - ao || a.species.localeCompare(b.species);
+        })
+    );
+    const sortedBossReady = $derived(
+        [...data.badgeWall.bossReady].sort((a, b) => {
+            const ao = a.tier ? bossOrder[a.tier] : 0;
+            const bo = b.tier ? bossOrder[b.tier] : 0;
+            return bo - ao || a.species.localeCompare(b.species);
+        })
+    );
 
-	const joined      = profile?.createdAt ? new Date(profile.createdAt as string).toLocaleDateString('en-US', { month:'long', year:'numeric' }) : '';
-	const displayName = (profile?.nickname ?? profile?.email ?? 'Survivor') as string;
+    const tierGlyph = {
+        diamond: '✦', gold: '◈', silver: '⬢', bronze: '⬢',
+        titan: '◆',   alpha: 'α', beta: 'β', gamma: 'γ'
+    } as const;
 
-	onMount(() => {
-		isGuest = localStorage.getItem('tekos_guest') === '1';
-		if (isGuest) {
-			guestName = localStorage.getItem('tekos_guest_name') ?? 'Survivor';
-			guestBio  = localStorage.getItem('tekos_guest_bio') ?? '';
-			const saved = localStorage.getItem('tekos_specimens');
-			if (saved) { try { guestCreatures = JSON.parse(saved); } catch {} }
-		}
-	});
-
-	function saveGuestProfile() {
-		localStorage.setItem('tekos_guest_name', guestName);
-		localStorage.setItem('tekos_guest_bio', guestBio);
-		editOpen = false;
-	}
-
-	async function saveProfile() {
-		saving = true; err = '';
-		const res = await fetch('/api/profile', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nickname:nickname||null, bio:bio||null, lookingFor:lookingFor||null }) });
-		if (res.ok) { editOpen = false; location.reload(); }
-		else { err = (await res.json()).error ?? 'Failed'; saving = false; }
-	}
+    function roleLabel(r: string) {
+        return r === 'tank' ? 'BOSS TANK'
+            : r === 'dps' ? 'BOSS DPS'
+            : r === 'bruiser' ? 'BOSS BRUISER'
+            : 'BOSS RUNNER';
+    }
 </script>
 
-<div class="std-page dos-page">
+<svelte:head>
+    <title>⬡ TekOS — Dossier · {displayName}</title>
+</svelte:head>
 
-	{#if isGuest}
-		<div class="dos-guest-banner">
-			Guest Mode — data saved locally only.
-			<a href="/login" onclick={() => localStorage.removeItem('tekos_guest')}>Sign in</a> for full access.
-		</div>
-		<div class="dos-sheet-header">
-			<div class="dos-avatar"><User size={30} /></div>
-			<div class="dos-identity">
-				<div class="dos-callsign">{guestName || 'Survivor'}</div>
-				<div class="dos-joined">Local Guest Profile</div>
-				{#if guestBio}<div class="dos-bio">"{guestBio}"</div>{/if}
-			</div>
-			<button class="btn btn-secondary btn-sm" onclick={() => editOpen=true}><Edit2 size={13} /> Edit</button>
-		</div>
-		<div class="dos-stats-row">
-			<div class="cham-shell dos-stat" style="--cut:7px">
-				<div class="dos-stat-inner"><Dna size={14} /><div class="dos-stat-val">{guestCreatures.length}</div><div class="dos-stat-lbl">Specimens</div></div>
-			</div>
-		</div>
-		<div style="color:#475569;font-size:0.86rem"><a href="/specimens" style="color:#7dd3fc">Open Specimens</a> to manage your local vault.</div>
+<div class="tek-stage">
+    <PageHeader
+        title="Dossier"
+        crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Dossier' }]}
+        sub="Your survivor profile, bloodlines and earned honors."
+    />
 
-	{:else}
-		<!-- Hero -->
-		<div class="dos-sheet-header">
-			<div class="dos-avatar-wrap">
-				<div class="dos-avatar"><User size={30} /></div>
-				<div class="dos-online-pip"></div>
-			</div>
-			<div class="dos-identity">
-				<div class="dos-callsign">{displayName}</div>
-				{#if profile?.nickname && profile?.email}<div class="dos-email-line">{String(profile.email)}</div>{/if}
-				{#if tribe}<div class="dos-tribe-line"><Shield size={12} /> {String(tribe.name)}{tribe.mainMap ? ' — ' + String(tribe.mainMap) : ''}</div>{/if}
-				{#if profile?.discordName}<div class="dos-discord-line">Discord: {String(profile.discordName)}</div>{/if}
-				<div class="dos-joined">Survivor since {joined}</div>
-				{#if profile?.bio}<div class="dos-bio">"{String(profile.bio)}"</div>{/if}
-				{#if profile?.lookingFor}<div class="dos-looking">Looking for: {String(profile.lookingFor)}</div>{/if}
-			</div>
-			<a href="/account" class="btn btn-secondary btn-sm"><Edit2 size={13} /> Edit</a>
-		</div>
+    <!-- ═════════════ IDENTITY BANNER ═════════════ -->
+    <section class="identity-banner">
+        <div class="banner-image"></div>
 
-		<!-- Stats -->
-		<div class="dos-stats-row">
-			<div class="cham-shell dos-stat" style="--cut:7px">
-				<div class="dos-stat-inner"><Dna size={14} /><div class="dos-stat-val">{creatures.length}</div><div class="dos-stat-lbl">Specimens</div></div>
-			</div>
-			<div class="cham-shell dos-stat" style="--cut:7px">
-				<div class="dos-stat-inner"><span class="dos-stat-icon-text">Spc</span><div class="dos-stat-val">{data.speciesOwned}</div><div class="dos-stat-lbl">Species</div></div>
-			</div>
-			<div class="cham-shell dos-stat" style="--cut:7px">
-				<div class="dos-stat-inner"><Users size={14} /><div class="dos-stat-val">{data.friendCount}</div><div class="dos-stat-lbl">Friends</div></div>
-			</div>
-			<div class="cham-shell dos-stat" style="--cut:7px">
-				<div class="dos-stat-inner"><Sword size={14} /><div class="dos-stat-val">{data.bossWins}</div><div class="dos-stat-lbl">Boss Wins</div></div>
-			</div>
-			<div class="cham-shell dos-stat" style="--cut:7px">
-				<div class="dos-stat-inner"><Star size={14} /><div class="dos-stat-val">{data.totalMuts}</div><div class="dos-stat-lbl">Total Muts</div></div>
-			</div>
-		</div>
+        <div class="identity-card">
+            <HexAvatar name={displayName} size={88} online={true} />
 
-		<!-- Two-column body -->
-		<div class="dos-body">
-			<!-- Boss history -->
-			<div>
-				<div class="dos-section-row">
-					<div class="dos-section-lbl"><Sword size={12} /> Boss Fights</div>
-					<a href="/overseer" class="btn btn-ghost btn-sm">Overseer <ChevronRight size={11} /></a>
-				</div>
-				{#if bossRecords.length === 0}
-					<div class="dos-empty">No boss fights yet. Log them from a War Room.</div>
-				{:else}
-					<div class="dos-boss-list">
-						{#each bossRecords as r}
-							{@const rd = r as Record<string,unknown>}
-							{@const win = rd.outcome === 'success'}
-							<div class="cham-shell dos-boss-row" style="--cut:5px">
-								<div class="dos-boss-inner">
-									<div class="dos-boss-dot" class:win></div>
-									<div class="dos-boss-info">
-										<div class="dos-boss-name">{String(rd.bossName)}</div>
-										<div class="dos-boss-meta">{String(rd.difficulty ?? '').toUpperCase()}</div>
-									</div>
-									<span class="dos-boss-result" class:win>{win ? 'Victory' : 'Defeat'}</span>
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</div>
+            <div class="identity-info">
+                <div class="callsign">{displayName}</div>
+                <div class="identity-meta">
+                    {#if data.tribe}
+                        <span class="meta-chip tribe">
+                            <Shield size={11} strokeWidth={2} />
+                            {data.tribe.name}
+                        </span>
+                    {/if}
+                    <span class="meta-chip">SURVIVOR SINCE {memberSince.toUpperCase()}</span>
+                    {#if data.profile?.discordName}
+                        <span class="meta-chip">⌬ {data.profile.discordName}</span>
+                    {/if}
+                </div>
+                {#if data.profile?.bio}
+                    <p class="identity-bio">{data.profile.bio}</p>
+                {/if}
+                {#if data.profile?.lookingFor}
+                    <p class="identity-bio looking">Looking for: <span>{data.profile.lookingFor}</span></p>
+                {/if}
+            </div>
 
-			<!-- Recent listings -->
-			<div>
-				<div class="dos-section-row">
-					<div class="dos-section-lbl"><Repeat2 size={12} /> Active Listings</div>
-					<a href="/marketplace" class="btn btn-ghost btn-sm">View <ChevronRight size={11} /></a>
-				</div>
-				{#if recentTrades.length === 0}
-					<div class="dos-empty">No active listings.</div>
-				{:else}
-					<div class="dos-trade-list">
-						{#each recentTrades as t}
-							{@const td = t as Record<string,unknown>}
-							{@const cd = (td.creatureData ?? {}) as Record<string,unknown>}
-							<div class="cham-shell dos-trade-row" style="--cut:5px">
-								<div class="dos-trade-inner">
-									<div class="dos-trade-species">{String(cd.species ?? '?')} — {String(cd.name ?? 'Unnamed')}</div>
-									<div class="dos-trade-meta">{String(td.status)} · {(td.offerCount as number) ?? 0} offer{(td.offerCount as number) !== 1 ? 's' : ''}{td.wanted ? ' · Wants: ' + td.wanted : ''}</div>
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</div>
-		</div>
-	{/if}
+            <a class="identity-edit" href="/settings" title="Edit profile">
+                <Edit2 size={14} strokeWidth={2} />
+                EDIT
+            </a>
+        </div>
+    </section>
+
+    <!-- ═════════════ STATS ROW ═════════════ -->
+    <div class="stats-row">
+        <a class="stat-cell" href="/specimens">
+            <div class="stat-val">{data.stats.specimens}</div>
+            <div class="stat-label">Specimens</div>
+        </a>
+        <div class="stat-cell">
+            <div class="stat-val amber">
+                {#if data.stats.tradeRep !== null}
+                    {data.stats.tradeRep}<span class="star">★</span>
+                {:else}
+                    <span class="muted">—</span>
+                {/if}
+            </div>
+            <div class="stat-label">Trade Rep</div>
+        </div>
+        <a class="stat-cell" href="/badges">
+            <div class="stat-val gold">{data.stats.badges}</div>
+            <div class="stat-label">Badges</div>
+        </a>
+        <a class="stat-cell" href="/friends">
+            <div class="stat-val green">{data.stats.friends}</div>
+            <div class="stat-label">Friends</div>
+        </a>
+    </div>
+
+    <!-- ═════════════ ACTIVE BREEDING PROJECTS ═════════════ -->
+    {#if pinned.length}
+        <section class="section-block">
+            <div class="tek-section-head">
+                <div class="tek-section-title">Active Breeding Projects</div>
+                <a class="tek-section-meta" href="/specimens">
+                    <span class="accent">{pinned.length} PINNED</span> · MANAGE ▸
+                </a>
+            </div>
+            <div class="projects-grid">
+                {#each pinned as c}
+                    {@const totalMuts = Object.values(c.mutations ?? {}).reduce((s, n) => s + (n || 0), 0)}
+                    <a class="project-card" href="/specimens/{c.id}">
+                        <div class="project-head">
+                            <div>
+                                <div class="project-name">{c.name}</div>
+                                <div class="project-species">{c.species} · LVL {c.level}</div>
+                            </div>
+                            <div class="project-tag">PROJECT</div>
+                        </div>
+                        <div class="mutation-counter">
+                            <span class="mut-label">Total mutations</span>
+                            <span class="mut-val">{totalMuts}</span>
+                        </div>
+                    </a>
+                {/each}
+            </div>
+        </section>
+    {/if}
+
+    <!-- ═════════════ BADGE WALL ═════════════ -->
+    <section class="section-block">
+        <div class="tek-section-head">
+            <div class="tek-section-title">Badge Wall</div>
+            <a class="tek-section-meta" href="/badges">
+                <span class="accent">{data.stats.badges} EARNED</span> · FULL ARCHIVE ▸
+            </a>
+        </div>
+
+        {#if data.stats.badges === 0}
+            <div class="tek-empty">
+                <div class="icon">⬡</div>
+                <div class="title">No badges yet</div>
+                <div class="flavor">"Breed harder. The wild remembers numbers."</div>
+            </div>
+        {:else}
+            <div class="badge-cats">
+                {#if sortedBossReady.length}
+                    <div class="badge-cat">
+                        <div class="badge-cat-head">
+                            <Sword size={14} strokeWidth={2} />
+                            <span class="badge-cat-name">Boss Ready</span>
+                            <span class="badge-cat-count">{sortedBossReady.length} earned</span>
+                        </div>
+                        <div class="badge-chips">
+                            {#each sortedBossReady as b}
+                                <div class="badge-chip {b.tier}">
+                                    <span class="chip-glyph">{tierGlyph[b.tier!]}</span>
+                                    <div class="chip-body">
+                                        <div class="chip-tier">{b.tier?.toUpperCase()}</div>
+                                        <div class="chip-species">{b.species}</div>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+
+                {#if sortedBloodline.length}
+                    <div class="badge-cat">
+                        <div class="badge-cat-head">
+                            <Award size={14} strokeWidth={2} />
+                            <span class="badge-cat-name">Prize Bloodline</span>
+                            <span class="badge-cat-count">{sortedBloodline.length} earned</span>
+                        </div>
+                        <div class="badge-chips">
+                            {#each sortedBloodline as b}
+                                <div class="badge-chip {b.tier}">
+                                    <span class="chip-glyph">{tierGlyph[b.tier!]}</span>
+                                    <div class="chip-body">
+                                        <div class="chip-tier">{b.tier?.toUpperCase()}</div>
+                                        <div class="chip-species">{b.species}</div>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+
+                {#if data.badgeWall.roles.length}
+                    <div class="badge-cat">
+                        <div class="badge-cat-head">
+                            <Shield size={14} strokeWidth={2} />
+                            <span class="badge-cat-name">Specialist Roles</span>
+                            <span class="badge-cat-count">{data.badgeWall.roles.length} earned</span>
+                        </div>
+                        <div class="badge-chips">
+                            {#each data.badgeWall.roles as b}
+                                <div class="badge-chip role">
+                                    <span class="chip-glyph">▣</span>
+                                    <div class="chip-body">
+                                        <div class="chip-tier">{roleLabel(b.role)}</div>
+                                        <div class="chip-species">{b.species}</div>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+            </div>
+        {/if}
+    </section>
+
+    <!-- ═════════════ RECENT BOSS RUNS ═════════════ -->
+    {#if data.recentBoss.length > 0}
+        <section class="section-block">
+            <div class="tek-section-head">
+                <div class="tek-section-title">Recent Boss Runs</div>
+                <a class="tek-section-meta" href="/overseer">SEE OVERSEER ▸</a>
+            </div>
+            <div class="boss-runs">
+                {#each data.recentBoss as b}
+                    <div class="boss-run {b.outcome}">
+                        <div class="boss-run-icon"><Sword size={14} strokeWidth={2} /></div>
+                        <div class="boss-run-info">
+                            <div class="boss-run-name">{b.bossName}</div>
+                            <div class="boss-run-meta">
+                                {b.difficulty?.toUpperCase()} · {new Date(b.createdAt).toLocaleDateString()}
+                            </div>
+                        </div>
+                        <div class="boss-run-result">{b.outcome?.toUpperCase()}</div>
+                    </div>
+                {/each}
+            </div>
+        </section>
+    {/if}
 </div>
-
-<!-- Edit modal for guests -->
-{#if editOpen && isGuest}
-<div class="modal active" role="dialog" aria-modal="true">
-	<div class="modal-content" style="max-width:420px">
-		<div class="modal-header"><h2 class="modal-title">Edit Profile</h2><button class="close-btn" onclick={() => editOpen=false}>&times;</button></div>
-		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
-			<div class="plan-field"><label class="form-label" for="g-name">Callsign</label><input id="g-name" class="form-control" bind:value={guestName} /></div>
-			<div class="plan-field"><label class="form-label" for="g-bio">Bio</label><textarea id="g-bio" class="form-control" rows="2" bind:value={guestBio}></textarea></div>
-			<div style="font-size:0.75rem;color:#64748b">Guest profile is stored locally only.</div>
-		</div>
-		<div class="modal-footer"><button class="btn btn-secondary" onclick={() => editOpen=false}>Cancel</button><button class="btn btn-primary" onclick={saveGuestProfile}>Save</button></div>
-	</div>
-</div>
-{/if}
 
 <style>
-.dos-page { max-width:760px; display:flex; flex-direction:column; gap:16px; }
+/* ── Identity banner ─────────────────────────────────────────────────────── */
+.identity-banner { position: relative; margin-bottom: 32px; }
+.banner-image {
+    height: 160px;
+    background:
+        linear-gradient(135deg, rgba(0,180,255,0.18) 0%, rgba(139,92,246,0.16) 50%, rgba(0,180,255,0.10) 100%),
+        radial-gradient(circle 200px at 20% 50%, rgba(0,180,255,0.20), transparent 70%),
+        radial-gradient(circle 240px at 80% 60%, rgba(139,92,246,0.20), transparent 70%),
+        #0a1228;
+    clip-path: polygon(16px 0%, 100% 0%, 100% 100%, 0% 100%, 0% 16px);
+    position: relative;
+    overflow: hidden;
+}
+.banner-image::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        repeating-linear-gradient(60deg, rgba(0,180,255,0.05) 0 1px, transparent 1px 24px),
+        repeating-linear-gradient(-60deg, rgba(0,180,255,0.05) 0 1px, transparent 1px 24px);
+    opacity: 0.6;
+}
+.banner-image::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 0%, transparent 50%, rgba(5,8,18,0.85) 100%);
+}
 
-.dos-guest-banner { background:rgba(245,158,11,0.07); border-left:2px solid #f59e0b; padding:8px 12px; font-size:0.78rem; color:#fbbf24; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
-.dos-guest-banner a { color:#fcd34d; }
+.identity-card {
+    position: relative;
+    margin: -68px 24px 0;
+    background: linear-gradient(160deg, rgba(10,18,44,0.96) 0%, rgba(4,8,20,0.99) 100%);
+    backdrop-filter: blur(16px);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 22px 28px;
+    display: flex;
+    align-items: flex-start;
+    gap: 22px;
+    z-index: 2;
+    filter: drop-shadow(0 0 1px rgba(0,180,255,0.30)) drop-shadow(0 18px 50px rgba(0,0,0,0.55));
+}
+.identity-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 8px var(--tek-blue-glow);
+}
+.identity-info { flex: 1; min-width: 0; }
+.callsign {
+    font-family: var(--tek-display);
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(0,180,255,0.30));
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+.identity-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    padding: 3px 8px;
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(100,116,139,0.20);
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.meta-chip.tribe {
+    color: var(--tek-purple);
+    border-color: rgba(139,92,246,0.30);
+    background: rgba(139,92,246,0.06);
+}
+.identity-bio {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    color: var(--tek-text-dim);
+    font-size: 0.94rem;
+    line-height: 1.4;
+    max-width: 560px;
+}
+.identity-bio.looking { font-style: normal; font-size: 0.78rem; color: var(--tek-text-faint); margin-top: 4px; }
+.identity-bio.looking span { color: var(--tek-blue); font-family: var(--tek-mono); letter-spacing: 0.06em; }
 
-/* Header */
-.dos-sheet-header { display:flex; align-items:flex-start; gap:18px; background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:22px 24px; clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%); border-left:3px solid rgba(0,180,255,0.5); flex-wrap:wrap; }
-.dos-avatar-wrap { position:relative; flex-shrink:0; }
-.dos-avatar { width:56px; height:56px; border-radius:50%; background:rgba(0,180,255,0.09); border:1px solid rgba(0,180,255,0.22); display:flex; align-items:center; justify-content:center; color:rgba(0,180,255,0.75); }
-.dos-online-pip { position:absolute; bottom:2px; right:2px; width:11px; height:11px; border-radius:50%; background:#4ade80; border:2px solid #050812; box-shadow:0 0 5px rgba(74,222,128,0.55); }
-.dos-identity { flex:1; min-width:160px; }
-.dos-callsign { font-size:1.6rem; font-weight:800; color:#f1f5f9; letter-spacing:-0.03em; line-height:1; margin-bottom:6px; }
-.dos-email-line { font-size:0.72rem; color:#334155; margin-bottom:3px; }
-.dos-tribe-line { display:flex; align-items:center; gap:5px; font-size:0.78rem; color:#a78bfa; margin-bottom:3px; }
-.dos-discord-line { font-size:0.72rem; color:#5865f2; margin-bottom:3px; }
-.dos-joined { font-size:0.68rem; color:#334155; letter-spacing:0.03em; margin-bottom:6px; }
-.dos-bio { font-size:0.84rem; color:#94a3b8; font-style:italic; line-height:1.55; margin-top:4px; }
-.dos-looking { font-size:0.76rem; color:#60a5fa; margin-top:4px; }
+.identity-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,180,255,0.08);
+    border: 1px solid var(--tek-blue-border);
+    color: var(--tek-blue);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    text-decoration: none;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    flex-shrink: 0;
+    transition: all 0.15s;
+    align-self: flex-start;
+}
+.identity-edit:hover {
+    background: rgba(0,180,255,0.18);
+    box-shadow: 0 0 12px rgba(0,180,255,0.30);
+}
 
-/* Stats */
-.dos-stats-row { display:flex; gap:8px; flex-wrap:wrap; }
-.dos-stat { flex:1; min-width:80px; }
-.dos-stat-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:11px 10px; display:flex; flex-direction:column; align-items:center; gap:3px; }
-:global(.dos-stat-inner svg) { color:#475569; }
-.dos-stat-icon-text { font-size:0.65rem; font-weight:700; letter-spacing:0.08em; color:#475569; text-transform:uppercase; }
-.dos-stat-val { font-size:1.4rem; font-weight:800; color:#f1f5f9; line-height:1; }
-.dos-stat-lbl { font-size:0.58rem; color:#475569; text-transform:uppercase; letter-spacing:.07em; }
+/* ── Stats row ───────────────────────────────────────────────────────────── */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 32px;
+}
+@media (max-width: 600px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
 
-/* Two-column body */
-.dos-body { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-@media (max-width:580px) { .dos-body { grid-template-columns:1fr; } }
-.dos-section-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-.dos-section-lbl { font-size:0.62rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#334155; display:flex; align-items:center; gap:6px; }
-.dos-empty { font-size:0.82rem; color:#334155; padding:8px 0; }
+.stat-cell {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(0,180,255,0.15);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 18px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.15s;
+    cursor: pointer;
+}
+.stat-cell::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: var(--tek-blue);
+    box-shadow: 0 0 6px var(--tek-blue-glow);
+}
+.stat-cell:hover {
+    transform: translateY(-2px);
+    border-color: var(--tek-blue);
+    box-shadow: 0 4px 14px rgba(0,180,255,0.18);
+}
+.stat-val {
+    font-family: var(--tek-display);
+    font-size: 1.7rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--tek-blue);
+    text-shadow: 0 0 8px var(--tek-blue-glow);
+    margin-bottom: 5px;
+}
+.stat-val.amber  { color: var(--tek-amber); text-shadow: 0 0 8px rgba(245,158,11,0.4); }
+.stat-val.green  { color: var(--tek-green); text-shadow: 0 0 8px rgba(16,185,129,0.4); }
+.stat-val.gold   { color: var(--tier-gold); text-shadow: 0 0 8px rgba(255,215,0,0.4); }
+.stat-val .star  { font-size: 0.9rem; margin-left: 3px; }
+.stat-val .muted { color: var(--tek-text-faint); }
+.stat-label {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
 
-/* Boss */
-.dos-boss-list { display:flex; flex-direction:column; gap:4px; }
-.dos-boss-row { }
-.dos-boss-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:8px 12px; display:flex; align-items:center; gap:9px; }
-.dos-boss-dot { width:7px; height:7px; border-radius:50%; background:#ef4444; flex-shrink:0; }
-.dos-boss-dot.win { background:#4ade80; box-shadow:0 0 4px rgba(74,222,128,0.5); }
-.dos-boss-info { flex:1; }
-.dos-boss-name { font-size:0.84rem; font-weight:600; color:#f1f5f9; }
-.dos-boss-meta { font-size:0.65rem; color:#475569; margin-top:1px; }
-.dos-boss-result { font-size:0.67rem; font-weight:700; color:#ef4444; flex-shrink:0; }
-.dos-boss-result.win { color:#4ade80; }
+/* ── Section block ───────────────────────────────────────────────────────── */
+.section-block { margin-bottom: 32px; }
+.tek-section-meta { text-decoration: none; cursor: pointer; transition: color 0.15s; }
+.tek-section-meta:hover { color: var(--tek-blue); }
 
-/* Trades */
-.dos-trade-list { display:flex; flex-direction:column; gap:4px; }
-.dos-trade-row { }
-.dos-trade-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:8px 12px; }
-.dos-trade-species { font-size:0.84rem; font-weight:600; color:#f1f5f9; }
-.dos-trade-meta { font-size:0.7rem; color:#64748b; margin-top:2px; }
+/* ── Active Breeding Projects ────────────────────────────────────────────── */
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+}
+.project-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.96) 100%);
+    border: 1px solid rgba(139,92,246,0.30);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 13px 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.15s;
+}
+.project-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: var(--tek-purple);
+    box-shadow: 0 0 5px rgba(139,92,246,0.5);
+}
+.project-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--tek-purple);
+    box-shadow: 0 4px 14px rgba(139,92,246,0.20);
+}
+.project-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    gap: 8px;
+}
+.project-name {
+    font-family: var(--tek-display);
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    line-height: 1.15;
+}
+.project-species {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    color: var(--tek-text-dim);
+    margin-top: 3px;
+}
+.project-tag {
+    font-family: var(--tek-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-purple);
+    text-transform: uppercase;
+    padding: 2px 6px;
+    background: rgba(139,92,246,0.08);
+    border: 1px solid rgba(139,92,246,0.30);
+}
+.mutation-counter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid rgba(139,92,246,0.10);
+}
+.mut-label {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.mut-val {
+    font-family: var(--tek-display);
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--tek-purple);
+    text-shadow: 0 0 6px rgba(139,92,246,0.4);
+}
+
+/* ── Badge Wall ──────────────────────────────────────────────────────────── */
+.badge-cats {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.badge-cat {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.92) 100%);
+    border: 1px solid rgba(0,180,255,0.15);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 18px 16px;
+}
+.badge-cat::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: var(--tek-blue);
+    box-shadow: 0 0 5px var(--tek-blue-glow);
+}
+.badge-cat-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0,180,255,0.10);
+    color: var(--tek-blue);
+}
+.badge-cat-name {
+    font-family: var(--tek-display);
+    font-size: 0.84rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+    flex: 1;
+}
+.badge-cat-count {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.badge-chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 8px;
+}
+.badge-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(var(--tier-rgb, 0, 180, 255), 0.06);
+    border: 1px solid rgba(var(--tier-rgb, 0, 180, 255), 0.30);
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+}
+.badge-chip.bronze  { --tier-rgb: 205, 127, 50; }
+.badge-chip.silver  { --tier-rgb: 200, 200, 210; }
+.badge-chip.gold    { --tier-rgb: 255, 215, 0; }
+.badge-chip.diamond { --tier-rgb: 0, 180, 255; box-shadow: 0 0 8px rgba(0, 180, 255, 0.20); }
+.badge-chip.gamma   { --tier-rgb: 16, 185, 129; }
+.badge-chip.beta    { --tier-rgb: 0, 180, 255; }
+.badge-chip.alpha   { --tier-rgb: 244, 114, 182; }
+.badge-chip.titan   { --tier-rgb: 0, 180, 255; box-shadow: 0 0 8px rgba(0, 180, 255, 0.20); }
+.badge-chip.role    { --tier-rgb: 139, 92, 246; }
+.chip-glyph {
+    font-family: var(--tek-display);
+    font-size: 1.1rem;
+    color: rgb(var(--tier-rgb));
+    text-shadow: 0 0 6px rgba(var(--tier-rgb), 0.4);
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
+}
+.chip-body { line-height: 1.25; min-width: 0; }
+.chip-tier {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    color: rgb(var(--tier-rgb));
+    text-transform: uppercase;
+    font-weight: 700;
+}
+.chip-species {
+    font-size: 0.78rem;
+    color: var(--tek-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Recent Boss Runs ────────────────────────────────────────────────────── */
+.boss-runs {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.boss-run {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(100,116,139,0.15);
+    border-left: 2px solid var(--tek-text-faint);
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+}
+.boss-run.success { border-left-color: var(--tek-green); }
+.boss-run.failure { border-left-color: var(--tek-red); }
+.boss-run-icon { color: var(--tek-blue); flex-shrink: 0; }
+.boss-run-info { flex: 1; min-width: 0; }
+.boss-run-name {
+    font-family: var(--tek-display);
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+}
+.boss-run-meta {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    color: var(--tek-text-dim);
+}
+.boss-run-result {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    padding: 3px 8px;
+    border: 1px solid;
+    text-transform: uppercase;
+}
+.boss-run.success .boss-run-result { color: var(--tek-green); border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.08); }
+.boss-run.failure .boss-run-result { color: var(--tek-red); border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.06); }
 </style>

@@ -164,29 +164,37 @@
 	}
 </script>
 
-<div class="std-page war-page">
+<div class="tek-stage war-page">
+	<div class="tek-breadcrumb">
+		<a href="/dossier">DASHBOARD</a><span class="sep">/</span><a href="/overseer">OVERSEER</a><span class="sep">/</span><span>WAR ROOM</span>
+	</div>
 	<div class="war-header">
-		<a href="/overseer" class="btn btn-secondary btn-sm">← Overseer</a>
+		<a href="/overseer" class="tek-btn-v2 ghost sm">← Overseer</a>
 		<div class="war-title-block">
 			<div class="war-boss">{String(session.bossName)}</div>
-			<div class="war-meta">{String(session.difficulty).toUpperCase()} · Code: <strong>{String(session.joinCode)}</strong> · {members.length} online</div>
+			<div class="war-meta">
+				<span class="war-meta-pill {String(session.difficulty).toLowerCase()}">{String(session.difficulty).toUpperCase()}</span>
+				<span>· Code: <strong>{String(session.joinCode)}</strong></span>
+				<span>· {members.length} online</span>
+			</div>
 		</div>
-		<button class="btn btn-secondary" onclick={loadFriends}>
-			<UserPlus size={13} /> Invite
+		<button class="tek-btn-v2 ghost sm" onclick={loadFriends}>
+			<UserPlus size={13} strokeWidth={2.5} /> Invite
 		</button>
-		<button class="btn btn-secondary" onclick={() => { logOpen=true; logOutcome='success'; logNotes=''; }}>
-			<ScrollText size={13} /> Log Fight
+		<button class="tek-btn-v2 sm" onclick={() => { logOpen=true; logOutcome='success'; logNotes=''; }}>
+			<ScrollText size={13} strokeWidth={2.5} /> Log Fight
 		</button>
 		{#if isCreator && !closed}
-			<button class="btn btn-danger" onclick={closeRoom}>Close Room</button>
+			<button class="tek-btn-v2 danger sm" onclick={closeRoom}>Close Room</button>
 		{/if}
 		{#if closed}<span class="war-closed-tag">CLOSED</span>{/if}
 	</div>
 
-	<div class="war-tabs">
-		{#each [['chat','Chat'],['roster','Roster'],['members','Members'],['tips','Tips & Gear']] as [t,label]}
-			<button class="war-tab" class:active={activeTab === t} onclick={() => activeTab = t as 'chat'|'roster'|'members'|'tips'}>{label}</button>
-		{/each}
+	<div class="tek-tabs">
+		<button class="tek-tab" class:active={activeTab === 'chat'}    onclick={() => activeTab = 'chat'}>Chat</button>
+		<button class="tek-tab" class:active={activeTab === 'roster'}  onclick={() => activeTab = 'roster'}>Roster</button>
+		<button class="tek-tab" class:active={activeTab === 'members'} onclick={() => activeTab = 'members'}>Members <span class="count">{members.length}</span></button>
+		<button class="tek-tab" class:active={activeTab === 'tips'}    onclick={() => activeTab = 'tips'}>Tips & Gear</button>
 	</div>
 
 	{#if activeTab === 'chat'}
@@ -387,15 +395,77 @@
 
 <style>
 .war-page { display:flex; flex-direction:column; max-width:800px; }
-.war-header { display:flex; align-items:center; gap:14px; margin-bottom:16px; flex-wrap:wrap; }
+.war-header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 16px 0 18px;
+	flex-wrap: wrap;
+	padding: 16px 20px;
+	background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.96) 100%);
+	border: 1px solid rgba(0,180,255,0.18);
+	clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+	position: relative;
+}
+.war-header::before {
+	content: '';
+	position: absolute;
+	left: 0; top: 12px; bottom: 0;
+	width: 2px;
+	background: linear-gradient(180deg, var(--tek-amber), var(--tek-red));
+	box-shadow: 0 0 6px rgba(245,158,11,0.5);
+}
+.war-title-block { flex: 1; min-width: 200px; }
+.war-meta-pill {
+	font-family: var(--tek-mono);
+	font-size: 0.62rem;
+	letter-spacing: 0.16em;
+	padding: 2px 7px;
+	margin-right: 4px;
+	border: 1px solid currentColor;
+	clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+.war-meta-pill.gamma  { color: var(--tek-green); }
+.war-meta-pill.beta   { color: var(--tek-blue); }
+.war-meta-pill.alpha  { color: var(--tek-pink); }
+.war-meta-pill.titan  { color: var(--tier-diamond); }
 .war-title-block { flex:1; min-width:0; }
-.war-boss { font-size:1.1rem; font-weight:700; color:#f1f5f9; }
-.war-meta { font-size:0.72rem; color:#64748b; margin-top:2px; }
-.war-closed-tag { font-size:0.65rem; font-weight:800; letter-spacing:0.1em; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); padding:3px 10px; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
+.war-boss {
+	font-family: var(--tek-display);
+	font-size: clamp(1.2rem, 3vw, 1.6rem);
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--tek-text);
+	line-height: 1.1;
+	margin-bottom: 6px;
+}
+.war-meta {
+	font-family: var(--tek-mono);
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+	color: var(--tek-text-dim);
+	display: flex;
+	gap: 4px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+.war-meta strong { color: var(--tek-amber); }
+.war-closed-tag {
+	font-family: var(--tek-mono);
+	font-size: 0.62rem;
+	font-weight: 800;
+	letter-spacing: 0.16em;
+	color: var(--tek-red);
+	background: rgba(239,68,68,0.10);
+	border: 1px solid rgba(239,68,68,0.40);
+	padding: 4px 10px;
+	clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+	text-transform: uppercase;
+}
 
-.war-tabs { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.06); }
-.war-tab { background:none; border:none; border-bottom:2px solid transparent; color:#64748b; font-size:0.82rem; font-weight:500; padding:7px 14px; cursor:pointer; margin-bottom:-1px; font-family:inherit; }
-.war-tab.active { color:#f1f5f9; border-bottom-color:#00b4ff; }
+/* Old .war-tabs / .war-tab — superseded by .tek-tabs (kept here as no-op so legacy code doesn't break) */
+.war-tabs { display: none; }
 
 .war-chat { display:flex; flex-direction:column; gap:8px; min-height:300px; max-height:400px; overflow-y:auto; margin-bottom:12px; }
 .war-msg { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:8px 12px; clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%); border-left:2px solid rgba(0,180,255,0.2); }

@@ -1,209 +1,518 @@
 <script lang="ts">
-	import { User, Dna, Users, Shield, MessageSquare, UserPlus, Wifi, WifiOff } from 'lucide-svelte';
-	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
-	import type { PageData } from './$types';
-	let { data }: { data: PageData } = $props();
+    import { Shield, MessageSquare, UserPlus, Sword, Award } from 'lucide-svelte';
+    import type { PageData } from './$types';
+    import PageHeader from '$lib/components/PageHeader.svelte';
+    import HexAvatar from '$lib/components/HexAvatar.svelte';
 
-	const p         = data.profile as Record<string,unknown>;
-	const creatures = data.creatures as Record<string,unknown>[];
-	const pinned    = data.pinned as Record<string,unknown>[];
-	const tribe     = data.tribe as Record<string,unknown> | null;
-	const friendship = data.friendship as Record<string,unknown> | null;
+    let { data }: { data: PageData } = $props();
 
-	const displayName = (p.nickname ?? p.email ?? 'Survivor') as string;
-	const joined = p.createdAt ? new Date(p.createdAt as string).toLocaleDateString('en-US', { month:'long', year:'numeric' }) : '';
+    const displayName = $derived(data.profile.nickname ?? data.profile.email.split('@')[0]);
+    const memberSince = $derived(
+        new Date(data.profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+    );
 
-	const CAT_RGB:   Record<string,string> = { combat:'239,68,68',flyer:'6,182,212',utility:'34,197,94',water:'59,130,246',boss:'245,158,11',mount:'249,115,22',resource:'167,139,250' };
-	const CAT_LABEL: Record<string,string> = { combat:'CMB',flyer:'FLY',utility:'UTL',water:'AQU',mount:'MNT',boss:'BSS',resource:'RES' };
+    const friendshipStatus = $derived(() => {
+        if (data.isSelf) return 'self';
+        if (!data.friendship) return 'none';
+        if (data.friendship.status === 'accepted') return 'friends';
+        return 'pending';
+    });
 
-	function getCat(sp: string): string {
-		if (typeof window === 'undefined') return 'default';
-		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,Record<string,unknown>> | undefined;
-		return String(db?.[sp]?.category ?? 'default');
-	}
+    let actionLoading = $state(false);
 
-	let sending  = $state(false);
-	let rating   = $state<{ average:number|null; count:number } | null>(null);
+    async function sendFriendRequest() {
+        actionLoading = true;
+        await fetch('/api/friends', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ friendId: data.profile.id })
+        });
+        actionLoading = false;
+        window.location.reload();
+    }
 
-	import { onMount } from 'svelte';
-	onMount(async () => {
-		const res = await fetch(`/api/ratings?userId=${p.id}`);
-		if (res.ok) { const d = await res.json(); rating = { average: d.average, count: d.count }; }
-	});
-
-	async function sendRequest() {
-		sending = true;
-		await fetch('/api/friends', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ friendUserId: p.id }) });
-		location.reload();
-	}
+    const tierGlyph: Record<string, string> = {
+        diamond: '✦', gold: '◈', silver: '⬢', bronze: '⬢',
+        titan: '◆',   alpha: 'α', beta: 'β', gamma: 'γ'
+    };
 </script>
 
-<div class="std-page">
-	<div style="margin-bottom:16px">
-		<button class="btn btn-secondary btn-sm" onclick={() => history.back()}>← Back</button>
-	</div>
+<svelte:head>
+    <title>⬡ TekOS — {displayName}</title>
+</svelte:head>
 
-	<!-- Hero -->
-	<div class="cham-shell sur-hero" style="--cut:12px">
-		<div class="sur-hero-inner">
-			<div class="sur-avatar" class:online={data.isOnline}>
-				<User size={28} />
-				<div class="sur-online-dot" title={data.isOnline ? 'Online' : 'Offline'}>
-					{#if data.isOnline}<Wifi size={9} />{:else}<WifiOff size={9} />{/if}
-				</div>
-			</div>
-			<div class="sur-info">
-				<div class="sur-name">{displayName}</div>
-				<div class="sur-sub">ARK Survivor · Joined {joined}</div>
-				{#if tribe}<div class="sur-tribe"><Shield size={12} /> {tribe.name}</div>{/if}
-				{#if p.discordName}<div class="sur-discord">Discord: {String(p.discordName)}</div>{/if}
-				{#if p.bio}<p class="sur-bio">{String(p.bio)}</p>{/if}
-				{#if p.lookingFor}<div class="sur-looking">Looking for: {String(p.lookingFor)}</div>{/if}
-			</div>
-			{#if !data.isSelf}
-				<div class="sur-actions">
-					<a href="/messages/{p.id}" class="btn btn-secondary"><MessageSquare size={13} /> Message</a>
-					{#if !friendship}
-						<button class="btn btn-primary" onclick={sendRequest} disabled={sending}>
-							<UserPlus size={13} /> {sending ? 'Sending...' : 'Add Friend'}
-						</button>
-					{:else if (friendship.status as string) === 'accepted'}
-						<span class="sur-friend-tag">Connected</span>
-					{:else}
-						<span class="sur-friend-tag pending">Request Pending</span>
-					{/if}
-				</div>
-			{:else}
-				<a href="/dossier" class="btn btn-secondary">Edit Profile</a>
-			{/if}
-		</div>
-	</div>
+<div class="tek-stage">
+    <PageHeader
+        title={displayName}
+        crumbs={[
+            { label: 'Dashboard', href: '/dossier' },
+            { label: 'Survivors', href: '/survivors' },
+            { label: displayName }
+        ]}
+    />
 
-	<!-- Trade rating -->
-	{#if rating && rating.count > 0}
-		<div class="sur-rating">
-			<span class="sur-rating-stars">{'★'.repeat(Math.round(rating.average ?? 0))}{'☆'.repeat(5 - Math.round(rating.average ?? 0))}</span>
-			<span class="sur-rating-val">{rating.average?.toFixed(1)} / 5</span>
-			<span class="sur-rating-count">({rating.count} trade rating{rating.count !== 1 ? 's' : ''})</span>
-		</div>
-	{/if}
+    <!-- ═════════════ IDENTITY BANNER ═════════════ -->
+    <section class="identity-banner">
+        <div class="banner-image"></div>
 
-	<!-- Stats -->
-	<div class="sur-stats">
-		<div class="cham-shell sur-stat" style="--cut:7px">
-			<div class="sur-stat-inner"><Dna size={14} /><span class="sur-stat-val">{creatures.length}</span><span class="sur-stat-lbl">Specimens</span></div>
-		</div>
-		<div class="cham-shell sur-stat" style="--cut:7px">
-			<div class="sur-stat-inner"><Users size={14} /><span class="sur-stat-val">{data.friendCount}</span><span class="sur-stat-lbl">Friends</span></div>
-		</div>
-		<div class="cham-shell sur-stat" style="--cut:7px">
-			<div class="sur-stat-inner"><span class="sur-stat-val">{data.speciesOwned}</span><span class="sur-stat-lbl">Species</span></div>
-		</div>
-	</div>
+        <div class="identity-card">
+            <HexAvatar name={displayName} size={88} online={data.isOnline} />
 
-	<!-- Pinned specimens -->
-	{#if pinned.length > 0}
-		<div class="sur-section-title">Pinned Specimens</div>
-		<div class="sur-pinned-grid">
-			{#each pinned as c}
-				{@const cd = c as Record<string,unknown>}
-				{@const bs = (cd.baseStats as Record<string,number>) ?? {}}
-				{@const muts = (cd.mutations as Record<string,number>) ?? {}}
-				{@const tm = Object.values(muts).reduce((a,b)=>a+b,0)}
-				{@const cat = getCat(String(cd.species ?? ''))}
-				{@const rgb = CAT_RGB[cat] ?? '0,180,255'}
-				<div class="cham-shell sur-pin-card {cat}" style="--cut:8px;--cat-rgb:{rgb}">
-					<div class="sur-pin-inner">
-						<div class="sur-pin-head">
-							<div class="cat-badge-v3" style="--cat-rgb:{rgb}"><CategoryIcon category={cat} size={10} />{CAT_LABEL[cat]??'GEN'}</div>
-							<span class="sur-pin-lvl">Lvl {Number(cd.level??1)}</span>
-						</div>
-						<div class="sur-pin-species">{String(cd.species??'?')}</div>
-						<div class="sur-pin-name">{String(cd.name??'Unnamed')}</div>
-						<div class="sur-pin-stats">
-							<span>HP {(bs.Health??0).toLocaleString()}</span>
-							<span>Mel {bs.Melee??0}%</span>
-							{#if tm > 0}<span class="sur-pin-muts">{tm}m</span>{/if}
-						</div>
-					</div>
-				</div>
-			{/each}
-		</div>
-	{/if}
+            <div class="identity-info">
+                <div class="callsign">{displayName}</div>
+                <div class="identity-meta">
+                    {#if data.isOnline}
+                        <span class="meta-chip online"><span class="tek-pip green pulse"></span>ONLINE</span>
+                    {:else}
+                        <span class="meta-chip"><span class="tek-pip"></span>OFFLINE</span>
+                    {/if}
+                    {#if data.tribe}
+                        <span class="meta-chip tribe">
+                            <Shield size={11} strokeWidth={2} />
+                            {data.tribe.name}
+                        </span>
+                    {/if}
+                    <span class="meta-chip">SURVIVOR SINCE {memberSince.toUpperCase()}</span>
+                    {#if data.profile.discordName}
+                        <span class="meta-chip">⌬ {data.profile.discordName}</span>
+                    {/if}
+                </div>
+                {#if data.profile.bio}
+                    <p class="identity-bio">{data.profile.bio}</p>
+                {/if}
+                {#if data.profile.lookingFor}
+                    <p class="identity-bio looking">Looking for: <span>{data.profile.lookingFor}</span></p>
+                {/if}
+            </div>
 
-	<!-- All specimens preview -->
-	{#if creatures.length > 0}
-		<div class="sur-section-title" style="margin-top:24px">All Specimens ({creatures.length})</div>
-		<div class="sur-creature-list">
-			{#each creatures.slice(0, 20) as c}
-				{@const cd = c as Record<string,unknown>}
-				{@const bs = (cd.baseStats as Record<string,number>) ?? {}}
-				{@const cat = getCat(String(cd.species ?? ''))}
-				{@const rgb = CAT_RGB[cat] ?? '0,180,255'}
-				<div class="cham-shell sur-creature-row {cat}" style="--cut:5px;--cat-rgb:{rgb}">
-					<div class="sur-creature-inner">
-						<div class="cat-badge-v3" style="--cat-rgb:{rgb};font-size:0.52rem;padding:2px 5px"><CategoryIcon category={cat} size={9} />{CAT_LABEL[cat]??'GEN'}</div>
-						<div class="sur-cr-name">{String(cd.species??'?')} — {String(cd.name??'Unnamed')}</div>
-						<div class="sur-cr-meta">Lvl {Number(cd.level??1)} · {String(cd.gender??'?')}</div>
-						<div class="sur-cr-stats">
-							<span>HP {(bs.Health??0).toLocaleString()}</span>
-							<span>Mel {bs.Melee??0}%</span>
-						</div>
-					</div>
-				</div>
-			{/each}
-			{#if creatures.length > 20}
-				<div class="sur-more">+{creatures.length - 20} more specimens</div>
-			{/if}
-		</div>
-	{/if}
+            <div class="identity-actions">
+                {#if friendshipStatus() === 'self'}
+                    <a class="tek-btn-v2 ghost sm" href="/settings">EDIT PROFILE</a>
+                {:else if friendshipStatus() === 'friends'}
+                    <a class="tek-btn-v2 sm" href="/messages/{data.profile.id}">
+                        <MessageSquare size={12} strokeWidth={2.5} /> MESSAGE
+                    </a>
+                    <span class="friend-pill"><span class="tek-pip green"></span>FRIEND</span>
+                {:else if friendshipStatus() === 'pending'}
+                    <span class="friend-pill amber">REQUEST PENDING</span>
+                {:else}
+                    <button class="tek-btn-v2 sm" onclick={sendFriendRequest} disabled={actionLoading}>
+                        <UserPlus size={12} strokeWidth={2.5} /> {actionLoading ? '…' : 'ADD FRIEND'}
+                    </button>
+                    <a class="tek-btn-v2 ghost sm" href="/messages/{data.profile.id}">
+                        <MessageSquare size={12} strokeWidth={2.5} /> MESSAGE
+                    </a>
+                {/if}
+            </div>
+        </div>
+    </section>
+
+    <!-- ═════════════ STATS ROW ═════════════ -->
+    <div class="stats-row">
+        <div class="stat-cell">
+            <div class="stat-val">{data.stats.specimens}</div>
+            <div class="stat-label">Specimens</div>
+        </div>
+        <div class="stat-cell">
+            <div class="stat-val amber">
+                {#if data.stats.tradeRep !== null}
+                    {data.stats.tradeRep}<span class="star">★</span>
+                {:else}
+                    <span class="muted">—</span>
+                {/if}
+            </div>
+            <div class="stat-label">Trade Rep</div>
+        </div>
+        <div class="stat-cell">
+            <div class="stat-val gold">{data.stats.badges}</div>
+            <div class="stat-label">Badges</div>
+        </div>
+        <div class="stat-cell">
+            <div class="stat-val green">{data.stats.friends}</div>
+            <div class="stat-label">Friends</div>
+        </div>
+    </div>
+
+    <!-- ═════════════ BADGE WALL ═════════════ -->
+    {#if data.stats.badges > 0}
+        <section class="section-block">
+            <div class="tek-section-head">
+                <div class="tek-section-title">Badge Wall</div>
+                <div class="tek-section-meta"><span class="accent">{data.stats.badges} EARNED</span></div>
+            </div>
+
+            <div class="badge-cats">
+                {#if data.badgeWall.bossReady.length > 0}
+                    <div class="badge-cat">
+                        <div class="badge-cat-head">
+                            <Sword size={14} strokeWidth={2} />
+                            <span class="badge-cat-name">Boss Ready</span>
+                            <span class="badge-cat-count">{data.badgeWall.bossReady.length} earned</span>
+                        </div>
+                        <div class="badge-chips">
+                            {#each data.badgeWall.bossReady as b}
+                                <div class="badge-chip {b.tier}">
+                                    <span class="chip-glyph">{tierGlyph[b.tier!]}</span>
+                                    <div class="chip-body">
+                                        <div class="chip-tier">{b.tier?.toUpperCase()}</div>
+                                        <div class="chip-species">{b.species}</div>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+
+                {#if data.badgeWall.bloodline.length > 0}
+                    <div class="badge-cat">
+                        <div class="badge-cat-head">
+                            <Award size={14} strokeWidth={2} />
+                            <span class="badge-cat-name">Prize Bloodline</span>
+                            <span class="badge-cat-count">{data.badgeWall.bloodline.length} earned</span>
+                        </div>
+                        <div class="badge-chips">
+                            {#each data.badgeWall.bloodline as b}
+                                <div class="badge-chip {b.tier}">
+                                    <span class="chip-glyph">{tierGlyph[b.tier!]}</span>
+                                    <div class="chip-body">
+                                        <div class="chip-tier">{b.tier?.toUpperCase()}</div>
+                                        <div class="chip-species">{b.species}</div>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+            </div>
+        </section>
+    {/if}
+
+    <!-- ═════════════ RECENT SPECIMENS ═════════════ -->
+    {#if data.creatures.length > 0}
+        <section class="section-block">
+            <div class="tek-section-head">
+                <div class="tek-section-title">Recent Specimens</div>
+                <div class="tek-section-meta">{data.creatures.length} TOTAL · {data.speciesOwned} SPECIES</div>
+            </div>
+            <div class="rec-grid">
+                {#each data.creatures.slice(0, 6) as c}
+                    <a class="rec-card" href="/specimens/{c.id}">
+                        <div class="rec-species">{c.species.toUpperCase()}</div>
+                        <div class="rec-name">{c.name}</div>
+                        <div class="rec-meta">
+                            <span class="gender" class:m={c.gender === 'Male'} class:f={c.gender === 'Female'}>
+                                {c.gender === 'Female' ? '♀' : c.gender === 'Male' ? '♂' : '?'}
+                            </span>
+                            <span>LVL {c.level}</span>
+                        </div>
+                    </a>
+                {/each}
+            </div>
+        </section>
+    {/if}
 </div>
 
 <style>
-.sur-hero { --cut:12px; margin-bottom:20px; }
-.sur-hero-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:24px; display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap; }
-.sur-avatar { width:56px; height:56px; border-radius:50%; background:rgba(0,180,255,0.1); border:1px solid rgba(0,180,255,0.2); display:flex; align-items:center; justify-content:center; color:rgba(0,180,255,0.7); flex-shrink:0; position:relative; }
-.sur-avatar.online { background:rgba(34,197,94,0.1); border-color:rgba(34,197,94,0.3); color:rgba(34,197,94,0.8); }
-.sur-online-dot { position:absolute; bottom:-2px; right:-2px; width:16px; height:16px; border-radius:50%; background:#0d1424; display:flex; align-items:center; justify-content:center; color:#64748b; border:1px solid rgba(255,255,255,0.08); }
-.sur-avatar.online .sur-online-dot { color:#4ade80; }
-.sur-info { flex:1; min-width:200px; }
-.sur-name { font-size:1.5rem; font-weight:700; color:#f1f5f9; letter-spacing:-0.02em; }
-.sur-sub { font-size:0.75rem; color:#64748b; margin-top:3px; }
-.sur-tribe { display:flex; align-items:center; gap:5px; font-size:0.78rem; color:#a78bfa; margin-top:5px; }
-.sur-discord { font-size:0.75rem; color:#5865f2; margin-top:4px; }
-.sur-bio { font-size:0.86rem; color:#94a3b8; margin-top:8px; line-height:1.6; }
-.sur-looking { font-size:0.78rem; color:#60a5fa; margin-top:6px; }
-.sur-actions { display:flex; flex-direction:column; gap:6px; flex-shrink:0; align-items:flex-end; }
-.sur-actions .btn { display:flex; align-items:center; gap:5px; }
-.sur-friend-tag { font-size:0.7rem; font-weight:600; padding:4px 10px; border-radius:3px; background:rgba(34,197,94,0.1); color:#4ade80; border:1px solid rgba(34,197,94,0.25); }
-.sur-friend-tag.pending { background:rgba(245,158,11,0.1); color:#fbbf24; border-color:rgba(245,158,11,0.25); }
+.section-block { margin-bottom: 28px; }
 
-.sur-stats { display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; }
-.sur-stat { min-width:90px; }
-.sur-stat-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:12px 16px; display:flex; flex-direction:column; align-items:center; gap:4px; }
-.sur-stat-val { font-size:1.3rem; font-weight:700; color:#f1f5f9; }
-.sur-stat-lbl { font-size:0.6rem; color:#475569; text-transform:uppercase; letter-spacing:.06em; }
+/* Identity banner — same treatment as Dossier */
+.identity-banner { position: relative; margin-bottom: 32px; }
+.banner-image {
+    height: 160px;
+    background:
+        linear-gradient(135deg, rgba(0,180,255,0.18) 0%, rgba(139,92,246,0.16) 50%, rgba(0,180,255,0.10) 100%),
+        radial-gradient(circle 200px at 20% 50%, rgba(0,180,255,0.20), transparent 70%),
+        radial-gradient(circle 240px at 80% 60%, rgba(139,92,246,0.20), transparent 70%),
+        #0a1228;
+    clip-path: polygon(16px 0%, 100% 0%, 100% 100%, 0% 100%, 0% 16px);
+    position: relative;
+    overflow: hidden;
+}
+.banner-image::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        repeating-linear-gradient(60deg, rgba(0,180,255,0.05) 0 1px, transparent 1px 24px),
+        repeating-linear-gradient(-60deg, rgba(0,180,255,0.05) 0 1px, transparent 1px 24px);
+    opacity: 0.6;
+}
+.banner-image::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 0%, transparent 50%, rgba(5,8,18,0.85) 100%);
+}
 
-.sur-section-title { font-size:0.65rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#475569; margin-bottom:12px; }
-.sur-pinned-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-bottom:8px; }
-.sur-pin-card { --cut:8px; }
-.sur-pin-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:13px; display:flex; flex-direction:column; gap:4px; }
-.sur-pin-head { display:flex; align-items:center; justify-content:space-between; }
-.sur-pin-lvl { font-size:0.66rem; color:#64748b; }
-.sur-pin-species { font-size:0.9rem; font-weight:700; color:#f1f5f9; }
-.sur-pin-name { font-size:0.72rem; color:rgb(var(--cat-rgb,0,180,255)); opacity:0.8; font-style:italic; }
-.sur-pin-stats { display:flex; gap:10px; font-size:0.7rem; color:#64748b; margin-top:3px; }
-.sur-pin-muts { color:#a78bfa; font-weight:600; }
+.identity-card {
+    position: relative;
+    margin: -68px 24px 0;
+    background: linear-gradient(160deg, rgba(10,18,44,0.96) 0%, rgba(4,8,20,0.99) 100%);
+    backdrop-filter: blur(16px);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 22px 28px;
+    display: flex;
+    align-items: flex-start;
+    gap: 22px;
+    z-index: 2;
+    filter: drop-shadow(0 0 1px rgba(0,180,255,0.30)) drop-shadow(0 18px 50px rgba(0,0,0,0.55));
+}
+.identity-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 8px var(--tek-blue-glow);
+}
+.identity-info { flex: 1; min-width: 0; }
+.callsign {
+    font-family: var(--tek-display);
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(0,180,255,0.30));
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+.identity-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    padding: 3px 8px;
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(100,116,139,0.20);
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.meta-chip.online { color: var(--tek-green); border-color: rgba(16,185,129,0.40); background: rgba(16,185,129,0.06); }
+.meta-chip.tribe { color: var(--tek-purple); border-color: rgba(139,92,246,0.30); background: rgba(139,92,246,0.06); }
+.identity-bio {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    color: var(--tek-text-dim);
+    font-size: 0.94rem;
+    line-height: 1.4;
+    max-width: 560px;
+}
+.identity-bio.looking { font-style: normal; font-size: 0.78rem; color: var(--tek-text-faint); margin-top: 4px; }
+.identity-bio.looking span { color: var(--tek-blue); font-family: var(--tek-mono); letter-spacing: 0.06em; }
 
-.sur-creature-list { display:flex; flex-direction:column; gap:4px; }
-.sur-creature-row { }
-.sur-creature-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:9px 13px; display:flex; align-items:center; gap:10px; }
-.sur-cr-name { flex:1; font-size:0.86rem; font-weight:600; color:#f1f5f9; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sur-cr-meta { font-size:0.7rem; color:#64748b; white-space:nowrap; }
-.sur-cr-stats { display:flex; gap:8px; font-size:0.7rem; color:#475569; white-space:nowrap; }
-.sur-more { text-align:center; color:#334155; font-size:0.78rem; padding:10px; }
-.sur-rating { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
-.sur-rating-stars { color:#f59e0b; font-size:1rem; letter-spacing:1px; }
-.sur-rating-val { font-size:0.86rem; font-weight:600; color:#f1f5f9; }
-.sur-rating-count { font-size:0.74rem; color:#64748b; }
+.identity-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: flex-start; flex-wrap: wrap; }
+.friend-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(16,185,129,0.10);
+    border: 1px solid rgba(16,185,129,0.40);
+    color: var(--tek-green);
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    padding: 5px 10px;
+    text-transform: uppercase;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+}
+.friend-pill.amber { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.40); color: var(--tek-amber); }
+
+/* Stats row */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 32px;
+}
+@media (max-width: 600px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+.stat-cell {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(0,180,255,0.15);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 18px;
+}
+.stat-cell::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: var(--tek-blue);
+    box-shadow: 0 0 6px var(--tek-blue-glow);
+}
+.stat-val {
+    font-family: var(--tek-display);
+    font-size: 1.7rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--tek-blue);
+    text-shadow: 0 0 8px var(--tek-blue-glow);
+    margin-bottom: 5px;
+}
+.stat-val.amber  { color: var(--tek-amber); text-shadow: 0 0 8px rgba(245,158,11,0.4); }
+.stat-val.green  { color: var(--tek-green); text-shadow: 0 0 8px rgba(16,185,129,0.4); }
+.stat-val.gold   { color: var(--tier-gold); text-shadow: 0 0 8px rgba(255,215,0,0.4); }
+.stat-val .star  { font-size: 0.9rem; margin-left: 3px; }
+.stat-val .muted { color: var(--tek-text-faint); }
+.stat-label {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+
+/* Badge wall */
+.badge-cats { display: flex; flex-direction: column; gap: 16px; }
+.badge-cat {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.92) 100%);
+    border: 1px solid rgba(0,180,255,0.15);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 18px 16px;
+}
+.badge-cat::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: var(--tek-blue);
+    box-shadow: 0 0 5px var(--tek-blue-glow);
+}
+.badge-cat-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 12px; padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0,180,255,0.10);
+    color: var(--tek-blue);
+}
+.badge-cat-name {
+    font-family: var(--tek-display);
+    font-size: 0.84rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+    flex: 1;
+}
+.badge-cat-count {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.badge-chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 8px;
+}
+.badge-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(var(--tier-rgb, 0, 180, 255), 0.06);
+    border: 1px solid rgba(var(--tier-rgb, 0, 180, 255), 0.30);
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+}
+.badge-chip.bronze  { --tier-rgb: 205, 127, 50; }
+.badge-chip.silver  { --tier-rgb: 200, 200, 210; }
+.badge-chip.gold    { --tier-rgb: 255, 215, 0; }
+.badge-chip.diamond { --tier-rgb: 0, 180, 255; box-shadow: 0 0 8px rgba(0, 180, 255, 0.20); }
+.badge-chip.gamma   { --tier-rgb: 16, 185, 129; }
+.badge-chip.beta    { --tier-rgb: 0, 180, 255; }
+.badge-chip.alpha   { --tier-rgb: 244, 114, 182; }
+.badge-chip.titan   { --tier-rgb: 0, 180, 255; box-shadow: 0 0 8px rgba(0, 180, 255, 0.20); }
+.chip-glyph {
+    font-family: var(--tek-display);
+    font-size: 1.1rem;
+    color: rgb(var(--tier-rgb));
+    text-shadow: 0 0 6px rgba(var(--tier-rgb), 0.4);
+    width: 22px;
+    text-align: center;
+}
+.chip-body { line-height: 1.25; min-width: 0; }
+.chip-tier {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    color: rgb(var(--tier-rgb));
+    text-transform: uppercase;
+    font-weight: 700;
+}
+.chip-species {
+    font-size: 0.78rem;
+    color: var(--tek-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Recent specimens grid */
+.rec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+.rec-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(0,180,255,0.15);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 12px 14px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.15s;
+}
+.rec-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--tek-blue);
+}
+.rec-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: var(--tek-blue);
+    box-shadow: 0 0 5px var(--tek-blue-glow);
+}
+.rec-species {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-blue);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.rec-name {
+    font-family: var(--tek-display);
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.rec-meta {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text-dim);
+    display: flex;
+    gap: 8px;
+    text-transform: uppercase;
+}
+.rec-meta .gender { color: var(--tek-text-dim); }
+.rec-meta .gender.m { color: var(--tek-blue); }
+.rec-meta .gender.f { color: var(--tek-pink); }
 </style>

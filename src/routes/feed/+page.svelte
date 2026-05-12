@@ -1,330 +1,242 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { Dna, Repeat2, Sword, Newspaper, ExternalLink, Rss, Plus, X, PlayCircle, Settings2 } from 'lucide-svelte';
-	import type { PageData } from './$types';
-	let { data }: { data: PageData } = $props();
+    import { Dna, Repeat2, Sword, Activity, Users, Globe, Server } from 'lucide-svelte';
+    import type { PageData } from './$types';
+    import PageHeader from '$lib/components/PageHeader.svelte';
+    import HexAvatar from '$lib/components/HexAvatar.svelte';
 
-	type ActivityEvent = { id:number; type:string; data:Record<string,unknown>; createdAt:string; user:{ id:number; nickname:string|null; email:string } };
-	type BossRecord    = { id:number; bossName:string; difficulty:string; outcome:string; createdAt:string; user:{ id:number; nickname:string|null; email:string } };
-	type Trade         = { id:number; creatureData:Record<string,unknown>; wanted:string|null; createdAt:string; user:{ id:number; nickname:string|null; email:string } };
-	type ArkNews       = { title:string; link:string; date:string; description:string; author:string; type:'ark_news' };
-	type YTVideo       = { title:string; link:string; date:string; thumbnail?:string; type:'youtube'; channelName:string };
-	type FeedSource    = { id:number; type:string; url:string; label:string };
+    let { data }: { data: PageData } = $props();
 
-	const events       = data.events as ActivityEvent[];
-	const bossRecords  = data.bossRecords as BossRecord[];
-	const recentTrades = data.recentTrades as Trade[];
+    type FeedTab = 'all' | 'following' | 'tribe' | 'server' | 'global';
+    let activeTab = $state<FeedTab>('all');
 
-	let activeTab  = $state<'all'|'activity'|'boss'|'market'|'news'>('all');
-	let showSources = $state(false);
-	let arkNews    = $state<ArkNews[]>([]);
-	let ytVideos   = $state<YTVideo[]>([]);
-	let sources    = $state<FeedSource[]>([]);
-	let newsLoaded = $state(false);
+    // Combine events into a unified timeline
+    type UnifiedEvent = {
+        id: string;
+        kind: 'specimen' | 'boss' | 'trade' | 'activity';
+        userId: number;
+        userName: string;
+        ts: Date;
+        text: string;
+        subtext?: string;
+        link?: string;
+    };
 
-	// Add source form
-	let addUrl   = $state('');
-	let addLabel = $state('');
-	let addType  = $state<'youtube'>('youtube');
-	let adding   = $state(false);
-	let addErr   = $state('');
+    function displayName(u: { nickname: string | null; email: string }) {
+        return u.nickname ?? u.email.split('@')[0];
+    }
 
-	onMount(async () => {
-		// Load ARK news
-		const newsRes = await fetch('/api/ark-news');
-		if (newsRes.ok) arkNews = await newsRes.json();
-		newsLoaded = true;
+    const unified = $derived<UnifiedEvent[]>([
+        ...data.events.map(e => {
+            const d = e.data as Record<string, unknown>;
+            const kind = e.type === 'creature_add' ? 'specimen'
+                       : e.type === 'boss_record' ? 'boss'
+                       : e.type === 'trade_open' ? 'trade'
+                       : 'activity';
+            return {
+                id: `ev-${e.id}`,
+                kind: kind as UnifiedEvent['kind'],
+                userId: e.userId,
+                userName: displayName(e.user),
+                ts: e.createdAt,
+                text: kind === 'specimen' ? `logged ${d.name ?? 'a specimen'} · ${d.species ?? '?'}`
+                    : kind === 'boss' ? `${d.outcome === 'success' ? 'defeated' : 'fought'} ${d.bossName ?? 'a boss'}`
+                    : kind === 'trade' ? `listed ${d.species ?? 'a trade'} on the Marketplace`
+                    : (e.type ?? 'did something'),
+                subtext: typeof d.level === 'number' ? `LVL ${d.level}` : undefined
+            };
+        }),
+        ...data.bossRecords.map(b => ({
+            id: `boss-${b.id}`,
+            kind: 'boss' as const,
+            userId: b.userId,
+            userName: displayName(b.user),
+            ts: b.createdAt,
+            text: `${b.outcome === 'success' ? 'defeated' : 'fought'} ${b.bossName}`,
+            subtext: `${b.difficulty?.toUpperCase()} TIER`
+        })),
+        ...data.recentTrades.map(t => {
+            const d = t.creatureData as Record<string, unknown> | null;
+            return {
+                id: `trade-${t.id}`,
+                kind: 'trade' as const,
+                userId: t.userId,
+                userName: displayName(t.user),
+                ts: t.createdAt,
+                text: `listed ${d?.species ?? 'a trade'}${d?.name ? ` · ${d.name}` : ''}`,
+                subtext: t.price ? `${t.price}` : undefined,
+                link: `/marketplace`
+            };
+        })
+    ].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()));
 
-		// Load user's feed sources
-		const srcRes = await fetch('/api/feed-sources');
-		if (srcRes.ok) sources = await srcRes.json();
+    const filtered = $derived(
+        activeTab === 'all' || activeTab === 'following' ? unified : []
+    );
 
-		// Fetch YouTube videos for each YouTube source
-		await fetchYouTubeSources();
-	});
-
-	async function fetchYouTubeSources() {
-		const ytSources = sources.filter(s => s.type === 'youtube');
-		const all: YTVideo[] = [];
-		await Promise.all(ytSources.map(async (src) => {
-			const res = await fetch(`/api/youtube-feed?url=${encodeURIComponent(src.url)}`);
-			if (res.ok) {
-				const d = await res.json();
-				all.push(...(d.videos ?? []).map((v: YTVideo) => ({ ...v, channelName: src.label || d.channelName })));
-			}
-		}));
-		ytVideos = all.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-	}
-
-	async function addSource() {
-		if (!addUrl.trim()) return;
-		adding = true; addErr = '';
-
-		if (addType === 'youtube') {
-			// Validate by fetching first
-			const check = await fetch(`/api/youtube-feed?url=${encodeURIComponent(addUrl.trim())}`);
-			if (!check.ok) {
-				const e = await check.json();
-				addErr = e.error ?? 'Could not load that YouTube channel';
-				adding = false; return;
-			}
-			const d = await check.json();
-			const label = addLabel.trim() || d.channelName || addUrl.trim();
-			const res = await fetch('/api/feed-sources', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type:'youtube', url:addUrl.trim(), label }) });
-			if (res.ok) {
-				const entry = await res.json();
-				sources = [...sources, entry];
-				addUrl = ''; addLabel = '';
-				// Fetch videos from new source
-				const newVideos = (d.videos ?? []).map((v: YTVideo) => ({ ...v, channelName: label }));
-				ytVideos = [...ytVideos, ...newVideos].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-			}
-		}
-		adding = false;
-	}
-
-	async function removeSource(id: number) {
-		await fetch('/api/feed-sources', { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id }) });
-		sources = sources.filter(s => s.id !== id);
-		// Reload YouTube videos
-		await fetchYouTubeSources();
-	}
-
-	function display(u: { nickname?:string|null; email?:string }) { return u.nickname ?? u.email ?? 'Unknown'; }
-
-	function ago(dt: string): string {
-		const diff = Date.now() - new Date(dt).getTime();
-		const m = Math.floor(diff/60000);
-		if (m < 1) return 'just now';
-		if (m < 60) return `${m}m ago`;
-		const h = Math.floor(m/60);
-		if (h < 24) return `${h}h ago`;
-		const d = Math.floor(h/24);
-		return d === 1 ? 'yesterday' : `${d}d ago`;
-	}
-
-	function getTimeline() {
-		type FI = { ts:number; kind:string; data:unknown };
-		const items: FI[] = [];
-		for (const e of events)      items.push({ ts:new Date(e.createdAt).getTime(), kind:'activity', data:e });
-		for (const b of bossRecords) items.push({ ts:new Date(b.createdAt).getTime(), kind:'boss', data:b });
-		for (const t of recentTrades)items.push({ ts:new Date(t.createdAt).getTime(), kind:'trade', data:t });
-		for (const n of arkNews)     items.push({ ts:new Date(n.date).getTime(), kind:'news', data:n });
-		for (const v of ytVideos)    items.push({ ts:new Date(v.date).getTime(), kind:'youtube', data:v });
-
-		return items.filter(i =>
-			activeTab === 'all' ||
-			(activeTab === 'activity' && (i.kind === 'activity')) ||
-			(activeTab === 'boss'     && i.kind === 'boss') ||
-			(activeTab === 'market'   && i.kind === 'trade') ||
-			(activeTab === 'news'     && (i.kind === 'news' || i.kind === 'youtube'))
-		).sort((a,b) => b.ts - a.ts);
-	}
+    function relTime(d: Date | string) {
+        const diff = Date.now() - new Date(d).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        const days = Math.floor(hrs / 24);
+        if (days < 7) return `${days}d ago`;
+        return new Date(d).toLocaleDateString();
+    }
 </script>
 
-<div class="std-page">
-	<div class="std-page-header">
-		<div class="page-title">
-			<h1>Feed</h1>
-			<div class="page-subtitle">Network activity · ARK news · Your creators</div>
-		</div>
-		<button class="btn btn-secondary btn-sm" onclick={() => showSources = !showSources}>
-			<Settings2 size={13} /> {showSources ? 'Close' : 'Manage Sources'}
-		</button>
-	</div>
+<svelte:head>
+    <title>⬡ TekOS — Feed</title>
+</svelte:head>
 
-	<!-- Sources panel -->
-	{#if showSources}
-		<div class="cham-shell feed-sources-panel">
-			<div class="feed-sources-inner">
-				<div class="feed-src-title">Your Feed Sources</div>
+<div class="tek-stage">
+    <PageHeader
+        title="Feed"
+        crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Feed' }]}
+        sub="What's happening across your network, your tribe, and the wild."
+    />
 
-				<!-- Current sources -->
-				{#if sources.length === 0}
-					<div class="feed-src-empty">No custom sources yet. Add a YouTube channel below.</div>
-				{:else}
-					<div class="feed-src-list">
-						{#each sources as s}
-							<div class="feed-src-row">
-								<PlayCircle size={14} style="color:#ef4444;flex-shrink:0" />
-								<div class="feed-src-info">
-									<div class="feed-src-label">{s.label}</div>
-									<div class="feed-src-url">{s.url}</div>
-								</div>
-								<button class="btn btn-danger btn-sm" onclick={() => removeSource(s.id)}><X size={12} /></button>
-							</div>
-						{/each}
-					</div>
-				{/if}
+    <!-- Tabs -->
+    <div class="tek-tabs">
+        <button class="tek-tab" class:active={activeTab === 'all'} onclick={() => activeTab = 'all'}>
+            <Activity size={14} strokeWidth={2} /> All
+            <span class="count">{unified.length}</span>
+        </button>
+        <button class="tek-tab" class:active={activeTab === 'following'} onclick={() => activeTab = 'following'}>
+            <Users size={14} strokeWidth={2} /> Following
+            <span class="count">{data.friendCount}</span>
+        </button>
+        <button class="tek-tab" class:active={activeTab === 'tribe'} onclick={() => activeTab = 'tribe'}>
+            <Sword size={14} strokeWidth={2} /> Tribe
+        </button>
+        <button class="tek-tab" class:active={activeTab === 'server'} onclick={() => activeTab = 'server'}>
+            <Server size={14} strokeWidth={2} /> Server
+        </button>
+        <button class="tek-tab" class:active={activeTab === 'global'} onclick={() => activeTab = 'global'}>
+            <Globe size={14} strokeWidth={2} /> Global
+        </button>
+    </div>
 
-				<!-- Add YouTube channel -->
-				<div class="feed-src-add">
-					<div class="feed-src-add-title">Add YouTube Channel</div>
-					<div class="feed-src-add-desc">Paste a YouTube channel URL (e.g. youtube.com/channel/UC...) to get their latest videos in your feed.</div>
-					<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-						<input class="form-control" placeholder="https://www.youtube.com/channel/UC..." bind:value={addUrl} style="flex:2;min-width:200px" />
-						<input class="form-control" placeholder="Display name (optional)" bind:value={addLabel} style="flex:1;min-width:140px" />
-						<button class="btn btn-primary" onclick={addSource} disabled={adding || !addUrl.trim()}><Plus size={13} /> {adding ? 'Adding...' : 'Add'}</button>
-					</div>
-					{#if addErr}<div class="tek-login-error" style="margin-top:8px">{addErr}</div>{/if}
-					<div class="feed-src-hint">Also works with youtube.com/@handle URLs. The latest 5 videos will appear under the News tab.</div>
-				</div>
-
-				<!-- Official links -->
-				<div class="feed-src-official">
-					<div class="feed-src-title" style="margin-bottom:8px">Official ARK Sources (always included)</div>
-					<div class="feed-official-links">
-						<a href="https://survivetheark.com" target="_blank" rel="noopener" class="feed-official-link">
-							<Rss size={13} /> survivetheark.com
-						</a>
-						<a href="https://store.steampowered.com/news/app/2399830" target="_blank" rel="noopener" class="feed-official-link">
-							<Newspaper size={13} /> Steam News
-						</a>
-						<a href="https://twitter.com/playstudiosark" target="_blank" rel="noopener" class="feed-official-link">
-							<ExternalLink size={13} /> Twitter / X
-						</a>
-					</div>
-				</div>
-			</div>
-		</div>
-	{/if}
-
-	<div class="tek-tab-bar">
-		<button class="tek-tab" class:active={activeTab==='all'}      onclick={() => activeTab='all'}>All</button>
-		<button class="tek-tab" class:active={activeTab==='activity'} onclick={() => activeTab='activity'}><Dna size={13} /> Activity</button>
-		<button class="tek-tab" class:active={activeTab==='boss'}     onclick={() => activeTab='boss'}><Sword size={13} /> Boss Fights</button>
-		<button class="tek-tab" class:active={activeTab==='market'}   onclick={() => activeTab='market'}><Repeat2 size={13} /> Marketplace</button>
-		<button class="tek-tab" class:active={activeTab==='news'}     onclick={() => activeTab='news'}><Newspaper size={13} /> News & Creators</button>
-	</div>
-
-	<div class="feed-list">
-		{#each getTimeline() as item}
-			{#if item.kind === 'activity'}
-				{@const e = item.data as ActivityEvent}
-				{@const color = e.type === 'creature_add' ? '34,197,94' : e.type === 'trade_list' ? '59,130,246' : '0,180,255'}
-				<div class="cham-shell feed-item" style="--cut:7px;--cat-rgb:{color}">
-					<div class="feed-item-inner">
-						<div class="feed-icon" style="background:rgba({color},0.12);color:rgb({color})"><Dna size={14} /></div>
-						<div class="feed-content">
-							<div class="feed-text"><a href="/survivors/{e.user.id}" class="feed-name">{display(e.user)}</a> <span class="feed-action">{e.type.replace(/_/g,' ')}</span></div>
-							{#if e.data.species}<div class="feed-detail">{String(e.data.species)} — {String(e.data.name ?? '')} {e.data.level ? `· Lvl ${e.data.level}` : ''}</div>{/if}
-						</div>
-						<div class="feed-time">{ago(e.createdAt)}</div>
-					</div>
-				</div>
-
-			{:else if item.kind === 'boss'}
-				{@const b = item.data as BossRecord}
-				{@const win = b.outcome === 'success'}
-				<div class="cham-shell feed-item" style="--cut:7px;--cat-rgb:{win?'34,197,94':'239,68,68'}">
-					<div class="feed-item-inner">
-						<div class="feed-icon" style="background:rgba({win?'34,197,94':'239,68,68'},0.12);color:rgb({win?'34,197,94':'239,68,68'})"><Sword size={14} /></div>
-						<div class="feed-content">
-							<div class="feed-text"><a href="/survivors/{b.user.id}" class="feed-name">{display(b.user)}</a> <span class="feed-action">{win ? 'defeated' : 'fell to'}</span></div>
-							<div class="feed-detail">{b.bossName} · {b.difficulty.toUpperCase()} · <span style="color:{win?'#4ade80':'#f87171'}">{win?'Victory':'Defeat'}</span></div>
-						</div>
-						<div class="feed-time">{ago(b.createdAt)}</div>
-					</div>
-				</div>
-
-			{:else if item.kind === 'trade'}
-				{@const t = item.data as Trade}
-				{@const cd = (t.creatureData ?? {}) as Record<string,unknown>}
-				<div class="cham-shell feed-item" style="--cut:7px;--cat-rgb:59,130,246">
-					<div class="feed-item-inner">
-						<div class="feed-icon" style="background:rgba(59,130,246,0.12);color:rgb(59,130,246)"><Repeat2 size={14} /></div>
-						<div class="feed-content">
-							<div class="feed-text"><a href="/survivors/{t.user.id}" class="feed-name">{display(t.user)}</a> <span class="feed-action">listed for trade</span></div>
-							<div class="feed-detail">{String(cd.species ?? '?')} — {String(cd.name ?? 'Unnamed')}{t.wanted ? ` · Wants: ${t.wanted}` : ''}</div>
-						</div>
-						<div class="feed-time">{ago(t.createdAt)}</div>
-					</div>
-				</div>
-
-			{:else if item.kind === 'news'}
-				{@const n = item.data as ArkNews}
-				<div class="cham-shell feed-item" style="--cut:7px;--cat-rgb:245,158,11">
-					<div class="feed-item-inner">
-						<div class="feed-icon" style="background:rgba(245,158,11,0.12);color:rgb(245,158,11)"><Newspaper size={14} /></div>
-						<div class="feed-content">
-							<div class="feed-news-src">Studio Wildcard · ARK News</div>
-							<div class="feed-news-title">{n.title}</div>
-							{#if n.description}<div class="feed-detail">{n.description}...</div>{/if}
-						</div>
-						<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
-							<div class="feed-time">{n.date ? new Date(n.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : ''}</div>
-							{#if n.link}
-								<a href={n.link} target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="display:flex;align-items:center;gap:4px">Read <ExternalLink size={10} /></a>
-							{/if}
-						</div>
-					</div>
-				</div>
-
-			{:else if item.kind === 'youtube'}
-				{@const v = item.data as YTVideo}
-				<div class="cham-shell feed-item" style="--cut:7px;--cat-rgb:239,68,68">
-					<div class="feed-item-inner">
-						<div class="feed-icon" style="background:rgba(239,68,68,0.12);color:#ef4444"><PlayCircle size={14} /></div>
-						<div class="feed-content">
-							<div class="feed-news-src">{v.channelName} · YouTube</div>
-							<div class="feed-news-title">{v.title}</div>
-						</div>
-						<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
-							<div class="feed-time">{v.date ? new Date(v.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : ''}</div>
-							<a href={v.link} target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="display:flex;align-items:center;gap:4px">Watch <ExternalLink size={10} /></a>
-						</div>
-					</div>
-				</div>
-			{/if}
-		{/each}
-
-		{#if getTimeline().length === 0}
-			<div class="feed-empty">
-				{#if activeTab === 'news' && !newsLoaded}
-					Loading news...
-				{:else if activeTab === 'news'}
-					No news loaded. Check back later or add YouTube channels via "Manage Sources".
-				{:else}
-					Nothing here yet. Add friends and log boss fights to fill your feed.
-				{/if}
-			</div>
-		{/if}
-	</div>
+    {#if activeTab === 'all' || activeTab === 'following'}
+        {#if filtered.length === 0}
+            <div class="tek-empty">
+                <div class="icon"><Activity size={26} strokeWidth={1.5} /></div>
+                <div class="title">Feed is quiet</div>
+                <div class="flavor">"The wild is still. Add friends and log specimens to fill the network signal."</div>
+            </div>
+        {:else}
+            <div class="feed-stream">
+                {#each filtered as e (e.id)}
+                    <article class="feed-event {e.kind}">
+                        <HexAvatar name={e.userName} size={40} showPip={false} />
+                        <div class="event-body">
+                            <div class="event-line">
+                                <a class="event-user" href="/survivors/{e.userId}">{e.userName}</a>
+                                <span class="event-text">{e.text}</span>
+                            </div>
+                            <div class="event-meta">
+                                <span class="event-kind">
+                                    {#if e.kind === 'specimen'}<Dna size={11} strokeWidth={2} />{' '}SPECIMEN
+                                    {:else if e.kind === 'boss'}<Sword size={11} strokeWidth={2} />{' '}BOSS
+                                    {:else if e.kind === 'trade'}<Repeat2 size={11} strokeWidth={2} />{' '}TRADE
+                                    {:else}<Activity size={11} strokeWidth={2} />{' '}ACTIVITY
+                                    {/if}
+                                </span>
+                                {#if e.subtext}<span class="event-sub">· {e.subtext}</span>{/if}
+                                <span class="event-time">· {relTime(e.ts)}</span>
+                            </div>
+                        </div>
+                    </article>
+                {/each}
+            </div>
+        {/if}
+    {:else if activeTab === 'tribe'}
+        <div class="tek-empty">
+            <div class="icon"><Sword size={26} strokeWidth={1.5} /></div>
+            <div class="title">Tribe feed</div>
+            <div class="flavor">"Wired to the activity stream of your tribe — coming soon."</div>
+        </div>
+    {:else if activeTab === 'server'}
+        <div class="tek-empty">
+            <div class="icon"><Server size={26} strokeWidth={1.5} /></div>
+            <div class="title">Server feed</div>
+            <div class="flavor">"Configure your cluster in Settings → Cluster to pipe in live server events via RCON."</div>
+        </div>
+    {:else if activeTab === 'global'}
+        <div class="tek-empty">
+            <div class="icon"><Globe size={26} strokeWidth={1.5} /></div>
+            <div class="title">Global feed</div>
+            <div class="flavor">"ARK news from Wildcard, content creators, and the broader community — coming soon."</div>
+        </div>
+    {/if}
 </div>
 
 <style>
-/* Sources panel */
-.feed-sources-panel { margin-bottom:16px; }
-.feed-sources-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:18px 20px; border-left:2px solid rgba(0,180,255,0.25); display:flex; flex-direction:column; gap:14px; }
-.feed-src-title { font-size:0.65rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#475569; }
-.feed-src-empty { font-size:0.82rem; color:#334155; }
-.feed-src-list { display:flex; flex-direction:column; gap:5px; }
-.feed-src-row { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); padding:8px 12px; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
-.feed-src-info { flex:1; min-width:0; }
-.feed-src-label { font-size:0.86rem; font-weight:600; color:#f1f5f9; }
-.feed-src-url { font-size:0.7rem; color:#475569; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.feed-src-add { background:rgba(255,255,255,0.03); padding:12px 14px; clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%); }
-.feed-src-add-title { font-size:0.8rem; font-weight:600; color:#f1f5f9; margin-bottom:4px; }
-.feed-src-add-desc { font-size:0.76rem; color:#64748b; }
-.feed-src-hint { font-size:0.72rem; color:#334155; margin-top:8px; }
-.feed-src-official { }
-.feed-official-links { display:flex; gap:8px; flex-wrap:wrap; }
-.feed-official-link { display:flex; align-items:center; gap:5px; font-size:0.76rem; color:#64748b; text-decoration:none; background:rgba(255,255,255,0.04); padding:5px 11px; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); transition:color .15s; }
-.feed-official-link:hover { color:#94a3b8; }
+.feed-stream { display: flex; flex-direction: column; gap: 8px; }
 
-/* Feed items */
-.feed-list { display:flex; flex-direction:column; gap:5px; max-width:720px; }
-.feed-item { }
-.feed-item-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:11px 14px; display:flex; align-items:flex-start; gap:12px; }
-.feed-icon { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
-.feed-content { flex:1; min-width:0; }
-.feed-text { font-size:0.85rem; color:#94a3b8; line-height:1.4; }
-.feed-name { color:#f1f5f9; font-weight:600; text-decoration:none; }
-.feed-name:hover { color:#00b4ff; }
-.feed-action { color:#64748b; }
-.feed-detail { font-size:0.77rem; color:#475569; margin-top:2px; font-style:italic; }
-.feed-time { font-size:0.67rem; color:#334155; white-space:nowrap; flex-shrink:0; margin-top:2px; }
-.feed-news-src { font-size:0.67rem; color:rgb(var(--cat-rgb,0,180,255)); font-weight:700; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:3px; }
-.feed-news-title { font-size:0.9rem; font-weight:600; color:#f1f5f9; line-height:1.35; }
-.feed-empty { color:#475569; text-align:center; padding:40px 0; font-size:0.88rem; }
+.feed-event {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 18px;
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(0,180,255,0.12);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    transition: all 0.15s;
+    position: relative;
+}
+.feed-event:hover {
+    border-color: var(--tek-blue-border);
+    transform: translateX(2px);
+}
+.feed-event::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 14px;
+    width: 2px;
+    background: var(--tek-blue);
+    box-shadow: 0 0 5px var(--tek-blue-glow);
+}
+.feed-event.boss::before    { background: var(--tek-amber); box-shadow: 0 0 5px rgba(245,158,11,0.5); }
+.feed-event.trade::before   { background: var(--tek-purple); box-shadow: 0 0 5px rgba(139,92,246,0.5); }
+.feed-event.activity::before { background: var(--tek-text-faint); }
+
+.event-body { flex: 1; min-width: 0; }
+.event-line { line-height: 1.4; }
+.event-user {
+    font-family: var(--tek-display);
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--tek-text);
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 8px;
+}
+.event-user:hover { color: var(--tek-blue); }
+.event-text { color: var(--tek-text-dim); font-size: 0.92rem; }
+.event-meta {
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.event-kind {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--tek-blue);
+    text-shadow: 0 0 5px var(--tek-blue-glow);
+}
+.feed-event.boss .event-kind  { color: var(--tek-amber); text-shadow: 0 0 5px rgba(245,158,11,0.5); }
+.feed-event.trade .event-kind { color: var(--tek-purple); text-shadow: 0 0 5px rgba(139,92,246,0.5); }
+.event-sub { color: var(--tek-text-dim); }
+.event-time { color: var(--tek-text-faint); margin-left: auto; }
 </style>

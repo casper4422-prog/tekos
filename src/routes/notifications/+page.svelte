@@ -1,78 +1,247 @@
-﻿<script lang="ts">
-	import { Bell } from 'lucide-svelte';
-	import type { PageData } from './$types';
-	let { data }: { data: PageData } = $props();
+<script lang="ts">
+    import { Bell, Check, UserPlus, Sword, Repeat2, Activity, Shield } from 'lucide-svelte';
+    import type { PageData } from './$types';
+    import PageHeader from '$lib/components/PageHeader.svelte';
 
-	type Notif = { id:number; type:string; payload:Record<string,unknown>; read:boolean; createdAt:string };
-	let notifs = $state<Notif[]>(data.notifs as Notif[]);
-	const unread = $derived(notifs.filter(n => !n.read).length);
+    let { data }: { data: PageData } = $props();
 
-	async function markRead(id: number) {
-		await fetch(`/api/notifications/${id}/read`, { method:'PUT' });
-		notifs = notifs.map(n => n.id === id ? { ...n, read:true } : n);
-	}
+    type Notif = {
+        id: number;
+        type: string;
+        payload: Record<string, unknown>;
+        read: boolean;
+        createdAt: string | Date;
+    };
 
-	async function markAll() {
-		await fetch('/api/notifications/read-all', { method:'PUT' });
-		notifs = notifs.map(n => ({ ...n, read:true }));
-	}
+    let notifs = $state<Notif[]>(data.notifs as unknown as Notif[]);
+    const unread = $derived(notifs.filter(n => !n.read).length);
 
-	function ago(dt: string) {
-		const diff = Date.now() - new Date(dt).getTime();
-		const m = Math.floor(diff/60000);
-		if (m < 1) return 'just now';
-		if (m < 60) return `${m}m ago`;
-		const h = Math.floor(m/60);
-		if (h < 24) return `${h}h ago`;
-		return `${Math.floor(h/24)}d ago`;
-	}
+    async function markRead(id: number) {
+        await fetch(`/api/notifications/${id}/read`, { method: 'PUT' }).catch(() => {});
+        notifs = notifs.map(n => n.id === id ? { ...n, read: true } : n);
+    }
 
-	const TYPE_ICON: Record<string,string> = {
-		friend_request:'ðŸ‘¥', friend_accept:'ðŸ‘¥', trade_offer:'ðŸ”', offer_accepted:'âœ…', tribe_invite:'ðŸ›¡ï¸', default:'ðŸ””'
-	};
+    async function markAllRead() {
+        const targets = notifs.filter(n => !n.read);
+        await Promise.all(
+            targets.map(n => fetch(`/api/notifications/${n.id}/read`, { method: 'PUT' }).catch(() => {}))
+        );
+        notifs = notifs.map(n => ({ ...n, read: true }));
+    }
+
+    function iconFor(t: string) {
+        if (t.includes('friend')) return UserPlus;
+        if (t.includes('boss'))   return Sword;
+        if (t.includes('trade') || t.includes('offer')) return Repeat2;
+        if (t.includes('tribe'))  return Shield;
+        return Activity;
+    }
+    function colorFor(t: string): 'blue' | 'amber' | 'green' | 'purple' | 'red' {
+        if (t.includes('friend')) return 'blue';
+        if (t.includes('boss'))   return 'amber';
+        if (t.includes('trade') || t.includes('offer')) return 'purple';
+        if (t.includes('tribe'))  return 'purple';
+        if (t.includes('error') || t.includes('fail')) return 'red';
+        return 'green';
+    }
+
+    function titleFor(n: Notif): string {
+        const p = n.payload ?? {};
+        if (n.type === 'friend_request')  return `Friend request from ${p.fromName ?? 'a Survivor'}`;
+        if (n.type === 'friend_accept')   return `${p.fromName ?? 'A Survivor'} accepted your friend request`;
+        if (n.type === 'boss_invite')     return `Invited to fight ${p.bossName ?? 'a boss'}`;
+        if (n.type === 'trade_offer')     return `New offer on your trade · ${p.species ?? ''}`;
+        if (n.type === 'tribe_invite')    return `Invited to ${p.tribeName ?? 'a tribe'}`;
+        if (n.type === 'tribe_join_request') return `Join request from ${p.fromName ?? 'a Survivor'}`;
+        if (n.type === 'badge_earned')    return `New badge earned · ${p.badge ?? 'Honor'}`;
+        return n.type.replace(/_/g, ' ');
+    }
+
+    function bodyFor(n: Notif): string | undefined {
+        const p = n.payload ?? {};
+        if (n.type === 'friend_request')  return (p.message as string) || undefined;
+        if (n.type === 'trade_offer')     return p.offerSummary as string;
+        if (n.type === 'tribe_invite')    return `Tap to accept or decline.`;
+        return p.message as string | undefined;
+    }
+
+    function relTime(d: string | Date) {
+        const diff = Date.now() - new Date(d).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        const days = Math.floor(hrs / 24);
+        if (days < 7) return `${days}d ago`;
+        return new Date(d).toLocaleDateString();
+    }
+
+    // Time grouping
+    function bucket(d: string | Date): 'Today' | 'This Week' | 'Older' {
+        const diff = Date.now() - new Date(d).getTime();
+        const hrs = diff / 3600000;
+        if (hrs < 24) return 'Today';
+        if (hrs < 24 * 7) return 'This Week';
+        return 'Older';
+    }
+    const grouped = $derived(() => {
+        const out: { Today: Notif[]; 'This Week': Notif[]; Older: Notif[] } = { Today: [], 'This Week': [], Older: [] };
+        for (const n of notifs) out[bucket(n.createdAt)].push(n);
+        return out;
+    });
 </script>
 
-<div class="std-page">
-	<div class="std-page-header">
-		<div class="page-title">
-			<h1>Notifications</h1>
-			{#if unread > 0}<div class="page-subtitle">{unread} unread</div>{/if}
-		</div>
-		{#if unread > 0}<button class="btn btn-secondary" onclick={markAll}>Mark all read</button>{/if}
-	</div>
+<svelte:head>
+    <title>⬡ TekOS — Notifications</title>
+</svelte:head>
 
-	{#if notifs.length === 0}
-		<div class="notif-empty">No notifications yet.</div>
-	{:else}
-		<div class="notif-list">
-			{#each notifs as n}
-				<div class="cham-shell notif-row" class:unread={!n.read} style="--cut:6px" onclick={() => markRead(n.id)} role="button" tabindex="0">
-					<div class="notif-inner">
-						<div class="notif-icon">{TYPE_ICON[n.type] ?? TYPE_ICON.default}</div>
-						<div class="notif-content">
-							<div class="notif-type">{n.type.replace(/_/g,' ')}</div>
-							{#if n.payload?.message}<div class="notif-msg">{String(n.payload.message)}</div>{/if}
-							<div class="notif-time">{ago(n.createdAt)}</div>
-						</div>
-						{#if !n.read}<div class="notif-dot"></div>{/if}
-					</div>
-				</div>
-			{/each}
-		</div>
-	{/if}
+<div class="tek-stage">
+    <div class="head-row">
+        <PageHeader
+            title="Notifications"
+            crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Notifications' }]}
+            sub={notifs.length > 0
+                ? `${unread} unread of ${notifs.length} total`
+                : 'No alerts yet — the wild is quiet.'}
+            subMono={true}
+        />
+        {#if unread > 0}
+            <button class="tek-btn-v2 ghost" onclick={markAllRead}>
+                <Check size={12} strokeWidth={2.5} />
+                MARK ALL READ
+            </button>
+        {/if}
+    </div>
+
+    {#if notifs.length === 0}
+        <div class="tek-empty">
+            <div class="icon"><Bell size={26} strokeWidth={1.5} /></div>
+            <div class="title">No notifications</div>
+            <div class="flavor">"Your inbox is clear, Survivor."</div>
+        </div>
+    {:else}
+        {#each ['Today', 'This Week', 'Older'] as group}
+            {#if grouped()[group as 'Today' | 'This Week' | 'Older'].length > 0}
+                <div class="group-section">
+                    <div class="group-label">{group}</div>
+                    <div class="notif-list">
+                        {#each grouped()[group as 'Today' | 'This Week' | 'Older'] as n (n.id)}
+                            {@const Icon = iconFor(n.type)}
+                            {@const color = colorFor(n.type)}
+                            <div class="notif {color}" class:unread={!n.read} onclick={() => markRead(n.id)} role="button" tabindex="0">
+                                <div class="notif-icon"><Icon size={16} strokeWidth={2} /></div>
+                                <div class="notif-body">
+                                    <div class="notif-title">{titleFor(n)}</div>
+                                    {#if bodyFor(n)}<div class="notif-body-text">{bodyFor(n)}</div>{/if}
+                                </div>
+                                <div class="notif-meta">
+                                    <div class="notif-time">{relTime(n.createdAt)}</div>
+                                    {#if !n.read}<div class="unread-dot"></div>{/if}
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+        {/each}
+    {/if}
 </div>
 
 <style>
-.notif-empty { color:#475569; padding:48px 0; text-align:center; font-size:0.88rem; }
-.notif-list { display:flex; flex-direction:column; gap:4px; max-width:640px; }
-.notif-row { cursor:pointer; }
-.notif-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:12px 14px; display:flex; align-items:flex-start; gap:12px; transition:background .15s; }
-.notif-row.unread .notif-inner { background:linear-gradient(160deg,rgba(14,26,54,0.97),rgba(6,12,32,1)); border-left:2px solid rgba(0,180,255,0.4); }
-.notif-icon { font-size:1.1rem; flex-shrink:0; margin-top:2px; }
-.notif-content { flex:1; min-width:0; }
-.notif-type { font-size:0.82rem; font-weight:600; color:#f1f5f9; text-transform:capitalize; }
-.notif-msg { font-size:0.78rem; color:#64748b; margin-top:2px; }
-.notif-time { font-size:0.68rem; color:#334155; margin-top:4px; }
-.notif-dot { width:7px; height:7px; border-radius:50%; background:#00b4ff; flex-shrink:0; margin-top:6px; box-shadow:0 0 6px rgba(0,180,255,0.6); }
-</style>
+.head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.head-row :global(.tek-page-header) { margin-bottom: 0; }
 
+.group-section { margin-bottom: 24px; }
+.group-label {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-left: 2px;
+}
+
+.notif-list { display: flex; flex-direction: column; gap: 6px; }
+
+.notif {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 13px 16px;
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(100,116,139,0.18);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+}
+.notif:hover { border-color: var(--tek-blue-border); background: rgba(10,18,44,0.7); }
+.notif.unread {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.96) 100%);
+    border-color: rgba(0,180,255,0.30);
+}
+.notif.unread::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 13px; bottom: 13px;
+    width: 2px;
+    background: var(--tek-blue);
+    box-shadow: 0 0 5px var(--tek-blue-glow);
+}
+.notif.unread.blue::before   { background: var(--tek-blue); box-shadow: 0 0 5px var(--tek-blue-glow); }
+.notif.unread.amber::before  { background: var(--tek-amber); box-shadow: 0 0 5px rgba(245,158,11,0.5); }
+.notif.unread.green::before  { background: var(--tek-green); box-shadow: 0 0 5px rgba(16,185,129,0.5); }
+.notif.unread.purple::before { background: var(--tek-purple); box-shadow: 0 0 5px rgba(139,92,246,0.5); }
+.notif.unread.red::before    { background: var(--tek-red); box-shadow: 0 0 5px rgba(239,68,68,0.5); }
+
+.notif-icon {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,180,255,0.08);
+    border: 1px solid var(--tek-blue-border);
+    border-radius: 4px;
+    color: var(--tek-blue);
+    flex-shrink: 0;
+}
+.notif.amber .notif-icon  { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.30); color: var(--tek-amber); }
+.notif.green .notif-icon  { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.30); color: var(--tek-green); }
+.notif.purple .notif-icon { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.30); color: var(--tek-purple); }
+.notif.red .notif-icon    { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.30); color: var(--tek-red); }
+
+.notif-body { flex: 1; min-width: 0; }
+.notif-title {
+    font-size: 0.92rem;
+    color: var(--tek-text);
+    font-weight: 500;
+}
+.notif.unread .notif-title { font-weight: 600; }
+.notif-body-text {
+    margin-top: 4px;
+    font-size: 0.82rem;
+    color: var(--tek-text-dim);
+    line-height: 1.4;
+}
+
+.notif-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.notif-time {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.unread-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--tek-blue);
+    box-shadow: 0 0 6px var(--tek-blue-glow);
+}
+</style>

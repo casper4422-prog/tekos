@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>⬡ TEKOS — Overseer · Boss Arena</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&family=Crimson+Pro:ital,wght@1,400&display=swap" rel="stylesheet" />
+<style>
+:root {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.30);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.50);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-pink:         #f472b6;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 50% at 80% 12%, rgba(239,68,68,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 45% at 15% 90%, rgba(245,158,11,0.08) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+}
+#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.demo-banner {
+    position: fixed; top: 14px; left: 14px; z-index: 60;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--tek-amber);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; letter-spacing: 0.12em;
+    padding: 5px 10px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.return-link {
+    position: fixed; top: 18px; right: 22px; z-index: 50;
+    font-family: var(--tek-mono); font-size: 0.7rem;
+    letter-spacing: 0.18em; color: var(--tek-text-dim);
+    text-decoration: none; transition: color 0.2s;
+}
+.return-link:hover { color: var(--tek-blue); }
+.return-link .arrow { display: inline-block; transform: rotate(180deg); margin-right: 4px; }
+
+.stage {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    padding: 70px 24px 80px;
+    max-width: 1240px;
+    margin: 0 auto;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PAGE HEADER
+   ═════════════════════════════════════════════════════════════════════════ */
+.page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+.page-title {
+    font-family: var(--tek-display);
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #ffffff 0%, #fca5a5 70%, rgba(239,68,68,0.5) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 14px rgba(239,68,68,0.30));
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.page-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.page-sub .prefix { color: var(--tek-red); opacity: 0.65; margin-right: 4px; }
+.page-sub .stat-num { color: var(--tek-red); font-weight: 700; text-shadow: 0 0 6px rgba(239,68,68,0.5); }
+
+.btn-create {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 11px 22px;
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    filter: drop-shadow(0 0 12px rgba(239,68,68,0.45));
+    transition: filter 0.18s, transform 0.18s;
+}
+.btn-create:hover { filter: drop-shadow(0 0 22px rgba(239,68,68,0.80)); transform: translateY(-1px); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   MAP FILTER TABS
+   ═════════════════════════════════════════════════════════════════════════ */
+.map-filter {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+    padding: 12px 18px;
+    margin-bottom: 36px;
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.map-filter::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-red), var(--tek-amber));
+    box-shadow: 0 0 7px rgba(239,68,68,0.55);
+}
+.map-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 6px 11px;
+    cursor: pointer;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: all 0.18s;
+    font-family: inherit;
+}
+.map-chip:hover { color: var(--tek-text); border-color: rgba(239,68,68,0.40); }
+.map-chip.active { background: var(--tek-red); color: #fff; border-color: var(--tek-red); }
+.map-chip .count {
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    opacity: 0.6;
+    background: rgba(0,0,0,0.30);
+    padding: 1px 6px;
+    border-radius: 6px;
+}
+.map-chip.active .count { background: rgba(0,0,0,0.25); opacity: 0.85; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   MAP SECTIONS
+   ═════════════════════════════════════════════════════════════════════════ */
+.map-section { margin-bottom: 44px; }
+.map-section.hidden { display: none; }
+
+.map-section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 18px;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+}
+.map-section-header .map-glyph {
+    width: 14px; height: 14px;
+    color: var(--tek-red);
+    filter: drop-shadow(0 0 4px rgba(239,68,68,0.6));
+}
+.map-section-header .map-name {
+    color: var(--tek-text);
+}
+.map-section-header .rule {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, rgba(239,68,68,0.20), transparent);
+}
+.map-section-header .map-count {
+    color: var(--tek-text-faint);
+    font-size: 0.62rem;
+}
+
+/* Per-map themed tinting */
+.map-section.island      .map-section-header .map-glyph { color: #34d399; filter: drop-shadow(0 0 4px rgba(52,211,153,0.6)); }
+.map-section.island      .map-section-header .rule      { background: linear-gradient(90deg, rgba(52,211,153,0.25), transparent); }
+.map-section.scorched    .map-section-header .map-glyph { color: #fbbf24; filter: drop-shadow(0 0 4px rgba(251,191,36,0.6)); }
+.map-section.scorched    .map-section-header .rule      { background: linear-gradient(90deg, rgba(251,191,36,0.25), transparent); }
+.map-section.aberration  .map-section-header .map-glyph { color: #d946ef; filter: drop-shadow(0 0 4px rgba(217,70,239,0.6)); }
+.map-section.aberration  .map-section-header .rule      { background: linear-gradient(90deg, rgba(217,70,239,0.25), transparent); }
+.map-section.extinction  .map-section-header .map-glyph { color: #94a3b8; filter: drop-shadow(0 0 4px rgba(148,163,184,0.5)); }
+.map-section.extinction  .map-section-header .rule      { background: linear-gradient(90deg, rgba(148,163,184,0.25), transparent); }
+.map-section.ragnarok    .map-section-header .map-glyph { color: #f97316; filter: drop-shadow(0 0 4px rgba(249,115,22,0.6)); }
+.map-section.ragnarok    .map-section-header .rule      { background: linear-gradient(90deg, rgba(249,115,22,0.25), transparent); }
+
+.boss-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+@media (max-width: 980px) { .boss-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 540px) { .boss-grid { grid-template-columns: 1fr; } }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   BOSS CARD
+   ═════════════════════════════════════════════════════════════════════════ */
+.boss-card {
+    --boss-rgb: 239,68,68;
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.98) 100%);
+    backdrop-filter: blur(12px);
+    clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+    padding: 16px 18px 14px 20px;
+    cursor: pointer;
+    transition: transform 0.22s ease, filter 0.25s ease;
+    filter: drop-shadow(0 0 1px rgba(var(--boss-rgb), 0.30)) drop-shadow(0 8px 22px rgba(0,0,0,0.40));
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+.boss-card:hover {
+    transform: translateY(-2px);
+    filter: drop-shadow(0 0 2px rgba(var(--boss-rgb), 0.75)) drop-shadow(0 12px 30px rgba(0,0,0,0.55));
+}
+.boss-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px; bottom: 0;
+    width: 2px;
+    background: rgb(var(--boss-rgb));
+    box-shadow: 0 0 6px rgba(var(--boss-rgb), 0.7);
+}
+
+/* Per-boss colors */
+.boss-card.brood     { --boss-rgb: 34,197,94;   }
+.boss-card.mega      { --boss-rgb: 139,92,246;  }
+.boss-card.dragon    { --boss-rgb: 239,68,68;   }
+.boss-card.overseer  { --boss-rgb: 148,163,184; }
+.boss-card.manticore { --boss-rgb: 245,158,11;  }
+.boss-card.rockwell  { --boss-rgb: 217,70,239;  }
+.boss-card.forest    { --boss-rgb: 34,197,94;   }
+.boss-card.desert    { --boss-rgb: 245,158,11;  }
+.boss-card.ice       { --boss-rgb: 6,182,212;   }
+.boss-card.king      { --boss-rgb: 239,68,68;   }
+.boss-card.lava      { --boss-rgb: 249,115,22;  }
+
+.boss-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.boss-glyph {
+    width: 44px;
+    height: 50px;
+    flex-shrink: 0;
+}
+.boss-glyph svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgba(var(--boss-rgb), 0.55)); }
+.boss-id { min-width: 0; line-height: 1.2; }
+.boss-card-name {
+    font-family: var(--tek-display);
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.boss-card-map {
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+
+.boss-diff {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+.boss-pip {
+    flex: 1;
+    text-align: center;
+    padding: 5px 4px;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.05);
+    font-family: var(--tek-mono);
+    font-size: 0.56rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-faint);
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+    text-transform: uppercase;
+}
+.boss-pip.won-bronze  { background: rgba(205,127,50,0.18);  border-color: rgba(205,127,50,0.50);  color: #fbbf24; box-shadow: 0 0 5px rgba(205,127,50,0.30); }
+.boss-pip.won-silver  { background: rgba(200,200,210,0.18); border-color: rgba(200,200,210,0.50); color: #f3f4f6; box-shadow: 0 0 5px rgba(200,200,210,0.30); }
+.boss-pip.won-gold    { background: rgba(255,215,0,0.18);   border-color: rgba(255,215,0,0.55);   color: #fde047; box-shadow: 0 0 7px rgba(255,215,0,0.40); }
+.boss-pip.won-diamond { background: rgba(0,180,255,0.18);   border-color: rgba(0,180,255,0.55);   color: #7dd3fc; box-shadow: 0 0 7px rgba(0,180,255,0.40); }
+
+.boss-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.status-badge.ready    { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.40); color: #86efac; }
+.status-badge.partial  { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.40); color: #fcd34d; }
+.status-badge.notready { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.32);  color: #fca5a5; }
+.status-badge.complete { background: rgba(0,180,255,0.15);  border: 1px solid rgba(0,180,255,0.50);  color: #7dd3fc; text-shadow: 0 0 6px var(--tek-blue-glow); }
+.status-badge .status-pip {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 5px currentColor;
+}
+.status-badge.partial .status-pip { animation: amber-pulse 1.6s ease-in-out infinite; }
+@keyframes amber-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+.boss-extra {
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    color: var(--tek-text-faint);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+}
+.boss-extra .time { color: var(--tek-text-dim); font-weight: 600; }
+
+/* Active war room indicator on boss cards */
+.boss-warroom-flag {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: rgba(239,68,68,0.20);
+    border: 1px solid var(--tek-red);
+    color: #fca5a5;
+    font-family: var(--tek-mono);
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    padding: 2px 6px;
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+    text-transform: uppercase;
+    z-index: 3;
+    box-shadow: 0 0 6px rgba(239,68,68,0.45);
+    animation: amber-pulse 1.6s ease-in-out infinite;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   FOOTER
+   ═════════════════════════════════════════════════════════════════════════ */
+.bottom-note {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .stage { padding: 60px 14px 80px; }
+}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">PREVIEW MODE ▸ OVERSEER · BOSS CATALOG</div>
+<a href="dossier-preview.html" class="return-link"><span class="arrow">▸</span> RETURN TO DOSSIER</a>
+
+<canvas id="tekHexCanvas"></canvas>
+
+<div class="stage">
+
+    <!-- ═══════════ HEADER ═══════════ -->
+    <div class="page-header">
+        <div>
+            <div class="page-title">Overseer</div>
+            <div class="page-sub">
+                <span class="prefix">›</span>
+                BOSS ARENA · <span class="stat-num">14</span> BOSSES · <span class="stat-num">3</span> WAR ROOMS ACTIVE · <span class="stat-num">38</span> KILLS LOGGED
+            </div>
+        </div>
+        <button class="btn-create">⚔ Schedule War Room</button>
+    </div>
+
+    <!-- ═══════════ MAP FILTER ═══════════ -->
+    <div class="map-filter">
+        <button class="map-chip active" data-filter="all">All Maps <span class="count">14</span></button>
+        <button class="map-chip" data-filter="island">The Island <span class="count">4</span></button>
+        <button class="map-chip" data-filter="scorched">Scorched Earth <span class="count">1</span></button>
+        <button class="map-chip" data-filter="aberration">Aberration <span class="count">1</span></button>
+        <button class="map-chip" data-filter="extinction">Extinction <span class="count">4</span></button>
+        <button class="map-chip" data-filter="ragnarok">Ragnarok <span class="count">4</span></button>
+    </div>
+
+    <!-- ═══════════ THE ISLAND ═══════════ -->
+    <section class="map-section island" data-map="island">
+        <div class="map-section-header">
+            <svg class="map-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span class="map-name">The Island</span>
+            <span class="rule"></span>
+            <span class="map-count">4 BOSSES</span>
+        </div>
+        <div class="boss-grid">
+
+            <a class="boss-card brood" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#86efac">B</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Broodmother</div>
+                        <div class="boss-card-map">Lysrix</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip won-bronze">Gamma ✓</div>
+                    <div class="boss-pip won-silver">Beta ✓</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge ready"><span class="status-pip"></span>Ready · Alpha</span>
+                    <span class="boss-extra">Best <span class="time">5:18</span></span>
+                </div>
+            </a>
+
+            <a class="boss-card mega" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="36" font-weight="900" text-anchor="middle" fill="#c4b5fd">Mp</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Megapithecus</div>
+                        <div class="boss-card-map">Giant Ape</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip won-bronze">Gamma ✓</div>
+                    <div class="boss-pip">Beta</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge partial"><span class="status-pip"></span>Partial · Beta</span>
+                    <span class="boss-extra">Need <span class="time">2 rexes</span></span>
+                </div>
+            </a>
+
+            <a class="boss-card dragon" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#fca5a5">D</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Dragon</div>
+                        <div class="boss-card-map">Drake</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip won-bronze">Gamma ✓</div>
+                    <div class="boss-pip won-silver">Beta ✓</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge partial"><span class="status-pip"></span>Partial · Alpha</span>
+                    <span class="boss-extra">Need <span class="time">+1500 HP</span></span>
+                </div>
+            </a>
+
+            <a class="boss-card overseer" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(148,163,184,0.15)" stroke="#94a3b8" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#e2e8f0">O</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Overseer</div>
+                        <div class="boss-card-map">Final · Ascension</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip">Gamma</div>
+                    <div class="boss-pip">Beta</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge notready"><span class="status-pip"></span>Not Ready</span>
+                    <span class="boss-extra">Need <span class="time">Tek armor</span></span>
+                </div>
+            </a>
+
+        </div>
+    </section>
+
+    <!-- ═══════════ SCORCHED EARTH ═══════════ -->
+    <section class="map-section scorched" data-map="scorched">
+        <div class="map-section-header">
+            <svg class="map-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M6.34 17.66l-1.41 1.41"/><path d="M19.07 4.93l-1.41 1.41"/>
+            </svg>
+            <span class="map-name">Scorched Earth</span>
+            <span class="rule"></span>
+            <span class="map-count">1 BOSS</span>
+        </div>
+        <div class="boss-grid">
+
+            <a class="boss-card manticore" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#fcd34d">M</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Manticore</div>
+                        <div class="boss-card-map">Desert · Chimera</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip won-bronze">Gamma ✓</div>
+                    <div class="boss-pip won-silver">Beta ✓</div>
+                    <div class="boss-pip won-gold">Alpha ✓</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge complete"><span class="status-pip"></span>Complete</span>
+                    <span class="boss-extra">Best <span class="time">3:42</span></span>
+                </div>
+            </a>
+
+        </div>
+    </section>
+
+    <!-- ═══════════ ABERRATION ═══════════ -->
+    <section class="map-section aberration" data-map="aberration">
+        <div class="map-section-header">
+            <svg class="map-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2l2.39 7.36H22l-6.18 4.49L18.18 22 12 17.27 5.82 22l2.36-8.15L2 9.36h7.61z"/>
+            </svg>
+            <span class="map-name">Aberration</span>
+            <span class="rule"></span>
+            <span class="map-count">1 BOSS</span>
+        </div>
+        <div class="boss-grid">
+
+            <a class="boss-card rockwell" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(217,70,239,0.15)" stroke="#d946ef" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#f0abfc">R</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Rockwell</div>
+                        <div class="boss-card-map">Corrupted Doctor</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip">Gamma</div>
+                    <div class="boss-pip">Beta</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge notready"><span class="status-pip"></span>Not Ready</span>
+                    <span class="boss-extra">Need <span class="time">Reapers</span></span>
+                </div>
+            </a>
+
+        </div>
+    </section>
+
+    <!-- ═══════════ EXTINCTION ═══════════ -->
+    <section class="map-section extinction" data-map="extinction">
+        <div class="map-section-header">
+            <svg class="map-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>
+            </svg>
+            <span class="map-name">Extinction</span>
+            <span class="rule"></span>
+            <span class="map-count">4 TITANS</span>
+        </div>
+        <div class="boss-grid">
+
+            <a class="boss-card forest" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="38" font-weight="900" text-anchor="middle" fill="#86efac">FT</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Forest Titan</div>
+                        <div class="boss-card-map">Sanctuary</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip">Gamma</div>
+                    <div class="boss-pip">Beta</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge notready"><span class="status-pip"></span>Not Ready</span>
+                    <span class="boss-extra">Need <span class="time">Element nodes</span></span>
+                </div>
+            </a>
+
+            <a class="boss-card desert" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="38" font-weight="900" text-anchor="middle" fill="#fcd34d">DT</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Desert Titan</div>
+                        <div class="boss-card-map">Wasteland</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip">Gamma</div>
+                    <div class="boss-pip">Beta</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge notready"><span class="status-pip"></span>Not Ready</span>
+                    <span class="boss-extra">Need <span class="time">Element nodes</span></span>
+                </div>
+            </a>
+
+            <a class="boss-card ice" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="38" font-weight="900" text-anchor="middle" fill="#67e8f9">IT</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Ice Titan</div>
+                        <div class="boss-card-map">Snow Dome</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip">Gamma</div>
+                    <div class="boss-pip">Beta</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge notready"><span class="status-pip"></span>Not Ready</span>
+                    <span class="boss-extra">Need <span class="time">Element nodes</span></span>
+                </div>
+            </a>
+
+            <a class="boss-card king" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="38" font-weight="900" text-anchor="middle" fill="#fca5a5">KT</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">King Titan</div>
+                        <div class="boss-card-map">Final · Ascension</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip">Gamma</div>
+                    <div class="boss-pip">Beta</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge notready"><span class="status-pip"></span>Not Ready</span>
+                    <span class="boss-extra">Need <span class="time">3 titans tamed</span></span>
+                </div>
+            </a>
+
+        </div>
+    </section>
+
+    <!-- ═══════════ RAGNAROK ═══════════ -->
+    <section class="map-section ragnarok" data-map="ragnarok">
+        <div class="map-section-header">
+            <svg class="map-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/>
+            </svg>
+            <span class="map-name">Ragnarok <span style="color:rgba(249,115,22,0.5);font-size:0.55rem;margin-left:6px;">★ HOME SERVER</span></span>
+            <span class="rule"></span>
+            <span class="map-count">4 BOSSES</span>
+        </div>
+        <div class="boss-grid">
+
+            <a class="boss-card manticore" href="boss-detail-preview.html">
+                <span class="boss-warroom-flag">● War Room Active</span>
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#fcd34d">M</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Manticore</div>
+                        <div class="boss-card-map">Boss Arena</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip won-bronze">Gamma ✓</div>
+                    <div class="boss-pip won-silver">Beta ✓</div>
+                    <div class="boss-pip won-gold">Alpha ✓</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge complete"><span class="status-pip"></span>Complete</span>
+                    <span class="boss-extra">Best <span class="time">3:42</span></span>
+                </div>
+            </a>
+
+            <a class="boss-card mega" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="36" font-weight="900" text-anchor="middle" fill="#c4b5fd">Mp</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Megapithecus</div>
+                        <div class="boss-card-map">Boss Arena</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip won-bronze">Gamma ✓</div>
+                    <div class="boss-pip">Beta</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge partial"><span class="status-pip"></span>Partial · Beta</span>
+                    <span class="boss-extra">War Room <span class="time">scheduled</span></span>
+                </div>
+            </a>
+
+            <a class="boss-card dragon" href="boss-detail-preview.html">
+                <span class="boss-warroom-flag">● War Room Active</span>
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#fca5a5">D</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Dragon</div>
+                        <div class="boss-card-map">Boss Arena</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip won-bronze">Gamma ✓</div>
+                    <div class="boss-pip won-silver">Beta ✓</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge partial"><span class="status-pip"></span>Partial · Alpha</span>
+                    <span class="boss-extra">Need <span class="time">+1500 HP</span></span>
+                </div>
+            </a>
+
+            <a class="boss-card lava" href="boss-detail-preview.html">
+                <div class="boss-top">
+                    <div class="boss-glyph">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(249,115,22,0.15)" stroke="#f97316" stroke-width="2"/>
+                            <text x="50" y="72" font-family="Orbitron" font-size="40" font-weight="900" text-anchor="middle" fill="#fdba74">L</text>
+                        </svg>
+                    </div>
+                    <div class="boss-id">
+                        <div class="boss-card-name">Lava Elemental</div>
+                        <div class="boss-card-map">Volcano Cave</div>
+                    </div>
+                </div>
+                <div class="boss-diff">
+                    <div class="boss-pip won-bronze">Gamma ✓</div>
+                    <div class="boss-pip won-silver">Beta ✓</div>
+                    <div class="boss-pip">Alpha</div>
+                </div>
+                <div class="boss-status">
+                    <span class="status-badge ready"><span class="status-pip"></span>Ready · Alpha</span>
+                    <span class="boss-extra">Best <span class="time">4:11</span></span>
+                </div>
+            </a>
+
+        </div>
+    </section>
+
+</div>
+
+<div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
+
+<script>
+(function () {
+    const canvas = document.getElementById('tekHexCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const R = 32, W = R * Math.sqrt(3), H = R * 2;
+    let phase = 0;
+    function drawHex(x, y, opacity) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 6;
+            const px = x + (R - 1) * Math.cos(a);
+            const py = y + (R - 1) * Math.sin(a);
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(239,68,68,${opacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cw = canvas.width, ch = canvas.height;
+        const cols = Math.ceil(cw / W) + 3;
+        const rows = Math.ceil(ch / (H * 0.75)) + 3;
+        for (let row = -1; row < rows; row++) {
+            for (let col = -1; col < cols; col++) {
+                const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
+                const y = row * H * 0.75;
+                const dx = x - cw * 0.5, dy = y - ch * 0.5;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
+                drawHex(x, y, 0.05 + wave * 0.06);
+            }
+        }
+        phase += 0.005;
+        requestAnimationFrame(draw);
+    }
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize(); draw();
+})();
+
+/* Map filter */
+document.querySelectorAll('.map-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        document.querySelectorAll('.map-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const filter = chip.dataset.filter;
+        document.querySelectorAll('.map-section').forEach(section => {
+            section.classList.toggle('hidden', filter !== 'all' && section.dataset.map !== filter);
+        });
+    });
+});
+</script>
+
+</body>
+</html>

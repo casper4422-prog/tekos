@@ -1,395 +1,492 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
-	import type { PageData } from './$types';
-	let { data }: { data: PageData } = $props();
+    import { Plus, Search, Grid3X3, List, Dna } from 'lucide-svelte';
+    import type { PageData } from './$types';
+    import PageHeader from '$lib/components/PageHeader.svelte';
+    import BloodlineBadge from '$lib/components/BloodlineBadge.svelte';
+    import { computeBadges, getStat } from '$lib/badges';
 
-	type Creature = Record<string, unknown> & { id: number };
+    let { data }: { data: PageData } = $props();
 
-	const CAT_LABEL: Record<string,string> = { combat:'CMB', flyer:'FLY', utility:'UTL', water:'AQU', mount:'MNT', boss:'BSS', resource:'RES' };
-	const CAT_RGB:   Record<string,string> = { combat:'239,68,68', flyer:'6,182,212', utility:'34,197,94', water:'59,130,246', boss:'245,158,11', mount:'249,115,22', resource:'167,139,250' };
+    type View = 'list' | 'grid';
+    let view = $state<View>('grid');
+    let search = $state('');
+    let speciesFilter = $state<string>('');
 
-	const STATS = [
-		{ key:'Health',   label:'HP'       },
-		{ key:'Stamina',  label:'Stamina'  },
-		{ key:'Oxygen',   label:'Oxygen'   },
-		{ key:'Food',     label:'Food'     },
-		{ key:'Weight',   label:'Weight'   },
-		{ key:'Melee',    label:'Melee'    },
-		{ key:'Crafting', label:'Crafting' },
-	];
+    const STATS = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'] as const;
 
-	let creatures   = $state<Creature[]>(data.creatures as Creature[]);
-	let view        = $state<'expanded'|'compact'>('expanded');
-	let search      = $state('');
-	let sortBy      = $state('newest');
-	let modalOpen   = $state(false);
-	let isEdit      = $state(false);
-	let editTarget  = $state<Creature | null>(null);
-	let saving      = $state(false);
-	let formErr     = $state('');
+    // Unique species in vault
+    const speciesList = $derived(
+        Array.from(new Set(data.creatures.map(c => c.species))).sort()
+    );
 
-	let fName        = $state('');
-	let fSpecies     = $state('');
-	let fLevel       = $state(1);
-	let fGender      = $state('Male');
-	let fServer      = $state('');
-	let fNotes       = $state('');
-	let fStats       = $state<Record<string,number>>({ Health:0, Stamina:0, Oxygen:0, Food:0, Weight:0, Melee:0, Crafting:0 });
-	let fMuts        = $state<Record<string,number>>({ Health:0, Stamina:0, Oxygen:0, Food:0, Weight:0, Melee:0, Crafting:0 });
-	let speciesList  = $state<string[]>([]);
+    const filtered = $derived(
+        data.creatures.filter(c => {
+            if (speciesFilter && c.species !== speciesFilter) return false;
+            if (!search.trim()) return true;
+            const q = search.toLowerCase();
+            return c.name.toLowerCase().includes(q)
+                || c.species.toLowerCase().includes(q)
+                || c.notes?.toLowerCase().includes(q);
+        })
+    );
 
-	let isGuest     = $state(false);
-	let userTribeId = $state<number|null>(null);
-
-	onMount(async () => {
-		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,unknown> | undefined;
-		if (db) speciesList = Object.keys(db).sort();
-
-		// Guest mode: load from localStorage instead of API
-		isGuest = localStorage.getItem('tekos_guest') === '1';
-		if (!isGuest) {
-			const tm = await fetch('/api/tribes/my');
-			if (tm.ok) { const d = await tm.json(); userTribeId = d?.id ?? null; }
-		}
-		if (isGuest) {
-			const saved = localStorage.getItem('tekos_specimens');
-			if (saved) {
-				try { creatures = JSON.parse(saved); } catch {}
-			}
-		}
-
-		const params = new URLSearchParams(window.location.search);
-		const pre = params.get('species');
-		if (pre) { resetForm(); fSpecies = pre; modalOpen = true; isEdit = false; }
-	});
-
-	function saveGuestCreatures() {
-		localStorage.setItem('tekos_specimens', JSON.stringify(creatures));
-	}
-
-	function getCat(sp: string): string {
-		if (typeof window === 'undefined') return 'default';
-		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,Record<string,unknown>> | undefined;
-		return String(db?.[sp]?.category ?? 'default');
-	}
-	function getRgb(cat: string): string { return CAT_RGB[cat] ?? '0,180,255'; }
-	function getCode(cat: string): string { return CAT_LABEL[cat] ?? 'GEN'; }
-	function totalMuts(c: Creature) { return Object.values((c.mutations as Record<string,number>) ?? {}).reduce((a,b) => a+b, 0); }
-
-	function getFiltered(): Creature[] {
-		let list = creatures;
-		if (search) {
-			const q = search.toLowerCase();
-			list = list.filter(c => String(c.name ?? '').toLowerCase().includes(q) || String(c.species ?? '').toLowerCase().includes(q));
-		}
-		const s = [...list];
-		if      (sortBy === 'name')   s.sort((a,b) => String(a.species ?? '').localeCompare(String(b.species ?? '')));
-		else if (sortBy === 'level')  s.sort((a,b) => (b.level as number ?? 0) - (a.level as number ?? 0));
-		else if (sortBy === 'muts')   s.sort((a,b) => totalMuts(b) - totalMuts(a));
-		else if (sortBy === 'oldest') s.sort((a,b) => (a.id as number) - (b.id as number));
-		else                          s.sort((a,b) => (b.id as number) - (a.id as number));
-		return s;
-	}
-
-	function resetForm() {
-		fName=''; fSpecies=''; fLevel=1; fGender='Male'; fServer=''; fNotes='';
-		fStats={ Health:0, Stamina:0, Oxygen:0, Food:0, Weight:0, Melee:0, Crafting:0 };
-		fMuts={ Health:0, Stamina:0, Oxygen:0, Food:0, Weight:0, Melee:0, Crafting:0 };
-		formErr='';
-	}
-
-	function openAdd() { resetForm(); isEdit=false; editTarget=null; modalOpen=true; }
-
-	function openEdit(c: Creature) {
-		const bs = (c.baseStats as Record<string,number>) ?? {};
-		const ms = (c.mutations as Record<string,number>) ?? {};
-		fName=String(c.name??''); fSpecies=String(c.species??''); fLevel=Number(c.level??1);
-		fGender=String(c.gender??'Male'); fServer=String(c.server??''); fNotes=String(c.notes??'');
-		fStats={ Health:bs.Health??0, Stamina:bs.Stamina??0, Oxygen:bs.Oxygen??0, Food:bs.Food??0, Weight:bs.Weight??0, Melee:bs.Melee??0, Crafting:bs.Crafting??0 };
-		fMuts={ Health:ms.Health??0, Stamina:ms.Stamina??0, Oxygen:ms.Oxygen??0, Food:ms.Food??0, Weight:ms.Weight??0, Melee:ms.Melee??0, Crafting:ms.Crafting??0 };
-		editTarget=c; isEdit=true; modalOpen=true; formErr='';
-	}
-
-	function buildPayload() {
-		return { name:fName.trim(), species:fSpecies.trim(), level:fLevel, gender:fGender, server:fServer.trim()||undefined, notes:fNotes.trim()||undefined, baseStats:{...fStats}, mutations:{...fMuts} };
-	}
-
-	async function saveCreature() {
-		if (!fName.trim() || !fSpecies.trim()) { formErr='Name and species are required.'; return; }
-		saving=true; formErr='';
-
-		if (isGuest) {
-			// localStorage mode
-			const payload = buildPayload();
-			if (isEdit && editTarget) {
-				creatures = creatures.map(c => c.id === editTarget!.id ? { ...payload, id:editTarget!.id } : c);
-			} else {
-				const newId = Date.now();
-				creatures = [{ ...payload, id:newId }, ...creatures];
-			}
-			saveGuestCreatures();
-			modalOpen=false; saving=false; return;
-		}
-
-		if (isEdit && editTarget) {
-			const res = await fetch(`/api/creatures/${editTarget.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildPayload()) });
-			if (res.ok) { const u = await res.json(); creatures = creatures.map(c => c.id === editTarget!.id ? {...u, id:editTarget!.id} : c); modalOpen=false; }
-			else { formErr=(await res.json()).error ?? 'Failed to save'; }
-		} else {
-			const res = await fetch('/api/creatures', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildPayload()) });
-			if (res.ok) { const c = await res.json(); creatures=[c,...creatures]; modalOpen=false; }
-			else { formErr=(await res.json()).error ?? 'Failed to save'; }
-		}
-		saving=false;
-	}
-
-	async function deleteCreature(c: Creature) {
-		if (!confirm(`Delete ${String(c.name ?? String(c.species))}? This cannot be undone.`)) return;
-		if (isGuest) { creatures = creatures.filter(x => x.id !== c.id); saveGuestCreatures(); return; }
-		const res = await fetch(`/api/creatures/${c.id}`, { method:'DELETE' });
-		if (res.ok) creatures = creatures.filter(x => x.id !== c.id);
-	}
-
-	async function shareToTribe(c: Creature) {
-		const res = await fetch('/api/tribe-creatures', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ creatureId:c.id }) });
-		if (res.ok) alert(`${String((c as Record<string,unknown>).species ?? 'Specimen')} shared to tribe vault!`);
-		else alert((await res.json()).error ?? 'Failed to share');
-	}
+    function totalLevel(c: typeof data.creatures[0]) {
+        return STATS.reduce((sum, s) => sum + getStat(c.baseStats, s) + getStat(c.mutations, s) * 2, 0);
+    }
 </script>
 
-<div class="std-page">
-	<div class="std-page-header">
-		<div class="page-title">
-			<h1>Specimens</h1>
-			<div class="page-subtitle">{creatures.length} creature{creatures.length !== 1 ? 's' : ''} in vault</div>
-		</div>
-		{#if !isGuest}<a href="/dex" class="btn btn-secondary">Browse Dex to Add</a>{/if}
-	</div>
+<svelte:head>
+    <title>⬡ TekOS — Vault</title>
+</svelte:head>
 
-	<div class="spec-controls">
-		<input class="form-control spec-search" placeholder="Search by name or species..." bind:value={search} />
-		<select class="form-control" bind:value={sortBy} style="width:auto">
-			<option value="newest">Newest first</option>
-			<option value="oldest">Oldest first</option>
-			<option value="name">Species A–Z</option>
-			<option value="level">Highest level</option>
-			<option value="muts">Most mutations</option>
-		</select>
-		<button class="btn btn-secondary btn-sm" onclick={() => view = view === 'expanded' ? 'compact' : 'expanded'}>
-			{view === 'expanded' ? 'Compact' : 'Expanded'}
-		</button>
-	</div>
+<div class="tek-stage">
+    <div class="vault-header">
+        <PageHeader
+            title="Vault"
+            crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Vault' }]}
+            sub="Every specimen you've logged. Stats, mutations, lineage — searchable."
+        />
+        <a class="tek-btn-v2 solid" href="/specimens/add">
+            <Plus size={14} strokeWidth={2.5} />
+            Add Specimen
+        </a>
+    </div>
 
-	{#if getFiltered().length === 0}
-		<div class="spec-empty">{search ? 'No specimens match your search.' : 'No specimens yet. Click "+ Add Specimen" above.'}</div>
-	{:else if view === 'expanded'}
-		<div class="spec-grid">
-			{#each getFiltered() as c}
-				{@const bs  = (c.baseStats  as Record<string,number>) ?? {}}
-				{@const mut = (c.mutations  as Record<string,number>) ?? {}}
-				{@const tm  = totalMuts(c)}
-				{@const cat = getCat(String(c.species ?? ''))}
-				{@const rgb = getRgb(cat)}
-				{@const code = getCode(cat)}
-				<div class="cham-shell {cat}" style="--cat-rgb:{rgb}">
-					<div class="spec-card">
-						<div class="spec-header">
-							<div class="cat-badge-v3" style="--cat-rgb:{rgb}">
-								<CategoryIcon category={cat} size={11} />
-								{code}
-							</div>
-							<div class="spec-name-block">
-								<div class="spec-species">{String(c.species ?? 'Unknown')}</div>
-								{#if c.name}<div class="spec-given-name">{String(c.name)}</div>{/if}
-							</div>
-							<div class="spec-level">Lvl {Number(c.level ?? 1)}</div>
-						</div>
+    <!-- Telemetry -->
+    <div class="vault-telemetry">
+        <div class="tel-cell">
+            <div class="tel-val">{data.creatures.length}</div>
+            <div class="tel-label">Specimens</div>
+        </div>
+        <div class="tel-cell">
+            <div class="tel-val">{speciesList.length}</div>
+            <div class="tel-label">Species</div>
+        </div>
+        <div class="tel-cell">
+            <div class="tel-val">
+                {data.creatures.reduce((s, c) =>
+                    s + Object.values(c.mutations ?? {}).reduce((a, b) => a + (b || 0), 0), 0
+                )}
+            </div>
+            <div class="tel-label">Total Mutations</div>
+        </div>
+    </div>
 
-						<div class="spec-divider"></div>
+    <!-- Filter bar -->
+    <div class="vault-filters">
+        <div class="search-wrap">
+            <Search size={14} strokeWidth={2} class="search-icon" />
+            <input type="text" class="search-input" bind:value={search}
+                placeholder="Search by name, species, or notes…" />
+        </div>
 
-						<div class="spec-stats">
-							{#each STATS as s}
-								<div class="spec-stat-item">
-									<span class="spec-stat-lbl">{s.label}</span>
-									<span class="spec-stat-val">{(bs[s.key] ?? 0).toLocaleString()}</span>
-									{#if (mut[s.key] ?? 0) > 0}<span class="spec-mut-pip">+{mut[s.key]}</span>{/if}
-								</div>
-							{/each}
-						</div>
+        <select class="tek-select-v2" bind:value={speciesFilter} style="max-width: 220px;">
+            <option value="">All species ({data.creatures.length})</option>
+            {#each speciesList as sp}
+                <option value={sp}>{sp}</option>
+            {/each}
+        </select>
 
-						{#if c.notes}<div class="spec-notes">{String(c.notes)}</div>{/if}
+        <div class="view-toggle">
+            <button class="view-btn" class:active={view === 'grid'} onclick={() => view = 'grid'} title="Grid">
+                <Grid3X3 size={14} strokeWidth={2} />
+            </button>
+            <button class="view-btn" class:active={view === 'list'} onclick={() => view = 'list'} title="List">
+                <List size={14} strokeWidth={2} />
+            </button>
+        </div>
+    </div>
 
-						<!-- Badges from BadgeSystem -->
-						{#if typeof window !== 'undefined' && (window as Record<string,unknown>).BadgeSystem}
-							{@const badgeHtml = ((window as Record<string,unknown>).BadgeSystem as Record<string,Function>).generateBadgeHTML(c)}
-							{#if badgeHtml}
-								<div class="spec-badges">{@html badgeHtml}</div>
-							{/if}
-						{/if}
+    <!-- Empty state -->
+    {#if data.creatures.length === 0}
+        <div class="tek-empty">
+            <div class="icon"><Dna size={28} strokeWidth={1.5} /></div>
+            <div class="title">Your vault is empty</div>
+            <div class="flavor">"The wild keeps its own count. Add your first specimen and TekOS starts keeping yours."</div>
+            <div style="margin-top: 18px;">
+                <a class="tek-btn-v2 solid" href="/specimens/add">
+                    <Plus size={14} strokeWidth={2.5} />
+                    Add First Specimen
+                </a>
+            </div>
+        </div>
+    {:else if filtered.length === 0}
+        <div class="tek-empty">
+            <div class="icon">⬡</div>
+            <div class="title">No matches</div>
+            <div class="flavor">"The wild is quiet on this one."</div>
+        </div>
+    {:else if view === 'grid'}
+        <!-- ═════════ GRID VIEW ═════════ -->
+        <div class="vault-grid">
+            {#each filtered as c}
+                {@const badges = computeBadges(c.baseStats, c.mutations)}
+                <a class="vault-card" href="/specimens/{c.id}">
+                    <div class="vc-head">
+                        <div class="vc-species">{c.species.toUpperCase()}</div>
+                        <div class="vc-meta">
+                            <span class="gender" class:m={c.gender?.toLowerCase() === 'male'} class:f={c.gender?.toLowerCase() === 'female'}>
+                                {c.gender === 'Female' ? '♀' : c.gender === 'Male' ? '♂' : '?'}
+                            </span>
+                            <span>LVL {c.level}</span>
+                        </div>
+                    </div>
+                    <div class="vc-name">{c.name}</div>
 
-						<div class="spec-footer">
-							<div class="spec-chips">
-								<span class="spec-chip">{String(c.gender ?? 'Unknown')}</span>
-								{#if tm > 0}<span class="spec-chip mut" style="--cat-rgb:{rgb}">{tm} Mut{tm !== 1 ? 's' : ''}</span>{/if}
-								{#if c.server}<span class="spec-chip">📍 {String(c.server)}</span>{/if}
-							</div>
-							<div class="spec-actions">
-								<button class="btn btn-secondary btn-sm" onclick={() => openEdit(c)}>Edit</button>
-								<a href="/specimens/{c.id}" class="btn btn-secondary btn-sm" target="_blank" title="Public page">↗</a>
-								{#if userTribeId}<button class="btn btn-secondary btn-sm" onclick={() => shareToTribe(c)} title="Share to tribe vault">🛡</button>{/if}
-								<button class="btn btn-danger btn-sm" onclick={() => deleteCreature(c)}>Delete</button>
-							</div>
-						</div>
-					</div>
-				</div>
-			{/each}
-		</div>
-	{:else}
-		<div class="spec-compact-list">
-			{#each getFiltered() as c}
-				{@const bs  = (c.baseStats as Record<string,number>) ?? {}}
-				{@const tm  = totalMuts(c)}
-				{@const cat = getCat(String(c.species ?? ''))}
-				{@const rgb = getRgb(cat)}
-				<div class="cham-shell {cat}" style="--cat-rgb:{rgb};--cut:6px">
-					<div class="spec-compact-card">
-						<div class="spec-compact-icon" style="color:rgb({rgb})">
-							<CategoryIcon category={cat} size={14} />
-						</div>
-						<div class="spec-compact-info">
-							<span class="spec-compact-species">{String(c.species ?? 'Unknown')}</span>
-							{#if c.name}<span class="spec-compact-name">{String(c.name)}</span>{/if}
-						</div>
-						<div class="spec-compact-stats">
-							<span>HP {(bs.Health ?? 0).toLocaleString()}</span>
-							<span>Mel {bs.Melee ?? 0}%</span>
-							<span>Lvl {Number(c.level ?? 1)}</span>
-							{#if tm > 0}<span class="mut-text">{tm}m</span>{/if}
-						</div>
-						<div class="spec-compact-actions">
-							<button class="btn btn-secondary btn-sm" onclick={() => openEdit(c)}>Edit</button>
-							<button class="btn btn-danger btn-sm" onclick={() => deleteCreature(c)}>✕</button>
-						</div>
-					</div>
-				</div>
-			{/each}
-		</div>
-	{/if}
+                    <div class="vc-stats">
+                        {#each STATS as s}
+                            {@const base = getStat(c.baseStats, s)}
+                            {@const mut  = getStat(c.mutations, s)}
+                            <div class="vc-stat-row">
+                                <span class="vc-stat-label">{s}</span>
+                                <span class="vc-stat-base">{base}</span>
+                                <span class="vc-stat-mut" class:has-mut={mut > 0}>
+                                    {mut > 0 ? `+${mut}` : '·'}
+                                </span>
+                            </div>
+                        {/each}
+                    </div>
+
+                    {#if badges.bloodline || badges.bossReady}
+                        <div class="vc-badges">
+                            <BloodlineBadge base={c.baseStats} />
+                            {#if badges.bossReady}
+                                <span class="tier-pill {badges.bossReady}">
+                                    {badges.bossReady === 'titan' ? '◆ TITAN' :
+                                     badges.bossReady === 'alpha' ? 'α ALPHA' :
+                                     badges.bossReady === 'beta'  ? 'β BETA'  :
+                                     'γ GAMMA'} READY
+                                </span>
+                            {/if}
+                        </div>
+                    {/if}
+                </a>
+            {/each}
+        </div>
+    {:else}
+        <!-- ═════════ LIST VIEW ═════════ -->
+        <div class="vault-list">
+            <div class="list-head">
+                <div>Name</div>
+                <div>Species</div>
+                <div class="hide-sm">Level</div>
+                {#each STATS as s}<div class="stat-col hide-md">{s}</div>{/each}
+                <div>Badges</div>
+            </div>
+            {#each filtered as c}
+                {@const badges = computeBadges(c.baseStats, c.mutations)}
+                <a class="list-row" href="/specimens/{c.id}">
+                    <div class="lr-name">
+                        <span class="gender" class:m={c.gender?.toLowerCase() === 'male'} class:f={c.gender?.toLowerCase() === 'female'}>
+                            {c.gender === 'Female' ? '♀' : c.gender === 'Male' ? '♂' : '?'}
+                        </span>
+                        {c.name}
+                    </div>
+                    <div class="lr-species">{c.species}</div>
+                    <div class="lr-level hide-sm">{c.level}</div>
+                    {#each STATS as s}
+                        {@const base = getStat(c.baseStats, s)}
+                        {@const mut  = getStat(c.mutations, s)}
+                        <div class="stat-col hide-md">
+                            <span class="lr-stat-base">{base}</span>
+                            {#if mut > 0}<span class="lr-stat-mut">+{mut}</span>{/if}
+                        </div>
+                    {/each}
+                    <div class="lr-badges">
+                        <BloodlineBadge base={c.baseStats} />
+                        {#if badges.bossReady}
+                            <span class="tier-pill {badges.bossReady}">
+                                {badges.bossReady === 'titan' ? '◆' :
+                                 badges.bossReady === 'alpha' ? 'α' :
+                                 badges.bossReady === 'beta'  ? 'β' : 'γ'}
+                            </span>
+                        {/if}
+                    </div>
+                </a>
+            {/each}
+        </div>
+    {/if}
 </div>
-
-<!-- Add / Edit Modal -->
-{#if modalOpen}
-<div class="modal active" role="dialog" aria-modal="true">
-	<div class="modal-content" style="max-width:660px">
-		<div class="modal-header">
-			<h2 class="modal-title">{isEdit ? 'Edit Specimen' : 'Add Specimen'}</h2>
-			<button class="close-btn" onclick={() => modalOpen = false}>&times;</button>
-		</div>
-		<div class="modal-body">
-			<div class="mform-section-title">Identity</div>
-			<div class="mform-grid">
-				<div class="plan-field">
-					<label class="form-label" for="m-species">Species *</label>
-					<input id="m-species" class="form-control" type="text" list="m-species-list" bind:value={fSpecies} placeholder="e.g. Rex" />
-					<datalist id="m-species-list">
-						{#each speciesList as s}<option value={s}>{s}</option>{/each}
-					</datalist>
-				</div>
-				<div class="plan-field">
-					<label class="form-label" for="m-name">Creature Name *</label>
-					<input id="m-name" class="form-control" type="text" bind:value={fName} placeholder="e.g. Prime Breeder" />
-				</div>
-				<div class="plan-field">
-					<label class="form-label" for="m-level">Level</label>
-					<input id="m-level" class="form-control" type="number" bind:value={fLevel} min="1" max="999" />
-				</div>
-				<div class="plan-field">
-					<label class="form-label" for="m-gender">Gender</label>
-					<select id="m-gender" class="form-control" bind:value={fGender}>
-						<option>Male</option><option>Female</option><option>Unknown</option>
-					</select>
-				</div>
-				<div class="plan-field" style="grid-column:1/-1">
-					<label class="form-label" for="m-server">Server</label>
-					<input id="m-server" class="form-control" type="text" bind:value={fServer} placeholder="Optional" />
-				</div>
-			</div>
-
-			<div class="mform-section-title" style="margin-top:16px">Base Stats &amp; Mutations</div>
-			<div class="mform-stats-head"><span></span><span>Base Value</span><span>Mutations</span></div>
-			{#each STATS as s}
-				<div class="mform-stats-row">
-					<span class="mform-stat-name">{s.label}</span>
-					<input class="form-control mform-stat-input" type="number" bind:value={fStats[s.key]} min="0" />
-					<input class="form-control mform-stat-input" type="number" bind:value={fMuts[s.key]} min="0" max="20" />
-				</div>
-			{/each}
-
-			<div class="plan-field" style="margin-top:14px">
-				<label class="form-label" for="m-notes">Notes</label>
-				<textarea id="m-notes" class="form-control" rows="2" bind:value={fNotes} placeholder="Breeding lines, colours, location..."></textarea>
-			</div>
-			{#if formErr}<div class="tek-login-error" style="margin-top:10px">{formErr}</div>{/if}
-		</div>
-		<div class="modal-footer">
-			<button class="btn btn-secondary" onclick={() => modalOpen = false}>Cancel</button>
-			<button class="btn btn-primary" onclick={saveCreature} disabled={saving}>{saving ? 'Saving...' : 'Save Specimen'}</button>
-		</div>
-	</div>
-</div>
-{/if}
 
 <style>
-.spec-controls { display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; align-items:center; }
-.spec-search { flex:1; min-width:200px; }
-.spec-empty { color:#475569; padding:48px 0; text-align:center; font-size:0.9rem; }
+.vault-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+.vault-header :global(.tek-page-header) { margin-bottom: 0; }
 
-.spec-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:16px; }
-
-.spec-card {
-	background:linear-gradient(160deg,rgba(10,18,40,0.97) 0%,rgba(4,8,20,1) 100%);
-	padding:16px 18px; display:flex; flex-direction:column; gap:10px;
+/* Telemetry */
+.vault-telemetry {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+}
+@media (max-width: 600px) { .vault-telemetry { grid-template-columns: 1fr; } }
+.tel-cell {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(0,180,255,0.15);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 12px 16px;
+}
+.tel-cell::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: var(--tek-blue);
+    box-shadow: 0 0 6px var(--tek-blue-glow);
+}
+.tel-val {
+    font-family: var(--tek-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--tek-blue);
+    text-shadow: 0 0 8px var(--tek-blue-glow);
+}
+.tel-label {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-top: 3px;
 }
 
-.spec-header { display:flex; align-items:flex-start; gap:10px; }
-.spec-name-block { flex:1; min-width:0; }
-.spec-species { font-size:1rem; font-weight:700; color:#f1f5f9; letter-spacing:-0.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.spec-given-name { font-size:0.74rem; color:rgb(var(--cat-rgb,0,180,255)); opacity:0.8; margin-top:2px; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.spec-level { font-size:0.7rem; font-weight:700; color:#94a3b8; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09); padding:3px 8px; clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); white-space:nowrap; flex-shrink:0; }
+/* Filter bar */
+.vault-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+.search-wrap { position: relative; flex: 1; min-width: 240px; }
+.search-wrap :global(.search-icon) {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--tek-blue);
+    pointer-events: none;
+}
+.search-input {
+    width: 100%;
+    background: rgba(5,8,18,0.7);
+    border: 1px solid var(--tek-blue-border);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.84rem;
+    padding: 10px 14px 10px 34px;
+    clip-path: polygon(7px 0%, 100% 0%, calc(100% - 7px) 100%, 0% 100%);
+}
+.search-input::placeholder { color: var(--tek-text-faint); }
+.search-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--tek-blue), 0 0 12px rgba(0,180,255,0.25);
+}
 
-.spec-divider { height:1px; background:rgba(255,255,255,0.05); }
+.view-toggle {
+    display: flex;
+    gap: 2px;
+    background: rgba(5,8,18,0.6);
+    border: 1px solid rgba(100,116,139,0.25);
+    padding: 2px;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+}
+.view-btn {
+    background: transparent;
+    border: none;
+    color: var(--tek-text-dim);
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.view-btn.active {
+    background: rgba(0,180,255,0.15);
+    color: var(--tek-blue);
+}
 
-.spec-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
-.spec-stat-item { background:rgba(0,0,0,0.25); padding:6px 4px; display:flex; flex-direction:column; align-items:center; gap:1px; position:relative; clip-path:polygon(3px 0%,100% 0%,calc(100% - 3px) 100%,0% 100%); }
-.spec-stat-lbl { font-size:0.55rem; color:#475569; text-transform:uppercase; letter-spacing:.05em; }
-.spec-stat-val { font-size:0.85rem; font-weight:700; color:#e2e8f0; }
-.spec-mut-pip { position:absolute; top:-2px; right:0; background:rgba(139,92,246,0.9); color:#fff; padding:0 3px; font-size:0.5rem; font-weight:800; clip-path:polygon(2px 0%,100% 0%,calc(100% - 2px) 100%,0% 100%); }
+/* Grid view */
+.vault-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+.vault-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.97) 100%);
+    border: 1px solid rgba(0,180,255,0.18);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.vault-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 6px var(--tek-blue-glow);
+}
+.vault-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--tek-blue);
+    box-shadow: 0 8px 20px rgba(0,180,255,0.18);
+}
+.vc-head { display: flex; justify-content: space-between; align-items: baseline; }
+.vc-species {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-blue);
+    text-transform: uppercase;
+}
+.vc-meta {
+    display: flex;
+    gap: 8px;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.10em;
+}
+.vc-meta .gender.m { color: var(--tek-blue); }
+.vc-meta .gender.f { color: var(--tek-pink); }
+.vc-name {
+    font-family: var(--tek-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    line-height: 1.15;
+    word-break: break-word;
+}
+.vc-stats {
+    display: grid;
+    grid-template-columns: 1fr;
+    border-top: 1px solid rgba(0,180,255,0.10);
+    padding-top: 8px;
+}
+.vc-stat-row {
+    display: grid;
+    grid-template-columns: 55px 1fr 1fr;
+    gap: 10px;
+    padding: 3px 0;
+    align-items: baseline;
+}
+.vc-stat-label {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.vc-stat-base {
+    font-family: var(--tek-mono);
+    font-size: 0.84rem;
+    color: var(--tek-text);
+    text-align: right;
+}
+.vc-stat-mut {
+    font-family: var(--tek-mono);
+    font-size: 0.82rem;
+    text-align: right;
+    color: var(--tek-text-faint);
+}
+.vc-stat-mut.has-mut {
+    color: var(--tek-blue);
+    text-shadow: 0 0 5px var(--tek-blue-glow);
+    font-weight: 700;
+}
+.vc-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(0,180,255,0.06);
+}
 
-.spec-notes { font-size:0.77rem; color:#64748b; line-height:1.5; }
-.spec-badges { display:flex; gap:4px; flex-wrap:wrap; }
-.spec-footer { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
-.spec-chips { display:flex; gap:4px; flex-wrap:wrap; }
-.spec-chip { font-size:0.64rem; font-weight:500; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); padding:2px 7px; color:#64748b; clip-path:polygon(3px 0%,100% 0%,calc(100% - 3px) 100%,0% 100%); }
-.spec-chip.mut { color:rgb(var(--cat-rgb,0,180,255)); border-color:rgba(var(--cat-rgb,0,180,255),0.3); background:rgba(var(--cat-rgb,0,180,255),0.08); }
-.spec-actions { display:flex; gap:6px; flex-shrink:0; }
+/* List view */
+.vault-list {
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(0,180,255,0.15);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    overflow-x: auto;
+}
+.list-head, .list-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 60px repeat(7, 60px) 150px;
+    gap: 8px;
+    padding: 10px 14px;
+    align-items: center;
+}
+.list-head {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    background: rgba(5,8,18,0.6);
+    border-bottom: 1px solid rgba(0,180,255,0.15);
+}
+.list-row {
+    border-bottom: 1px solid rgba(100,116,139,0.08);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s;
+}
+.list-row:hover { background: rgba(0,180,255,0.04); }
+.list-row:last-child { border-bottom: none; }
+.lr-name {
+    font-family: var(--tek-font);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--tek-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.lr-name .gender { color: var(--tek-text-dim); font-size: 0.92rem; }
+.lr-name .gender.m { color: var(--tek-blue); }
+.lr-name .gender.f { color: var(--tek-pink); }
+.lr-species {
+    font-family: var(--tek-mono);
+    font-size: 0.76rem;
+    color: var(--tek-text-dim);
+}
+.lr-level {
+    font-family: var(--tek-mono);
+    font-size: 0.84rem;
+    color: var(--tek-text);
+    text-align: right;
+}
+.stat-col {
+    font-family: var(--tek-mono);
+    font-size: 0.76rem;
+    text-align: right;
+}
+.lr-stat-base { color: var(--tek-text); }
+.lr-stat-mut { color: var(--tek-blue); text-shadow: 0 0 5px var(--tek-blue-glow); font-weight: 700; margin-left: 4px; }
+.lr-badges { display: flex; flex-wrap: wrap; gap: 4px; }
 
-.spec-compact-list { display:flex; flex-direction:column; gap:6px; }
-.spec-compact-card { display:flex; align-items:center; gap:12px; background:rgba(10,18,40,0.97); padding:10px 14px; }
-.spec-compact-icon { flex-shrink:0; display:flex; align-items:center; }
-.spec-compact-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
-.spec-compact-species { font-size:0.88rem; font-weight:600; color:#f1f5f9; }
-.spec-compact-name { font-size:0.72rem; color:#64748b; font-style:italic; }
-.spec-compact-stats { display:flex; gap:10px; font-size:0.75rem; color:#64748b; white-space:nowrap; }
-.mut-text { color:#a78bfa; font-weight:600; }
-.spec-compact-actions { display:flex; gap:6px; }
-
-.mform-section-title { font-size:0.65rem; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#475569; margin-bottom:10px; }
-.mform-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.mform-stats-head { display:grid; grid-template-columns:1fr 120px 120px; gap:8px; font-size:0.65rem; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#475569; padding:0 2px 6px; border-bottom:1px solid rgba(255,255,255,0.05); margin-bottom:4px; }
-.mform-stats-row { display:grid; grid-template-columns:1fr 120px 120px; gap:8px; align-items:center; margin-bottom:5px; }
-.mform-stat-name { font-size:0.82rem; color:#94a3b8; }
-:global(.mform-stat-input) { padding:5px 8px !important; font-size:0.82rem !important; }
-.mform-flags { display:flex; gap:20px; flex-wrap:wrap; font-size:0.85rem; color:#94a3b8; margin-top:12px; }
-.mform-flags label { display:flex; align-items:center; gap:7px; cursor:pointer; }
+@media (max-width: 900px) {
+    .hide-md { display: none; }
+    .list-head, .list-row { grid-template-columns: 1.4fr 1fr 60px 150px; }
+}
+@media (max-width: 500px) {
+    .hide-sm { display: none; }
+    .list-head, .list-row { grid-template-columns: 1.6fr 1fr 130px; }
+}
 </style>

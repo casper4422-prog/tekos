@@ -1,0 +1,2493 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>⬡ TEKOS — Badges · Casper4422</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&family=Crimson+Pro:ital,wght@1,400&display=swap" rel="stylesheet" />
+<style>
+:root {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.30);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.50);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-pink:         #f472b6;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+
+    --tier-bronze:      #cd7f32;
+    --tier-silver:      #c8c8d2;
+    --tier-gold:        #ffd700;
+    --tier-diamond:     #00b4ff;
+    --tier-bronze-glow: rgba(205,127,50,0.5);
+    --tier-silver-glow: rgba(200,200,210,0.5);
+    --tier-gold-glow:   rgba(255,215,0,0.55);
+    --tier-diamond-glow:rgba(0,180,255,0.6);
+
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --tek-serif:        'Crimson Pro', Georgia, serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 50% at 20% 10%, rgba(0,180,255,0.10) 0%, transparent 50%),
+        radial-gradient(ellipse 55% 50% at 85% 90%, rgba(139,92,246,0.08) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+}
+#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.demo-banner {
+    position: fixed; top: 14px; left: 14px; z-index: 60;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--tek-amber);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; letter-spacing: 0.12em;
+    padding: 5px 10px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.return-link {
+    position: fixed; top: 18px; right: 22px; z-index: 50;
+    font-family: var(--tek-mono); font-size: 0.7rem;
+    letter-spacing: 0.18em; color: var(--tek-text-dim);
+    text-decoration: none; transition: color 0.2s;
+}
+.return-link:hover { color: var(--tek-blue); }
+.return-link .arrow { display: inline-block; transform: rotate(180deg); margin-right: 4px; }
+
+.stage {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    padding: 60px 24px 80px;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PAGE HEADER
+   ═════════════════════════════════════════════════════════════════════════ */
+.page-header { margin-bottom: 24px; }
+.breadcrumb {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.breadcrumb a { color: var(--tek-text-dim); text-decoration: none; transition: color 0.15s; }
+.breadcrumb a:hover { color: var(--tek-blue); }
+.breadcrumb .sep { color: var(--tek-text-faint); margin: 0 6px; }
+.page-title {
+    font-family: var(--tek-display);
+    font-size: clamp(1.8rem, 3.6vw, 2.5rem);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(0,180,255,0.30));
+}
+.page-sub {
+    font-family: var(--tek-mono); font-size: 0.72rem;
+    letter-spacing: 0.14em; color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-top: 6px;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   HERO BAND — Breeder Rank
+   ═════════════════════════════════════════════════════════════════════════ */
+.rank-hero {
+    position: relative;
+    background:
+        radial-gradient(ellipse 60% 80% at 20% 50%, rgba(255,215,0,0.10) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 80% at 80% 50%, rgba(0,180,255,0.10) 0%, transparent 70%),
+        linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.99) 100%);
+    border: 1px solid rgba(255,215,0,0.30);
+    clip-path: polygon(16px 0%, 100% 0%, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0% 100%, 0% 16px);
+    padding: 26px 30px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 30px;
+    align-items: center;
+    margin-bottom: 24px;
+    backdrop-filter: blur(8px);
+    overflow: hidden;
+}
+.rank-hero::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 16px; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--tier-gold), var(--tek-blue));
+    box-shadow: 0 0 10px rgba(255,215,0,0.45);
+}
+.rank-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        repeating-linear-gradient(60deg, rgba(255,215,0,0.04) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(-60deg, rgba(0,180,255,0.04) 0 1px, transparent 1px 28px);
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+/* Rank emblem — large hex with Master tier visual */
+.rank-emblem {
+    position: relative;
+    width: 130px; height: 148px;
+    flex-shrink: 0;
+    z-index: 2;
+}
+.rank-emblem svg { width: 100%; height: 100%; }
+.rank-emblem-label {
+    position: absolute;
+    bottom: -6px; left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg, var(--tier-gold), #ff9500);
+    color: #050812;
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.20em;
+    padding: 3px 10px;
+    white-space: nowrap;
+}
+
+/* Rank info */
+.rank-info { min-width: 0; z-index: 2; position: relative; }
+.rank-title-row {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 6px;
+}
+.rank-title {
+    font-family: var(--tek-display);
+    font-size: clamp(1.7rem, 3vw, 2.4rem);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #fff8d0 0%, var(--tier-gold) 70%, rgba(255,215,0,0.5) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 12px rgba(255,215,0,0.40));
+    line-height: 1;
+}
+.rank-num {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tier-gold);
+    letter-spacing: 0.14em;
+    padding: 2px 8px;
+    border: 1px solid rgba(255,215,0,0.4);
+    background: rgba(255,215,0,0.08);
+}
+.rank-flavor {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 1rem;
+    color: var(--tek-text-dim);
+    margin-bottom: 14px;
+}
+.rank-progress-wrap {
+    margin-top: 10px;
+}
+.rank-progress-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+}
+.rank-progress-name {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+}
+.rank-progress-name .next {
+    color: var(--tier-gold);
+    text-shadow: 0 0 8px rgba(255,215,0,0.4);
+}
+.rank-progress-val {
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.10em;
+}
+.rank-progress-val .have { color: var(--tier-gold); font-weight: 700; }
+.rank-progress-bar {
+    height: 6px;
+    background: rgba(255,215,0,0.10);
+    overflow: hidden;
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+.rank-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--tier-gold), #ff9500);
+    box-shadow: 0 0 8px rgba(255,215,0,0.5);
+}
+.rank-progress-hint {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    margin-top: 6px;
+}
+
+/* Aggregate stats column */
+.rank-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 22px;
+    z-index: 2;
+    position: relative;
+    min-width: 220px;
+}
+.rank-stat {
+    text-align: right;
+}
+.rank-stat-val {
+    font-family: var(--tek-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--tek-text);
+}
+.rank-stat-val.gold    { color: var(--tier-gold);   text-shadow: 0 0 8px rgba(255,215,0,0.4); }
+.rank-stat-val.diamond { color: var(--tier-diamond);text-shadow: 0 0 8px rgba(0,180,255,0.4); }
+.rank-stat-val.silver  { color: var(--tier-silver); }
+.rank-stat-val.bronze  { color: var(--tier-bronze); }
+.rank-stat-label {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+@media (max-width: 880px) {
+    .rank-hero { grid-template-columns: 1fr; text-align: center; }
+    .rank-emblem { margin: 0 auto; }
+    .rank-stats { grid-template-columns: repeat(4, 1fr); margin: 0 auto; }
+    .rank-stat { text-align: center; }
+}
+
+/* Breeder ladder rail (Apprentice → Myth) */
+.rank-ladder {
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(0,180,255,0.12);
+    padding: 12px 16px;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    margin-bottom: 32px;
+    overflow-x: auto;
+}
+.ladder-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 90px;
+    position: relative;
+    opacity: 0.45;
+    transition: opacity 0.2s;
+}
+.ladder-step.passed { opacity: 1; }
+.ladder-step.current { opacity: 1; }
+.ladder-step.current .ladder-pip {
+    background: var(--tier-gold);
+    box-shadow: 0 0 12px rgba(255,215,0,0.6);
+    transform: scale(1.4);
+}
+.ladder-step.current .ladder-name {
+    color: var(--tier-gold);
+    text-shadow: 0 0 8px rgba(255,215,0,0.4);
+    font-weight: 700;
+}
+.ladder-pip {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--tek-text-faint);
+    transition: all 0.2s;
+}
+.ladder-step.passed .ladder-pip { background: var(--tek-blue); box-shadow: 0 0 6px var(--tek-blue-glow); }
+.ladder-name {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.ladder-step.passed .ladder-name { color: var(--tek-text); }
+
+/* Connector line behind pips */
+.rank-ladder::before {
+    content: '';
+    position: absolute;
+    left: 16px; right: 16px;
+    top: 50%;
+    height: 1px;
+    background: linear-gradient(90deg, var(--tek-blue) 0%, var(--tek-blue) 60%, var(--tek-text-faint) 60%, var(--tek-text-faint) 100%);
+    z-index: 0;
+    transform: translateY(-50%);
+}
+.rank-ladder { position: relative; }
+.ladder-step > * { position: relative; z-index: 2; }
+.ladder-pip { background-color: var(--tek-text-faint); border: 2px solid var(--tek-bg); }
+.ladder-step.passed .ladder-pip,
+.ladder-step.current .ladder-pip { border-color: var(--tek-bg); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   CLOSE TO EARNING — the hook
+   ═════════════════════════════════════════════════════════════════════════ */
+.section-block { margin-bottom: 36px; }
+.section-block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(0,180,255,0.12);
+}
+.section-block-title-wrap { display: flex; align-items: center; gap: 10px; }
+.section-block-title {
+    font-family: var(--tek-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+}
+.section-block-count {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border: 1px solid rgba(100,116,139,0.30);
+}
+.section-block-hint {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+
+/* Close-to-earning cards */
+.close-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+}
+.close-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.99) 100%);
+    border: 1px solid rgba(245,158,11,0.20);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 16px;
+    transition: all 0.2s;
+    cursor: pointer;
+    overflow: hidden;
+}
+.close-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--tek-amber);
+    box-shadow: 0 0 6px rgba(245,158,11,0.5);
+}
+.close-card:hover {
+    border-color: rgba(245,158,11,0.50);
+    transform: translateY(-2px);
+}
+.close-card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.close-badge-icon {
+    width: 38px; height: 42px;
+    flex-shrink: 0;
+    position: relative;
+}
+.close-badge-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px var(--badge-glow, var(--tek-blue-glow))); }
+.close-card-info { flex: 1; min-width: 0; }
+.close-badge-name {
+    font-family: var(--tek-display);
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin-bottom: 2px;
+}
+.close-badge-tier {
+    font-family: var(--tek-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-amber);
+    text-transform: uppercase;
+}
+.close-specimen {
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(100,116,139,0.15);
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+}
+.close-specimen-label {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+}
+.close-specimen-name {
+    font-size: 0.92rem;
+    color: var(--tek-text);
+    font-weight: 600;
+}
+.close-specimen-species {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.06em;
+}
+.close-gap {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-family: var(--tek-mono);
+    font-size: 0.78rem;
+    color: var(--tek-text);
+    margin-bottom: 8px;
+}
+.close-gap-stat {
+    color: var(--tek-text-dim);
+    letter-spacing: 0.10em;
+}
+.close-gap-val {
+    color: var(--tek-amber);
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-shadow: 0 0 6px rgba(245,158,11,0.4);
+}
+.close-gap-of {
+    color: var(--tek-text-faint);
+    font-size: 0.7rem;
+}
+.close-progress {
+    height: 4px;
+    background: rgba(245,158,11,0.12);
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+.close-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--tek-amber), #ff8a00);
+    box-shadow: 0 0 6px rgba(245,158,11,0.5);
+}
+.close-actions {
+    display: flex;
+    gap: 6px;
+}
+.close-btn {
+    flex: 1;
+    background: rgba(0,180,255,0.08);
+    border: 1px solid var(--tek-blue-border);
+    color: var(--tek-blue);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 7px 10px;
+    cursor: pointer;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.close-btn:hover {
+    background: rgba(0,180,255,0.18);
+    box-shadow: 0 0 10px rgba(0,180,255,0.30);
+}
+.close-btn.ghost {
+    background: transparent;
+    color: var(--tek-text-dim);
+    border-color: rgba(100,116,139,0.30);
+}
+.close-btn.ghost:hover {
+    color: var(--tek-text);
+    border-color: var(--tek-text);
+    box-shadow: none;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   SYSTEM TABS
+   ═════════════════════════════════════════════════════════════════════════ */
+.sys-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    overflow-x: auto;
+}
+.sys-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--tek-text-dim);
+    font-family: var(--tek-display);
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    padding: 14px 22px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 10px;
+    white-space: nowrap;
+}
+.sys-tab:hover {
+    color: var(--tek-text);
+}
+.sys-tab.active {
+    color: var(--tek-blue);
+    border-bottom-color: var(--tek-blue);
+    text-shadow: 0 0 8px var(--tek-blue-glow);
+}
+.sys-tab .count {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-faint);
+    background: rgba(100,116,139,0.10);
+    padding: 2px 7px;
+    border: 1px solid rgba(100,116,139,0.20);
+}
+.sys-tab.active .count {
+    color: var(--tek-blue);
+    background: rgba(0,180,255,0.08);
+    border-color: var(--tek-blue-border);
+}
+
+/* Filter row beneath tabs */
+.filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+}
+.filter-chip {
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    cursor: pointer;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.filter-chip:hover {
+    border-color: var(--tek-blue-border);
+    color: var(--tek-text);
+}
+.filter-chip.on {
+    background: rgba(0,180,255,0.10);
+    border-color: var(--tek-blue);
+    color: var(--tek-blue);
+    box-shadow: 0 0 8px rgba(0,180,255,0.20);
+}
+.filter-chip .num {
+    color: var(--tek-text-faint);
+    margin-left: 4px;
+}
+.filter-chip.on .num { color: var(--tek-blue); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   CATALOG — Sub-section grouping
+   ═════════════════════════════════════════════════════════════════════════ */
+.sys-panel { display: none; }
+.sys-panel.active { display: block; animation: panelFade 0.35s ease; }
+@keyframes panelFade {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.subsection { margin-bottom: 30px; }
+.subsection-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.subsection-title {
+    font-family: var(--tek-display);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tek-blue);
+    display: flex; align-items: center; gap: 10px;
+}
+.subsection-title::before {
+    content: '▸';
+    color: var(--tek-purple);
+}
+.subsection-desc {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.06em;
+    text-transform: none;
+}
+
+/* Badge cards — main grid */
+.badge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(265px, 1fr));
+    gap: 12px;
+}
+.badge-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid var(--card-border, rgba(100,116,139,0.20));
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px;
+    transition: all 0.2s;
+    cursor: pointer;
+    overflow: hidden;
+}
+.badge-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--card-hover, rgba(0,180,255,0.40));
+}
+.badge-card.earned {
+    --card-border: rgba(var(--tier-rgb, 0,180,255), 0.45);
+    --card-hover: rgba(var(--tier-rgb, 0,180,255), 0.80);
+    background:
+        radial-gradient(ellipse 50% 60% at 50% 20%, rgba(var(--tier-rgb, 0,180,255), 0.10) 0%, transparent 70%),
+        linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.98) 100%);
+    box-shadow: 0 0 0 1px rgba(var(--tier-rgb, 0,180,255), 0.15), 0 0 16px rgba(var(--tier-rgb, 0,180,255), 0.08);
+}
+.badge-card.locked {
+    opacity: 0.55;
+    cursor: default;
+}
+.badge-card.locked:hover { transform: none; border-color: var(--card-border, rgba(100,116,139,0.20)); }
+.badge-card.locked::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(45deg, rgba(0,0,0,0.10) 0 6px, transparent 6px 12px);
+    pointer-events: none;
+}
+
+/* Badge head — tier strip + icon + name */
+.badge-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.badge-icon-frame {
+    width: 52px; height: 58px;
+    flex-shrink: 0;
+    position: relative;
+}
+.badge-icon-frame svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgba(var(--tier-rgb, 0,180,255), 0.5)); }
+.badge-card-name-wrap { flex: 1; min-width: 0; }
+.badge-tier-tag {
+    display: inline-block;
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgb(var(--tier-rgb, 0,180,255));
+    background: rgba(var(--tier-rgb, 0,180,255), 0.10);
+    border: 1px solid rgba(var(--tier-rgb, 0,180,255), 0.35);
+    padding: 2px 6px;
+    margin-bottom: 5px;
+}
+.badge-card-name {
+    font-family: var(--tek-display);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    line-height: 1.15;
+}
+.badge-card.locked .badge-card-name { color: var(--tek-text-dim); }
+
+/* Requirement formula */
+.badge-req {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+    background: rgba(5,8,18,0.4);
+    border-left: 2px solid rgba(var(--tier-rgb, 0,180,255), 0.40);
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+.badge-req .req-key { color: rgb(var(--tier-rgb, 0,180,255)); font-weight: 600; }
+.badge-req .req-and { color: var(--tek-text-faint); margin: 0 4px; }
+
+/* Status row at bottom */
+.badge-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+}
+.badge-earned-by {
+    color: rgb(var(--tier-rgb, 0,180,255));
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.badge-earned-by .count {
+    color: var(--tek-text-dim);
+    font-size: 0.62rem;
+    margin-left: 4px;
+}
+.badge-earned-icon {
+    color: rgb(var(--tier-rgb, 0,180,255));
+    font-size: 0.74rem;
+}
+.badge-rarity {
+    color: var(--tek-text-faint);
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+}
+.badge-progress-line {
+    margin-top: 10px;
+}
+.badge-progress-line-text {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+}
+.badge-progress-line-text .have { color: var(--tek-amber); font-weight: 700; }
+.badge-progress-line-text .need { color: var(--tek-text); }
+.badge-progress-line-bar {
+    height: 3px;
+    background: rgba(100,116,139,0.15);
+    overflow: hidden;
+}
+.badge-progress-line-bar .fill {
+    height: 100%;
+    background: var(--tek-amber);
+    box-shadow: 0 0 4px rgba(245,158,11,0.5);
+}
+.badge-progress-line-bar .fill.earned {
+    background: rgb(var(--tier-rgb, 0,180,255));
+    box-shadow: 0 0 4px rgba(var(--tier-rgb, 0,180,255), 0.6);
+}
+
+/* Tier color tokens applied to badge-card via class */
+.tier-gamma   { --tier-rgb: 100, 220, 100; }
+.tier-beta    { --tier-rgb: 100, 180, 255; }
+.tier-alpha   { --tier-rgb: 244, 114, 182; }
+.tier-titan   { --tier-rgb: 0, 180, 255; }
+.tier-role    { --tier-rgb: 168, 85, 247; }
+.tier-map     { --tier-rgb: 245, 158, 11; }
+.tier-ult     { --tier-rgb: 255, 215, 0; }
+
+.tier-champion { --tier-rgb: 205, 127, 50; }
+.tier-hero     { --tier-rgb: 200, 200, 210; }
+.tier-legend   { --tier-rgb: 255, 215, 0; }
+.tier-titand   { --tier-rgb: 0, 180, 255; }
+
+.tier-bronze-bl  { --tier-rgb: 205, 127, 50; }
+.tier-silver-bl  { --tier-rgb: 200, 200, 210; }
+.tier-gold-bl    { --tier-rgb: 255, 215, 0; }
+.tier-diamond-bl { --tier-rgb: 0, 180, 255; }
+
+/* Diamond Bloodline gets extra prestige */
+.badge-card.prestige {
+    background:
+        radial-gradient(ellipse 60% 80% at 50% 30%, rgba(0,180,255,0.18) 0%, transparent 70%),
+        linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.99) 100%);
+    border-color: var(--tek-blue);
+    box-shadow:
+        0 0 0 1px var(--tek-blue),
+        0 0 24px rgba(0,180,255,0.30),
+        inset 0 0 30px rgba(0,180,255,0.05);
+}
+.badge-card.prestige::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg, var(--tek-blue), transparent 30%, transparent 70%, var(--tek-purple));
+    z-index: -1;
+    filter: blur(8px);
+    opacity: 0.4;
+}
+.badge-card.prestige .badge-tier-tag::after {
+    content: ' ✦';
+    color: var(--tek-blue);
+}
+
+/* Map-specific boss subsection — per-map collapsible cards */
+.map-block {
+    background: linear-gradient(160deg, rgba(10,18,44,0.5) 0%, rgba(4,8,20,0.85) 100%);
+    border: 1px solid rgba(0,180,255,0.15);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 16px 16px;
+    margin-bottom: 10px;
+}
+.map-block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0,180,255,0.10);
+}
+.map-name {
+    font-family: var(--tek-display);
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+}
+.map-name::before {
+    content: '◈';
+    color: var(--tek-blue);
+    font-size: 1rem;
+}
+.map-stat {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.map-stat .earned-c { color: var(--tek-green); }
+
+/* Underdog category callout */
+.und-cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+}
+.und-cat {
+    background: rgba(5,8,18,0.4);
+    border: 1px solid rgba(100,116,139,0.18);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 12px 14px;
+}
+.und-cat-name {
+    font-family: var(--tek-display);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.und-cat-icon { color: var(--tek-purple); margin-right: 6px; }
+.und-cat-species {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+    line-height: 1.6;
+}
+
+/* Meta exclusion list */
+.meta-exclude {
+    background: rgba(239,68,68,0.05);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-left-width: 2px;
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 12px 16px;
+    margin-bottom: 22px;
+}
+.meta-exclude-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px;
+}
+.meta-exclude-title {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--tek-red);
+    text-transform: uppercase;
+}
+.meta-exclude-list {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+    line-height: 1.6;
+}
+
+/* Special Achievement card (Bloodline) — wider with description */
+.special-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px;
+    align-items: center;
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(139,92,246,0.30);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+.special-card:hover {
+    border-color: var(--tek-purple);
+    transform: translateY(-1px);
+}
+.special-card.earned {
+    background:
+        radial-gradient(ellipse 50% 60% at 30% 50%, rgba(255,215,0,0.10) 0%, transparent 70%),
+        linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.98) 100%);
+    border-color: rgba(255,215,0,0.50);
+}
+.special-icon {
+    width: 44px; height: 50px;
+    flex-shrink: 0;
+}
+.special-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px var(--tier-gold-glow)); }
+.special-info { min-width: 0; }
+.special-name {
+    font-family: var(--tek-display);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+}
+.special-desc {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.04em;
+}
+.special-status {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tek-text-dim);
+    text-align: right;
+}
+.special-status.earned-status { color: var(--tier-gold); }
+.special-status .pip {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--tek-text-faint);
+    margin-right: 6px;
+}
+.special-status.earned-status .pip { background: var(--tier-gold); box-shadow: 0 0 5px rgba(255,215,0,0.5); }
+
+/* Diamond Bloodline call-out — featured */
+.diamond-feature {
+    position: relative;
+    background:
+        radial-gradient(ellipse 60% 100% at 50% 50%, rgba(0,180,255,0.15) 0%, transparent 70%),
+        linear-gradient(160deg, rgba(10,18,44,0.95) 0%, rgba(4,8,20,0.99) 100%);
+    border: 1px solid var(--tek-blue);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 24px 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 0 32px rgba(0,180,255,0.20);
+    overflow: hidden;
+}
+.diamond-feature::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        repeating-linear-gradient(60deg, rgba(0,180,255,0.05) 0 1px, transparent 1px 20px),
+        repeating-linear-gradient(-60deg, rgba(0,180,255,0.05) 0 1px, transparent 1px 20px);
+    opacity: 0.7;
+    pointer-events: none;
+}
+.diamond-feature-content {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 24px;
+    align-items: center;
+}
+.diamond-feature-icon {
+    width: 88px; height: 100px;
+    flex-shrink: 0;
+}
+.diamond-feature-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 0 16px var(--tier-diamond-glow)); }
+.diamond-feature-title {
+    font-family: var(--tek-display);
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    background: linear-gradient(180deg, #ffffff 0%, var(--tier-diamond) 80%, rgba(0,180,255,0.5) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 12px var(--tier-diamond-glow));
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.diamond-feature-flavor {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 1rem;
+    color: var(--tek-text-dim);
+    margin-bottom: 8px;
+}
+.diamond-feature-req {
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text);
+}
+.diamond-feature-req .key { color: var(--tier-diamond); font-weight: 700; }
+.diamond-feature-stat {
+    text-align: right;
+    flex-shrink: 0;
+}
+.diamond-feature-stat-val {
+    font-family: var(--tek-display);
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: var(--tier-diamond);
+    text-shadow: 0 0 14px var(--tier-diamond-glow);
+    line-height: 1;
+}
+.diamond-feature-stat-label {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-top: 6px;
+}
+
+/* utilities */
+.btn-ghost-small {
+    background: transparent;
+    border: 1px solid rgba(100,116,139,0.30);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    cursor: pointer;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.btn-ghost-small:hover {
+    border-color: var(--tek-blue);
+    color: var(--tek-blue);
+}
+
+/* Locked-style chip */
+.locked-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(100,116,139,0.10);
+    border: 1px solid rgba(100,116,139,0.30);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+}
+
+/* Reusable badge SVG icon templates */
+.medal-shape {
+    fill: rgba(10,18,44,0.85);
+    stroke: rgb(var(--tier-rgb, 0,180,255));
+    stroke-width: 2;
+}
+</style>
+</head>
+<body>
+
+<canvas id="tekHexCanvas"></canvas>
+<div class="demo-banner">⬡ DESIGN PREVIEW · BADGES</div>
+<a href="dossier-preview.html" class="return-link"><span class="arrow">▸</span> RETURN TO DOSSIER</a>
+
+<div class="stage">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div class="breadcrumb">
+            <a href="#">DASHBOARD</a><span class="sep">/</span><a href="#">DOSSIER</a><span class="sep">/</span><span>BADGES</span>
+        </div>
+        <h1 class="page-title">Badge Archive</h1>
+        <div class="page-sub">
+            Every honor TekOS recognizes · Three systems · 60+ badges
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         HERO BAND — Breeder Rank
+         ═══════════════════════════════════════════════════════ -->
+    <div class="rank-hero">
+        <!-- Emblem -->
+        <div class="rank-emblem">
+            <svg viewBox="0 0 130 148">
+                <defs>
+                    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#fff8d0"/>
+                        <stop offset="50%" stop-color="#ffd700"/>
+                        <stop offset="100%" stop-color="#ff9500"/>
+                    </linearGradient>
+                    <linearGradient id="goldGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="rgba(255,215,0,0.30)"/>
+                        <stop offset="100%" stop-color="rgba(255,215,0,0.05)"/>
+                    </linearGradient>
+                </defs>
+                <!-- Outer hex -->
+                <polygon points="65,4 122,36 122,112 65,144 8,112 8,36" fill="url(#goldGrad2)" stroke="url(#goldGrad)" stroke-width="2"/>
+                <!-- Inner hex -->
+                <polygon points="65,20 108,42 108,106 65,128 22,106 22,42" fill="rgba(10,18,44,0.7)" stroke="rgba(255,215,0,0.4)" stroke-width="1"/>
+                <!-- Crown silhouette for Master rank -->
+                <path d="M 40 80 L 50 60 L 60 75 L 65 55 L 70 75 L 80 60 L 90 80 L 88 92 L 42 92 Z" fill="url(#goldGrad)" stroke="#fff8d0" stroke-width="0.8"/>
+                <!-- Crown gems -->
+                <circle cx="50" cy="60" r="2" fill="#ffffff"/>
+                <circle cx="65" cy="55" r="2.5" fill="#ffffff"/>
+                <circle cx="80" cy="60" r="2" fill="#ffffff"/>
+                <!-- Roman numeral or stripe -->
+                <line x1="42" y1="100" x2="88" y2="100" stroke="rgba(255,215,0,0.6)" stroke-width="1"/>
+                <text x="65" y="116" font-family="Orbitron" font-size="11" font-weight="900" fill="url(#goldGrad)" text-anchor="middle" letter-spacing="2">RANK IV</text>
+            </svg>
+            <div class="rank-emblem-label">MASTER</div>
+        </div>
+
+        <!-- Info -->
+        <div class="rank-info">
+            <div class="rank-title-row">
+                <div class="rank-title">Master Breeder</div>
+                <div class="rank-num">RANK 4 / 7</div>
+            </div>
+            <div class="rank-flavor">"Your bloodlines hold their shape across generations. The wild forgets what you remember."</div>
+
+            <div class="rank-progress-wrap">
+                <div class="rank-progress-label">
+                    <div class="rank-progress-name">PROGRESS TO <span class="next">GRANDMASTER</span></div>
+                    <div class="rank-progress-val"><span class="have">2</span> / 3 species with Gold Bloodline</div>
+                </div>
+                <div class="rank-progress-bar">
+                    <div class="rank-progress-fill" style="width: 67%;"></div>
+                </div>
+                <div class="rank-progress-hint">▸ Gold Bloodline currently held by: Yutyrannus, Therizinosaurus · One more species to ascend</div>
+            </div>
+        </div>
+
+        <!-- Aggregate stats -->
+        <div class="rank-stats">
+            <div class="rank-stat">
+                <div class="rank-stat-val">14</div>
+                <div class="rank-stat-label">Total Earned</div>
+            </div>
+            <div class="rank-stat">
+                <div class="rank-stat-val diamond">1</div>
+                <div class="rank-stat-label">Diamond</div>
+            </div>
+            <div class="rank-stat">
+                <div class="rank-stat-val gold">5</div>
+                <div class="rank-stat-label">Gold</div>
+            </div>
+            <div class="rank-stat">
+                <div class="rank-stat-val silver">3</div>
+                <div class="rank-stat-label">Silver</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Breeder Rank ladder rail -->
+    <div class="rank-ladder">
+        <div class="ladder-step passed"><div class="ladder-pip"></div><div class="ladder-name">Apprentice</div></div>
+        <div class="ladder-step passed"><div class="ladder-pip"></div><div class="ladder-name">Journeyman</div></div>
+        <div class="ladder-step passed"><div class="ladder-pip"></div><div class="ladder-name">Expert</div></div>
+        <div class="ladder-step current"><div class="ladder-pip"></div><div class="ladder-name">Master</div></div>
+        <div class="ladder-step"><div class="ladder-pip"></div><div class="ladder-name">Grandmaster</div></div>
+        <div class="ladder-step"><div class="ladder-pip"></div><div class="ladder-name">Legend</div></div>
+        <div class="ladder-step"><div class="ladder-pip"></div><div class="ladder-name">Myth</div></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         CLOSE TO EARNING — actionable hook
+         ═══════════════════════════════════════════════════════ -->
+    <div class="section-block">
+        <div class="section-block-head">
+            <div class="section-block-title-wrap">
+                <div class="section-block-title">Close to Earning</div>
+                <div class="section-block-count">5 NEARBY</div>
+            </div>
+            <div class="section-block-hint">Within 1 mutation cycle</div>
+        </div>
+
+        <div class="close-grid">
+
+            <!-- Card 1: Yutyrannus 4 melee from Alpha Ready -->
+            <div class="close-card">
+                <div class="close-card-head">
+                    <div class="close-badge-icon" style="--badge-glow: rgba(244,114,182,0.5);">
+                        <svg viewBox="0 0 38 42">
+                            <defs>
+                                <linearGradient id="alphaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#fbcfe8"/><stop offset="100%" stop-color="#f472b6"/>
+                                </linearGradient>
+                            </defs>
+                            <polygon points="19,2 35,11 35,31 19,40 3,31 3,11" fill="rgba(10,18,44,0.85)" stroke="url(#alphaGrad)" stroke-width="2"/>
+                            <path d="M 19 10 L 26 18 L 23 30 L 15 30 L 12 18 Z" fill="url(#alphaGrad)"/>
+                            <text x="19" y="36" font-family="Orbitron" font-size="6" font-weight="900" fill="#f472b6" text-anchor="middle">α</text>
+                        </svg>
+                    </div>
+                    <div class="close-card-info">
+                        <div class="close-badge-name">Alpha Ready</div>
+                        <div class="close-badge-tier">BOSS READY · α-TIER</div>
+                    </div>
+                </div>
+                <div class="close-specimen">
+                    <div class="close-specimen-label">Closest specimen</div>
+                    <div class="close-specimen-name">"Roar" <span class="close-specimen-species">· Yutyrannus</span></div>
+                </div>
+                <div class="close-gap">
+                    <span class="close-gap-stat">MELEE</span>
+                    <span class="close-gap-val">+4</span>
+                    <span class="close-gap-of">to reach 125 · HP 132 ✓</span>
+                </div>
+                <div class="close-progress"><div class="close-progress-fill" style="width: 88%;"></div></div>
+                <div class="close-actions">
+                    <button class="close-btn">OPEN IN VAULT</button>
+                    <button class="close-btn ghost">PLAN BREED</button>
+                </div>
+            </div>
+
+            <!-- Card 2: Argentavis — Underdog Champion 8 health -->
+            <div class="close-card">
+                <div class="close-card-head">
+                    <div class="close-badge-icon" style="--badge-glow: rgba(205,127,50,0.5);">
+                        <svg viewBox="0 0 38 42">
+                            <defs>
+                                <linearGradient id="bronzeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#e8b07f"/><stop offset="100%" stop-color="#cd7f32"/>
+                                </linearGradient>
+                            </defs>
+                            <polygon points="19,2 35,11 35,31 19,40 3,31 3,11" fill="rgba(10,18,44,0.85)" stroke="url(#bronzeGrad)" stroke-width="2"/>
+                            <!-- paw print -->
+                            <circle cx="13" cy="18" r="2" fill="url(#bronzeGrad)"/>
+                            <circle cx="25" cy="18" r="2" fill="url(#bronzeGrad)"/>
+                            <circle cx="10" cy="24" r="1.6" fill="url(#bronzeGrad)"/>
+                            <circle cx="28" cy="24" r="1.6" fill="url(#bronzeGrad)"/>
+                            <ellipse cx="19" cy="27" rx="5" ry="4" fill="url(#bronzeGrad)"/>
+                        </svg>
+                    </div>
+                    <div class="close-card-info">
+                        <div class="close-badge-name">Underdog Champion</div>
+                        <div class="close-badge-tier">UNDERDOG · BRONZE</div>
+                    </div>
+                </div>
+                <div class="close-specimen">
+                    <div class="close-specimen-label">Closest specimen</div>
+                    <div class="close-specimen-name">"Pyre" <span class="close-specimen-species">· Argentavis</span></div>
+                </div>
+                <div class="close-gap">
+                    <span class="close-gap-stat">HEALTH</span>
+                    <span class="close-gap-val">+8</span>
+                    <span class="close-gap-of">to reach 90 · MEL 96 ✓</span>
+                </div>
+                <div class="close-progress"><div class="close-progress-fill" style="width: 81%;"></div></div>
+                <div class="close-actions">
+                    <button class="close-btn">OPEN IN VAULT</button>
+                    <button class="close-btn ghost">PLAN BREED</button>
+                </div>
+            </div>
+
+            <!-- Card 3: Yuty Bloodline Silver — needs 2 weight -->
+            <div class="close-card">
+                <div class="close-card-head">
+                    <div class="close-badge-icon" style="--badge-glow: rgba(200,200,210,0.5);">
+                        <svg viewBox="0 0 38 42">
+                            <defs>
+                                <linearGradient id="silverGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#f0f0f5"/><stop offset="100%" stop-color="#c8c8d2"/>
+                                </linearGradient>
+                            </defs>
+                            <polygon points="19,2 35,11 35,31 19,40 3,31 3,11" fill="rgba(10,18,44,0.85)" stroke="url(#silverGrad)" stroke-width="2"/>
+                            <path d="M 12 18 Q 19 13 26 18 Q 27 24 19 28 Q 11 24 12 18 Z" fill="url(#silverGrad)" opacity="0.6"/>
+                            <text x="19" y="28" font-family="Orbitron" font-size="8" font-weight="900" fill="#050812" text-anchor="middle">II</text>
+                        </svg>
+                    </div>
+                    <div class="close-card-info">
+                        <div class="close-badge-name">Silver Bloodline</div>
+                        <div class="close-badge-tier">PRIZE BLOODLINE · SILVER</div>
+                    </div>
+                </div>
+                <div class="close-specimen">
+                    <div class="close-specimen-label">Closest specimen</div>
+                    <div class="close-specimen-name">"Echo" <span class="close-specimen-species">· Therizinosaurus</span></div>
+                </div>
+                <div class="close-gap">
+                    <span class="close-gap-stat">WEIGHT</span>
+                    <span class="close-gap-val">+2</span>
+                    <span class="close-gap-of">to reach 50 base · 4/5 stats ✓</span>
+                </div>
+                <div class="close-progress"><div class="close-progress-fill" style="width: 92%;"></div></div>
+                <div class="close-actions">
+                    <button class="close-btn">OPEN IN VAULT</button>
+                    <button class="close-btn ghost">PLAN BREED</button>
+                </div>
+            </div>
+
+            <!-- Card 4: Therizino — Boss Tank — 14 health -->
+            <div class="close-card">
+                <div class="close-card-head">
+                    <div class="close-badge-icon" style="--badge-glow: rgba(168,85,247,0.5);">
+                        <svg viewBox="0 0 38 42">
+                            <defs>
+                                <linearGradient id="roleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#c4a3f8"/><stop offset="100%" stop-color="#8b5cf6"/>
+                                </linearGradient>
+                            </defs>
+                            <polygon points="19,2 35,11 35,31 19,40 3,31 3,11" fill="rgba(10,18,44,0.85)" stroke="url(#roleGrad)" stroke-width="2"/>
+                            <path d="M 19 8 L 28 14 L 28 24 Q 19 32 19 32 Q 10 24 10 24 L 10 14 Z" fill="url(#roleGrad)"/>
+                        </svg>
+                    </div>
+                    <div class="close-card-info">
+                        <div class="close-badge-name">Boss Tank</div>
+                        <div class="close-badge-tier">BOSS READY · ROLE</div>
+                    </div>
+                </div>
+                <div class="close-specimen">
+                    <div class="close-specimen-label">Closest specimen</div>
+                    <div class="close-specimen-name">"Sable" <span class="close-specimen-species">· Therizinosaurus</span></div>
+                </div>
+                <div class="close-gap">
+                    <span class="close-gap-stat">HEALTH</span>
+                    <span class="close-gap-val">+14</span>
+                    <span class="close-gap-of">to reach 175 · ~7 mutations</span>
+                </div>
+                <div class="close-progress"><div class="close-progress-fill" style="width: 68%;"></div></div>
+                <div class="close-actions">
+                    <button class="close-btn">OPEN IN VAULT</button>
+                    <button class="close-btn ghost">PLAN BREED</button>
+                </div>
+            </div>
+
+            <!-- Card 5: Diversity Master — 2 more species -->
+            <div class="close-card">
+                <div class="close-card-head">
+                    <div class="close-badge-icon" style="--badge-glow: rgba(255,215,0,0.5);">
+                        <svg viewBox="0 0 38 42">
+                            <defs>
+                                <linearGradient id="ultGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/>
+                                </linearGradient>
+                            </defs>
+                            <polygon points="19,2 35,11 35,31 19,40 3,31 3,11" fill="rgba(10,18,44,0.85)" stroke="url(#ultGrad)" stroke-width="2"/>
+                            <polygon points="19,10 22,18 30,18 24,23 26,31 19,26 12,31 14,23 8,18 16,18" fill="url(#ultGrad)"/>
+                        </svg>
+                    </div>
+                    <div class="close-card-info">
+                        <div class="close-badge-name">Diversity Master</div>
+                        <div class="close-badge-tier">PRIZE BLOODLINE · SPECIAL</div>
+                    </div>
+                </div>
+                <div class="close-specimen">
+                    <div class="close-specimen-label">Aggregate progress</div>
+                    <div class="close-specimen-name">8 species <span class="close-specimen-species">with Bronze+ Bloodline</span></div>
+                </div>
+                <div class="close-gap">
+                    <span class="close-gap-stat">SPECIES</span>
+                    <span class="close-gap-val">+2</span>
+                    <span class="close-gap-of">to reach 10</span>
+                </div>
+                <div class="close-progress"><div class="close-progress-fill" style="width: 80%;"></div></div>
+                <div class="close-actions">
+                    <button class="close-btn">SEE PROGRESS</button>
+                    <button class="close-btn ghost">SUGGEST SPECIES</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SYSTEM TABS
+         ═══════════════════════════════════════════════════════ -->
+    <div class="sys-tabs">
+        <button class="sys-tab active" data-sys="boss">Boss Ready <span class="count">7/22</span></button>
+        <button class="sys-tab" data-sys="underdog">Underdog <span class="count">4/16</span></button>
+        <button class="sys-tab" data-sys="prize">Prize Bloodline <span class="count">3/8</span></button>
+    </div>
+
+    <!-- Filter chips -->
+    <div class="filter-row">
+        <div class="filter-chip on">All <span class="num">46</span></div>
+        <div class="filter-chip">Earned <span class="num">14</span></div>
+        <div class="filter-chip">In Progress <span class="num">11</span></div>
+        <div class="filter-chip">Locked <span class="num">21</span></div>
+        <div style="flex: 1;"></div>
+        <div class="filter-chip">Sort: Tier ▾</div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SYSTEM 1: BOSS READY
+         ═══════════════════════════════════════════════════════ -->
+    <div class="sys-panel active" id="sys-boss">
+
+        <!-- Standard Tier Ladder -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Standard Tier <span class="subsection-desc">— HP ≥ X AND Melee ≥ X</span></div>
+                <div class="map-stat"><span class="earned-c">3</span> / 4 EARNED</div>
+            </div>
+            <div class="badge-grid">
+
+                <!-- Gamma -->
+                <div class="badge-card earned tier-gamma">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="gammaG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a0f0a0"/><stop offset="100%" stop-color="#10b981"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#gammaG)" stroke-width="2"/>
+                                <text x="26" y="34" font-family="Orbitron" font-size="20" font-weight="900" fill="url(#gammaG)" text-anchor="middle">γ</text>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Gamma · γ</div>
+                            <div class="badge-card-name">Gamma Ready</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">HP ≥ <span class="req-key">75</span><span class="req-and">AND</span>MEL ≥ <span class="req-key">75</span></div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by">✓ 6 specimens<span class="count">incl. Roar, Sable, Onyx</span></div>
+                        <div class="badge-rarity">68% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+                <!-- Beta -->
+                <div class="badge-card earned tier-beta">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="betaG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a5d8ff"/><stop offset="100%" stop-color="#00b4ff"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#betaG)" stroke-width="2"/>
+                                <text x="26" y="34" font-family="Orbitron" font-size="18" font-weight="900" fill="url(#betaG)" text-anchor="middle">β</text>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Beta · β</div>
+                            <div class="badge-card-name">Beta Ready</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">HP ≥ <span class="req-key">100</span><span class="req-and">AND</span>MEL ≥ <span class="req-key">100</span></div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by">✓ 3 specimens<span class="count">Roar, Sable, Twilight</span></div>
+                        <div class="badge-rarity">31% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+                <!-- Alpha — close but not earned (matches Close to Earning card) -->
+                <div class="badge-card tier-alpha">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="alphaG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fbcfe8"/><stop offset="100%" stop-color="#f472b6"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#alphaG)" stroke-width="2"/>
+                                <text x="26" y="34" font-family="Orbitron" font-size="18" font-weight="900" fill="url(#alphaG)" text-anchor="middle">α</text>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Alpha · α</div>
+                            <div class="badge-card-name">Alpha Ready</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">HP ≥ <span class="req-key">125</span><span class="req-and">AND</span>MEL ≥ <span class="req-key">125</span></div>
+                    <div class="badge-progress-line">
+                        <div class="badge-progress-line-text">Roar: <span class="have">HP 132</span> · MEL 121 (<span class="need">4 short</span>)</div>
+                        <div class="badge-progress-line-bar"><div class="fill" style="width:88%;"></div></div>
+                    </div>
+                </div>
+
+                <!-- Titan -->
+                <div class="badge-card locked tier-titan">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="titanG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a5d8ff"/><stop offset="100%" stop-color="#00b4ff"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#titanG)" stroke-width="2"/>
+                                <path d="M 26 14 L 36 22 L 32 38 L 20 38 L 16 22 Z" fill="url(#titanG)" opacity="0.5"/>
+                                <polygon points="26,18 30,25 26,32 22,25" fill="url(#titanG)"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Titan</div>
+                            <div class="badge-card-name">Titan Slayer</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">HP ≥ <span class="req-key">150</span><span class="req-and">AND</span>MEL ≥ <span class="req-key">150</span></div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by" style="color:var(--tek-text-faint);">— No specimen at threshold</div>
+                        <div class="badge-rarity">4% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Specialized Roles -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Specialized Roles <span class="subsection-desc">— Focused single-stat or combo</span></div>
+                <div class="map-stat"><span class="earned-c">1</span> / 4 EARNED</div>
+            </div>
+            <div class="badge-grid">
+
+                <!-- Boss Tank (close) -->
+                <div class="badge-card tier-role">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="tankG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#c4a3f8"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#tankG)" stroke-width="2"/>
+                                <path d="M 26 12 L 38 20 L 38 36 Q 26 46 26 46 Q 14 36 14 36 L 14 20 Z" fill="url(#tankG)"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Role</div>
+                            <div class="badge-card-name">Boss Tank</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">HP ≥ <span class="req-key">175</span> (Health only)</div>
+                    <div class="badge-progress-line">
+                        <div class="badge-progress-line-text">Sable: HP 161 (<span class="need">14 short</span>)</div>
+                        <div class="badge-progress-line-bar"><div class="fill" style="width:68%;"></div></div>
+                    </div>
+                </div>
+
+                <!-- Boss DPS -->
+                <div class="badge-card tier-role">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="dpsG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fda4af"/><stop offset="100%" stop-color="#ef4444"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#dpsG)" stroke-width="2"/>
+                                <path d="M 22 12 L 30 12 L 32 38 L 26 44 L 20 38 Z" fill="url(#dpsG)"/>
+                                <line x1="26" y1="14" x2="26" y2="32" stroke="#050812" stroke-width="1"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Role</div>
+                            <div class="badge-card-name">Boss DPS</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">MEL ≥ <span class="req-key">175</span> (Melee only)</div>
+                    <div class="badge-progress-line">
+                        <div class="badge-progress-line-text">Onyx: MEL 156 (<span class="need">19 short</span>)</div>
+                        <div class="badge-progress-line-bar"><div class="fill" style="width:62%;"></div></div>
+                    </div>
+                </div>
+
+                <!-- Boss Bruiser — EARNED -->
+                <div class="badge-card earned tier-role">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="bruG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#c4a3f8"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#bruG)" stroke-width="2"/>
+                                <rect x="14" y="22" width="8" height="14" fill="url(#bruG)"/>
+                                <rect x="30" y="22" width="8" height="14" fill="url(#bruG)"/>
+                                <line x1="22" y1="29" x2="30" y2="29" stroke="url(#bruG)" stroke-width="4"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Role</div>
+                            <div class="badge-card-name">Boss Bruiser</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">HP ≥ <span class="req-key">125</span><span class="req-and">AND</span>WGT ≥ <span class="req-key">125</span></div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by">✓ Sable <span class="count">· Therizinosaurus</span></div>
+                        <div class="badge-rarity">14% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+                <!-- Boss Runner -->
+                <div class="badge-card locked tier-role">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="runG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#c4a3f8"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#runG)" stroke-width="2"/>
+                                <path d="M 14 36 L 22 22 L 28 28 L 36 18 L 38 20 L 30 32 L 24 28 L 18 38 Z" fill="url(#runG)"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Role</div>
+                            <div class="badge-card-name">Boss Runner</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">HP ≥ <span class="req-key">100</span><span class="req-and">AND</span>SPD ≥ <span class="req-key">150</span></div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by" style="color:var(--tek-text-faint);">— No qualifying specimen</div>
+                        <div class="badge-rarity">8% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Map-Specific Bosses -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Map-Specific Bosses <span class="subsection-desc">— Tier requirement + map condition</span></div>
+                <div class="map-stat"><span class="earned-c">2</span> / 11 EARNED</div>
+            </div>
+
+            <!-- The Island -->
+            <div class="map-block">
+                <div class="map-block-head">
+                    <div class="map-name">The Island</div>
+                    <div class="map-stat"><span class="earned-c">2</span> / 4</div>
+                </div>
+                <div class="badge-grid">
+
+                    <div class="badge-card earned tier-map">
+                        <div class="badge-card-head">
+                            <div class="badge-icon-frame">
+                                <svg viewBox="0 0 52 58">
+                                    <defs><linearGradient id="bmG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs>
+                                    <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#bmG)" stroke-width="2"/>
+                                    <circle cx="26" cy="26" r="6" fill="url(#bmG)"/>
+                                    <path d="M 20 22 L 14 14 M 32 22 L 38 14 M 20 30 L 14 38 M 32 30 L 38 38" stroke="url(#bmG)" stroke-width="2"/>
+                                </svg>
+                            </div>
+                            <div class="badge-card-name-wrap">
+                                <div class="badge-tier-tag">Map · α</div>
+                                <div class="badge-card-name">Broodmother Specialist</div>
+                            </div>
+                        </div>
+                        <div class="badge-req">Alpha Ready <span class="req-and">+</span> Megatherium bonus</div>
+                        <div class="badge-status">
+                            <div class="badge-earned-by">✓ "Crawler" <span class="count">· Megatherium</span></div>
+                            <div class="badge-rarity">22% OF SURVIVORS</div>
+                        </div>
+                    </div>
+
+                    <div class="badge-card earned tier-map">
+                        <div class="badge-card-head">
+                            <div class="badge-icon-frame">
+                                <svg viewBox="0 0 52 58">
+                                    <defs><linearGradient id="mpG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs>
+                                    <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#mpG)" stroke-width="2"/>
+                                    <circle cx="26" cy="24" r="7" fill="url(#mpG)"/>
+                                    <circle cx="22" cy="22" r="1.5" fill="#050812"/>
+                                    <circle cx="30" cy="22" r="1.5" fill="#050812"/>
+                                    <path d="M 18 36 Q 26 42 34 36" fill="none" stroke="url(#mpG)" stroke-width="2"/>
+                                </svg>
+                            </div>
+                            <div class="badge-card-name-wrap">
+                                <div class="badge-tier-tag">Map · α</div>
+                                <div class="badge-card-name">Megapithecus Specialist</div>
+                            </div>
+                        </div>
+                        <div class="badge-req">Alpha Ready <span class="req-and">+</span> High DPS</div>
+                        <div class="badge-status">
+                            <div class="badge-earned-by">✓ "Onyx" <span class="count">· Carcharodontosaurus</span></div>
+                            <div class="badge-rarity">19% OF SURVIVORS</div>
+                        </div>
+                    </div>
+
+                    <div class="badge-card locked tier-map">
+                        <div class="badge-card-head">
+                            <div class="badge-icon-frame">
+                                <svg viewBox="0 0 52 58">
+                                    <defs><linearGradient id="drG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs>
+                                    <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#drG)" stroke-width="2"/>
+                                    <path d="M 14 22 Q 18 18 22 22 L 26 18 L 30 22 Q 34 18 38 22 L 36 32 L 26 38 L 16 32 Z" fill="url(#drG)"/>
+                                </svg>
+                            </div>
+                            <div class="badge-card-name-wrap">
+                                <div class="badge-tier-tag">Map · α</div>
+                                <div class="badge-card-name">Dragon Specialist</div>
+                            </div>
+                        </div>
+                        <div class="badge-req">Alpha Ready <span class="req-and">+</span> Herbivore advantage</div>
+                        <div class="badge-status">
+                            <div class="badge-earned-by" style="color:var(--tek-text-faint);">— Requires Alpha Ready first</div>
+                            <div class="badge-rarity">11% OF SURVIVORS</div>
+                        </div>
+                    </div>
+
+                    <div class="badge-card locked tier-ult">
+                        <div class="badge-card-head">
+                            <div class="badge-icon-frame">
+                                <svg viewBox="0 0 52 58">
+                                    <defs><linearGradient id="ovG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/></linearGradient></defs>
+                                    <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#ovG)" stroke-width="2"/>
+                                    <circle cx="26" cy="29" r="9" fill="none" stroke="url(#ovG)" stroke-width="2"/>
+                                    <circle cx="26" cy="29" r="3" fill="url(#ovG)"/>
+                                </svg>
+                            </div>
+                            <div class="badge-card-name-wrap">
+                                <div class="badge-tier-tag">Ultimate</div>
+                                <div class="badge-card-name">Overseer Challenger</div>
+                            </div>
+                        </div>
+                        <div class="badge-req">Titan Slayer <span class="req-and">+</span> All Island bosses defeated</div>
+                        <div class="badge-status">
+                            <div class="badge-earned-by" style="color:var(--tek-text-faint);">— 2/3 Island bosses cleared</div>
+                            <div class="badge-rarity">2% OF SURVIVORS</div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Scorched Earth -->
+            <div class="map-block">
+                <div class="map-block-head">
+                    <div class="map-name">Scorched Earth</div>
+                    <div class="map-stat">0 / 1</div>
+                </div>
+                <div class="badge-grid">
+                    <div class="badge-card locked tier-map">
+                        <div class="badge-card-head">
+                            <div class="badge-icon-frame">
+                                <svg viewBox="0 0 52 58">
+                                    <defs><linearGradient id="mtG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs>
+                                    <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#mtG)" stroke-width="2"/>
+                                    <path d="M 14 20 L 20 14 L 26 20 L 32 14 L 38 20 L 38 38 L 14 38 Z" fill="url(#mtG)"/>
+                                </svg>
+                            </div>
+                            <div class="badge-card-name-wrap">
+                                <div class="badge-tier-tag">Map · α</div>
+                                <div class="badge-card-name">Manticore Specialist</div>
+                            </div>
+                        </div>
+                        <div class="badge-req">Alpha Ready <span class="req-and">+</span> Stamina ≥ <span class="req-key">100</span></div>
+                        <div class="badge-status">
+                            <div class="badge-earned-by" style="color:var(--tek-text-faint);">— No qualifying specimen</div>
+                            <div class="badge-rarity">17% OF SURVIVORS</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ragnarok (ASA) -->
+            <div class="map-block">
+                <div class="map-block-head">
+                    <div class="map-name">Ragnarok (ASA)</div>
+                    <div class="map-stat">0 / 3</div>
+                </div>
+                <div class="badge-grid">
+                    <div class="badge-card locked tier-map">
+                        <div class="badge-card-head">
+                            <div class="badge-icon-frame">
+                                <svg viewBox="0 0 52 58">
+                                    <defs><linearGradient id="nuG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a5d8ff"/><stop offset="100%" stop-color="#60a5fa"/></linearGradient></defs>
+                                    <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#nuG)" stroke-width="2"/>
+                                    <path d="M 26 14 L 32 22 L 38 20 L 34 28 L 38 36 L 30 32 L 26 40 L 22 32 L 14 36 L 18 28 L 14 20 L 20 22 Z" fill="url(#nuG)"/>
+                                </svg>
+                            </div>
+                            <div class="badge-card-name-wrap">
+                                <div class="badge-tier-tag">Map · α</div>
+                                <div class="badge-card-name">Nunatak Slayer</div>
+                            </div>
+                        </div>
+                        <div class="badge-req">Alpha Ready <span class="req-and">+</span> Cold resistance</div>
+                        <div class="badge-status">
+                            <div class="badge-earned-by" style="color:var(--tek-text-faint);">— Boss is Colossal Ice Wyvern</div>
+                            <div class="badge-rarity">9% OF SURVIVORS</div>
+                        </div>
+                    </div>
+                    <div class="badge-card locked tier-map">
+                        <div class="badge-card-head">
+                            <div class="badge-icon-frame">
+                                <svg viewBox="0 0 52 58">
+                                    <defs><linearGradient id="fbG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a5d8ff"/><stop offset="100%" stop-color="#00b4ff"/></linearGradient></defs>
+                                    <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#fbG)" stroke-width="2"/>
+                                    <path d="M 26 14 L 30 24 L 38 24 L 32 30 L 34 38 L 26 34 L 18 38 L 20 30 L 14 24 L 22 24 Z" fill="url(#fbG)"/>
+                                </svg>
+                            </div>
+                            <div class="badge-card-name-wrap">
+                                <div class="badge-tier-tag">Map · Titan</div>
+                                <div class="badge-card-name">Frostbite Champion</div>
+                            </div>
+                        </div>
+                        <div class="badge-req">Titan Slayer for Nunatak</div>
+                        <div class="badge-status">
+                            <div class="badge-earned-by" style="color:var(--tek-text-faint);">— Locked behind Nunatak Slayer</div>
+                            <div class="badge-rarity">2% OF SURVIVORS</div>
+                        </div>
+                    </div>
+                    <div class="badge-card locked tier-ult">
+                        <div class="badge-card-head">
+                            <div class="badge-icon-frame">
+                                <svg viewBox="0 0 52 58">
+                                    <defs><linearGradient id="raG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/></linearGradient></defs>
+                                    <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#raG)" stroke-width="2"/>
+                                    <path d="M 26 14 L 26 40 M 18 22 L 34 22 M 16 30 L 36 30" stroke="url(#raG)" stroke-width="2.5"/>
+                                </svg>
+                            </div>
+                            <div class="badge-card-name-wrap">
+                                <div class="badge-tier-tag">Ultimate</div>
+                                <div class="badge-card-name">Ragnarok Ascended</div>
+                            </div>
+                        </div>
+                        <div class="badge-req">Defeat Nunatak with non-cold-resistant creatures</div>
+                        <div class="badge-status">
+                            <div class="badge-earned-by" style="color:var(--tek-text-faint);">— A legendary challenge</div>
+                            <div class="badge-rarity">&lt;1% OF SURVIVORS</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Other maps collapsed indicator -->
+            <div style="text-align:center; padding: 8px 0;">
+                <button class="btn-ghost-small">＋ SHOW 5 MORE MAPS · Aberration · Extinction · Genesis · Crystal Isles · Lost Island</button>
+            </div>
+        </div>
+
+        <!-- Ultimate Achievements -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Ultimate Achievements <span class="subsection-desc">— Multi-boss, cross-map</span></div>
+                <div class="map-stat">0 / 3</div>
+            </div>
+            <div class="badge-grid">
+                <div class="badge-card locked tier-ult">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="asG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#asG)" stroke-width="2"/>
+                                <path d="M 26 12 L 30 22 L 40 22 L 32 28 L 36 38 L 26 32 L 16 38 L 20 28 L 12 22 L 22 22 Z" fill="url(#asG)"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Ultimate</div>
+                            <div class="badge-card-name">Ascension Master</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">All story map bosses cleared (Island, Scorched, Aberration, Extinction, Genesis)</div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by" style="color:var(--tek-text-faint);">— 2/5 story maps</div>
+                        <div class="badge-rarity">3% OF SURVIVORS</div>
+                    </div>
+                </div>
+                <div class="badge-card locked tier-ult">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="wcG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#wcG)" stroke-width="2"/>
+                                <circle cx="26" cy="29" r="11" fill="none" stroke="url(#wcG)" stroke-width="1.5"/>
+                                <ellipse cx="26" cy="29" rx="4" ry="11" fill="none" stroke="url(#wcG)" stroke-width="1.5"/>
+                                <line x1="15" y1="29" x2="37" y2="29" stroke="url(#wcG)" stroke-width="1.5"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Ultimate</div>
+                            <div class="badge-card-name">World Conqueror</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">All bosses across all maps</div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by" style="color:var(--tek-text-faint);">— 2/26 bosses across the network</div>
+                        <div class="badge-rarity">&lt;1% OF SURVIVORS</div>
+                    </div>
+                </div>
+                <div class="badge-card locked tier-ult">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="pbG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#pbG)" stroke-width="2"/>
+                                <path d="M 18 18 L 26 14 L 34 18 L 32 38 L 26 42 L 20 38 Z" fill="url(#pbG)"/>
+                                <text x="26" y="32" font-family="Orbitron" font-size="9" font-weight="900" fill="#050812" text-anchor="middle">10</text>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Ultimate</div>
+                            <div class="badge-card-name">Perfect Breeder</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">Titan Slayer tier on <span class="req-key">10+</span> different species</div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by" style="color:var(--tek-text-faint);">— 0 species at Titan tier</div>
+                        <div class="badge-rarity">&lt;0.5% OF SURVIVORS</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SYSTEM 2: UNDERDOG
+         ═══════════════════════════════════════════════════════ -->
+    <div class="sys-panel" id="sys-underdog">
+
+        <!-- Meta exclusion explainer -->
+        <div class="meta-exclude">
+            <div class="meta-exclude-head">
+                <div class="meta-exclude-title">⚠ Meta Creatures · Not Eligible</div>
+            </div>
+            <div class="meta-exclude-list">
+                Rex · Giga · Carcharo · Therizino · Deinonychus · Megatherium · Yutyrannus · Daeodon · Woolly Rhino · Shadowmane · Reaper · Rock Drake · Megalosaurus · Spino · Allosaurus · Baryonyx · Velonasaur · Managarmr
+                <div style="color: var(--tek-text-faint); margin-top: 6px; font-size: 0.66rem; letter-spacing: 0.10em;">These are already boss meta — Underdog honors the unconventional.</div>
+            </div>
+        </div>
+
+        <!-- 4 categories -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Eligible Species by Category <span class="subsection-desc">— Non-meta only</span></div>
+            </div>
+            <div class="und-cat-grid">
+                <div class="und-cat">
+                    <div class="und-cat-name"><span class="und-cat-icon">⚔</span>Heavy Hitters</div>
+                    <div class="und-cat-species">Carno · Sarco · Direwolf · Sabertooth · Thylacoleo · Raptor · Terror Bird · Megalania · Mantis · Pachyrhino · Stego · Kentro</div>
+                </div>
+                <div class="und-cat">
+                    <div class="und-cat-name"><span class="und-cat-icon">🛡</span>Tank Surprises</div>
+                    <div class="und-cat-species">Diplo · Bronto · Paracer · Carbonemys · Doedicurus · Ankylo · Trike · Mammoth · Chalico · Gigantopithecus · Dire Bear</div>
+                </div>
+                <div class="und-cat">
+                    <div class="und-cat-name"><span class="und-cat-icon">✈</span>Aerial Underdogs</div>
+                    <div class="und-cat-species">Argent · Pteranodon · Tapejara · Griffin · Snow Owl · Tropeognathus · Phoenix · Wyverns</div>
+                </div>
+                <div class="und-cat">
+                    <div class="und-cat-name"><span class="und-cat-icon">≋</span>Aquatic Warriors</div>
+                    <div class="und-cat-species">Dunkleosteus · Anglerfish · Electrophorus · Megalodon · Plesiosaur · Diplocaulus · Beelzebufo</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tier Ladder -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Tier Ladder <span class="subsection-desc">— Higher thresholds, non-meta only</span></div>
+                <div class="map-stat"><span class="earned-c">2</span> / 4 EARNED</div>
+            </div>
+            <div class="badge-grid">
+
+                <!-- Champion (Bronze) — EARNED with multiple -->
+                <div class="badge-card earned tier-champion">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="udcG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#e8b07f"/><stop offset="100%" stop-color="#cd7f32"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#udcG)" stroke-width="2"/>
+                                <!-- paw print motif -->
+                                <circle cx="18" cy="22" r="2.5" fill="url(#udcG)"/>
+                                <circle cx="34" cy="22" r="2.5" fill="url(#udcG)"/>
+                                <circle cx="14" cy="30" r="2" fill="url(#udcG)"/>
+                                <circle cx="38" cy="30" r="2" fill="url(#udcG)"/>
+                                <ellipse cx="26" cy="34" rx="7" ry="5" fill="url(#udcG)"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Bronze</div>
+                            <div class="badge-card-name">Underdog Champion</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">HP ≥ <span class="req-key">90</span><span class="req-and">AND</span>MEL ≥ <span class="req-key">90</span></div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by">✓ 2 specimens<span class="count">Direwolf, Thylacoleo</span></div>
+                        <div class="badge-rarity">42% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+                <!-- Hero (Silver) — EARNED -->
+                <div class="badge-card earned tier-hero">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="udhG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#f0f0f5"/><stop offset="100%" stop-color="#c8c8d2"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#udhG)" stroke-width="2"/>
+                                <!-- wings spread -->
+                                <path d="M 26 24 L 14 18 Q 10 24 14 32 L 26 28 Z" fill="url(#udhG)"/>
+                                <path d="M 26 24 L 38 18 Q 42 24 38 32 L 26 28 Z" fill="url(#udhG)"/>
+                                <circle cx="26" cy="28" r="3" fill="url(#udhG)"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Silver</div>
+                            <div class="badge-card-name">Underdog Hero</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">HP ≥ <span class="req-key">115</span><span class="req-and">AND</span>MEL ≥ <span class="req-key">115</span></div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by">✓ "Glimmer" <span class="count">· Snow Owl</span></div>
+                        <div class="badge-rarity">12% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+                <!-- Legend (Gold) — In progress -->
+                <div class="badge-card tier-legend">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="udlG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#udlG)" stroke-width="2"/>
+                                <!-- crown -->
+                                <path d="M 14 36 L 18 22 L 22 30 L 26 18 L 30 30 L 34 22 L 38 36 Z" fill="url(#udlG)"/>
+                                <circle cx="18" cy="22" r="1.5" fill="#ffffff"/>
+                                <circle cx="26" cy="18" r="2" fill="#ffffff"/>
+                                <circle cx="34" cy="22" r="1.5" fill="#ffffff"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Gold</div>
+                            <div class="badge-card-name">Underdog Legend</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">HP ≥ <span class="req-key">140</span><span class="req-and">AND</span>MEL ≥ <span class="req-key">140</span></div>
+                    <div class="badge-progress-line">
+                        <div class="badge-progress-line-text">Glimmer: HP 122 · MEL 119 (<span class="need">~20 short</span>)</div>
+                        <div class="badge-progress-line-bar"><div class="fill" style="width:55%;"></div></div>
+                    </div>
+                </div>
+
+                <!-- Titan (Diamond) -->
+                <div class="badge-card locked tier-titand">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs>
+                                    <linearGradient id="udtG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a5d8ff"/><stop offset="100%" stop-color="#00b4ff"/></linearGradient>
+                                </defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#udtG)" stroke-width="2"/>
+                                <!-- diamond + lightning -->
+                                <polygon points="26,16 34,28 26,40 18,28" fill="url(#udtG)"/>
+                                <path d="M 22 22 L 26 28 L 24 30 L 30 36" stroke="#ffffff" stroke-width="1.5" fill="none"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Diamond</div>
+                            <div class="badge-card-name">Underdog Titan</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">HP ≥ <span class="req-key">160</span><span class="req-and">AND</span>MEL ≥ <span class="req-key">160</span></div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by" style="color:var(--tek-text-faint);">— Reserved for the truly absurd</div>
+                        <div class="badge-rarity">&lt;1% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Underdog profile title hook -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Profile Title Unlock</div>
+            </div>
+            <div class="special-card">
+                <div class="special-icon">
+                    <svg viewBox="0 0 44 50">
+                        <defs><linearGradient id="udmG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/></linearGradient></defs>
+                        <polygon points="22,3 40,13 40,37 22,47 4,37 4,13" fill="rgba(10,18,44,0.85)" stroke="url(#udmG)" stroke-width="2"/>
+                        <text x="22" y="30" font-family="Orbitron" font-size="14" font-weight="900" fill="url(#udmG)" text-anchor="middle">★</text>
+                    </svg>
+                </div>
+                <div class="special-info">
+                    <div class="special-name">Underdog Master</div>
+                    <div class="special-desc">Profile title for Survivors with 5+ Underdog badges across multiple species. Worn on your Dossier and in trades.</div>
+                </div>
+                <div class="special-status">
+                    <span class="pip"></span>2 / 5 underdog badges
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SYSTEM 3: PRIZE BLOODLINE
+         ═══════════════════════════════════════════════════════ -->
+    <div class="sys-panel" id="sys-prize">
+
+        <!-- Diamond Bloodline feature card — prestige moment -->
+        <div class="diamond-feature">
+            <div class="diamond-feature-content">
+                <div class="diamond-feature-icon">
+                    <svg viewBox="0 0 88 100">
+                        <defs>
+                            <linearGradient id="diaG" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#ffffff"/>
+                                <stop offset="50%" stop-color="#a5d8ff"/>
+                                <stop offset="100%" stop-color="#00b4ff"/>
+                            </linearGradient>
+                            <linearGradient id="diaG2" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="rgba(0,180,255,0.4)"/>
+                                <stop offset="100%" stop-color="rgba(0,180,255,0.1)"/>
+                            </linearGradient>
+                        </defs>
+                        <polygon points="44,4 82,26 82,74 44,96 6,74 6,26" fill="url(#diaG2)" stroke="url(#diaG)" stroke-width="2.5"/>
+                        <polygon points="44,18 70,32 70,68 44,82 18,68 18,32" fill="rgba(10,18,44,0.7)" stroke="rgba(0,180,255,0.5)" stroke-width="1"/>
+                        <!-- diamond cut -->
+                        <polygon points="44,28 60,42 56,60 44,68 32,60 28,42" fill="url(#diaG)" opacity="0.9"/>
+                        <polygon points="44,28 60,42 44,46 28,42" fill="#ffffff" opacity="0.5"/>
+                        <line x1="44" y1="28" x2="44" y2="68" stroke="rgba(255,255,255,0.4)" stroke-width="0.5"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="diamond-feature-title">Diamond Bloodline</div>
+                    <div class="diamond-feature-flavor">"Genetic perfection beyond compare. The bloodline ends here, or begins again."</div>
+                    <div class="diamond-feature-req">ALL 5 stats ≥ <span class="key">60 base</span> · Priceless · Auction-only · Server-wide announcement on earning</div>
+                </div>
+                <div class="diamond-feature-stat">
+                    <div class="diamond-feature-stat-val">1</div>
+                    <div class="diamond-feature-stat-label">In your<br/>Vault</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tier ladder -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Bloodline Tiers <span class="subsection-desc">— ALL 5 stats (HP, STA, FOOD, WGT, MEL) at threshold · base only</span></div>
+                <div class="map-stat"><span class="earned-c">3</span> / 4 EARNED</div>
+            </div>
+            <div class="badge-grid">
+
+                <!-- Bronze Bloodline -->
+                <div class="badge-card earned tier-bronze-bl">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="bbG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#e8b07f"/><stop offset="100%" stop-color="#cd7f32"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#bbG)" stroke-width="2"/>
+                                <path d="M 14 24 Q 26 16 38 24 Q 36 36 26 40 Q 16 36 14 24 Z" fill="url(#bbG)" opacity="0.7"/>
+                                <text x="26" y="32" font-family="Orbitron" font-size="11" font-weight="900" fill="#050812" text-anchor="middle">I</text>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Bronze</div>
+                            <div class="badge-card-name">Bronze Bloodline</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">All 5 stats ≥ <span class="req-key">45 base</span> · +25% trade value</div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by">✓ 6 specimens<span class="count">across 6 species</span></div>
+                        <div class="badge-rarity">48% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+                <!-- Silver Bloodline -->
+                <div class="badge-card earned tier-silver-bl">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="sbG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#f0f0f5"/><stop offset="100%" stop-color="#c8c8d2"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#sbG)" stroke-width="2"/>
+                                <path d="M 14 24 Q 26 16 38 24 Q 36 36 26 40 Q 16 36 14 24 Z" fill="url(#sbG)" opacity="0.7"/>
+                                <text x="26" y="32" font-family="Orbitron" font-size="10" font-weight="900" fill="#050812" text-anchor="middle">II</text>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Silver</div>
+                            <div class="badge-card-name">Silver Bloodline</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">All 5 stats ≥ <span class="req-key">50 base</span> · +50% trade value</div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by">✓ 3 specimens<span class="count">across 3 species</span></div>
+                        <div class="badge-rarity">19% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+                <!-- Gold Bloodline -->
+                <div class="badge-card earned tier-gold-bl">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="gbG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#gbG)" stroke-width="2"/>
+                                <path d="M 14 24 Q 26 16 38 24 Q 36 36 26 40 Q 16 36 14 24 Z" fill="url(#gbG)" opacity="0.8"/>
+                                <text x="26" y="32" font-family="Orbitron" font-size="9" font-weight="900" fill="#050812" text-anchor="middle">III</text>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Gold</div>
+                            <div class="badge-card-name">Gold Bloodline</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">All 5 stats ≥ <span class="req-key">55 base</span> · +100% trade value</div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by">✓ 2 specimens<span class="count">Yuty, Therizino</span></div>
+                        <div class="badge-rarity">4% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+                <!-- Diamond Bloodline — earned, the prestige -->
+                <div class="badge-card earned prestige tier-diamond-bl">
+                    <div class="badge-card-head">
+                        <div class="badge-icon-frame">
+                            <svg viewBox="0 0 52 58">
+                                <defs><linearGradient id="dbG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ffffff"/><stop offset="50%" stop-color="#a5d8ff"/><stop offset="100%" stop-color="#00b4ff"/></linearGradient></defs>
+                                <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#dbG)" stroke-width="2"/>
+                                <polygon points="26,16 38,28 26,44 14,28" fill="url(#dbG)"/>
+                                <polygon points="26,16 38,28 26,30 14,28" fill="#ffffff" opacity="0.5"/>
+                            </svg>
+                        </div>
+                        <div class="badge-card-name-wrap">
+                            <div class="badge-tier-tag">Diamond</div>
+                            <div class="badge-card-name">Diamond Bloodline</div>
+                        </div>
+                    </div>
+                    <div class="badge-req">All 5 stats ≥ <span class="req-key">60 base</span> · Priceless · Auction-only</div>
+                    <div class="badge-status">
+                        <div class="badge-earned-by">✦ "Crown" <span class="count">· Direwolf</span></div>
+                        <div class="badge-rarity">&lt;0.1% OF SURVIVORS</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Special Achievements -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Special Achievements <span class="subsection-desc">— Multi-badge milestones</span></div>
+                <div class="map-stat"><span class="earned-c">1</span> / 5 EARNED</div>
+            </div>
+
+            <div class="special-card">
+                <div class="special-icon">
+                    <svg viewBox="0 0 44 50">
+                        <defs><linearGradient id="dvG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a5d8ff"/><stop offset="100%" stop-color="#00b4ff"/></linearGradient></defs>
+                        <polygon points="22,3 40,13 40,37 22,47 4,37 4,13" fill="rgba(10,18,44,0.85)" stroke="url(#dvG)" stroke-width="2"/>
+                        <circle cx="22" cy="18" r="3" fill="url(#dvG)"/>
+                        <circle cx="14" cy="28" r="3" fill="url(#dvG)"/>
+                        <circle cx="30" cy="28" r="3" fill="url(#dvG)"/>
+                        <circle cx="22" cy="36" r="3" fill="url(#dvG)"/>
+                    </svg>
+                </div>
+                <div class="special-info">
+                    <div class="special-name">Diversity Master</div>
+                    <div class="special-desc">Earn a Bloodline badge on 10+ different species. Rewards breadth over depth.</div>
+                </div>
+                <div class="special-status"><span class="pip"></span>8 / 10 species</div>
+            </div>
+
+            <div class="special-card">
+                <div class="special-icon">
+                    <svg viewBox="0 0 44 50">
+                        <defs><linearGradient id="srG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs>
+                        <polygon points="22,3 40,13 40,37 22,47 4,37 4,13" fill="rgba(10,18,44,0.85)" stroke="url(#srG)" stroke-width="2"/>
+                        <path d="M 18 16 L 26 26 L 22 26 L 26 34 L 18 24 L 22 24 Z" fill="url(#srG)"/>
+                    </svg>
+                </div>
+                <div class="special-info">
+                    <div class="special-name">Speedrun Champion</div>
+                    <div class="special-desc">Bronze → Gold Bloodline on a single species in under 30 days. Tracks the steepest curve.</div>
+                </div>
+                <div class="special-status"><span class="pip"></span>NOT STARTED</div>
+            </div>
+
+            <div class="special-card earned">
+                <div class="special-icon">
+                    <svg viewBox="0 0 44 50">
+                        <defs><linearGradient id="pcG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/></linearGradient></defs>
+                        <polygon points="22,3 40,13 40,37 22,47 4,37 4,13" fill="rgba(10,18,44,0.85)" stroke="url(#pcG)" stroke-width="2"/>
+                        <circle cx="14" cy="20" r="2.5" fill="url(#pcG)"/>
+                        <circle cx="22" cy="16" r="2.5" fill="url(#pcG)"/>
+                        <circle cx="30" cy="20" r="2.5" fill="url(#pcG)"/>
+                        <circle cx="14" cy="32" r="2.5" fill="url(#pcG)"/>
+                        <circle cx="22" cy="36" r="2.5" fill="url(#pcG)"/>
+                        <circle cx="30" cy="32" r="2.5" fill="url(#pcG)"/>
+                    </svg>
+                </div>
+                <div class="special-info">
+                    <div class="special-name">Perfect Collection</div>
+                    <div class="special-desc">All four Bloodline tiers on a single species. The completionist's badge.</div>
+                </div>
+                <div class="special-status earned-status"><span class="pip"></span>✓ Direwolf · 04/12/2026</div>
+            </div>
+
+            <div class="special-card">
+                <div class="special-icon">
+                    <svg viewBox="0 0 44 50">
+                        <defs><linearGradient id="uvG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fda4af"/><stop offset="100%" stop-color="#ef4444"/></linearGradient></defs>
+                        <polygon points="22,3 40,13 40,37 22,47 4,37 4,13" fill="rgba(10,18,44,0.85)" stroke="url(#uvG)" stroke-width="2"/>
+                        <text x="22" y="32" font-family="Orbitron" font-size="20" font-weight="900" fill="url(#uvG)" text-anchor="middle">!</text>
+                    </svg>
+                </div>
+                <div class="special-info">
+                    <div class="special-name">Underdog Victory</div>
+                    <div class="special-desc">A Diamond Bloodline on Dodo or Lystrosaurus. Trolling at the highest level.</div>
+                </div>
+                <div class="special-status"><span class="pip"></span>NOT STARTED</div>
+            </div>
+
+            <div class="special-card">
+                <div class="special-icon">
+                    <svg viewBox="0 0 44 50">
+                        <defs><linearGradient id="chG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#c4a3f8"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
+                        <polygon points="22,3 40,13 40,37 22,47 4,37 4,13" fill="rgba(10,18,44,0.85)" stroke="url(#chG)" stroke-width="2"/>
+                        <path d="M 22 14 L 28 22 L 34 18 L 32 28 L 22 36 L 12 28 L 10 18 L 16 22 Z" fill="url(#chG)"/>
+                    </svg>
+                </div>
+                <div class="special-info">
+                    <div class="special-name">Community Hero</div>
+                    <div class="special-desc">Help 10+ tribes earn their first Bloodline badge — credited via trade exports.</div>
+                </div>
+                <div class="special-status"><span class="pip"></span>3 / 10 tribes credited</div>
+            </div>
+        </div>
+
+        <!-- Community recognition strip -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Community Recognition <span class="subsection-desc">— Worn perks per tier earned</span></div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; font-family: var(--tek-mono); font-size: 0.76rem;">
+                <div style="background: rgba(205,127,50,0.06); border-left: 2px solid var(--tier-bronze); padding: 10px 14px;">
+                    <div style="color: var(--tier-bronze); font-weight: 700; letter-spacing: 0.10em; margin-bottom: 3px;">BRONZE</div>
+                    <div style="color: var(--tek-text-dim);">"Dedicated Breeder" chat tag</div>
+                </div>
+                <div style="background: rgba(200,200,210,0.06); border-left: 2px solid var(--tier-silver); padding: 10px 14px;">
+                    <div style="color: var(--tier-silver); font-weight: 700; letter-spacing: 0.10em; margin-bottom: 3px;">SILVER</div>
+                    <div style="color: var(--tek-text-dim);">"Expert Breeder" + Hall of Fame</div>
+                </div>
+                <div style="background: rgba(255,215,0,0.06); border-left: 2px solid var(--tier-gold); padding: 10px 14px;">
+                    <div style="color: var(--tier-gold); font-weight: 700; letter-spacing: 0.10em; margin-bottom: 3px;">GOLD</div>
+                    <div style="color: var(--tek-text-dim);">"Master Breeder" + Discord role</div>
+                </div>
+                <div style="background: rgba(0,180,255,0.06); border-left: 2px solid var(--tier-diamond); padding: 10px 14px;">
+                    <div style="color: var(--tier-diamond); font-weight: 700; letter-spacing: 0.10em; margin-bottom: 3px;">DIAMOND</div>
+                    <div style="color: var(--tek-text-dim);">"Legendary Breeder" + permanent server monument</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+/* Hex canvas background */
+(function(){
+    const canvas = document.getElementById('tekHexCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let w, h, hexes = [];
+    function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+        hexes = [];
+        const size = 36, hSpace = size * 1.5, vSpace = size * Math.sqrt(3);
+        for (let y = -size; y < h + size; y += vSpace) {
+            for (let x = -size; x < w + size; x += hSpace) {
+                const offsetY = (Math.floor(x / hSpace) % 2) * vSpace / 2;
+                hexes.push({ x, y: y + offsetY, size, glow: Math.random() });
+            }
+        }
+    }
+    function draw() {
+        ctx.clearRect(0, 0, w, h);
+        const t = Date.now() / 4000;
+        hexes.forEach((hex, i) => {
+            const phase = (Math.sin(t + i * 0.3) + 1) / 2;
+            ctx.strokeStyle = `rgba(0,180,255,${0.03 + phase * 0.04})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let a = 0; a < 6; a++) {
+                const angle = (Math.PI / 3) * a;
+                const px = hex.x + hex.size * Math.cos(angle);
+                const py = hex.y + hex.size * Math.sin(angle);
+                if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        });
+        requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', resize);
+    resize(); draw();
+})();
+
+/* System tabs */
+document.querySelectorAll('.sys-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        const sys = tab.dataset.sys;
+        document.querySelectorAll('.sys-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.sys-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('sys-' + sys).classList.add('active');
+    });
+});
+
+/* Filter chips — visual only for preview */
+document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        if (chip.textContent.includes('Sort:')) return;
+        document.querySelectorAll('.filter-chip').forEach(c => {
+            if (!c.textContent.includes('Sort:')) c.classList.remove('on');
+        });
+        chip.classList.add('on');
+    });
+});
+</script>
+
+</body>
+</html>

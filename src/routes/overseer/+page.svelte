@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Sword, Users, LogIn, Send, X, Dna, ScrollText, UserPlus } from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 
@@ -183,26 +184,28 @@
 	function ago(dt: string) { const d = new Date(dt); return d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }); }
 </script>
 
-<div class="std-page ov-page">
+<div class="tek-stage ov-page">
 
 	{#if !activeSession}
 		<!-- ── Boss browser ──────────────────────────────────────────────── -->
-		<div class="std-page-header">
-			<div class="page-title">
-				<h1>Overseer</h1>
-				<div class="page-subtitle">{BOSSES.length} bosses across {MAPS.length - 1} maps</div>
-			</div>
-		</div>
+		<PageHeader
+			title="Overseer"
+			crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Overseer' }]}
+			sub={`${BOSSES.length} bosses · ${MAPS.length - 1} maps · the wild remembers each one`}
+			subMono={true}
+		/>
 
 		<!-- Join + map filter -->
 		<div class="ov-top-row">
-			<div style="display:flex;gap:8px;align-items:center">
-				<input class="form-control" style="max-width:160px;text-transform:uppercase;letter-spacing:0.1em" placeholder="Join Code" bind:value={joinCode} maxlength={6} onkeydown={(e) => e.key==='Enter' && joinByCode()} />
-				<button class="btn btn-secondary" onclick={joinByCode}><LogIn size={13} /> Join Room</button>
+			<div style="display:flex; gap:8px; align-items:center;">
+				<input class="tek-input-v2" style="max-width:160px; text-transform:uppercase; letter-spacing:0.10em;" placeholder="Join Code" bind:value={joinCode} maxlength={6} onkeydown={(e) => e.key==='Enter' && joinByCode()} />
+				<button class="tek-btn-v2" onclick={joinByCode}><LogIn size={13} strokeWidth={2.5} /> Join Room</button>
 			</div>
 			<div class="ov-map-filters">
 				{#each MAPS as m}
-					<button class="ov-map-btn" class:active={mapFilter===m} onclick={() => mapFilter=m}>{m==='all'?'All Maps':m}</button>
+					<button class="tek-chip" class:on={mapFilter === m} onclick={() => mapFilter = m}>
+						{m === 'all' ? 'All Maps' : m}
+					</button>
 				{/each}
 			</div>
 		</div>
@@ -460,8 +463,23 @@
 .ov-map-btn:hover { background:rgba(255,255,255,0.08); color:#94a3b8; }
 .ov-map-btn.active { background:rgba(0,180,255,0.12); color:#7dd3fc; border-color:rgba(0,180,255,0.35); }
 
-.ov-section-title { font-size:0.62rem; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#334155; margin:20px 0 10px; display:flex; align-items:center; gap:10px; }
-.ov-section-title::after { content:''; flex:1; height:1px; background:rgba(255,255,255,0.04); }
+.ov-section-title {
+	font-family: var(--tek-display);
+	font-size: 0.86rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--tek-text);
+	margin: 24px 0 12px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.ov-section-title::before { content: '▸'; color: var(--tek-blue); }
+.ov-section-title::after { content: ''; flex: 1; height: 1px; background: rgba(0,180,255,0.10); }
+
+.ov-top-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; align-items: center; justify-content: space-between; }
+.ov-map-filters { display: flex; gap: 5px; flex-wrap: wrap; }
 
 .ov-sessions { display:flex; flex-direction:column; gap:5px; margin-bottom:16px; }
 .ov-session { }

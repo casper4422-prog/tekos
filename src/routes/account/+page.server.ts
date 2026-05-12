@@ -1,10 +1,6 @@
-import type { PageServerLoad } from './$types';
-import { db } from '$lib/db';
+import { redirect } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	const user = await db.user.findUnique({
-		where: { id: locals.user!.id },
-		select: { id:true, email:true, nickname:true, bio:true, lookingFor:true, discordName:true, createdAt:true }
-	});
-	return { profile: user };
-};
+// /account has been merged into /settings (Account section).
+export function load() {
+    throw redirect(308, '/settings');
+}

@@ -1,0 +1,1235 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>⬡ TEKOS — Manticore · Boss Detail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&family=Crimson+Pro:ital,wght@1,400&display=swap" rel="stylesheet" />
+<style>
+:root {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.30);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.50);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-pink:         #f472b6;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --tek-serif:        'Crimson Pro', Georgia, serif;
+    --boss-rgb:         245,158,11; /* Manticore amber */
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 50% at 80% 12%, rgba(var(--boss-rgb),0.10) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 45% at 15% 90%, rgba(239,68,68,0.08) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+}
+#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.demo-banner {
+    position: fixed; top: 14px; left: 14px; z-index: 60;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--tek-amber);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; letter-spacing: 0.12em;
+    padding: 5px 10px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.return-link {
+    position: fixed; top: 18px; right: 22px; z-index: 50;
+    font-family: var(--tek-mono); font-size: 0.7rem;
+    letter-spacing: 0.18em; color: var(--tek-text-dim);
+    text-decoration: none; transition: color 0.2s;
+}
+.return-link:hover { color: var(--tek-amber); }
+.return-link .arrow { display: inline-block; transform: rotate(180deg); margin-right: 4px; }
+
+.stage {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    padding: 70px 24px 80px;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   BREADCRUMB
+   ═════════════════════════════════════════════════════════════════════════ */
+.breadcrumb {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    margin-bottom: 18px;
+    text-transform: uppercase;
+}
+.breadcrumb a { color: var(--tek-text-dim); text-decoration: none; transition: color 0.2s; }
+.breadcrumb a:hover { color: var(--tek-amber); }
+.breadcrumb .sep { color: var(--tek-text-faint); margin: 0 8px; }
+.breadcrumb .here { color: rgb(var(--boss-rgb)); font-weight: 700; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   BOSS HERO
+   ═════════════════════════════════════════════════════════════════════════ */
+.boss-hero {
+    position: relative;
+    background:
+        radial-gradient(ellipse 70% 60% at 25% 30%, rgba(var(--boss-rgb), 0.18) 0%, transparent 60%),
+        linear-gradient(160deg, rgba(20,15,8,0.96) 0%, rgba(8,5,2,0.99) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    clip-path: polygon(18px 0%, 100% 0%, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0% 100%, 0% 18px);
+    padding: 28px 32px 24px 36px;
+    margin-bottom: 32px;
+    overflow: hidden;
+    filter: drop-shadow(0 0 1px rgba(var(--boss-rgb),0.50)) drop-shadow(0 0 50px rgba(var(--boss-rgb),0.10)) drop-shadow(0 22px 60px rgba(0,0,0,0.65));
+}
+.boss-hero::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 18px; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, rgb(var(--boss-rgb)), #b45309);
+    box-shadow: 0 0 10px rgba(var(--boss-rgb),0.7);
+    z-index: 2;
+}
+.boss-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(180deg, transparent 0 3px, rgba(var(--boss-rgb),0.015) 3px 4px);
+    pointer-events: none;
+    z-index: 1;
+}
+.boss-hero-ghost {
+    position: absolute;
+    bottom: -36px;
+    right: -16px;
+    font-family: var(--tek-display);
+    font-size: 12rem;
+    font-weight: 900;
+    line-height: 0.85;
+    color: rgba(var(--boss-rgb),0.04);
+    -webkit-text-stroke: 1px rgba(var(--boss-rgb),0.06);
+    letter-spacing: 0.04em;
+    user-select: none;
+    pointer-events: none;
+}
+.boss-hero-content {
+    position: relative;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 30px;
+    align-items: center;
+}
+@media (max-width: 860px) {
+    .boss-hero-content { grid-template-columns: auto 1fr; gap: 18px; }
+}
+.boss-hero-glyph {
+    width: 110px; height: 124px;
+    flex-shrink: 0;
+}
+.boss-hero-glyph svg { width: 100%; height: 100%; filter: drop-shadow(0 0 14px rgba(var(--boss-rgb),0.65)); }
+
+.boss-hero-info { min-width: 0; }
+.boss-hero-name {
+    font-family: var(--tek-display);
+    font-size: clamp(2.2rem, 6vw, 3.2rem);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    background: linear-gradient(180deg, #ffffff 0%, #fde68a 60%, rgba(var(--boss-rgb),0.5) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 14px rgba(var(--boss-rgb),0.40));
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.boss-hero-meta {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+.boss-hero-meta .map { color: rgb(var(--boss-rgb)); font-weight: 600; }
+.boss-hero-quote {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 0.95rem;
+    color: #94a3b8;
+    line-height: 1.55;
+    max-width: 580px;
+    padding-left: 12px;
+    border-left: 1px solid rgba(var(--boss-rgb),0.25);
+}
+
+/* Difficulty selector */
+.diff-select {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.diff-select-label {
+    font-family: var(--tek-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+.diff-btn {
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-display);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    cursor: pointer;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: all 0.18s;
+    min-width: 110px;
+    text-align: center;
+}
+.diff-btn:hover { color: var(--tek-text); border-color: rgba(var(--boss-rgb),0.40); }
+.diff-btn.active {
+    background: linear-gradient(135deg, rgba(var(--boss-rgb),0.25) 0%, rgba(var(--boss-rgb),0.10) 100%);
+    border-color: rgb(var(--boss-rgb));
+    color: #fff;
+    text-shadow: 0 0 8px rgba(var(--boss-rgb),0.6);
+    filter: drop-shadow(0 0 8px rgba(var(--boss-rgb),0.35));
+}
+.diff-btn.won::after { content: ' ✓'; color: var(--tek-green); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   SECTION SCAFFOLD
+   ═════════════════════════════════════════════════════════════════════════ */
+.section { margin-bottom: 36px; }
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 18px;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--tek-text-dim);
+}
+.section-header .pip { width: 7px; height: 7px; border-radius: 50%; background: rgb(var(--boss-rgb)); box-shadow: 0 0 8px rgba(var(--boss-rgb),0.7); }
+.section-header .rule { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(var(--boss-rgb),0.20), transparent); }
+.section-header .action {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-faint);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: color 0.18s;
+}
+.section-header .action:hover { color: rgb(var(--boss-rgb)); }
+.section-header .action .arrow { color: rgb(var(--boss-rgb)); margin-left: 4px; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   ACTIVE WAR ROOM
+   ═════════════════════════════════════════════════════════════════════════ */
+.warroom {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.98) 100%);
+    backdrop-filter: blur(12px);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 22px 26px;
+    filter: drop-shadow(0 0 1px rgba(var(--boss-rgb),0.30)) drop-shadow(0 12px 32px rgba(0,0,0,0.5));
+}
+.warroom::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 0;
+    width: 2px;
+    background: rgb(var(--boss-rgb));
+    box-shadow: 0 0 7px rgba(var(--boss-rgb),0.7);
+}
+
+.warroom-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    flex-wrap: wrap;
+}
+.warroom-head-info {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.10em;
+}
+.warroom-title {
+    font-family: var(--tek-display);
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.warroom-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.diff-chip {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(var(--boss-rgb),0.25) 0%, rgba(var(--boss-rgb),0.15) 100%);
+    border: 1px solid rgba(var(--boss-rgb),0.55);
+    color: #fde68a;
+    font-family: var(--tek-display);
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.vis-chip {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(16,185,129,0.10);
+    border: 1px solid rgba(16,185,129,0.32);
+    color: #86efac;
+    font-family: var(--tek-mono);
+    font-size: 0.56rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.warroom-timer-block { text-align: right; }
+.warroom-timer-label {
+    font-family: var(--tek-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.warroom-timer {
+    font-family: var(--tek-display);
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: rgb(var(--boss-rgb));
+    text-shadow: 0 0 12px rgba(var(--boss-rgb),0.55);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+.warroom-scheduled {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.10em;
+    margin-top: 3px;
+}
+
+/* Body grid */
+.warroom-body {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 24px;
+}
+@media (max-width: 980px) { .warroom-body { grid-template-columns: 1fr; } }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   READINESS TRACKER
+   ═════════════════════════════════════════════════════════════════════════ */
+.readiness-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.readiness-section {
+    background: linear-gradient(160deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.15) 100%);
+    border: 1px solid rgba(255,255,255,0.04);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 12px 16px 12px 18px;
+    position: relative;
+}
+.readiness-section::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px; bottom: 0;
+    width: 2px;
+}
+.readiness-section.tames     ::before { background: var(--tek-red);   box-shadow: 0 0 5px rgba(239,68,68,0.55);  }
+.readiness-section.saddles   ::before { background: var(--tek-amber); box-shadow: 0 0 5px rgba(245,158,11,0.55); }
+.readiness-section.gear      ::before { background: var(--tek-blue);  box-shadow: 0 0 5px var(--tek-blue-glow); }
+.readiness-section.consumables::before { background: var(--tek-green); box-shadow: 0 0 5px rgba(16,185,129,0.55); }
+.readiness-section.tributes  ::before { background: var(--tek-purple);box-shadow: 0 0 5px rgba(139,92,246,0.55); }
+
+.readiness-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.readiness-header .icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+}
+.readiness-header .icon-wrap svg {
+    width: 14px; height: 14px;
+}
+.readiness-section.tames .icon-wrap svg     { color: #fca5a5; filter: drop-shadow(0 0 3px rgba(239,68,68,0.5)); }
+.readiness-section.saddles .icon-wrap svg   { color: #fcd34d; filter: drop-shadow(0 0 3px rgba(245,158,11,0.5)); }
+.readiness-section.gear .icon-wrap svg      { color: #7dd3fc; filter: drop-shadow(0 0 3px var(--tek-blue-glow)); }
+.readiness-section.consumables .icon-wrap svg { color: #86efac; filter: drop-shadow(0 0 3px rgba(16,185,129,0.5)); }
+.readiness-section.tributes .icon-wrap svg  { color: #c4b5fd; filter: drop-shadow(0 0 3px rgba(139,92,246,0.5)); }
+
+.readiness-header .title {
+    font-family: var(--tek-display);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+}
+.readiness-status {
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+.readiness-status.ready   { background: rgba(16,185,129,0.15); color: #86efac; border: 1px solid rgba(16,185,129,0.40); }
+.readiness-status.partial { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.40); }
+.readiness-status.missing { background: rgba(239,68,68,0.12);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.32);  }
+
+.readiness-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 4px 0;
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text);
+    line-height: 1.4;
+}
+.readiness-row .name { color: var(--tek-text); }
+.readiness-row .name .sub { color: var(--tek-text-faint); font-size: 0.62rem; margin-left: 4px; }
+.readiness-row .qty {
+    font-family: var(--tek-display);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--tek-text);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.readiness-row .qty .req { color: var(--tek-text-faint); font-size: 0.68rem; }
+.readiness-row .qty .cur.met { color: var(--tek-green); text-shadow: 0 0 5px rgba(16,185,129,0.45); }
+.readiness-row .qty .cur.gap { color: var(--tek-amber); text-shadow: 0 0 5px rgba(245,158,11,0.45); }
+.readiness-row .qty .cur.missing { color: var(--tek-red); text-shadow: 0 0 5px rgba(239,68,68,0.45); }
+.readiness-row .check {
+    width: 14px; height: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--tek-mono);
+    font-weight: 800;
+}
+.readiness-row .check.ok      { color: var(--tek-green); text-shadow: 0 0 5px rgba(16,185,129,0.45); }
+.readiness-row .check.gap     { color: var(--tek-amber); text-shadow: 0 0 5px rgba(245,158,11,0.45); }
+.readiness-row .check.missing { color: var(--tek-red); text-shadow: 0 0 5px rgba(239,68,68,0.45); }
+
+.readiness-bar {
+    height: 4px;
+    background: rgba(0,0,0,0.45);
+    margin-top: 8px;
+    position: relative;
+    overflow: hidden;
+    clip-path: polygon(2px 0%, 100% 0%, calc(100% - 2px) 100%, 0% 100%);
+}
+.readiness-bar-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    background: linear-gradient(90deg, var(--tek-red), var(--tek-amber), var(--tek-green));
+    box-shadow: 0 0 6px rgba(245,158,11,0.45);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   SQUAD + INVITE
+   ═════════════════════════════════════════════════════════════════════════ */
+.squad-block {
+    background: linear-gradient(160deg, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.15) 100%);
+    border: 1px solid rgba(255,255,255,0.04);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+}
+.squad-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.squad-head .count { color: rgb(var(--boss-rgb)); text-shadow: 0 0 5px rgba(var(--boss-rgb),0.5); }
+.squad-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 5px;
+    margin-bottom: 10px;
+}
+.squad-slot {
+    aspect-ratio: 1 / 1.1;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.05);
+    clip-path: polygon(5px 0%, 100% 0%, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0% 100%, 0% 5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.18s;
+    position: relative;
+    font-family: var(--tek-display);
+}
+.squad-slot.filled {
+    background: linear-gradient(160deg, rgba(0,180,255,0.20) 0%, rgba(4,8,20,0.92) 100%);
+    border-color: rgba(0,180,255,0.40);
+}
+.squad-slot.filled .initial { font-size: 0.92rem; font-weight: 800; color: #7dd3fc; }
+.squad-slot.empty {
+    border-style: dashed;
+    color: var(--tek-text-faint);
+    font-size: 1.4rem;
+}
+.squad-slot.empty:hover { border-color: rgba(0,180,255,0.40); color: var(--tek-blue); }
+.squad-slot .pip {
+    position: absolute;
+    bottom: 3px; right: 3px;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--tek-green);
+    box-shadow: 0 0 4px rgba(16,185,129,0.7);
+}
+.invite-btn {
+    width: 100%;
+    background: rgba(0,180,255,0.06);
+    border: 1px solid rgba(0,180,255,0.30);
+    color: #7dd3fc;
+    font-family: inherit;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 8px;
+    cursor: pointer;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: all 0.18s;
+}
+.invite-btn:hover {
+    background: rgba(0,180,255,0.18);
+    filter: drop-shadow(0 0 8px var(--tek-blue-glow));
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   CHAT PANEL
+   ═════════════════════════════════════════════════════════════════════════ */
+.chat-block {
+    background: linear-gradient(160deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.20) 100%);
+    border: 1px solid rgba(255,255,255,0.04);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    height: 460px;
+}
+.chat-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.chat-head .live-pip {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--tek-green);
+    box-shadow: 0 0 5px rgba(16,185,129,0.7);
+    margin-left: 6px;
+    animation: amber-pulse 1.8s ease-in-out infinite;
+}
+@keyframes amber-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,180,255,0.3) transparent;
+}
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-thumb { background: rgba(0,180,255,0.25); border-radius: 2px; }
+.chat-msg {
+    display: grid;
+    grid-template-columns: 26px 1fr;
+    gap: 9px;
+}
+.chat-avatar {
+    width: 26px; height: 26px;
+    flex-shrink: 0;
+}
+.chat-avatar svg { width: 100%; height: 100%; }
+.chat-body { min-width: 0; line-height: 1.4; }
+.chat-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+}
+.chat-meta .who    { color: #fcd34d; font-weight: 700; }
+.chat-meta .who.alpha { color: #ffd700; text-shadow: 0 0 5px rgba(255,215,0,0.5); }
+.chat-meta .who.officer { color: #7dd3fc; }
+.chat-meta .time   { color: var(--tek-text-faint); }
+.chat-text {
+    font-size: 0.84rem;
+    color: var(--tek-text);
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+.chat-text .mention { color: #7dd3fc; font-weight: 600; }
+.chat-text .commit  { color: #86efac; }
+
+.chat-msg.system .chat-text {
+    color: var(--tek-text-faint);
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    font-style: italic;
+    letter-spacing: 0.04em;
+}
+.chat-msg.system .chat-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tek-text-faint);
+}
+
+.chat-input-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+.chat-input {
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    color: var(--tek-text);
+    padding: 9px 12px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    outline: none;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+}
+.chat-input::placeholder { color: var(--tek-text-faint); }
+.chat-input:focus { border-color: rgba(0,180,255,0.40); border-bottom-color: var(--tek-blue); }
+.chat-send {
+    background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
+    color: #001a2e;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 9px 14px;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    filter: drop-shadow(0 0 6px rgba(0,180,255,0.4));
+    transition: filter 0.18s;
+}
+.chat-send:hover { filter: drop-shadow(0 0 12px rgba(0,180,255,0.7)); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   CREATURE CARDS COMMITTED
+   ═════════════════════════════════════════════════════════════════════════ */
+.creatures-block { margin-top: 14px; }
+.creatures-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+}
+.creature-card {
+    --cat-rgb: 239,68,68;
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.98) 100%);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 9px 11px 9px 13px;
+    cursor: pointer;
+    transition: all 0.18s;
+    filter: drop-shadow(0 0 1px rgba(var(--cat-rgb),0.25));
+}
+.creature-card:hover {
+    transform: translateY(-2px);
+    filter: drop-shadow(0 0 2px rgba(var(--cat-rgb),0.60)) drop-shadow(0 6px 14px rgba(0,0,0,0.45));
+}
+.creature-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px; bottom: 0;
+    width: 2px;
+    background: rgb(var(--cat-rgb));
+    box-shadow: 0 0 4px rgba(var(--cat-rgb), 0.55);
+}
+.creature-card.combat { --cat-rgb: 239,68,68; }
+.creature-card.flyer  { --cat-rgb: 6,182,212; }
+.creature-card.mount  { --cat-rgb: 249,115,22; }
+.creature-species {
+    font-family: var(--tek-display);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    line-height: 1;
+    margin-bottom: 3px;
+}
+.creature-nick {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    color: var(--tek-text-dim);
+    font-style: italic;
+    margin-bottom: 5px;
+}
+.creature-stats {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-family: var(--tek-mono);
+}
+.creature-lvl {
+    font-family: var(--tek-display);
+    font-size: 0.86rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #00d4ff, #c084fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.creature-owner {
+    font-size: 0.56rem;
+    letter-spacing: 0.12em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+
+.creature-add {
+    background: linear-gradient(160deg, rgba(10,18,44,0.40) 0%, rgba(4,8,20,0.55) 100%);
+    border: 1.5px dashed rgba(0,180,255,0.30);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 70px;
+}
+.creature-add:hover {
+    background: linear-gradient(160deg, rgba(0,180,255,0.06) 0%, rgba(4,8,20,0.55) 100%);
+    border-color: rgba(0,180,255,0.60);
+}
+.creature-add-glyph {
+    font-family: var(--tek-display);
+    font-size: 1.4rem;
+    color: var(--tek-blue);
+    filter: drop-shadow(0 0 8px var(--tek-blue-glow));
+    line-height: 1;
+}
+.creature-add-label {
+    font-family: var(--tek-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   Footer
+   ═════════════════════════════════════════════════════════════════════════ */
+.bottom-note {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .stage { padding: 60px 14px 80px; }
+    .boss-hero-content { grid-template-columns: 1fr; gap: 18px; }
+    .boss-hero-glyph { width: 88px; height: 100px; }
+    .warroom { padding: 18px 18px; }
+}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">PREVIEW MODE ▸ BOSS DETAIL · MANTICORE</div>
+<a href="overseer-preview.html" class="return-link"><span class="arrow">▸</span> RETURN TO OVERSEER</a>
+
+<canvas id="tekHexCanvas"></canvas>
+
+<div class="stage">
+
+    <!-- ═══════════ BREADCRUMB ═══════════ -->
+    <div class="breadcrumb">
+        <a href="overseer-preview.html">Overseer</a>
+        <span class="sep">›</span>
+        <span>Ragnarok · Boss Arena</span>
+        <span class="sep">›</span>
+        <span class="here">Manticore</span>
+    </div>
+
+    <!-- ═══════════ BOSS HERO ═══════════ -->
+    <div class="boss-hero">
+        <div class="boss-hero-ghost">MANTICORE</div>
+
+        <div class="boss-hero-content">
+            <div class="boss-hero-glyph">
+                <svg viewBox="0 0 100 110">
+                    <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.20)" stroke="#f59e0b" stroke-width="2.5"/>
+                    <polygon points="50,18 80,36 80,74 50,92 20,74 20,36" fill="none" stroke="#fbbf24" stroke-width="1" opacity="0.5"/>
+                    <text x="50" y="72" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#fcd34d">M</text>
+                </svg>
+            </div>
+
+            <div class="boss-hero-info">
+                <div class="boss-hero-name">Manticore</div>
+                <div class="boss-hero-meta">Chimera of the Desert · <span class="map">Ragnarok·07 Boss Arena</span></div>
+                <p class="boss-hero-quote">"Lion's body. Bat's wings. Scorpion's tail. A predator that does not understand fear — only the survivor who learns its rhythm walks out of the arena."</p>
+            </div>
+
+            <div class="diff-select">
+                <div class="diff-select-label">Difficulty</div>
+                <button class="diff-btn won">Gamma</button>
+                <button class="diff-btn won">Beta</button>
+                <button class="diff-btn active">Alpha</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ ACTIVE WAR ROOM ═══════════ -->
+    <section class="section">
+        <div class="section-header">
+            <span class="pip"></span>
+            Active War Room
+            <span class="rule"></span>
+            <button class="action">+ Schedule Another <span class="arrow">▸</span></button>
+        </div>
+
+        <div class="warroom">
+            <div class="warroom-head">
+                <div>
+                    <div class="warroom-title">Squad Bloodline</div>
+                    <div class="warroom-meta">
+                        <span class="diff-chip">⚔ Alpha</span>
+                        <span class="vis-chip">🤝 Allies</span>
+                        <span class="warroom-head-info">Hosted by <span style="color:#fcd34d;font-weight:600">Casper4422</span></span>
+                    </div>
+                </div>
+                <div class="warroom-timer-block">
+                    <div class="warroom-timer-label">Engagement in</div>
+                    <div class="warroom-timer" id="bossTimer">--</div>
+                    <div class="warroom-scheduled">SAT 2026·05·18 · 20:00 UTC</div>
+                </div>
+            </div>
+
+            <div class="warroom-body">
+
+                <!-- LEFT: Readiness tracker -->
+                <div>
+                    <div class="readiness-grid">
+
+                        <!-- TAMES -->
+                        <div class="readiness-section tames">
+                            <div class="readiness-header">
+                                <div class="icon-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/></svg>
+                                    <span class="title">Tames</span>
+                                </div>
+                                <span class="readiness-status partial">PARTIAL</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Rex <span class="sub">8,000+ HP · 500%+ MEL</span></span>
+                                <span class="qty"><span class="cur gap">14</span><span class="req"> / 19</span></span>
+                                <span class="check gap">⚠</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Yutyrannus <span class="sub">Imprinted, courage roar</span></span>
+                                <span class="qty"><span class="cur met">1</span><span class="req"> / 1</span></span>
+                                <span class="check ok">✓</span>
+                            </div>
+                            <div class="readiness-bar"><div class="readiness-bar-fill" style="width:75%"></div></div>
+                        </div>
+
+                        <!-- SADDLES -->
+                        <div class="readiness-section saddles">
+                            <div class="readiness-header">
+                                <div class="icon-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                                    <span class="title">Saddles</span>
+                                </div>
+                                <span class="readiness-status partial">PARTIAL</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Rex saddle <span class="sub">Ascendant quality+</span></span>
+                                <span class="qty"><span class="cur gap">14</span><span class="req"> / 19</span></span>
+                                <span class="check gap">⚠</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Yutyrannus saddle</span>
+                                <span class="qty"><span class="cur met">1</span><span class="req"> / 1</span></span>
+                                <span class="check ok">✓</span>
+                            </div>
+                            <div class="readiness-bar"><div class="readiness-bar-fill" style="width:75%"></div></div>
+                        </div>
+
+                        <!-- GEAR -->
+                        <div class="readiness-section gear">
+                            <div class="readiness-header">
+                                <div class="icon-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                    <span class="title">Gear</span>
+                                </div>
+                                <span class="readiness-status ready">READY</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Flak chestplate <span class="sub">Apprentice+</span></span>
+                                <span class="qty"><span class="cur met">8</span><span class="req"> / 8</span></span>
+                                <span class="check ok">✓</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Crossbow + tranq arrows</span>
+                                <span class="qty"><span class="cur met">8</span><span class="req"> / 8</span></span>
+                                <span class="check ok">✓</span>
+                            </div>
+                            <div class="readiness-bar"><div class="readiness-bar-fill" style="width:100%"></div></div>
+                        </div>
+
+                        <!-- CONSUMABLES -->
+                        <div class="readiness-section consumables">
+                            <div class="readiness-header">
+                                <div class="icon-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z"/></svg>
+                                    <span class="title">Consumables</span>
+                                </div>
+                                <span class="readiness-status ready">READY</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Medical brew</span>
+                                <span class="qty"><span class="cur met">120</span><span class="req"> / 100</span></span>
+                                <span class="check ok">✓</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Stim berry</span>
+                                <span class="qty"><span class="cur met">80</span><span class="req"> / 80</span></span>
+                                <span class="check ok">✓</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Mindwipe tonic</span>
+                                <span class="qty"><span class="cur met">8</span><span class="req"> / 8</span></span>
+                                <span class="check ok">✓</span>
+                            </div>
+                            <div class="readiness-bar"><div class="readiness-bar-fill" style="width:100%"></div></div>
+                        </div>
+
+                        <!-- TRIBUTES -->
+                        <div class="readiness-section tributes">
+                            <div class="readiness-header">
+                                <div class="icon-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                                    <span class="title">Tributes (Alpha Manticore)</span>
+                                </div>
+                                <span class="readiness-status missing">MISSING</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Megalania toxin</span>
+                                <span class="qty"><span class="cur met">12</span><span class="req"> / 8</span></span>
+                                <span class="check ok">✓</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Wyvern talon</span>
+                                <span class="qty"><span class="cur met">5</span><span class="req"> / 5</span></span>
+                                <span class="check ok">✓</span>
+                            </div>
+                            <div class="readiness-row">
+                                <span class="name">Element shard</span>
+                                <span class="qty"><span class="cur missing">0</span><span class="req"> / 50</span></span>
+                                <span class="check missing">✗</span>
+                            </div>
+                            <div class="readiness-bar"><div class="readiness-bar-fill" style="width:60%"></div></div>
+                        </div>
+
+                    </div>
+
+                    <!-- Squad block under readiness -->
+                    <div class="squad-block" style="margin-top:14px">
+                        <div class="squad-head">
+                            <span>Squad</span>
+                            <span class="count">5 / 8 COMMITTED</span>
+                        </div>
+                        <div class="squad-grid">
+                            <div class="squad-slot filled"><span class="initial">C</span><span class="pip"></span></div>
+                            <div class="squad-slot filled"><span class="initial">S</span><span class="pip"></span></div>
+                            <div class="squad-slot filled"><span class="initial">B</span></div>
+                            <div class="squad-slot filled"><span class="initial">A</span><span class="pip"></span></div>
+                            <div class="squad-slot filled"><span class="initial">H</span><span class="pip"></span></div>
+                            <div class="squad-slot empty">+</div>
+                            <div class="squad-slot empty">+</div>
+                            <div class="squad-slot empty">+</div>
+                        </div>
+                        <button class="invite-btn">⬡ Invite Survivor</button>
+                    </div>
+
+                    <!-- Creatures committed -->
+                    <div class="creatures-block">
+                        <div class="squad-head">
+                            <span>Creatures Committed</span>
+                            <span class="count">11 OF 20 RECOMMENDED</span>
+                        </div>
+                        <div class="creatures-grid">
+                            <div class="creature-card combat">
+                                <div class="creature-species">Yutyrannus</div>
+                                <div class="creature-nick">"Roar" · ♀</div>
+                                <div class="creature-stats"><span class="creature-lvl">392</span><span class="creature-owner">Casper</span></div>
+                            </div>
+                            <div class="creature-card combat">
+                                <div class="creature-species">Rex</div>
+                                <div class="creature-nick">"Bloodfang" · ♀</div>
+                                <div class="creature-stats"><span class="creature-lvl">372</span><span class="creature-owner">Casper</span></div>
+                            </div>
+                            <div class="creature-card combat">
+                                <div class="creature-species">Rex</div>
+                                <div class="creature-nick">"Crimson" · ♂</div>
+                                <div class="creature-stats"><span class="creature-lvl">348</span><span class="creature-owner">Bloodfang</span></div>
+                            </div>
+                            <div class="creature-card mount">
+                                <div class="creature-species">Carcharo</div>
+                                <div class="creature-nick">"Apex" · ♂</div>
+                                <div class="creature-stats"><span class="creature-lvl">384</span><span class="creature-owner">Apex</span></div>
+                            </div>
+                            <div class="creature-add">
+                                <div class="creature-add-glyph">+</div>
+                                <div class="creature-add-label">Commit creature</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Chat -->
+                <div class="chat-block">
+                    <div class="chat-head">
+                        <span>Tribe Chat <span class="live-pip"></span></span>
+                        <span style="color:var(--tek-text-faint)">5 ONLINE</span>
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="chat-msg system">
+                            <div class="chat-avatar">⌬</div>
+                            <div class="chat-body"><div class="chat-text">War room opened by Casper4422 · 5d 22h ago</div></div>
+                        </div>
+                        <div class="chat-msg">
+                            <div class="chat-avatar">
+                                <svg viewBox="0 0 100 110"><polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(255,215,0,0.18)" stroke="#ffd700" stroke-width="3"/><text x="50" y="76" font-family="Orbitron" font-size="56" font-weight="900" text-anchor="middle" fill="#fde047">C</text></svg>
+                            </div>
+                            <div class="chat-body">
+                                <div class="chat-meta"><span class="who alpha">Casper4422</span><span class="time">5d ago</span></div>
+                                <div class="chat-text">Locked in 5d 22h from now. Need <span class="commit">5 more rexes at 8k HP min</span> + tribute element shards. <span class="mention">@Specter</span> can you farm element from the cave this weekend?</div>
+                            </div>
+                        </div>
+                        <div class="chat-msg">
+                            <div class="chat-avatar">
+                                <svg viewBox="0 0 100 110"><polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke="#00b4ff" stroke-width="3"/><text x="50" y="76" font-family="Orbitron" font-size="56" font-weight="900" text-anchor="middle" fill="#7dd3fc">S</text></svg>
+                            </div>
+                            <div class="chat-body">
+                                <div class="chat-meta"><span class="who officer">Specter</span><span class="time">5d ago</span></div>
+                                <div class="chat-text">On it. Stormcaller can carry the haul. <span class="commit">Committed Stormcaller (442 Lvl)</span> to the squad.</div>
+                            </div>
+                        </div>
+                        <div class="chat-msg">
+                            <div class="chat-avatar">
+                                <svg viewBox="0 0 100 110"><polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(167,139,250,0.18)" stroke="#a78bfa" stroke-width="3"/><text x="50" y="76" font-family="Orbitron" font-size="56" font-weight="900" text-anchor="middle" fill="#c4b5fd">A</text></svg>
+                            </div>
+                            <div class="chat-body">
+                                <div class="chat-meta"><span class="who">Apex</span><span class="time">3d ago</span></div>
+                                <div class="chat-text">Carcharo's at 384 — should I bring him as a meatshield? <span class="commit">Committed Carcharo "Apex"</span></div>
+                            </div>
+                        </div>
+                        <div class="chat-msg">
+                            <div class="chat-avatar">
+                                <svg viewBox="0 0 100 110"><polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(255,215,0,0.18)" stroke="#ffd700" stroke-width="3"/><text x="50" y="76" font-family="Orbitron" font-size="56" font-weight="900" text-anchor="middle" fill="#fde047">C</text></svg>
+                            </div>
+                            <div class="chat-body">
+                                <div class="chat-meta"><span class="who alpha">Casper4422</span><span class="time">2d ago</span></div>
+                                <div class="chat-text">Yes please. Yuty roar + carcharo aggro will buy the rexes time on Manticore.</div>
+                            </div>
+                        </div>
+                        <div class="chat-msg system">
+                            <div class="chat-avatar">⬡</div>
+                            <div class="chat-body"><div class="chat-text">Hera committed Argentavis "Pack Mule" as supply carrier · 4h ago</div></div>
+                        </div>
+                        <div class="chat-msg">
+                            <div class="chat-avatar">
+                                <svg viewBox="0 0 100 110"><polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(167,139,250,0.18)" stroke="#a78bfa" stroke-width="3"/><text x="50" y="76" font-family="Orbitron" font-size="56" font-weight="900" text-anchor="middle" fill="#c4b5fd">H</text></svg>
+                            </div>
+                            <div class="chat-body">
+                                <div class="chat-meta"><span class="who">Hera</span><span class="time">2h ago</span></div>
+                                <div class="chat-text">Brews stocked. 120 ready. We need someone to mindwipe their Rex for boss spec — anyone got tonics?</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input-row">
+                        <input type="text" class="chat-input" placeholder="Message the war room…" />
+                        <button class="chat-send">Send</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
+
+<script>
+(function () {
+    const canvas = document.getElementById('tekHexCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const R = 32, W = R * Math.sqrt(3), H = R * 2;
+    let phase = 0;
+    function drawHex(x, y, opacity) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 6;
+            const px = x + (R - 1) * Math.cos(a);
+            const py = y + (R - 1) * Math.sin(a);
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(245,158,11,${opacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cw = canvas.width, ch = canvas.height;
+        const cols = Math.ceil(cw / W) + 3;
+        const rows = Math.ceil(ch / (H * 0.75)) + 3;
+        for (let row = -1; row < rows; row++) {
+            for (let col = -1; col < cols; col++) {
+                const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
+                const y = row * H * 0.75;
+                const dx = x - cw * 0.5, dy = y - ch * 0.5;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
+                drawHex(x, y, 0.04 + wave * 0.05);
+            }
+        }
+        phase += 0.005;
+        requestAnimationFrame(draw);
+    }
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize(); draw();
+})();
+
+/* Boss countdown */
+(function () {
+    const el = document.getElementById('bossTimer');
+    if (!el) return;
+    const target = Date.now() + (5 * 86400 + 22 * 3600 + 14 * 60) * 1000;
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function tick() {
+        let diff = Math.max(0, target - Date.now());
+        const d = Math.floor(diff / 86400000); diff -= d * 86400000;
+        const h = Math.floor(diff / 3600000);  diff -= h * 3600000;
+        const m = Math.floor(diff / 60000);    diff -= m * 60000;
+        const s = Math.floor(diff / 1000);
+        if (d > 0)      el.textContent = `${d}d ${h}h ${m}m`;
+        else if (h > 0) el.textContent = `${h}:${pad(m)}:${pad(s)}`;
+        else            el.textContent = `${m}:${pad(s)}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+})();
+
+/* Scroll chat to bottom */
+(function () {
+    const chat = document.getElementById('chatMessages');
+    if (chat) chat.scrollTop = chat.scrollHeight;
+})();
+</script>
+
+</body>
+</html>

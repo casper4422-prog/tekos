@@ -1,0 +1,1399 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>⬡ TEKOS — Specimens Vault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
+<style>
+:root {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.30);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.50);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-pink:         #f472b6;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 50% at 20% 10%, rgba(0,180,255,0.10) 0%, transparent 50%),
+        radial-gradient(ellipse 55% 50% at 85% 90%, rgba(139,92,246,0.08) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+}
+#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.demo-banner {
+    position: fixed; top: 14px; left: 14px; z-index: 60;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--tek-amber);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; letter-spacing: 0.12em;
+    padding: 5px 10px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.return-link {
+    position: fixed; top: 18px; right: 22px; z-index: 50;
+    font-family: var(--tek-mono); font-size: 0.7rem;
+    letter-spacing: 0.18em; color: var(--tek-text-dim);
+    text-decoration: none; transition: color 0.2s;
+}
+.return-link:hover { color: var(--tek-blue); }
+.return-link .arrow { display: inline-block; transform: rotate(180deg); margin-right: 4px; }
+
+.stage {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    padding: 70px 24px 80px;
+    max-width: 1240px;
+    margin: 0 auto;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PAGE HEADER
+   ═════════════════════════════════════════════════════════════════════════ */
+.vault-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+.page-title {
+    font-family: var(--tek-display);
+    font-size: clamp(1.4rem, 4vw, 1.9rem);
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 12px rgba(0,180,255,0.35));
+    margin-bottom: 4px;
+    line-height: 1;
+}
+.page-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.page-sub .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+.page-sub .stat-num {
+    color: var(--tek-blue);
+    font-weight: 700;
+    text-shadow: 0 0 6px var(--tek-blue-glow);
+}
+
+.btn-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 11px 22px;
+    background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
+    color: #001a2e;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    filter: drop-shadow(0 0 12px rgba(0,180,255,0.50));
+    transition: filter 0.18s, transform 0.18s;
+}
+.btn-add:hover { filter: drop-shadow(0 0 22px rgba(0,180,255,0.85)); transform: translateY(-1px); }
+.btn-add .glyph { color: #001a2e; font-size: 0.9rem; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   TOOLBAR
+   ═════════════════════════════════════════════════════════════════════════ */
+.vault-toolbar {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    position: relative;
+}
+.vault-toolbar::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 7px var(--tek-blue-glow);
+}
+
+.toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.toolbar-row + .toolbar-row { margin-top: 10px; }
+
+/* Search */
+.vault-search {
+    flex: 1;
+    min-width: 220px;
+    position: relative;
+}
+.vault-search-input {
+    width: 100%;
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    color: var(--tek-text);
+    padding: 10px 14px 10px 38px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    outline: none;
+    clip-path: polygon(7px 0%, 100% 0%, calc(100% - 7px) 100%, 0% 100%);
+    transition: border-color 0.2s, background 0.2s;
+}
+.vault-search-input::placeholder { color: var(--tek-text-faint); }
+.vault-search-input:focus {
+    border-color: rgba(0,180,255,0.40);
+    border-bottom-color: var(--tek-blue);
+    background: rgba(0,15,35,0.92);
+}
+.vault-search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--tek-text-faint);
+    pointer-events: none;
+}
+
+/* Sort dropdown */
+.sort-block {
+    position: relative;
+}
+.sort-select {
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    color: var(--tek-text);
+    padding: 10px 38px 10px 14px;
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.10em;
+    outline: none;
+    cursor: pointer;
+    clip-path: polygon(7px 0%, 100% 0%, calc(100% - 7px) 100%, 0% 100%);
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300b4ff' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    text-transform: uppercase;
+}
+.sort-select option { background: #0a1228; color: var(--tek-text); }
+
+/* View toggle */
+.view-toggle {
+    display: flex;
+    gap: 0;
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.06);
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    padding: 2px;
+}
+.view-btn {
+    background: transparent;
+    border: none;
+    color: var(--tek-text-faint);
+    cursor: pointer;
+    padding: 8px 11px;
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.view-btn:hover { color: var(--tek-text-dim); }
+.view-btn.active {
+    background: rgba(0,180,255,0.15);
+    color: var(--tek-blue);
+    filter: drop-shadow(0 0 4px var(--tek-blue-glow));
+}
+
+/* Category filter chips */
+.filter-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,180,255,0.04);
+    border: 1px solid rgba(0,180,255,0.16);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 6px 11px;
+    cursor: pointer;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: all 0.18s;
+    font-family: inherit;
+}
+.chip:hover {
+    color: var(--tek-blue);
+    border-color: rgba(0,180,255,0.40);
+}
+.chip.active {
+    background: var(--tek-blue);
+    color: #001a2e;
+    border-color: var(--tek-blue);
+}
+.chip .count {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    opacity: 0.6;
+    background: rgba(0,0,0,0.30);
+    padding: 1px 6px;
+    border-radius: 6px;
+}
+.chip.active .count { background: rgba(0,0,0,0.20); opacity: 0.7; }
+.chip-divider {
+    width: 1px;
+    height: 18px;
+    background: rgba(255,255,255,0.08);
+    margin: 0 4px;
+    align-self: center;
+}
+
+/* Results count */
+.results-count {
+    margin-bottom: 14px;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.results-count .num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   LIST VIEW — compact rows
+   ═════════════════════════════════════════════════════════════════════════ */
+.vault-list { display: flex; flex-direction: column; gap: 6px; }
+.vault-list.hidden, .vault-grid.hidden { display: none; }
+
+.list-row {
+    --cat-rgb: 0,180,255;
+    display: grid;
+    grid-template-columns: auto auto 1fr auto auto auto;
+    gap: 16px;
+    align-items: center;
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.95) 100%);
+    backdrop-filter: blur(10px);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 12px 18px 12px 22px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.18s ease, background 0.18s ease;
+    filter: drop-shadow(0 0 1px rgba(var(--cat-rgb), 0.25)) drop-shadow(0 6px 18px rgba(0,0,0,0.35));
+    transition: filter 0.22s ease, transform 0.18s ease;
+}
+.list-row:hover {
+    transform: translateX(3px);
+    filter: drop-shadow(0 0 2px rgba(var(--cat-rgb), 0.60)) drop-shadow(0 10px 26px rgba(0,0,0,0.48));
+}
+.list-row::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: rgb(var(--cat-rgb));
+    box-shadow: 0 0 6px rgba(var(--cat-rgb), 0.65);
+}
+.list-row.combat   { --cat-rgb: 239,68,68;   }
+.list-row.flyer    { --cat-rgb: 6,182,212;   }
+.list-row.utility  { --cat-rgb: 34,197,94;   }
+.list-row.water    { --cat-rgb: 59,130,246;  }
+.list-row.boss     { --cat-rgb: 245,158,11;  }
+.list-row.mount    { --cat-rgb: 249,115,22;  }
+.list-row.resource { --cat-rgb: 167,139,250; }
+
+/* List row now has two stacked sections */
+.list-row { display: block; padding: 0; }
+.list-row-main {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto auto auto;
+    gap: 16px;
+    align-items: center;
+    padding: 12px 18px 12px 22px;
+}
+.list-row-stats {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    padding: 0 18px 12px 22px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    padding-top: 10px;
+}
+
+.list-row .tier {
+    font-family: var(--tek-mono);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgb(var(--cat-rgb));
+    background: rgba(var(--cat-rgb), 0.10);
+    padding: 3px 7px;
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+    white-space: nowrap;
+}
+
+.list-row .cat-pill {
+    font-family: var(--tek-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+
+.list-info { min-width: 0; line-height: 1.3; }
+.list-species {
+    font-family: var(--tek-display);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    line-height: 1;
+    margin-bottom: 3px;
+}
+.list-nick {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    color: var(--tek-text-dim);
+    font-style: italic;
+}
+.list-nick .gender.female { color: var(--tek-pink); font-style: normal; }
+.list-nick .gender.male   { color: #60a5fa; font-style: normal; }
+
+.list-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-family: var(--tek-mono);
+    line-height: 1.1;
+    min-width: 56px;
+}
+.list-stat-val {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: var(--tek-text);
+}
+.list-stat-lbl {
+    font-size: 0.54rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tek-text-faint);
+    margin-top: 2px;
+}
+.list-level {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-family: var(--tek-display);
+    line-height: 1.1;
+    min-width: 64px;
+}
+.list-level-val {
+    font-size: 1.3rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #00d4ff, #c084fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 5px rgba(0,180,255,0.30));
+}
+.list-level-lbl {
+    font-family: var(--tek-mono);
+    font-size: 0.54rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tek-text-faint);
+    margin-top: 2px;
+}
+
+.list-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.row-btn {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--tek-text-faint);
+    cursor: pointer;
+    transition: all 0.18s;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.row-btn:hover {
+    color: var(--tek-blue);
+    border-color: rgba(0,180,255,0.30);
+    background: rgba(0,180,255,0.06);
+}
+
+/* ── Mini stat blocks (used in both list rows and grid cards) ─────────── */
+.stat-mini {
+    text-align: center;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.04);
+    padding: 6px 4px 5px;
+    clip-path: polygon(2px 0%, 100% 0%, calc(100% - 2px) 100%, 0% 100%);
+    min-width: 0;
+}
+.stat-mini-lbl {
+    font-family: var(--tek-mono);
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+.stat-mini-val {
+    font-family: var(--tek-mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--tek-text);
+    line-height: 1;
+}
+.stat-mini-mut {
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    color: var(--tek-text-faint);
+    margin-top: 3px;
+    font-weight: 600;
+    line-height: 1;
+}
+.stat-mini-mut.has {
+    color: var(--tek-blue);
+    text-shadow: 0 0 5px var(--tek-blue-glow);
+}
+
+/* Grid card now holds a stat block between meta and bottom */
+.grid-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 2;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   GRID VIEW — mid-size cards
+   ═════════════════════════════════════════════════════════════════════════ */
+.vault-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+}
+@media (max-width: 920px) { .vault-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .vault-grid { grid-template-columns: 1fr; } }
+
+.grid-card {
+    --cat-rgb: 0,180,255;
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.98) 100%);
+    backdrop-filter: blur(12px);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 16px 18px 16px 20px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.22s ease, filter 0.25s ease;
+    filter: drop-shadow(0 0 1px rgba(var(--cat-rgb), 0.30)) drop-shadow(0 8px 24px rgba(0,0,0,0.45));
+}
+.grid-card:hover {
+    transform: translateY(-2px);
+    filter: drop-shadow(0 0 2px rgba(var(--cat-rgb), 0.75)) drop-shadow(0 12px 32px rgba(0,0,0,0.6));
+}
+.grid-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 0;
+    width: 2px;
+    background: rgb(var(--cat-rgb));
+    box-shadow: 0 0 6px rgba(var(--cat-rgb), 0.7);
+}
+.grid-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(180deg, transparent 0 3px, rgba(0,180,255,0.018) 3px 4px);
+    pointer-events: none;
+}
+.grid-card.combat   { --cat-rgb: 239,68,68;   }
+.grid-card.flyer    { --cat-rgb: 6,182,212;   }
+.grid-card.utility  { --cat-rgb: 34,197,94;   }
+.grid-card.water    { --cat-rgb: 59,130,246;  }
+.grid-card.boss     { --cat-rgb: 245,158,11;  }
+.grid-card.mount    { --cat-rgb: 249,115,22;  }
+.grid-card.resource { --cat-rgb: 167,139,250; }
+
+.grid-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 2;
+}
+.grid-tier {
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgb(var(--cat-rgb));
+    background: rgba(var(--cat-rgb), 0.10);
+    padding: 3px 8px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.grid-cat-mini {
+    font-family: var(--tek-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: var(--tek-text-faint);
+}
+.grid-species {
+    font-family: var(--tek-display);
+    font-size: clamp(1rem, 3vw, 1.3rem);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.4) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 8px rgba(0,180,255,0.30));
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    z-index: 2;
+}
+.grid-nick {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    color: var(--tek-text-dim);
+    font-style: italic;
+    margin-bottom: 8px;
+    position: relative;
+    z-index: 2;
+}
+.grid-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 2;
+}
+.grid-meta .gender.female { color: var(--tek-pink); }
+.grid-meta .gender.male   { color: #60a5fa; }
+.grid-meta .cat-label { color: rgb(var(--cat-rgb)); font-weight: 700; }
+
+.grid-bottom {
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 10px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    position: relative;
+    z-index: 2;
+}
+.grid-level-num {
+    font-family: var(--tek-display);
+    font-size: 1.8rem;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(135deg, #00d4ff 0%, #c084fc 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 8px rgba(0,180,255,0.35));
+}
+.grid-level-side { text-align: right; line-height: 1.3; }
+.grid-level-lbl {
+    font-family: var(--tek-mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.grid-muts {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--tek-blue);
+    text-shadow: 0 0 4px var(--tek-blue-glow);
+}
+
+/* "+ Log Specimen" placeholder grid card */
+.grid-add {
+    --cat-rgb: 0,180,255;
+    background: linear-gradient(160deg, rgba(10,18,44,0.40) 0%, rgba(4,8,20,0.55) 100%);
+    border: 1.5px dashed rgba(0,180,255,0.30);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    min-height: 200px;
+}
+.grid-add:hover {
+    background: linear-gradient(160deg, rgba(0,180,255,0.06) 0%, rgba(4,8,20,0.55) 100%);
+    border-color: rgba(0,180,255,0.60);
+}
+.grid-add-glyph {
+    font-family: var(--tek-display);
+    font-size: 2rem;
+    color: var(--tek-blue);
+    filter: drop-shadow(0 0 10px var(--tek-blue-glow));
+    line-height: 1;
+}
+.grid-add-label {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    text-align: center;
+}
+.grid-add:hover .grid-add-label { color: var(--tek-blue); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   FOOTER
+   ═════════════════════════════════════════════════════════════════════════ */
+.bottom-note {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .list-row { grid-template-columns: auto 1fr auto auto; gap: 12px; padding: 10px 14px 10px 18px; }
+    .list-row .cat-pill, .list-row .list-stat, .list-row .list-actions { display: none; }
+    .vault-header { align-items: flex-start; }
+    .btn-add { font-size: 0.7rem; padding: 9px 14px; }
+    .stage { padding: 60px 14px 80px; }
+}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">PREVIEW MODE ▸ SPECIMENS VAULT</div>
+<a href="dossier-preview.html" class="return-link"><span class="arrow">▸</span> RETURN TO DOSSIER</a>
+
+<canvas id="tekHexCanvas"></canvas>
+
+<div class="stage">
+
+    <!-- ═══════════ HEADER ═══════════ -->
+    <div class="vault-header">
+        <div>
+            <div class="page-title">Specimens Vault</div>
+            <div class="page-sub">
+                <span class="prefix">›</span>
+                <span class="stat-num">47</span> SAVED · <span class="stat-num">23</span> SPECIES · <span class="stat-num">624</span> MUTATIONS
+            </div>
+        </div>
+        <button class="btn-add"><span class="glyph">⬡</span> Log Specimen</button>
+    </div>
+
+    <!-- ═══════════ TOOLBAR ═══════════ -->
+    <div class="vault-toolbar">
+        <div class="toolbar-row">
+            <div class="vault-search">
+                <svg class="vault-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" class="vault-search-input" placeholder="Search vault by name, species, or nickname…" />
+            </div>
+            <div class="sort-block">
+                <select class="sort-select" id="sortSelect">
+                    <option>Mutations ↓</option>
+                    <option>Total Level ↓</option>
+                    <option>Newest first</option>
+                    <option>Oldest first</option>
+                    <option>Name A–Z</option>
+                </select>
+            </div>
+            <div class="view-toggle">
+                <button class="view-btn active" data-view="list" title="List view">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <button class="view-btn" data-view="grid" title="Grid view">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="toolbar-row">
+            <div class="filter-chips" id="filterChips">
+                <button class="chip active" data-filter="all">All <span class="count">47</span></button>
+                <span class="chip-divider"></span>
+                <button class="chip" data-filter="combat">Combat <span class="count">14</span></button>
+                <button class="chip" data-filter="flyer">Flyer <span class="count">9</span></button>
+                <button class="chip" data-filter="utility">Utility <span class="count">7</span></button>
+                <button class="chip" data-filter="water">Water <span class="count">4</span></button>
+                <button class="chip" data-filter="mount">Mount <span class="count">6</span></button>
+                <button class="chip" data-filter="resource">Resource <span class="count">5</span></button>
+                <button class="chip" data-filter="boss">Boss <span class="count">2</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results count -->
+    <div class="results-count">
+        Showing <span class="num" id="resultsNum">12</span> of <span class="num">47</span> · sorted by <span class="num">mutations</span>
+    </div>
+
+    <!-- ═══════════ LIST VIEW ═══════════ -->
+    <div class="vault-list" id="vaultList"><!-- Rendered by JS --></div>
+    <div style="display:none" id="vaultListStaticOld">
+        <div class="list-row flyer" data-cat="flyer">
+            <span class="tier">⬢ Apex</span>
+            <span class="cat-pill">Flyer</span>
+            <div class="list-info">
+                <div class="list-species">Wyvern · Lightning</div>
+                <div class="list-nick">"Stormcaller" · <span class="gender male">♂</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">58</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">442</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn" title="Pin Project"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn" title="More"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="list-row flyer" data-cat="flyer">
+            <span class="tier">⬢ Bloodline</span>
+            <span class="cat-pill">Flyer</span>
+            <div class="list-info">
+                <div class="list-species">Wyvern · Lightning</div>
+                <div class="list-nick">"Volt" · <span class="gender female">♀</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">41</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">408</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn" title="Pin Project"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn" title="More"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="list-row combat" data-cat="combat">
+            <span class="tier">⬢ Bloodline</span>
+            <span class="cat-pill">Combat</span>
+            <div class="list-info">
+                <div class="list-species">Yutyrannus</div>
+                <div class="list-nick">"Roar" · <span class="gender female">♀</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">39</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">392</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn" title="Pin Project"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn" title="More"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="list-row flyer" data-cat="flyer">
+            <span class="tier">⬢ Bloodline</span>
+            <span class="cat-pill">Flyer</span>
+            <div class="list-info">
+                <div class="list-species">Wyvern · Lightning</div>
+                <div class="list-nick">"Tempest" · <span class="gender male">♂</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">38</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">392</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="list-row combat" data-cat="combat">
+            <span class="tier">⬢ Bloodline</span>
+            <span class="cat-pill">Combat</span>
+            <div class="list-info">
+                <div class="list-species">Yutyrannus</div>
+                <div class="list-nick">"Specter" · <span class="gender male">♂</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">36</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">388</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="list-row combat" data-cat="combat">
+            <span class="tier">⬢ Bloodline</span>
+            <span class="cat-pill">Combat</span>
+            <div class="list-info">
+                <div class="list-species">Rex</div>
+                <div class="list-nick">"Bloodfang" · <span class="gender female">♀</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">35</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">372</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="list-row mount" data-cat="mount">
+            <span class="tier">⬢ Bloodline</span>
+            <span class="cat-pill">Mount</span>
+            <div class="list-info">
+                <div class="list-species">Carcharodontosaurus</div>
+                <div class="list-nick">"Apex" · <span class="gender male">♂</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">31</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">384</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="list-row combat" data-cat="combat">
+            <span class="tier">⬢ Elite</span>
+            <span class="cat-pill">Combat</span>
+            <div class="list-info">
+                <div class="list-species">Rex</div>
+                <div class="list-nick">"Crimson" · <span class="gender male">♂</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">28</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">348</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="list-row resource" data-cat="resource">
+            <span class="tier">⬢ Elite</span>
+            <span class="cat-pill">Resource</span>
+            <div class="list-info">
+                <div class="list-species">Therizinosaurus</div>
+                <div class="list-nick">"Harvester" · <span class="gender female">♀</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">22</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">218</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="list-row water" data-cat="water">
+            <span class="tier">⬢ Elite</span>
+            <span class="cat-pill">Water</span>
+            <div class="list-info">
+                <div class="list-species">Basilosaurus</div>
+                <div class="list-nick">"Deep Six" · <span class="gender female">♀</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">12</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">264</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="list-row utility" data-cat="utility">
+            <span class="tier">⬢ Standard</span>
+            <span class="cat-pill">Utility</span>
+            <div class="list-info">
+                <div class="list-species">Argentavis</div>
+                <div class="list-nick">"Pack Mule" · <span class="gender female">♀</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">8</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">168</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+        <div class="list-row utility" data-cat="utility">
+            <span class="tier">⬢ Standard</span>
+            <span class="cat-pill">Utility</span>
+            <div class="list-info">
+                <div class="list-species">Argentavis</div>
+                <div class="list-nick">"Scout" · <span class="gender male">♂</span></div>
+            </div>
+            <div class="list-stat">
+                <div class="list-stat-val">4</div>
+                <div class="list-stat-lbl">Muts</div>
+            </div>
+            <div class="list-level">
+                <div class="list-level-val">142</div>
+                <div class="list-level-lbl">Total Lvl</div>
+            </div>
+            <div class="list-actions">
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg></button>
+                <button class="row-btn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════ GRID VIEW ═══════════ -->
+    <div class="vault-grid hidden" id="vaultGrid"><!-- Rendered by JS --></div>
+    <div style="display:none" id="vaultGridStaticOld">
+        <div class="grid-card flyer" data-cat="flyer">
+            <div class="grid-top"><span class="grid-tier">⬢ Apex</span><span class="grid-cat-mini">Flyer</span></div>
+            <div class="grid-species">Wyvern · Lightning</div>
+            <div class="grid-nick">"Stormcaller"</div>
+            <div class="grid-meta"><span class="gender male">♂</span><span>·</span><span class="cat-label">Flyer</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">442</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">58 muts</div></div>
+            </div>
+        </div>
+
+        <div class="grid-card flyer" data-cat="flyer">
+            <div class="grid-top"><span class="grid-tier">⬢ Bloodline</span><span class="grid-cat-mini">Flyer</span></div>
+            <div class="grid-species">Wyvern · Lightning</div>
+            <div class="grid-nick">"Volt"</div>
+            <div class="grid-meta"><span class="gender female">♀</span><span>·</span><span class="cat-label">Flyer</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">408</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">41 muts</div></div>
+            </div>
+        </div>
+
+        <div class="grid-card combat" data-cat="combat">
+            <div class="grid-top"><span class="grid-tier">⬢ Bloodline</span><span class="grid-cat-mini">Combat</span></div>
+            <div class="grid-species">Yutyrannus</div>
+            <div class="grid-nick">"Roar"</div>
+            <div class="grid-meta"><span class="gender female">♀</span><span>·</span><span class="cat-label">Combat</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">392</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">39 muts</div></div>
+            </div>
+        </div>
+
+        <div class="grid-card flyer" data-cat="flyer">
+            <div class="grid-top"><span class="grid-tier">⬢ Bloodline</span><span class="grid-cat-mini">Flyer</span></div>
+            <div class="grid-species">Wyvern · Lightning</div>
+            <div class="grid-nick">"Tempest"</div>
+            <div class="grid-meta"><span class="gender male">♂</span><span>·</span><span class="cat-label">Flyer</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">392</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">38 muts</div></div>
+            </div>
+        </div>
+
+        <div class="grid-card combat" data-cat="combat">
+            <div class="grid-top"><span class="grid-tier">⬢ Bloodline</span><span class="grid-cat-mini">Combat</span></div>
+            <div class="grid-species">Yutyrannus</div>
+            <div class="grid-nick">"Specter"</div>
+            <div class="grid-meta"><span class="gender male">♂</span><span>·</span><span class="cat-label">Combat</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">388</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">36 muts</div></div>
+            </div>
+        </div>
+
+        <div class="grid-card combat" data-cat="combat">
+            <div class="grid-top"><span class="grid-tier">⬢ Bloodline</span><span class="grid-cat-mini">Combat</span></div>
+            <div class="grid-species">Rex</div>
+            <div class="grid-nick">"Bloodfang"</div>
+            <div class="grid-meta"><span class="gender female">♀</span><span>·</span><span class="cat-label">Combat</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">372</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">35 muts</div></div>
+            </div>
+        </div>
+
+        <div class="grid-card mount" data-cat="mount">
+            <div class="grid-top"><span class="grid-tier">⬢ Bloodline</span><span class="grid-cat-mini">Mount</span></div>
+            <div class="grid-species">Carcharodontosaurus</div>
+            <div class="grid-nick">"Apex"</div>
+            <div class="grid-meta"><span class="gender male">♂</span><span>·</span><span class="cat-label">Mount</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">384</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">31 muts</div></div>
+            </div>
+        </div>
+
+        <div class="grid-card combat" data-cat="combat">
+            <div class="grid-top"><span class="grid-tier">⬢ Elite</span><span class="grid-cat-mini">Combat</span></div>
+            <div class="grid-species">Rex</div>
+            <div class="grid-nick">"Crimson"</div>
+            <div class="grid-meta"><span class="gender male">♂</span><span>·</span><span class="cat-label">Combat</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">348</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">28 muts</div></div>
+            </div>
+        </div>
+
+        <div class="grid-card resource" data-cat="resource">
+            <div class="grid-top"><span class="grid-tier">⬢ Elite</span><span class="grid-cat-mini">Resource</span></div>
+            <div class="grid-species">Therizinosaurus</div>
+            <div class="grid-nick">"Harvester"</div>
+            <div class="grid-meta"><span class="gender female">♀</span><span>·</span><span class="cat-label">Resource</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">218</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">22 muts</div></div>
+            </div>
+        </div>
+
+        <div class="grid-card water" data-cat="water">
+            <div class="grid-top"><span class="grid-tier">⬢ Elite</span><span class="grid-cat-mini">Water</span></div>
+            <div class="grid-species">Basilosaurus</div>
+            <div class="grid-nick">"Deep Six"</div>
+            <div class="grid-meta"><span class="gender female">♀</span><span>·</span><span class="cat-label">Water</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">264</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">12 muts</div></div>
+            </div>
+        </div>
+
+        <div class="grid-card utility" data-cat="utility">
+            <div class="grid-top"><span class="grid-tier">⬢ Standard</span><span class="grid-cat-mini">Utility</span></div>
+            <div class="grid-species">Argentavis</div>
+            <div class="grid-nick">"Pack Mule"</div>
+            <div class="grid-meta"><span class="gender female">♀</span><span>·</span><span class="cat-label">Utility</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">168</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">8 muts</div></div>
+            </div>
+        </div>
+
+        <div class="grid-card utility" data-cat="utility">
+            <div class="grid-top"><span class="grid-tier">⬢ Standard</span><span class="grid-cat-mini">Utility</span></div>
+            <div class="grid-species">Argentavis</div>
+            <div class="grid-nick">"Scout"</div>
+            <div class="grid-meta"><span class="gender male">♂</span><span>·</span><span class="cat-label">Utility</span></div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">142</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">4 muts</div></div>
+            </div>
+        </div>
+
+        <!-- "+ Log specimen" placeholder card -->
+        <div class="grid-add">
+            <div class="grid-add-glyph">+</div>
+            <div class="grid-add-label">Log Specimen</div>
+        </div>
+
+    </div>
+
+</div>
+
+<div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
+
+<script>
+/* Hex grid */
+(function () {
+    const canvas = document.getElementById('tekHexCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const R = 32, W = R * Math.sqrt(3), H = R * 2;
+    let phase = 0;
+    function drawHex(x, y, opacity) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 6;
+            const px = x + (R - 1) * Math.cos(a);
+            const py = y + (R - 1) * Math.sin(a);
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(0,180,255,${opacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cw = canvas.width, ch = canvas.height;
+        const cols = Math.ceil(cw / W) + 3;
+        const rows = Math.ceil(ch / (H * 0.75)) + 3;
+        for (let row = -1; row < rows; row++) {
+            for (let col = -1; col < cols; col++) {
+                const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
+                const y = row * H * 0.75;
+                const dx = x - cw * 0.5, dy = y - ch * 0.5;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
+                drawHex(x, y, 0.07 + wave * 0.09);
+            }
+        }
+        phase += 0.005;
+        requestAnimationFrame(draw);
+    }
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize(); draw();
+})();
+
+/* ── Specimen data — single source of truth for list + grid ────────────── */
+/* Per stat: [base levels, mut levels].  Each mutation = 2 levels.
+   Total muts = sum(mutLevels)/2.  Total lvl = sum(base + mut).            */
+const STAT_KEYS = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
+
+const SPECIMENS = [
+    { species:'Wyvern · Lightning', nick:'Stormcaller', gender:'male',   cat:'flyer',    tier:'Apex',
+      stats:{HP:[75,22], STA:[55,22], OXY:[20,0], FOOD:[35,4], WGT:[50,12], MEL:[78,44], CRA:[13,12]}, muts:58, lvl:442 },
+    { species:'Wyvern · Lightning', nick:'Volt',        gender:'female', cat:'flyer',    tier:'Bloodline',
+      stats:{HP:[70,18], STA:[60,16], OXY:[22,0], FOOD:[38,4], WGT:[48,10], MEL:[72,24], CRA:[18,10]}, muts:41, lvl:408 },
+    { species:'Yutyrannus',         nick:'Roar',        gender:'female', cat:'combat',   tier:'Bloodline',
+      stats:{HP:[70,16], STA:[50,8],  OXY:[20,0], FOOD:[35,4], WGT:[50,6],  MEL:[75,38], CRA:[14,6]},  muts:39, lvl:392 },
+    { species:'Wyvern · Lightning', nick:'Tempest',     gender:'male',   cat:'flyer',    tier:'Bloodline',
+      stats:{HP:[65,18], STA:[55,14], OXY:[20,0], FOOD:[38,4], WGT:[48,10], MEL:[70,22], CRA:[16,8]},  muts:38, lvl:392 },
+    { species:'Yutyrannus',         nick:'Specter',     gender:'male',   cat:'combat',   tier:'Bloodline',
+      stats:{HP:[68,16], STA:[52,10], OXY:[22,0], FOOD:[36,4], WGT:[48,8],  MEL:[72,30], CRA:[14,4]},  muts:36, lvl:388 },
+    { species:'Rex',                nick:'Bloodfang',   gender:'female', cat:'combat',   tier:'Bloodline',
+      stats:{HP:[65,18], STA:[48,8],  OXY:[18,0], FOOD:[35,2], WGT:[45,6],  MEL:[70,30], CRA:[12,6]},  muts:35, lvl:372 },
+    { species:'Carcharodontosaurus',nick:'Apex',        gender:'male',   cat:'mount',    tier:'Bloodline',
+      stats:{HP:[75,14], STA:[55,10], OXY:[22,0], FOOD:[40,4], WGT:[50,8],  MEL:[78,22], CRA:[16,4]},  muts:31, lvl:384 },
+    { species:'Rex',                nick:'Crimson',     gender:'male',   cat:'combat',   tier:'Elite',
+      stats:{HP:[60,12], STA:[45,8],  OXY:[18,0], FOOD:[32,4], WGT:[42,6],  MEL:[65,20], CRA:[12,6]},  muts:28, lvl:348 },
+    { species:'Therizinosaurus',    nick:'Harvester',   gender:'female', cat:'resource', tier:'Elite',
+      stats:{HP:[38,6],  STA:[30,4],  OXY:[12,0], FOOD:[22,2], WGT:[32,4],  MEL:[45,22], CRA:[14,4]},  muts:22, lvl:218 },
+    { species:'Basilosaurus',       nick:'Deep Six',    gender:'female', cat:'water',    tier:'Elite',
+      stats:{HP:[55,4],  STA:[40,2],  OXY:[20,0], FOOD:[30,0], WGT:[40,4],  MEL:[50,12], CRA:[12,2]},  muts:12, lvl:264 },
+    { species:'Argentavis',         nick:'Pack Mule',   gender:'female', cat:'utility',  tier:'Standard',
+      stats:{HP:[28,2],  STA:[22,2],  OXY:[18,0], FOOD:[18,0], WGT:[35,8],  MEL:[30,4],  CRA:[12,0]},  muts:8,  lvl:168 },
+    { species:'Argentavis',         nick:'Scout',       gender:'male',   cat:'utility',  tier:'Standard',
+      stats:{HP:[25,0],  STA:[20,0],  OXY:[15,0], FOOD:[16,0], WGT:[28,4],  MEL:[28,2],  CRA:[10,2]},  muts:4,  lvl:142 }
+];
+
+const PIN_SVG    = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>';
+const DOTS_SVG   = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+const GENDER_GLYPH = { male: '♂', female: '♀' };
+
+function statBlock(label, base, mutLvls) {
+    const has = mutLvls > 0;
+    const mut = has ? `+${mutLvls}` : '—';
+    const mutClass = has ? 'has' : '';
+    return `<div class="stat-mini"><div class="stat-mini-lbl">${label}</div><div class="stat-mini-val">${base}</div><div class="stat-mini-mut ${mutClass}">${mut}</div></div>`;
+}
+
+function renderStatGrid(s) {
+    return STAT_KEYS.map(k => statBlock(k, s.stats[k][0], s.stats[k][1])).join('');
+}
+
+function renderListRow(s) {
+    const genderClass = s.gender;
+    const genderGlyph = GENDER_GLYPH[s.gender];
+    return `
+        <div class="list-row ${s.cat}" data-cat="${s.cat}">
+            <div class="list-row-main">
+                <span class="tier">⬢ ${s.tier}</span>
+                <span class="cat-pill">${s.cat.charAt(0).toUpperCase() + s.cat.slice(1)}</span>
+                <div class="list-info">
+                    <div class="list-species">${s.species}</div>
+                    <div class="list-nick">"${s.nick}" · <span class="gender ${genderClass}">${genderGlyph}</span></div>
+                </div>
+                <div class="list-stat">
+                    <div class="list-stat-val">${s.muts}</div>
+                    <div class="list-stat-lbl">Muts</div>
+                </div>
+                <div class="list-level">
+                    <div class="list-level-val">${s.lvl}</div>
+                    <div class="list-level-lbl">Total Lvl</div>
+                </div>
+                <div class="list-actions">
+                    <button class="row-btn" title="Pin Project">${PIN_SVG}</button>
+                    <button class="row-btn" title="More">${DOTS_SVG}</button>
+                </div>
+            </div>
+            <div class="list-row-stats">${renderStatGrid(s)}</div>
+        </div>
+    `;
+}
+
+function renderGridCard(s) {
+    const genderClass = s.gender;
+    const genderGlyph = GENDER_GLYPH[s.gender];
+    const catTitle = s.cat.charAt(0).toUpperCase() + s.cat.slice(1);
+    return `
+        <div class="grid-card ${s.cat}" data-cat="${s.cat}">
+            <div class="grid-top"><span class="grid-tier">⬢ ${s.tier}</span><span class="grid-cat-mini">${catTitle}</span></div>
+            <div class="grid-species">${s.species}</div>
+            <div class="grid-nick">"${s.nick}"</div>
+            <div class="grid-meta"><span class="gender ${genderClass}">${genderGlyph}</span><span>·</span><span class="cat-label">${catTitle}</span></div>
+            <div class="grid-stats">${renderStatGrid(s)}</div>
+            <div class="grid-bottom">
+                <div class="grid-level-num">${s.lvl}</div>
+                <div class="grid-level-side"><div class="grid-level-lbl">Total Lvl</div><div class="grid-muts">${s.muts} muts</div></div>
+            </div>
+        </div>
+    `;
+}
+
+document.getElementById('vaultList').innerHTML = SPECIMENS.map(renderListRow).join('');
+document.getElementById('vaultGrid').innerHTML =
+    SPECIMENS.map(renderGridCard).join('') +
+    `<div class="grid-add"><div class="grid-add-glyph">+</div><div class="grid-add-label">Log Specimen</div></div>`;
+
+/* View toggle */
+const listView = document.getElementById('vaultList');
+const gridView = document.getElementById('vaultGrid');
+document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const target = btn.dataset.view;
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b === btn));
+        listView.classList.toggle('hidden', target !== 'list');
+        gridView.classList.toggle('hidden', target !== 'grid');
+    });
+});
+
+/* Filter chips */
+const resultsNum = document.getElementById('resultsNum');
+document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const filter = chip.dataset.filter;
+        let shown = 0;
+        ['vaultList', 'vaultGrid'].forEach(id => {
+            const container = document.getElementById(id);
+            container.querySelectorAll('[data-cat]').forEach(item => {
+                const match = filter === 'all' || item.dataset.cat === filter;
+                item.style.display = match ? '' : 'none';
+                if (match && id === 'vaultList') shown++;
+            });
+        });
+        resultsNum.textContent = shown;
+    });
+});
+</script>
+
+</body>
+</html>

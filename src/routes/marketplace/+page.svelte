@@ -1,6 +1,7 @@
 ﻿<script lang="ts">
 	import { Repeat2, Plus, X, Check, Search, Star, BookMarked } from 'lucide-svelte';
 	import CategoryIcon from '$lib/components/CategoryIcon.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 
@@ -45,14 +46,14 @@
 
 	import { onMount } from 'svelte';
 	onMount(() => {
-		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,unknown> | undefined;
+		const db = window.EXPANDED_SPECIES_DATABASE;
 		if (db) speciesList = Object.keys(db).sort();
 	});
 
 	function display(u: Record<string,unknown>) { return (u.nickname ?? u.email ?? 'Unknown') as string; }
 	function creatureName(c: Creature) { return `${String((c as Record<string,unknown>).species ?? '?')} â€” ${String((c as Record<string,unknown>).name ?? 'Unnamed')} (Lvl ${Number((c as Record<string,unknown>).level ?? 1)})`; }
 	function getCategory(speciesName: string) {
-		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string,Record<string,unknown>> | undefined;
+		const db = window.EXPANDED_SPECIES_DATABASE;
 		return String(db?.[speciesName]?.category ?? 'default');
 	}
 
@@ -130,28 +131,34 @@
 	}
 </script>
 
-<div class="std-page">
-	<div class="std-page-header">
-		<div class="page-title">
-			<h1>Marketplace</h1>
-			<div class="page-subtitle">Trade specimens with survivors</div>
-		</div>
-		<button class="btn btn-primary" onclick={() => listOpen = true}><Plus size={14} /> List Specimen</button>
+<div class="tek-stage">
+	<div class="mkt-header">
+		<PageHeader
+			title="Marketplace"
+			crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Marketplace' }]}
+			sub="Trade specimens with the Survivor network."
+		/>
+		<button class="tek-btn-v2 solid" onclick={() => listOpen = true}>
+			<Plus size={14} strokeWidth={2.5} /> List Specimen
+		</button>
 	</div>
 
-	<div class="mkt-tabs">
-		{#each [['browse','Browse'],['mine','My Listings'],['offers','Offers'],['wishlist','Wishlist']] as [t, label]}
-			<button class="mkt-tab" class:active={tab === t} onclick={() => tab = t as 'browse'|'mine'|'offers'|'wishlist'}>{label}</button>
-		{/each}
+	<div class="tek-tabs">
+		<button class="tek-tab" class:active={tab === 'browse'}    onclick={() => tab = 'browse'}>Browse <span class="count">{trades.length}</span></button>
+		<button class="tek-tab" class:active={tab === 'mine'}      onclick={() => tab = 'mine'}>My Listings <span class="count">{myTrades.length}</span></button>
+		<button class="tek-tab" class:active={tab === 'offers'}    onclick={() => tab = 'offers'}>Offers <span class="count">{offers.length}</span></button>
+		<button class="tek-tab" class:active={tab === 'wishlist'}  onclick={() => tab = 'wishlist'}>Wishlist <span class="count">{wishlist.length}</span></button>
 	</div>
 
 	{#if tab === 'browse'}
 		<!-- Filters -->
 		<div class="mkt-filters">
-			<input class="form-control" placeholder="Search species, name, or wanted..." bind:value={browseSearch} style="flex:1;min-width:180px" />
+			<input class="tek-input-v2" placeholder="Search species, name, or wanted…" bind:value={browseSearch} style="flex: 1; min-width: 220px;" />
 			<div class="mkt-cat-filters">
 				{#each CATEGORIES as cat}
-					<button class="mkt-cat-btn" class:active={browseFilter===cat} onclick={() => browseFilter=cat}>{cat==='all'?'All':cat.charAt(0).toUpperCase()+cat.slice(1)}</button>
+					<button class="tek-chip" class:on={browseFilter === cat} onclick={() => browseFilter = cat}>
+						{cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+					</button>
 				{/each}
 			</div>
 		</div>
@@ -345,18 +352,48 @@
 {/if}
 
 <style>
-.mkt-tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.06); }
-.mkt-tab { background:none; border:none; border-bottom:2px solid transparent; color:#64748b; font-size:0.82rem; font-weight:500; padding:8px 14px; cursor:pointer; margin-bottom:-1px; font-family:inherit; }
-.mkt-tab.active { color:#f1f5f9; border-bottom-color:#00b4ff; }
-.mkt-empty { color:#475569; padding:40px 0; text-align:center; font-size:0.88rem; }
-.mkt-filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
-.mkt-cat-filters { display:flex; gap:4px; flex-wrap:wrap; }
-.mkt-cat-btn { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); color:#64748b; border-radius:4px; padding:4px 10px; font-size:0.72rem; cursor:pointer; font-family:inherit; }
-.mkt-cat-btn.active { background:rgba(0,180,255,0.1); color:#7dd3fc; border-color:rgba(0,180,255,0.3); }
+.mkt-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+.mkt-header :global(.tek-page-header) { margin-bottom: 0; }
+.mkt-empty {
+    color: var(--tek-text-faint);
+    padding: 60px 0;
+    text-align: center;
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 0.95rem;
+}
+.mkt-filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; align-items: center; }
+.mkt-cat-filters { display: flex; gap: 5px; flex-wrap: wrap; }
 
-.mkt-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; }
-.mkt-card { --cut:9px; }
-.mkt-card-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:16px 18px; display:flex; flex-direction:column; gap:8px; }
+.mkt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.mkt-card { --cut: 10px; position: relative; }
+.mkt-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: rgb(var(--cat-rgb, 0,180,255));
+    box-shadow: 0 0 5px rgba(var(--cat-rgb, 0,180,255), 0.5);
+}
+.mkt-card-inner {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.97) 100%);
+    border: 1px solid rgba(var(--cat-rgb, 0,180,255), 0.20);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: all 0.2s;
+}
+.mkt-card:hover .mkt-card-inner {
+    border-color: rgba(var(--cat-rgb), 0.50);
+}
 .mkt-card-header { display:flex; align-items:center; gap:8px; }
 .mkt-species { font-size:0.95rem; font-weight:700; color:#f1f5f9; flex:1; }
 .mkt-seller { font-size:0.7rem; color:#475569; text-decoration:none; }

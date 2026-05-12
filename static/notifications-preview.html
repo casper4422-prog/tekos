@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>⬡ TEKOS — Notifications</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
+<style>
+:root {
+    --tek-bg: #050812;
+    --tek-blue: #00b4ff;
+    --tek-blue-dim: rgba(0, 180, 255, 0.12);
+    --tek-blue-border: rgba(0, 180, 255, 0.30);
+    --tek-blue-glow: rgba(0, 180, 255, 0.50);
+    --tek-purple: #8b5cf6;
+    --tek-amber: #f59e0b;
+    --tek-green: #10b981;
+    --tek-red: #ef4444;
+    --tek-pink: #f472b6;
+    --tek-text: #e2e8f0;
+    --tek-text-dim: #64748b;
+    --tek-text-faint: #334155;
+    --tek-font: 'Inter', system-ui, sans-serif;
+    --tek-display: 'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 50% at 20% 10%, rgba(0,180,255,0.10) 0%, transparent 50%),
+        radial-gradient(ellipse 55% 50% at 85% 90%, rgba(245,158,11,0.08) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+}
+#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.demo-banner {
+    position: fixed; top: 14px; left: 14px; z-index: 60;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--tek-amber);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; letter-spacing: 0.12em;
+    padding: 5px 10px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.return-link {
+    position: fixed; top: 18px; right: 22px; z-index: 50;
+    font-family: var(--tek-mono); font-size: 0.7rem;
+    letter-spacing: 0.18em; color: var(--tek-text-dim);
+    text-decoration: none; transition: color 0.2s;
+}
+.return-link:hover { color: var(--tek-blue); }
+.return-link .arrow { display: inline-block; transform: rotate(180deg); margin-right: 4px; }
+
+.stage {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    padding: 70px 24px 80px;
+    max-width: 980px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+}
+.page-title {
+    font-family: var(--tek-display);
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 12px rgba(0,180,255,0.30));
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.page-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.page-sub .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+.page-sub .num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
+.page-sub .num.amber { color: var(--tek-amber); text-shadow: 0 0 5px rgba(245,158,11,0.45); }
+
+.mark-all-btn {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    background: rgba(0,180,255,0.06);
+    border: 1px solid rgba(0,180,255,0.25);
+    color: #7dd3fc;
+    cursor: pointer;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: all 0.18s;
+}
+.mark-all-btn:hover { background: rgba(0,180,255,0.18); border-color: rgba(0,180,255,0.50); filter: drop-shadow(0 0 6px var(--tek-blue-glow)); }
+
+/* Tabs */
+.notif-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 22px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-wrap: wrap;
+}
+.notif-tab {
+    background: none;
+    border: none;
+    color: var(--tek-text-faint);
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    padding: 11px 18px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.18s, border-color 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    text-transform: uppercase;
+}
+.notif-tab:hover { color: var(--tek-text-dim); }
+.notif-tab.active {
+    color: var(--tek-blue);
+    border-bottom-color: var(--tek-blue);
+    text-shadow: 0 0 7px var(--tek-blue-glow);
+}
+.notif-tab .count {
+    background: rgba(0,180,255,0.12);
+    color: #7dd3fc;
+    border: 1px solid rgba(0,180,255,0.28);
+    font-size: 0.58rem;
+    font-weight: 800;
+    border-radius: 99px;
+    padding: 1px 7px;
+    min-width: 22px;
+    text-align: center;
+}
+.notif-tab.active .count { background: rgba(0,180,255,0.22); color: #fff; }
+.notif-tab .count.alert {
+    background: rgba(239,68,68,0.18);
+    color: #fca5a5;
+    border-color: rgba(239,68,68,0.40);
+    animation: amber-pulse 1.8s ease-in-out infinite;
+}
+@keyframes amber-pulse { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
+
+/* Time-period section header */
+.time-section { margin-bottom: 24px; }
+.time-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.time-header .pip {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--tek-blue);
+    box-shadow: 0 0 5px var(--tek-blue-glow);
+}
+.time-header .rule {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, rgba(0,180,255,0.18), transparent);
+}
+
+/* Notification list */
+.notif-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.notif {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
+    backdrop-filter: blur(10px);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 13px 18px 13px 22px;
+    position: relative;
+    transition: filter 0.22s ease, transform 0.18s ease;
+    filter: drop-shadow(0 0 1px rgba(255,255,255,0.05)) drop-shadow(0 6px 16px rgba(0,0,0,0.30));
+}
+.notif:hover { transform: translateX(2px); }
+
+/* Type rail */
+.notif::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: var(--tek-blue);
+    box-shadow: 0 0 5px var(--tek-blue-glow);
+    opacity: 0.4;
+}
+.notif.unread::before { opacity: 1; }
+.notif.unread { background: linear-gradient(135deg, rgba(0,180,255,0.05) 0%, rgba(4,8,20,0.94) 100%); }
+.notif.unread::after {
+    content: '';
+    position: absolute;
+    right: 13px; top: 50%;
+    transform: translateY(-50%);
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--tek-blue);
+    box-shadow: 0 0 6px var(--tek-blue-glow);
+}
+
+/* Type categories */
+.notif.request::before { background: var(--tek-amber); box-shadow: 0 0 5px rgba(245,158,11,0.55); }
+.notif.mention::before { background: var(--tek-pink); box-shadow: 0 0 5px rgba(244,114,182,0.55); }
+.notif.boss::before    { background: var(--tek-red); box-shadow: 0 0 5px rgba(239,68,68,0.55); }
+.notif.trade::before   { background: var(--tek-green); box-shadow: 0 0 5px rgba(16,185,129,0.55); }
+.notif.badge::before   { background: #ffd700; box-shadow: 0 0 5px rgba(255,215,0,0.55); }
+.notif.breeding::before{ background: #c084fc; box-shadow: 0 0 5px rgba(192,132,252,0.55); }
+.notif.system::before  { background: var(--tek-text-faint); box-shadow: none; opacity: 0.5; }
+.notif.tribe::before   { background: var(--tek-amber); box-shadow: 0 0 5px rgba(245,158,11,0.55); }
+
+.notif-icon-wrap {
+    width: 36px; height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,180,255,0.08);
+    border: 1px solid rgba(0,180,255,0.25);
+    color: var(--tek-blue);
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    flex-shrink: 0;
+}
+.notif-icon-wrap svg { width: 16px; height: 16px; }
+.notif.request .notif-icon-wrap { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.35); color: #fcd34d; }
+.notif.mention .notif-icon-wrap { background: rgba(244,114,182,0.10); border-color: rgba(244,114,182,0.35); color: #fbcfe8; }
+.notif.boss .notif-icon-wrap    { background: rgba(239,68,68,0.10); border-color: rgba(239,68,68,0.35); color: #fca5a5; }
+.notif.trade .notif-icon-wrap   { background: rgba(16,185,129,0.10); border-color: rgba(16,185,129,0.35); color: #86efac; }
+.notif.badge .notif-icon-wrap   { background: rgba(255,215,0,0.10); border-color: rgba(255,215,0,0.45); color: #fde047; }
+.notif.breeding .notif-icon-wrap{ background: rgba(192,132,252,0.10); border-color: rgba(192,132,252,0.35); color: #c4b5fd; }
+.notif.system .notif-icon-wrap  { background: rgba(100,116,139,0.10); border-color: rgba(100,116,139,0.30); color: var(--tek-text-faint); }
+.notif.tribe .notif-icon-wrap   { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.35); color: #fcd34d; }
+
+.notif-body { min-width: 0; line-height: 1.45; padding-right: 16px; }
+.notif-text {
+    font-size: 0.88rem;
+    color: var(--tek-text);
+    line-height: 1.5;
+}
+.notif.unread .notif-text { color: #fff; }
+.notif:not(.unread) .notif-text { color: var(--tek-text-dim); }
+.notif:not(.unread) .notif-text strong { color: var(--tek-text-dim); }
+.notif:not(.unread) .notif-text .who { color: var(--tek-text-faint); }
+.notif-text .who    { color: #fcd34d; font-weight: 700; }
+.notif-text .what   { color: #c4b5fd; font-weight: 600; }
+.notif-text .badge-name { color: #fde047; font-weight: 700; }
+.notif-text .boss-name { color: #fca5a5; font-weight: 700; }
+.notif-text strong  { color: var(--tek-blue); font-weight: 700; }
+.notif-text .mention { color: #7dd3fc; background: rgba(0,180,255,0.12); padding: 0 4px; border-radius: 3px; font-weight: 600; }
+
+.notif-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.notif-meta .sep { color: var(--tek-text-faint); }
+.notif-meta .source.tribe { color: var(--tek-amber); }
+.notif-meta .source.ally  { color: #86efac; }
+
+/* Right side: actions + time */
+.notif-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.notif-time {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.notif.unread .notif-time { color: var(--tek-blue); }
+.notif-actions {
+    display: flex;
+    gap: 5px;
+}
+.n-btn {
+    font-family: inherit;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 5px 11px;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: filter 0.18s, background 0.18s;
+    white-space: nowrap;
+}
+.n-btn.primary {
+    background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
+    color: #001a2e;
+    filter: drop-shadow(0 0 5px rgba(0,180,255,0.40));
+}
+.n-btn.primary:hover { filter: drop-shadow(0 0 10px rgba(0,180,255,0.75)); }
+.n-btn.success {
+    background: rgba(16,185,129,0.18);
+    border: 1px solid rgba(16,185,129,0.45);
+    color: #86efac;
+}
+.n-btn.success:hover { background: rgba(16,185,129,0.30); filter: drop-shadow(0 0 5px rgba(16,185,129,0.40)); }
+.n-btn.ghost {
+    background: transparent;
+    color: var(--tek-text-faint);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.n-btn.ghost:hover { color: var(--tek-text-dim); border-color: rgba(255,255,255,0.20); }
+
+/* Countdown badge for boss timer notifications */
+.countdown-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(239,68,68,0.15);
+    border: 1px solid rgba(239,68,68,0.42);
+    color: #fca5a5;
+    font-family: var(--tek-display);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.10em;
+    padding: 3px 8px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    margin-left: 6px;
+    text-shadow: 0 0 6px rgba(239,68,68,0.45);
+    font-variant-numeric: tabular-nums;
+}
+.countdown-chip.urgent { animation: amber-pulse 1.4s ease-in-out infinite; }
+
+.bottom-note {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .stage { padding: 60px 14px 80px; }
+    .notif { grid-template-columns: 32px 1fr; }
+    .notif-right { grid-column: 2; align-items: flex-start; flex-direction: row; align-items: center; }
+    .notif.unread::after { right: 10px; }
+}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">PREVIEW MODE ▸ NOTIFICATIONS</div>
+<a href="dossier-preview.html" class="return-link"><span class="arrow">▸</span> RETURN TO DOSSIER</a>
+
+<canvas id="tekHexCanvas"></canvas>
+
+<div class="stage">
+
+    <div class="page-header">
+        <div>
+            <div class="page-title">Notifications</div>
+            <div class="page-sub">
+                <span class="prefix">›</span>
+                <span class="num amber">7</span> UNREAD · <span class="num">24</span> TOTAL THIS WEEK
+            </div>
+        </div>
+        <button class="mark-all-btn">⬡ Mark All Read</button>
+    </div>
+
+    <div class="notif-tabs">
+        <button class="notif-tab active">All <span class="count alert">7</span></button>
+        <button class="notif-tab">Requests <span class="count">3</span></button>
+        <button class="notif-tab">Mentions <span class="count">2</span></button>
+        <button class="notif-tab">Boss</button>
+        <button class="notif-tab">Trades <span class="count">1</span></button>
+        <button class="notif-tab">Badges</button>
+    </div>
+
+    <!-- TODAY -->
+    <div class="time-section">
+        <div class="time-header">
+            <span class="pip"></span>
+            Today
+            <span class="rule"></span>
+        </div>
+        <div class="notif-list">
+
+            <div class="notif boss unread">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text"><strong>Alpha Manticore war room</strong> starts in <span class="countdown-chip" id="bossCountdown">5d 22h</span></div>
+                    <div class="notif-meta"><span class="source tribe">⌬ Bloodline Tribe</span><span class="sep">·</span>5/8 committed</div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">12m</div>
+                    <div class="notif-actions">
+                        <button class="n-btn primary">Open Room ▸</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="notif mention unread">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text"><span class="who">Specter</span> mentioned <span class="mention">@you</span> in <span class="what">Bloodline Tribe</span> chat — <em>"need a flyer for the approach"</em></div>
+                    <div class="notif-meta"><span class="source tribe">⌬ Bloodline Tribe Chat</span><span class="sep">·</span>3 replies</div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">28m</div>
+                    <div class="notif-actions">
+                        <button class="n-btn primary">Reply ▸</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="notif trade unread">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text"><span class="who">Crystal Vanguard</span> sent a trade offer on your <span class="what">Rex "Bloodfang"</span> listing — offering 2 Wyvern eggs</div>
+                    <div class="notif-meta"><span class="source ally">🤝 Allied tribe</span><span class="sep">·</span>Marketplace · <strong>4.9★ seller</strong></div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">1h</div>
+                    <div class="notif-actions">
+                        <button class="n-btn success">Accept</button>
+                        <button class="n-btn ghost">View</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="notif request unread">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text"><span class="who">Vortex</span> wants to connect — <em>"Met you at Crystal Cave"</em></div>
+                    <div class="notif-meta"><span class="source">New survivor</span><span class="sep">·</span>Ragnarok·07</div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">2h</div>
+                    <div class="notif-actions">
+                        <button class="n-btn success">Accept</button>
+                        <button class="n-btn ghost">Decline</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="notif badge unread">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m17 6-2.5-2.5"/><path d="m14 8-1-1"/><path d="m7 18 2.5 2.5"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text">You earned <span class="badge-name">Diamond Prize Bloodline</span> with <span class="what">Wyvern · Lightning</span> — top 1% on the server</div>
+                    <div class="notif-meta">9th badge earned · <span class="source">Prize Bloodline complete</span></div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">3h</div>
+                    <div class="notif-actions">
+                        <button class="n-btn primary">View Badge ▸</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="notif breeding unread">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text">Mutation event — <span class="what">Yutyrannus "Howl"</span> hatched with <strong>+1 MEL mutation</strong> from "Roar × Specter" pairing</div>
+                    <div class="notif-meta"><span class="source">Active project: Stacking Melee</span><span class="sep">·</span>now 20 muts on MEL</div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">4h</div>
+                    <div class="notif-actions">
+                        <button class="n-btn primary">Open Project ▸</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="notif mention unread">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text"><span class="who">Stormwind</span> mentioned <span class="mention">@you</span> in DM — <em>"Vanguard 4-pack confirmed for sat"</em></div>
+                    <div class="notif-meta"><span class="source ally">🤝 Crystal Vanguard</span><span class="sep">·</span>1 reply pending</div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">6h</div>
+                    <div class="notif-actions">
+                        <button class="n-btn primary">Reply ▸</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- THIS WEEK -->
+    <div class="time-section">
+        <div class="time-header">
+            <span class="pip"></span>
+            This Week
+            <span class="rule"></span>
+        </div>
+        <div class="notif-list">
+
+            <div class="notif boss">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text"><span class="who">Apex</span> invited you to <strong>Beta Dragon war room</strong></div>
+                    <div class="notif-meta"><span class="source tribe">⌬ Bloodline Tribe</span><span class="sep">·</span>scheduled Wed 5/22</div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">2d</div>
+                </div>
+            </div>
+
+            <div class="notif request">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text"><span class="who">Granite</span> wants to connect · "Looking to coordinate boss runs"</div>
+                    <div class="notif-meta"><span class="source ally">🤝 Crystal Vanguard</span></div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">3d</div>
+                </div>
+            </div>
+
+            <div class="notif tribe">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text"><span class="tribe" style="color:var(--tek-amber);font-weight:700">Bloodline Tribe</span> earned the <span class="badge-name">"5 Survivors Strong"</span> milestone</div>
+                    <div class="notif-meta"><span class="source">Tribe achievement</span></div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">5d</div>
+                </div>
+            </div>
+
+            <div class="notif badge">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text">You earned <span class="badge-name">Gold Boss Ready</span> with <span class="what">Rex</span> · Manticore tier cleared</div>
+                    <div class="notif-meta">8th badge earned</div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">1w</div>
+                </div>
+            </div>
+
+            <div class="notif system">
+                <div class="notif-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                </div>
+                <div class="notif-body">
+                    <div class="notif-text">TekOS v3.0 update applied · Added stat genealogy to Specimen Detail · Added boss readiness tracker</div>
+                    <div class="notif-meta"><span class="source">System</span></div>
+                </div>
+                <div class="notif-right">
+                    <div class="notif-time">1w</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
+
+<script>
+(function () {
+    const canvas = document.getElementById('tekHexCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const R = 32, W = R * Math.sqrt(3), H = R * 2;
+    let phase = 0;
+    function drawHex(x, y, opacity) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 6;
+            const px = x + (R - 1) * Math.cos(a);
+            const py = y + (R - 1) * Math.sin(a);
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(0,180,255,${opacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cw = canvas.width, ch = canvas.height;
+        const cols = Math.ceil(cw / W) + 3;
+        const rows = Math.ceil(ch / (H * 0.75)) + 3;
+        for (let row = -1; row < rows; row++) {
+            for (let col = -1; col < cols; col++) {
+                const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
+                const y = row * H * 0.75;
+                const dx = x - cw * 0.5, dy = y - ch * 0.5;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
+                drawHex(x, y, 0.07 + wave * 0.09);
+            }
+        }
+        phase += 0.005;
+        requestAnimationFrame(draw);
+    }
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize(); draw();
+})();
+
+/* Boss countdown chip */
+(function () {
+    const el = document.getElementById('bossCountdown');
+    if (!el) return;
+    const target = Date.now() + (5 * 86400 + 22 * 3600) * 1000;
+    function tick() {
+        let diff = Math.max(0, target - Date.now());
+        const d = Math.floor(diff / 86400000); diff -= d * 86400000;
+        const h = Math.floor(diff / 3600000);  diff -= h * 3600000;
+        const m = Math.floor(diff / 60000);
+        if (d > 0)      el.textContent = `${d}d ${h}h`;
+        else            el.textContent = `${h}h ${m}m`;
+    }
+    tick();
+    setInterval(tick, 30000);
+})();
+
+/* Click any notif to mark as read */
+document.querySelectorAll('.notif').forEach(n => {
+    n.addEventListener('click', e => {
+        if (e.target.tagName === 'BUTTON') return;
+        n.classList.remove('unread');
+    });
+});
+
+/* Mark all read */
+document.querySelector('.mark-all-btn').addEventListener('click', () => {
+    document.querySelectorAll('.notif.unread').forEach(n => n.classList.remove('unread'));
+});
+</script>
+
+</body>
+</html>

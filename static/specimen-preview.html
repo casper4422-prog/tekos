@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>⬡ TEKOS — Specimen Card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
+<style>
+:root {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.30);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.50);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-pink:         #f472b6;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 50% at 20% 10%, rgba(0,180,255,0.10) 0%, transparent 50%),
+        radial-gradient(ellipse 55% 50% at 85% 90%, rgba(139,92,246,0.08) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 35% at 50% 50%, rgba(239,68,68,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+}
+#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.demo-banner {
+    position: fixed; top: 14px; left: 14px; z-index: 60;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--tek-amber);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; letter-spacing: 0.12em;
+    padding: 5px 10px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.return-link {
+    position: fixed; top: 18px; right: 22px; z-index: 50;
+    font-family: var(--tek-mono); font-size: 0.7rem;
+    letter-spacing: 0.18em; color: var(--tek-text-dim);
+    text-decoration: none; transition: color 0.2s;
+}
+.return-link:hover { color: var(--tek-blue); }
+.return-link .arrow { display: inline-block; transform: rotate(180deg); margin-right: 4px; }
+
+.stage {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    padding: 90px 24px 90px;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+.page-title {
+    font-family: var(--tek-display);
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    color: var(--tek-text);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+.page-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-dim);
+    margin-bottom: 56px;
+}
+.page-sub .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+
+.section-label {
+    display: flex; align-items: center; gap: 14px;
+    margin: 0 0 24px;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; font-weight: 700;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--tek-text-faint);
+}
+.section-label::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.07), transparent);
+}
+.section-label .pip {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--tek-blue);
+    box-shadow: 0 0 8px var(--tek-blue-glow);
+}
+
+.split {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 64px;
+    align-items: start;
+}
+@media (max-width: 980px) {
+    .split { grid-template-columns: 1fr; gap: 48px; }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   THE TEK ARTIFACT — Hero Specimen Card
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.artifact-stage {
+    perspective: 1400px;
+    perspective-origin: 50% 50%;
+    padding: 16px;
+}
+
+.artifact {
+    --cat-rgb: 239,68,68;
+    --tilt-x: 0deg;
+    --tilt-y: 0deg;
+    --mouse-x: 50%;
+    --mouse-y: 50%;
+    position: relative;
+    width: 380px;
+    height: 580px;
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: artifact-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes artifact-in {
+    from { opacity: 0; transform: translateY(20px) rotateX(8deg) scale(0.95); filter: blur(4px); }
+    to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+/* The frame — chamfered shape, glassmorphic, with category glow */
+.artifact-frame {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 100% 60% at 50% 0%, rgba(var(--cat-rgb), 0.10) 0%, transparent 65%),
+        linear-gradient(160deg, rgba(10,18,44,0.95) 0%, rgba(4,8,20,0.99) 100%);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    clip-path: polygon(
+        22px 0%, calc(100% - 22px) 0%, 100% 22px,
+        100% calc(100% - 22px), calc(100% - 22px) 100%,
+        22px 100%, 0% calc(100% - 22px), 0% 22px
+    );
+    overflow: hidden;
+    transition: filter 0.3s ease;
+}
+.artifact-shadow {
+    position: absolute;
+    inset: -4px;
+    filter:
+        drop-shadow(0 0 1px rgba(var(--cat-rgb), 0.45))
+        drop-shadow(0 0 40px rgba(var(--cat-rgb), 0.18))
+        drop-shadow(0 0 80px rgba(0, 180, 255, 0.08))
+        drop-shadow(0 24px 64px rgba(0,0,0,0.70));
+    transition: filter 0.3s ease;
+    pointer-events: none;
+}
+.artifact:hover .artifact-shadow {
+    filter:
+        drop-shadow(0 0 2px rgba(var(--cat-rgb), 0.85))
+        drop-shadow(0 0 60px rgba(var(--cat-rgb), 0.32))
+        drop-shadow(0 0 120px rgba(0, 180, 255, 0.18))
+        drop-shadow(0 32px 80px rgba(0,0,0,0.85));
+}
+
+/* Hex pattern inside the frame */
+.artifact-frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(0,180,255,0.022) 3px, rgba(0,180,255,0.022) 4px),
+        radial-gradient(circle 200px at var(--mouse-x) var(--mouse-y), rgba(var(--cat-rgb), 0.10) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Corner brackets */
+.bracket {
+    position: absolute;
+    width: 22px; height: 22px;
+    border: 1.5px solid rgb(var(--cat-rgb));
+    filter: drop-shadow(0 0 4px rgba(var(--cat-rgb), 0.6));
+    z-index: 5;
+    pointer-events: none;
+}
+.bracket.tl { top: 8px;    left: 8px;    border-right: none; border-bottom: none; }
+.bracket.tr { top: 8px;    right: 8px;   border-left: none;  border-bottom: none; }
+.bracket.bl { bottom: 8px; left: 8px;    border-right: none; border-top: none; }
+.bracket.br { bottom: 8px; right: 8px;   border-left: none;  border-top: none; }
+
+/* Initial scanner sweep */
+.scanner {
+    position: absolute;
+    left: 0; right: 0;
+    height: 80px;
+    top: -80px;
+    background: linear-gradient(180deg, transparent 0%, rgba(0,180,255,0.22) 50%, transparent 100%);
+    pointer-events: none;
+    z-index: 4;
+    animation: scan-sweep 1.6s 0.6s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+@keyframes scan-sweep {
+    0%   { top: -80px; opacity: 0; }
+    20%  { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+}
+
+/* Ghost-text species name in the background */
+.artifact-ghost {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    pointer-events: none;
+    transform: translateZ(-20px);
+}
+.artifact-ghost-text {
+    font-family: var(--tek-display);
+    font-size: clamp(3.5rem, 18vw, 7.5rem);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.025);
+    -webkit-text-stroke: 1px rgba(255,255,255,0.045);
+    line-height: 1;
+    user-select: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+/* Long-name ghost — smaller still, so 10+ char names don't blow past the frame */
+.artifact-ghost-text.long { font-size: clamp(2.8rem, 13vw, 5rem); letter-spacing: 0.06em; }
+
+/* ── Inner content layout ───────────────────────────────────────────── */
+.artifact-content {
+    position: relative;
+    z-index: 3;
+    height: 100%;
+    padding: 28px 24px 22px;
+    display: flex;
+    flex-direction: column;
+    transform-style: preserve-3d;
+}
+
+/* Top row: tier badge + specimen id */
+.artifact-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    transform: translateZ(35px);
+}
+.tier-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, rgba(0,180,255,0.18) 0%, rgba(139,92,246,0.22) 100%);
+    border: 1px solid rgba(0,180,255,0.50);
+    padding: 5px 12px;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    font-family: var(--tek-display);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #7dd3fc;
+    text-shadow: 0 0 10px rgba(0,180,255,0.6);
+    filter: drop-shadow(0 0 8px rgba(0,180,255,0.30));
+    animation: tier-pulse 2.6s ease-in-out infinite;
+}
+@keyframes tier-pulse {
+    0%, 100% { filter: drop-shadow(0 0 8px rgba(0,180,255,0.30)); }
+    50%      { filter: drop-shadow(0 0 16px rgba(0,180,255,0.65)); }
+}
+.tier-badge .glyph {
+    color: var(--tek-blue);
+    filter: drop-shadow(0 0 4px var(--tek-blue-glow));
+}
+/* Generation indicator removed — not tracked */
+
+/* Identity block */
+.artifact-identity {
+    margin-top: 18px;
+    text-align: center;
+    transform: translateZ(45px);
+}
+.identity-species {
+    font-family: var(--tek-display);
+    font-size: clamp(1.5rem, 7vw, 2.6rem);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 60%, rgba(0,180,255,0.4) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 14px rgba(0,180,255,0.40));
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+}
+/* Long-name modifier — kicks the font-size down further when the species exceeds ~8 chars */
+.identity-species.long { font-size: clamp(1.2rem, 5.4vw, 2.05rem); letter-spacing: 0.04em; }
+.identity-nickname {
+    font-family: var(--tek-mono);
+    font-size: 0.82rem;
+    color: var(--tek-text-dim);
+    font-style: italic;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+}
+.identity-meta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.identity-meta .gender {
+    font-size: 1rem;
+    line-height: 1;
+}
+.identity-meta .gender.female { color: var(--tek-pink); filter: drop-shadow(0 0 4px rgba(244,114,182,0.5)); }
+.identity-meta .gender.male   { color: #60a5fa; filter: drop-shadow(0 0 4px rgba(96,165,250,0.5)); }
+.identity-meta .lvl { color: var(--tek-text); font-weight: 700; }
+.identity-meta .sep { color: var(--tek-text-faint); }
+.identity-meta .cat {
+    color: rgb(var(--cat-rgb));
+    text-shadow: 0 0 8px rgba(var(--cat-rgb), 0.5);
+    font-weight: 700;
+}
+
+/* Stat values table */
+.stat-values {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 14px 4px;
+    transform: translateZ(50px);
+}
+.stat-values-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 1fr;
+    gap: 16px;
+    padding-bottom: 7px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(0,180,255,0.14);
+    font-family: var(--tek-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.24em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    font-weight: 700;
+}
+.stat-values-header .col-right { text-align: right; color: var(--tek-blue); opacity: 0.65; }
+.stat-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 1fr;
+    gap: 16px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    align-items: baseline;
+    transition: background 0.2s;
+}
+.stat-row:last-child { border-bottom: none; }
+.stat-row:hover { background: rgba(0,180,255,0.04); }
+.stat-row-label {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.stat-row-base {
+    font-family: var(--tek-mono);
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: var(--tek-text);
+    text-align: right;
+    letter-spacing: 0.02em;
+}
+.stat-row-mut {
+    font-family: var(--tek-mono);
+    font-size: 0.98rem;
+    font-weight: 700;
+    text-align: right;
+    letter-spacing: 0.02em;
+}
+.stat-row-mut.has-mut {
+    color: var(--tek-blue);
+    text-shadow: 0 0 8px var(--tek-blue-glow);
+}
+.stat-row-mut.zero {
+    color: var(--tek-text-faint);
+    font-weight: 400;
+}
+
+/* Mutation hero block */
+.artifact-mutations {
+    text-align: center;
+    padding: 14px 0 10px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 12px;
+    transform: translateZ(50px);
+    position: relative;
+}
+.mut-number {
+    font-family: var(--tek-display);
+    font-size: 3.2rem;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(135deg, #00d4ff 0%, #7dd3fc 30%, #c084fc 80%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 14px rgba(0,180,255,0.40)) drop-shadow(0 0 28px rgba(139,92,246,0.20));
+    letter-spacing: 0.04em;
+    display: inline-block;
+}
+.mut-label {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.30em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+.mut-spark {
+    position: absolute;
+    top: 50%;
+    width: 26px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--tek-blue), transparent);
+    box-shadow: 0 0 4px var(--tek-blue-glow);
+}
+.mut-spark.left  { left: 26px;  transform: translateY(-50%); }
+.mut-spark.right { right: 26px; transform: translateY(-50%); }
+
+/* Provenance footer */
+.artifact-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    transform: translateZ(35px);
+}
+.footer-tribe {
+    color: rgb(var(--cat-rgb));
+    opacity: 0.95;
+    font-weight: 700;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   COMPACT STACK (right side)
+   ═════════════════════════════════════════════════════════════════════════ */
+.compact-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.compact {
+    --cat-rgb: 0,180,255;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 20px;
+    align-items: center;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.98) 100%);
+    clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+    padding: 14px 18px 14px 22px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+    filter: drop-shadow(0 0 1px rgba(var(--cat-rgb), 0.30)) drop-shadow(0 8px 24px rgba(0,0,0,0.40));
+}
+.compact:hover {
+    transform: translateX(4px);
+    background: linear-gradient(160deg, rgba(14,22,52,0.96) 0%, rgba(6,12,28,1) 100%);
+    filter: drop-shadow(0 0 2px rgba(var(--cat-rgb), 0.70)) drop-shadow(0 12px 32px rgba(0,0,0,0.55));
+}
+.compact::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px; bottom: 0;
+    width: 2px;
+    background: rgb(var(--cat-rgb));
+    box-shadow: 0 0 8px rgba(var(--cat-rgb), 0.7);
+}
+.compact.combat   { --cat-rgb: 239,68,68;   }
+.compact.flyer    { --cat-rgb: 6,182,212;   }
+.compact.utility  { --cat-rgb: 34,197,94;   }
+.compact.water    { --cat-rgb: 59,130,246;  }
+.compact.boss     { --cat-rgb: 245,158,11;  }
+.compact.mount    { --cat-rgb: 249,115,22;  }
+.compact.resource { --cat-rgb: 167,139,250; }
+
+/* Mini-radar removed — not used */
+
+.cmp-tier {
+    font-family: var(--tek-mono);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgb(var(--cat-rgb));
+    background: rgba(var(--cat-rgb), 0.10);
+    padding: 3px 7px;
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+    white-space: nowrap;
+}
+
+.cmp-identity { min-width: 0; }
+.cmp-species {
+    font-family: var(--tek-display);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--tek-text);
+    line-height: 1;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+.cmp-nick {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    color: var(--tek-text-dim);
+    font-style: italic;
+}
+.cmp-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-family: var(--tek-mono);
+    line-height: 1.1;
+}
+.cmp-stat-val { font-size: 0.84rem; font-weight: 700; color: var(--tek-text); }
+.cmp-stat-lbl {
+    font-size: 0.54rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tek-text-faint);
+    margin-top: 3px;
+}
+.cmp-muts {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-family: var(--tek-display);
+    line-height: 1.1;
+}
+.cmp-muts-val {
+    font-size: 1.2rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #00d4ff, #c084fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 6px rgba(0,180,255,0.30));
+}
+.cmp-muts-lbl {
+    font-size: 0.54rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tek-text-faint);
+    font-family: var(--tek-mono);
+    margin-top: 2px;
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+    .compact { grid-template-columns: 44px auto 1fr auto; gap: 12px; padding: 12px 16px 12px 20px; }
+    .cmp-hide-mobile { display: none; }
+    .mini-radar { width: 40px; height: 40px; }
+}
+@media (max-width: 500px) {
+    .artifact { width: 100%; max-width: 360px; height: 560px; }
+    .stage { padding: 80px 14px 80px; }
+    .identity-species { font-size: 2.2rem; }
+    .mut-number { font-size: 2.8rem; }
+    .artifact-ghost-text { font-size: 6rem; }
+}
+
+.bottom-note {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    white-space: nowrap;
+}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">PREVIEW MODE ▸ SPECIMEN CARD V2</div>
+<a href="landing-preview.html" class="return-link"><span class="arrow">▸</span> RETURN TO LANDING</a>
+
+<canvas id="tekHexCanvas"></canvas>
+
+<div class="stage">
+
+    <div class="page-title">Tek Artifact</div>
+    <div class="page-sub"><span class="prefix">›</span>SPECIMEN CARD · BLOODLINE TIER</div>
+
+    <div class="split">
+
+        <!-- ═══════════ HERO ARTIFACT ═══════════ -->
+        <div>
+            <div class="section-label"><span class="pip"></span>Pinned · Roar</div>
+
+            <div class="artifact-stage">
+                <div class="artifact combat" id="artifact">
+                    <div class="artifact-shadow"></div>
+
+                    <div class="artifact-frame">
+                        <!-- Ghost background text -->
+                        <div class="artifact-ghost"><div class="artifact-ghost-text long">YUTYRANNUS</div></div>
+
+                        <!-- Scanner sweep -->
+                        <div class="scanner"></div>
+
+                        <!-- Corner brackets -->
+                        <div class="bracket tl"></div>
+                        <div class="bracket tr"></div>
+                        <div class="bracket bl"></div>
+                        <div class="bracket br"></div>
+
+                        <!-- Content -->
+                        <div class="artifact-content">
+
+                            <!-- TOP: tier -->
+                            <div class="artifact-top">
+                                <div class="tier-badge">
+                                    <span class="glyph">⬢</span>BLOODLINE
+                                </div>
+                            </div>
+
+                            <!-- IDENTITY -->
+                            <div class="artifact-identity">
+                                <div class="identity-species long">YUTYRANNUS</div>
+                                <div class="identity-nickname">"Roar"</div>
+                                <div class="identity-meta">
+                                    <span class="gender female">♀</span>
+                                    <span class="sep">·</span>
+                                    <span class="cat">COMBAT</span>
+                                </div>
+                            </div>
+
+                            <!-- STAT VALUES — base + mutation levels per stat -->
+                            <div class="stat-values">
+                                <div class="stat-values-header">
+                                    <span>Stat</span>
+                                    <span class="col-right">Base</span>
+                                    <span class="col-right">Mut</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-row-label">HP</span>
+                                    <span class="stat-row-base">70</span>
+                                    <span class="stat-row-mut has-mut">+16</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-row-label">STA</span>
+                                    <span class="stat-row-base">50</span>
+                                    <span class="stat-row-mut has-mut">+8</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-row-label">OXY</span>
+                                    <span class="stat-row-base">20</span>
+                                    <span class="stat-row-mut zero">·</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-row-label">FOOD</span>
+                                    <span class="stat-row-base">35</span>
+                                    <span class="stat-row-mut has-mut">+4</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-row-label">WGT</span>
+                                    <span class="stat-row-base">50</span>
+                                    <span class="stat-row-mut has-mut">+6</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-row-label">MEL</span>
+                                    <span class="stat-row-base">75</span>
+                                    <span class="stat-row-mut has-mut">+38</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span class="stat-row-label">CRA</span>
+                                    <span class="stat-row-base">14</span>
+                                    <span class="stat-row-mut has-mut">+6</span>
+                                </div>
+                            </div>
+
+                            <!-- MUTATIONS HERO -->
+                            <div class="artifact-mutations">
+                                <span class="mut-spark left"></span>
+                                <span class="mut-spark right"></span>
+                                <div class="mut-number">392</div>
+                                <div class="mut-label">Total Level</div>
+                            </div>
+
+                            <!-- FOOTER -->
+                            <div class="artifact-footer">
+                                <span>RAGNAROK·07</span>
+                                <span class="footer-tribe">⌬ BLOODLINE</span>
+                                <span>26·05·08</span>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════ COMPACT STACK ═══════════ -->
+        <div>
+            <div class="section-label"><span class="pip"></span>Vault · 6 specimens</div>
+
+            <div class="compact-list">
+
+                <!-- Wyvern -->
+                <div class="compact flyer">
+                    <span class="cmp-tier">Apex</span>
+                    <div class="cmp-identity">
+                        <div class="cmp-species">Wyvern · Lightning</div>
+                        <div class="cmp-nick">"Stormcaller" · ♂</div>
+                    </div>
+                    <div class="cmp-muts cmp-hide-mobile">
+                        <div class="cmp-muts-val">58</div>
+                        <div class="cmp-muts-lbl">Muts</div>
+                    </div>
+                    <div class="cmp-muts">
+                        <div class="cmp-muts-val">442</div>
+                        <div class="cmp-muts-lbl">Lvl</div>
+                    </div>
+                </div>
+
+                <!-- Rex -->
+                <div class="compact combat">
+                    <span class="cmp-tier">Bloodline</span>
+                    <div class="cmp-identity">
+                        <div class="cmp-species">Rex</div>
+                        <div class="cmp-nick">"Bloodfang" · ♀</div>
+                    </div>
+                    <div class="cmp-muts cmp-hide-mobile">
+                        <div class="cmp-muts-val">35</div>
+                        <div class="cmp-muts-lbl">Muts</div>
+                    </div>
+                    <div class="cmp-muts">
+                        <div class="cmp-muts-val">372</div>
+                        <div class="cmp-muts-lbl">Lvl</div>
+                    </div>
+                </div>
+
+                <!-- Argy -->
+                <div class="compact utility">
+                    <span class="cmp-tier">Elite</span>
+                    <div class="cmp-identity">
+                        <div class="cmp-species">Argentavis</div>
+                        <div class="cmp-nick">"Pack Mule" · ♀</div>
+                    </div>
+                    <div class="cmp-muts cmp-hide-mobile">
+                        <div class="cmp-muts-val">8</div>
+                        <div class="cmp-muts-lbl">Muts</div>
+                    </div>
+                    <div class="cmp-muts">
+                        <div class="cmp-muts-val">168</div>
+                        <div class="cmp-muts-lbl">Lvl</div>
+                    </div>
+                </div>
+
+                <!-- Carcharo -->
+                <div class="compact mount">
+                    <span class="cmp-tier">Bloodline</span>
+                    <div class="cmp-identity">
+                        <div class="cmp-species">Carcharodontosaurus</div>
+                        <div class="cmp-nick">"Apex" · ♂</div>
+                    </div>
+                    <div class="cmp-muts cmp-hide-mobile">
+                        <div class="cmp-muts-val">31</div>
+                        <div class="cmp-muts-lbl">Muts</div>
+                    </div>
+                    <div class="cmp-muts">
+                        <div class="cmp-muts-val">384</div>
+                        <div class="cmp-muts-lbl">Lvl</div>
+                    </div>
+                </div>
+
+                <!-- Basilo -->
+                <div class="compact water">
+                    <span class="cmp-tier">Elite</span>
+                    <div class="cmp-identity">
+                        <div class="cmp-species">Basilosaurus</div>
+                        <div class="cmp-nick">"Deep Six" · ♀</div>
+                    </div>
+                    <div class="cmp-muts cmp-hide-mobile">
+                        <div class="cmp-muts-val">12</div>
+                        <div class="cmp-muts-lbl">Muts</div>
+                    </div>
+                    <div class="cmp-muts">
+                        <div class="cmp-muts-val">264</div>
+                        <div class="cmp-muts-lbl">Lvl</div>
+                    </div>
+                </div>
+
+                <!-- Theri -->
+                <div class="compact resource">
+                    <span class="cmp-tier">Elite</span>
+                    <div class="cmp-identity">
+                        <div class="cmp-species">Therizinosaurus</div>
+                        <div class="cmp-nick">"Harvester" · ♀</div>
+                    </div>
+                    <div class="cmp-muts cmp-hide-mobile">
+                        <div class="cmp-muts-val">22</div>
+                        <div class="cmp-muts-lbl">Muts</div>
+                    </div>
+                    <div class="cmp-muts">
+                        <div class="cmp-muts-val">218</div>
+                        <div class="cmp-muts-lbl">Lvl</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
+
+<script>
+/* Hex grid background */
+(function () {
+    const canvas = document.getElementById('tekHexCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const R = 32, W = R * Math.sqrt(3), H = R * 2;
+    let phase = 0;
+    function drawHex(x, y, opacity) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 6;
+            const px = x + (R - 1) * Math.cos(a);
+            const py = y + (R - 1) * Math.sin(a);
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(0,180,255,${opacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cw = canvas.width, ch = canvas.height;
+        const cols = Math.ceil(cw / W) + 3;
+        const rows = Math.ceil(ch / (H * 0.75)) + 3;
+        for (let row = -1; row < rows; row++) {
+            for (let col = -1; col < cols; col++) {
+                const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
+                const y = row * H * 0.75;
+                const dx = x - cw * 0.5, dy = y - ch * 0.5;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
+                drawHex(x, y, 0.07 + wave * 0.09);
+            }
+        }
+        phase += 0.005;
+        requestAnimationFrame(draw);
+    }
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize(); draw();
+})();
+
+/* 3D parallax tilt on the artifact card */
+(function() {
+    const card = document.getElementById('artifact');
+    if (!card) return;
+    const stage = card.parentElement;
+
+    function onMove(e) {
+        const rect = card.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;   // 0..1
+        const y = (e.clientY - rect.top) / rect.height;   // 0..1
+        const tiltY = (x - 0.5) * 14;   // -7 .. +7 deg
+        const tiltX = (0.5 - y) * 10;   // -5 .. +5 deg
+        card.style.setProperty('--tilt-x', tiltX + 'deg');
+        card.style.setProperty('--tilt-y', tiltY + 'deg');
+        card.style.setProperty('--mouse-x', (x * 100) + '%');
+        card.style.setProperty('--mouse-y', (y * 100) + '%');
+    }
+    function onLeave() {
+        card.style.setProperty('--tilt-x', '0deg');
+        card.style.setProperty('--tilt-y', '0deg');
+        card.style.setProperty('--mouse-x', '50%');
+        card.style.setProperty('--mouse-y', '50%');
+    }
+    stage.addEventListener('mousemove', onMove);
+    stage.addEventListener('mouseleave', onLeave);
+})();
+</script>
+
+</body>
+</html>

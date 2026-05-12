@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>⬡ TEKOS — Pin Project Modal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
+<style>
+:root {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.30);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.50);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-pink:         #f472b6;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 50% at 20% 10%, rgba(0,180,255,0.10) 0%, transparent 50%),
+        radial-gradient(ellipse 55% 50% at 85% 90%, rgba(139,92,246,0.08) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+}
+#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.demo-banner {
+    position: fixed; top: 14px; left: 14px; z-index: 60;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--tek-amber);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; letter-spacing: 0.12em;
+    padding: 5px 10px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.return-link {
+    position: fixed; top: 18px; right: 22px; z-index: 60;
+    font-family: var(--tek-mono); font-size: 0.7rem;
+    letter-spacing: 0.18em; color: var(--tek-text-dim);
+    text-decoration: none; transition: color 0.2s;
+}
+.return-link:hover { color: var(--tek-blue); }
+.return-link .arrow { display: inline-block; transform: rotate(180deg); margin-right: 4px; }
+
+/* ── Faint page-behind context: ghost of the dossier ──────────────────── */
+.page-context {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    opacity: 0.15;
+    pointer-events: none;
+    filter: blur(2px);
+}
+.page-context-label {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.page-context-cards {
+    display: flex;
+    gap: 16px;
+}
+.page-context-card {
+    width: 240px; height: 280px;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92), rgba(4,8,20,0.99));
+    border-left: 2px solid rgba(0,180,255,0.30);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   MODAL OVERLAY + PANEL
+   ═════════════════════════════════════════════════════════════════════════ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+    animation: overlay-in 0.32s ease-out;
+}
+.modal-overlay.closing { animation: overlay-out 0.30s ease-in forwards; }
+.modal-overlay.hidden  { display: none; }
+
+@keyframes overlay-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+@keyframes overlay-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+.modal-panel-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    max-height: calc(100vh - 64px);
+    filter:
+        drop-shadow(0 0 1px rgba(0,180,255,0.40))
+        drop-shadow(0 0 60px rgba(0,180,255,0.10))
+        drop-shadow(0 30px 80px rgba(0,0,0,0.72));
+    animation: panel-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.modal-overlay.closing .modal-panel-wrap {
+    animation: panel-out 0.30s ease-in forwards;
+}
+
+@keyframes panel-in {
+    from { opacity: 0; transform: translateY(24px) scale(0.94); filter: drop-shadow(0 30px 80px rgba(0,0,0,0.5)) blur(3px); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes panel-out {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: translateY(14px) scale(0.97); }
+}
+
+.modal-panel {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.97) 0%, rgba(4,8,20,0.99) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    clip-path: polygon(16px 0%, 100% 0%, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0% 100%, 0% 16px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 64px);
+}
+.modal-panel::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 16px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 8px var(--tek-blue-glow);
+    z-index: 2;
+}
+.modal-panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(180deg, transparent 0 3px, rgba(0,180,255,0.018) 3px 4px);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Scanner sweep on open */
+.modal-scanner {
+    position: absolute;
+    left: 0; right: 0;
+    height: 80px;
+    top: -80px;
+    background: linear-gradient(180deg, transparent 0%, rgba(0,180,255,0.22) 50%, transparent 100%);
+    pointer-events: none;
+    z-index: 3;
+    animation: modal-scan 1.4s 0.3s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+@keyframes modal-scan {
+    0%   { top: -80px; opacity: 0; }
+    20%  { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+}
+
+/* Corner brackets */
+.modal-panel .bracket {
+    position: absolute;
+    width: 18px; height: 18px;
+    border: 1.3px solid rgba(0,180,255,0.55);
+    filter: drop-shadow(0 0 4px var(--tek-blue-glow));
+    z-index: 4;
+}
+.modal-panel .bracket.tl { top: 9px; left: 9px; border-right: none; border-bottom: none; }
+.modal-panel .bracket.tr { top: 9px; right: 9px; border-left: none; border-bottom: none; }
+.modal-panel .bracket.bl { bottom: 9px; left: 9px; border-right: none; border-top: none; }
+.modal-panel .bracket.br { bottom: 9px; right: 9px; border-left: none; border-top: none; }
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+.modal-header {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 20px 28px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+}
+.modal-header-title {
+    font-family: var(--tek-display);
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #00d4ff 0%, #c084fc 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 8px rgba(0,180,255,0.30));
+    line-height: 1.1;
+    margin-bottom: 3px;
+}
+.modal-header-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.modal-header-sub .prefix { color: var(--tek-blue); margin-right: 4px; opacity: 0.6; }
+.modal-close {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.10);
+    color: var(--tek-text-dim);
+    font-family: inherit;
+    font-size: 1.1rem;
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.18s;
+}
+.modal-close:hover {
+    background: rgba(239,68,68,0.10);
+    border-color: rgba(239,68,68,0.35);
+    color: #fca5a5;
+}
+
+/* ── Body — scrollable ─────────────────────────────────────────────────── */
+.modal-body {
+    position: relative;
+    z-index: 5;
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,180,255,0.30) transparent;
+}
+.modal-body::-webkit-scrollbar { width: 4px; }
+.modal-body::-webkit-scrollbar-thumb { background: rgba(0,180,255,0.25); border-radius: 2px; }
+
+.modal-section {
+    padding: 14px 28px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.modal-section:last-child { border-bottom: none; }
+
+.modal-section-label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--tek-text-dim);
+    margin-bottom: 11px;
+}
+.modal-section-label .num {
+    width: 18px; height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,180,255,0.14);
+    border: 1px solid rgba(0,180,255,0.45);
+    color: var(--tek-blue);
+    font-family: var(--tek-display);
+    font-size: 0.62rem;
+    font-weight: 800;
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+.modal-section-label .opt {
+    margin-left: auto;
+    font-size: 0.55rem;
+    color: var(--tek-text-faint);
+    letter-spacing: 0.18em;
+}
+
+/* ── Specimen picker ──────────────────────────────────────────────────── */
+.specimen-search {
+    position: relative;
+    margin-bottom: 8px;
+}
+.specimen-search-input {
+    width: 100%;
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    color: var(--tek-text);
+    padding: 9px 12px 9px 34px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    outline: none;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: border-color 0.2s;
+}
+.specimen-search-input::placeholder { color: var(--tek-text-faint); }
+.specimen-search-input:focus {
+    border-color: rgba(0,180,255,0.40);
+    border-bottom-color: var(--tek-blue);
+}
+.specimen-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--tek-text-faint);
+    pointer-events: none;
+}
+
+.specimen-picker { display: flex; flex-direction: column; gap: 5px; }
+.specimen-row {
+    --cat-rgb: 0,180,255;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px 10px 12px;
+    background: linear-gradient(160deg, rgba(10,18,44,0.50) 0%, rgba(4,8,20,0.80) 100%);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    cursor: pointer;
+    transition: background 0.18s, box-shadow 0.18s;
+    border-left: 2px solid transparent;
+}
+.specimen-row:hover {
+    background: linear-gradient(160deg, rgba(14,22,52,0.85) 0%, rgba(6,12,28,0.95) 100%);
+}
+.specimen-row.selected {
+    border-left-color: rgb(var(--cat-rgb));
+    background:
+        radial-gradient(ellipse at 0% 50%, rgba(0,180,255,0.15) 0%, transparent 70%),
+        linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.96) 100%);
+    box-shadow: -3px 0 12px rgba(var(--cat-rgb), 0.30);
+}
+.specimen-row.combat   { --cat-rgb: 239,68,68; }
+.specimen-row.flyer    { --cat-rgb: 6,182,212; }
+.specimen-row.utility  { --cat-rgb: 34,197,94; }
+.specimen-row.water    { --cat-rgb: 59,130,246; }
+.specimen-row.mount    { --cat-rgb: 249,115,22; }
+.specimen-row.resource { --cat-rgb: 167,139,250; }
+
+.spec-cat-pip {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgb(var(--cat-rgb));
+    box-shadow: 0 0 5px rgba(var(--cat-rgb), 0.8);
+}
+.spec-info { line-height: 1.3; min-width: 0; }
+.spec-name {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--tek-text);
+    letter-spacing: 0.02em;
+}
+.spec-meta {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    color: var(--tek-text-dim);
+    font-style: italic;
+    margin-top: 1px;
+}
+.spec-check {
+    width: 18px; height: 18px;
+    color: var(--tek-blue);
+    opacity: 0;
+    filter: drop-shadow(0 0 4px var(--tek-blue-glow));
+    transition: opacity 0.18s;
+}
+.specimen-row.selected .spec-check { opacity: 1; }
+
+/* ── Stat picker — 7 buttons, 4+3 grid ────────────────────────────────── */
+.stat-picker {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+}
+.stat-btn {
+    background: rgba(0,180,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 9px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.18s;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    font-family: inherit;
+}
+.stat-btn:hover {
+    background: rgba(0,180,255,0.10);
+    border-color: rgba(0,180,255,0.30);
+}
+.stat-btn.selected {
+    background: linear-gradient(135deg, rgba(0,180,255,0.20) 0%, rgba(139,92,246,0.20) 100%);
+    border-color: var(--tek-blue);
+    box-shadow: 0 0 12px rgba(0,180,255,0.35);
+}
+.stat-btn-label {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.stat-btn.selected .stat-btn-label { color: var(--tek-text); }
+.stat-btn-muts {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    color: var(--tek-text-faint);
+    font-weight: 600;
+}
+.stat-btn-muts.has { color: var(--tek-blue); text-shadow: 0 0 4px var(--tek-blue-glow); }
+.stat-btn.selected .stat-btn-muts.has { color: #c4b5fd; text-shadow: 0 0 5px rgba(196,181,253,0.5); }
+
+/* ── Counter ──────────────────────────────────────────────────────────── */
+.counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+}
+.counter-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,180,255,0.08);
+    border: 1px solid rgba(0,180,255,0.30);
+    color: var(--tek-blue);
+    cursor: pointer;
+    font-family: var(--tek-display);
+    font-size: 1.1rem;
+    font-weight: 800;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: all 0.18s;
+    line-height: 1;
+}
+.counter-btn:hover {
+    background: rgba(0,180,255,0.22);
+    border-color: var(--tek-blue);
+    filter: drop-shadow(0 0 8px var(--tek-blue-glow));
+    transform: translateY(-1px);
+}
+.counter-btn.minus {
+    background: rgba(255,255,255,0.02);
+    border-color: rgba(255,255,255,0.10);
+    color: var(--tek-text-faint);
+}
+.counter-btn.minus:hover { color: var(--tek-text-dim); border-color: rgba(255,255,255,0.20); }
+.counter-num {
+    font-family: var(--tek-display);
+    font-size: 2.4rem;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--tek-text);
+    text-shadow: 0 0 14px rgba(0,180,255,0.35);
+    min-width: 84px;
+    text-align: center;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.5s ease;
+}
+.counter-hint {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    text-align: center;
+    margin-top: 6px;
+}
+
+/* ── Parents inputs ───────────────────────────────────────────────────── */
+.parents-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.parent-field {
+    position: relative;
+}
+.parent-field-label {
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.parent-field-label .symbol.male { color: #60a5fa; font-size: 0.8rem; }
+.parent-field-label .symbol.female { color: var(--tek-pink); font-size: 0.8rem; }
+.parent-field-input {
+    width: 100%;
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(0,180,255,0.16);
+    color: var(--tek-text);
+    padding: 9px 12px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    outline: none;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: border-color 0.2s;
+}
+.parent-field-input::placeholder { color: var(--tek-text-faint); }
+.parent-field-input:focus {
+    border-color: rgba(0,180,255,0.40);
+    border-bottom-color: var(--tek-blue);
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.modal-footer {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 28px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    background: rgba(4,8,20,0.50);
+    flex-shrink: 0;
+}
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 10px 18px;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    transition: filter 0.18s, transform 0.18s;
+    line-height: 1;
+}
+.btn-ghost {
+    background: transparent;
+    color: var(--tek-text-dim);
+}
+.btn-ghost:hover { color: var(--tek-text); background: rgba(255,255,255,0.04); }
+.btn-primary {
+    background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
+    color: #001a2e;
+    filter: drop-shadow(0 0 10px rgba(0,180,255,0.45));
+}
+.btn-primary:hover { filter: drop-shadow(0 0 18px rgba(0,180,255,0.75)); transform: translateY(-1px); }
+.btn-primary .glyph { color: #001a2e; }
+
+/* ── "Modal Closed — Reopen" button ────────────────────────────────────── */
+.reopen-btn {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 90;
+    background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
+    color: #001a2e;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 12px 24px;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    filter: drop-shadow(0 0 12px rgba(0,180,255,0.50));
+    display: none;
+}
+.reopen-btn.visible { display: inline-flex; align-items: center; gap: 8px; }
+.reopen-btn:hover { filter: drop-shadow(0 0 22px rgba(0,180,255,0.80)); transform: translateX(-50%) translateY(-1px); }
+
+@media (max-width: 540px) {
+    .stat-picker { grid-template-columns: repeat(3, 1fr); }
+    .parents-row { grid-template-columns: 1fr; }
+    .modal-section { padding: 12px 18px; }
+    .modal-header { padding: 18px 18px 12px; }
+    .modal-footer { padding: 14px 18px; }
+    .page-context-card { width: 180px; height: 200px; }
+}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">PREVIEW MODE ▸ PIN PROJECT MODAL</div>
+<a href="dossier-preview.html" class="return-link"><span class="arrow">▸</span> RETURN TO DOSSIER</a>
+
+<canvas id="tekHexCanvas"></canvas>
+
+<!-- Faint page-behind context: ghost cards hinting at the Dossier -->
+<div class="page-context">
+    <div class="page-context-label">› ACTIVE BREEDING PROJECTS</div>
+    <div class="page-context-cards">
+        <div class="page-context-card"></div>
+        <div class="page-context-card"></div>
+        <div class="page-context-card"></div>
+    </div>
+</div>
+
+<!-- THE MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal-panel-wrap">
+        <div class="modal-panel">
+            <div class="modal-scanner"></div>
+            <div class="bracket tl"></div><div class="bracket tr"></div>
+            <div class="bracket bl"></div><div class="bracket br"></div>
+
+            <!-- Header -->
+            <div class="modal-header">
+                <div>
+                    <div class="modal-header-title">Pin Breeding Project</div>
+                    <div class="modal-header-sub"><span class="prefix">›</span>TRACK A NEW BLOODLINE</div>
+                </div>
+                <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body">
+
+                <!-- 1: Specimen -->
+                <div class="modal-section">
+                    <div class="modal-section-label">
+                        <span class="num">1</span>Specimen
+                    </div>
+                    <div class="specimen-search">
+                        <svg class="specimen-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                        <input type="text" class="specimen-search-input" placeholder="Search your vault…" />
+                    </div>
+                    <div class="specimen-picker" id="specimenPicker">
+                        <div class="specimen-row combat selected" data-specimen="roar">
+                            <span class="spec-cat-pip"></span>
+                            <div class="spec-info">
+                                <div class="spec-name">YUTYRANNUS — "Roar"</div>
+                                <div class="spec-meta">♀ · Combat · 39 muts</div>
+                            </div>
+                            <svg class="spec-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <div class="specimen-row combat" data-specimen="bloodfang">
+                            <span class="spec-cat-pip"></span>
+                            <div class="spec-info">
+                                <div class="spec-name">REX — "Bloodfang"</div>
+                                <div class="spec-meta">♀ · Combat · 35 muts</div>
+                            </div>
+                            <svg class="spec-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <div class="specimen-row flyer" data-specimen="stormcaller">
+                            <span class="spec-cat-pip"></span>
+                            <div class="spec-info">
+                                <div class="spec-name">WYVERN · LIGHTNING — "Stormcaller"</div>
+                                <div class="spec-meta">♂ · Flyer · 58 muts</div>
+                            </div>
+                            <svg class="spec-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <div class="specimen-row utility" data-specimen="packmule">
+                            <span class="spec-cat-pip"></span>
+                            <div class="spec-info">
+                                <div class="spec-name">ARGENTAVIS — "Pack Mule"</div>
+                                <div class="spec-meta">♀ · Utility · 8 muts</div>
+                            </div>
+                            <svg class="spec-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2: Focus Stat -->
+                <div class="modal-section">
+                    <div class="modal-section-label">
+                        <span class="num">2</span>Focus Stat
+                    </div>
+                    <div class="stat-picker" id="statPicker">
+                        <button class="stat-btn" data-stat="HP" data-muts="8">
+                            <div class="stat-btn-label">HP</div>
+                            <div class="stat-btn-muts has">8 muts</div>
+                        </button>
+                        <button class="stat-btn" data-stat="STA" data-muts="4">
+                            <div class="stat-btn-label">STA</div>
+                            <div class="stat-btn-muts has">4 muts</div>
+                        </button>
+                        <button class="stat-btn" data-stat="OXY" data-muts="0">
+                            <div class="stat-btn-label">OXY</div>
+                            <div class="stat-btn-muts">—</div>
+                        </button>
+                        <button class="stat-btn" data-stat="FOOD" data-muts="2">
+                            <div class="stat-btn-label">FOOD</div>
+                            <div class="stat-btn-muts has">2 muts</div>
+                        </button>
+                        <button class="stat-btn" data-stat="WGT" data-muts="3">
+                            <div class="stat-btn-label">WGT</div>
+                            <div class="stat-btn-muts has">3 muts</div>
+                        </button>
+                        <button class="stat-btn selected" data-stat="MEL" data-muts="19">
+                            <div class="stat-btn-label">MEL</div>
+                            <div class="stat-btn-muts has">19 muts</div>
+                        </button>
+                        <button class="stat-btn" data-stat="CRA" data-muts="3">
+                            <div class="stat-btn-label">CRA</div>
+                            <div class="stat-btn-muts has">3 muts</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3: Mutation Count -->
+                <div class="modal-section">
+                    <div class="modal-section-label">
+                        <span class="num">3</span>Current Mutations
+                    </div>
+                    <div class="counter">
+                        <button class="counter-btn minus" id="cMinus" aria-label="Decrement">−</button>
+                        <div class="counter-num" id="cNum">19</div>
+                        <button class="counter-btn plus" id="cPlus" aria-label="Increment">+</button>
+                    </div>
+                    <div class="counter-hint">Pre-filled from "Roar" · MEL — adjust if needed</div>
+                </div>
+
+                <!-- 4: Parents (optional) -->
+                <div class="modal-section">
+                    <div class="modal-section-label">
+                        <span class="num">4</span>Parents
+                        <span class="opt">Optional</span>
+                    </div>
+                    <div class="parents-row">
+                        <div class="parent-field">
+                            <label class="parent-field-label"><span class="symbol male">♂</span>Father</label>
+                            <input type="text" class="parent-field-input" placeholder="Specter" value="Specter" />
+                        </div>
+                        <div class="parent-field">
+                            <label class="parent-field-label"><span class="symbol female">♀</span>Mother</label>
+                            <input type="text" class="parent-field-input" placeholder="Bloodfang" value="Bloodfang" />
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer">
+                <button class="btn btn-ghost" id="modalCancel">Cancel</button>
+                <button class="btn btn-primary" id="modalSubmit"><span class="glyph">⬢</span> Pin Project</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- "Reopen" button shown after the modal is closed -->
+<button class="reopen-btn" id="reopenBtn">⬡ Reopen Modal</button>
+
+<script>
+/* Hex grid */
+(function () {
+    const canvas = document.getElementById('tekHexCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const R = 32, W = R * Math.sqrt(3), H = R * 2;
+    let phase = 0;
+    function drawHex(x, y, opacity) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 6;
+            const px = x + (R - 1) * Math.cos(a);
+            const py = y + (R - 1) * Math.sin(a);
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(0,180,255,${opacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cw = canvas.width, ch = canvas.height;
+        const cols = Math.ceil(cw / W) + 3;
+        const rows = Math.ceil(ch / (H * 0.75)) + 3;
+        for (let row = -1; row < rows; row++) {
+            for (let col = -1; col < cols; col++) {
+                const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
+                const y = row * H * 0.75;
+                const dx = x - cw * 0.5, dy = y - ch * 0.5;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
+                drawHex(x, y, 0.07 + wave * 0.09);
+            }
+        }
+        phase += 0.005;
+        requestAnimationFrame(draw);
+    }
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize(); draw();
+})();
+
+/* ── Per-specimen mutation data ─────────────────────────────────────── */
+const SPECIMENS = {
+    roar:        { name: '"Roar"',       HP:8,  STA:4,  OXY:0,  FOOD:2, WGT:3,  MEL:19, CRA:3 },
+    bloodfang:   { name: '"Bloodfang"',  HP:12, STA:3,  OXY:0,  FOOD:1, WGT:2,  MEL:14, CRA:3 },
+    stormcaller: { name: '"Stormcaller"',HP:11, STA:22, OXY:0,  FOOD:0, WGT:5,  MEL:18, CRA:2 },
+    packmule:    { name: '"Pack Mule"',  HP:1,  STA:0,  OXY:0,  FOOD:0, WGT:7,  MEL:0,  CRA:0 }
+};
+
+let currentSpecimen = 'roar';
+let currentStat = 'MEL';
+
+const statPicker = document.getElementById('statPicker');
+const cNum = document.getElementById('cNum');
+const counterHint = document.querySelector('.counter-hint');
+
+function renderStats() {
+    const data = SPECIMENS[currentSpecimen];
+    statPicker.querySelectorAll('.stat-btn').forEach(btn => {
+        const stat = btn.dataset.stat;
+        const muts = data[stat];
+        btn.dataset.muts = muts;
+        const labelEl = btn.querySelector('.stat-btn-muts');
+        if (muts > 0) {
+            labelEl.classList.add('has');
+            labelEl.textContent = muts + ' muts';
+        } else {
+            labelEl.classList.remove('has');
+            labelEl.textContent = '—';
+        }
+        btn.classList.toggle('selected', stat === currentStat);
+    });
+    const current = data[currentStat];
+    cNum.textContent = current;
+    counterHint.textContent = `Pre-filled from ${data.name} · ${currentStat} — adjust if needed`;
+}
+
+/* Specimen selection */
+document.querySelectorAll('.specimen-row').forEach(row => {
+    row.addEventListener('click', () => {
+        document.querySelectorAll('.specimen-row').forEach(r => r.classList.remove('selected'));
+        row.classList.add('selected');
+        currentSpecimen = row.dataset.specimen;
+        renderStats();
+    });
+});
+
+/* Stat selection */
+statPicker.querySelectorAll('.stat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        currentStat = btn.dataset.stat;
+        renderStats();
+    });
+});
+
+/* Counter +/- */
+function bumpCounter(delta) {
+    const n = Math.max(0, parseInt(cNum.textContent, 10) + delta);
+    cNum.textContent = n;
+    cNum.style.transition = 'none';
+    cNum.style.transform = 'scale(1.18)';
+    cNum.style.textShadow = '0 0 24px rgba(0,180,255,0.9)';
+    requestAnimationFrame(() => {
+        cNum.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.5s ease';
+        cNum.style.transform = 'scale(1)';
+        cNum.style.textShadow = '0 0 14px rgba(0,180,255,0.35)';
+    });
+}
+document.getElementById('cPlus').addEventListener('click', () => bumpCounter(+1));
+document.getElementById('cMinus').addEventListener('click', () => bumpCounter(-1));
+
+/* Modal close / open */
+const overlay = document.getElementById('modalOverlay');
+const reopenBtn = document.getElementById('reopenBtn');
+
+function closeModal() {
+    overlay.classList.add('closing');
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('closing');
+        reopenBtn.classList.add('visible');
+    }, 300);
+}
+function openModal() {
+    overlay.classList.remove('hidden');
+    reopenBtn.classList.remove('visible');
+}
+
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalCancel').addEventListener('click', closeModal);
+reopenBtn.addEventListener('click', openModal);
+
+/* Click backdrop to close */
+overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeModal();
+});
+
+/* Submit — flash + close */
+document.getElementById('modalSubmit').addEventListener('click', () => {
+    const submit = document.getElementById('modalSubmit');
+    submit.style.transition = 'none';
+    submit.style.filter = 'drop-shadow(0 0 40px rgba(0,180,255,1))';
+    submit.style.transform = 'scale(1.05)';
+    setTimeout(() => {
+        submit.style.transition = 'filter 0.3s, transform 0.3s';
+        submit.style.filter = 'drop-shadow(0 0 10px rgba(0,180,255,0.45))';
+        submit.style.transform = 'scale(1)';
+        closeModal();
+    }, 250);
+});
+</script>
+
+</body>
+</html>

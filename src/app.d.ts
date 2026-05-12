@@ -7,6 +7,9 @@ declare global {
 		interface PageState {}
 		interface Platform {}
 	}
+	interface Window {
+		EXPANDED_SPECIES_DATABASE?: Record<string, Record<string, unknown>>;
+	}
 }
 
 export {};

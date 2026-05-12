@@ -1,0 +1,1160 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>⬡ TEKOS — Marketplace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&family=Crimson+Pro:ital,wght@1,400&display=swap" rel="stylesheet" />
+<style>
+:root {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.30);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.50);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-pink:         #f472b6;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --tek-serif:        'Crimson Pro', Georgia, serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 50% at 20% 10%, rgba(0,180,255,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse 55% 50% at 85% 90%, rgba(245,158,11,0.08) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+}
+#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.demo-banner {
+    position: fixed; top: 14px; left: 14px; z-index: 60;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--tek-amber);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; letter-spacing: 0.12em;
+    padding: 5px 10px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.return-link {
+    position: fixed; top: 18px; right: 22px; z-index: 50;
+    font-family: var(--tek-mono); font-size: 0.7rem;
+    letter-spacing: 0.18em; color: var(--tek-text-dim);
+    text-decoration: none; transition: color 0.2s;
+}
+.return-link:hover { color: var(--tek-blue); }
+.return-link .arrow { display: inline-block; transform: rotate(180deg); margin-right: 4px; }
+
+.stage {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    padding: 70px 24px 80px;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PAGE HEADER
+   ═════════════════════════════════════════════════════════════════════════ */
+.page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+}
+.page-title {
+    font-family: var(--tek-display);
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 12px rgba(0,180,255,0.30));
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.page-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.page-sub .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+.page-sub .stat-num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
+
+.btn-create {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 11px 22px;
+    background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
+    color: #001a2e;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    filter: drop-shadow(0 0 12px rgba(0,180,255,0.45));
+    transition: filter 0.18s, transform 0.18s;
+}
+.btn-create:hover { filter: drop-shadow(0 0 22px rgba(0,180,255,0.80)); transform: translateY(-1px); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   TAB BAR (Browse / My Listings / Offers / Wishlist)
+   ═════════════════════════════════════════════════════════════════════════ */
+.tab-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.tab {
+    background: none;
+    border: none;
+    color: var(--tek-text-faint);
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    padding: 11px 22px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.18s, border-color 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    text-transform: uppercase;
+}
+.tab:hover { color: var(--tek-text-dim); }
+.tab.active {
+    color: var(--tek-blue);
+    border-bottom-color: var(--tek-blue);
+    text-shadow: 0 0 8px var(--tek-blue-glow);
+}
+.tab .tab-count {
+    background: rgba(0,180,255,0.12);
+    color: #7dd3fc;
+    border: 1px solid rgba(0,180,255,0.28);
+    font-size: 0.58rem;
+    font-weight: 800;
+    border-radius: 99px;
+    padding: 1px 7px;
+    min-width: 22px;
+    text-align: center;
+}
+.tab.active .tab-count { background: rgba(0,180,255,0.20); color: #fff; }
+.tab .tab-count.alert { background: rgba(239,68,68,0.18); color: #fca5a5; border-color: rgba(239,68,68,0.40); animation: amber-pulse 2s ease-in-out infinite; }
+@keyframes amber-pulse { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   TOOLBAR (search + type filters + sort)
+   ═════════════════════════════════════════════════════════════════════════ */
+.toolbar {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+    padding: 14px 18px;
+    margin-bottom: 22px;
+    position: relative;
+}
+.toolbar::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 7px var(--tek-blue-glow);
+}
+.toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.toolbar-row + .toolbar-row { margin-top: 10px; }
+
+.tb-search {
+    flex: 1;
+    min-width: 220px;
+    position: relative;
+}
+.tb-search-input {
+    width: 100%;
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    color: var(--tek-text);
+    padding: 10px 14px 10px 38px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    outline: none;
+    clip-path: polygon(7px 0%, 100% 0%, calc(100% - 7px) 100%, 0% 100%);
+    transition: border-color 0.2s, background 0.2s;
+}
+.tb-search-input::placeholder { color: var(--tek-text-faint); }
+.tb-search-input:focus {
+    border-color: rgba(0,180,255,0.40);
+    border-bottom-color: var(--tek-blue);
+    background: rgba(0,15,35,0.92);
+}
+.tb-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--tek-text-faint); pointer-events: none; }
+
+.sort-select {
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    color: var(--tek-text);
+    padding: 10px 38px 10px 14px;
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.10em;
+    outline: none;
+    cursor: pointer;
+    clip-path: polygon(7px 0%, 100% 0%, calc(100% - 7px) 100%, 0% 100%);
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300b4ff' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    text-transform: uppercase;
+}
+.sort-select option { background: #0a1228; color: var(--tek-text); }
+
+.filter-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 6px 11px;
+    cursor: pointer;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: all 0.18s;
+    font-family: inherit;
+}
+.chip:hover { color: var(--tek-blue); border-color: rgba(0,180,255,0.40); }
+.chip.active { background: var(--tek-blue); color: #001a2e; border-color: var(--tek-blue); }
+.chip .count { font-family: var(--tek-mono); font-size: 0.58rem; opacity: 0.65; background: rgba(0,0,0,0.30); padding: 1px 6px; border-radius: 6px; }
+.chip.active .count { background: rgba(0,0,0,0.25); opacity: 0.85; }
+
+.results-count {
+    margin-bottom: 14px;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.results-count .num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   LISTING GRID
+   ═════════════════════════════════════════════════════════════════════════ */
+.listing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+@media (max-width: 980px) { .listing-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .listing-grid { grid-template-columns: 1fr; } }
+
+/* ── Listing card (base) ───────────────────────────────────────────────── */
+.listing {
+    --type-rgb: 0,180,255;
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.98) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 14px 18px 14px 20px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.22s ease, filter 0.25s ease;
+    filter: drop-shadow(0 0 1px rgba(var(--type-rgb), 0.30)) drop-shadow(0 8px 22px rgba(0,0,0,0.42));
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    min-height: 320px;
+}
+.listing:hover {
+    transform: translateY(-2px);
+    filter: drop-shadow(0 0 2px rgba(var(--type-rgb), 0.70)) drop-shadow(0 12px 30px rgba(0,0,0,0.55));
+}
+.listing::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 0;
+    width: 2px;
+    background: rgb(var(--type-rgb));
+    box-shadow: 0 0 6px rgba(var(--type-rgb), 0.7);
+}
+.listing.specimen { --type-rgb: 0,180,255;   }
+.listing.egg      { --type-rgb: 245,158,11;  }
+.listing.resource { --type-rgb: 139,92,246;  }
+.listing.service  { --type-rgb: 16,185,129;  }
+
+/* Top row: type chip + posted time */
+.listing-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.type-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(var(--type-rgb), 0.10);
+    border: 1px solid rgba(var(--type-rgb), 0.32);
+    color: rgb(var(--type-rgb));
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.type-chip svg { width: 11px; height: 11px; }
+.posted {
+    font-family: var(--tek-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+
+/* Item content area (varies by type) */
+.listing-content {
+    flex: 1;
+    margin-bottom: 12px;
+}
+
+/* SPECIMEN content */
+.listing-content.specimen-content .item-name {
+    font-family: var(--tek-display);
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.listing-content.specimen-content .item-nick {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+    font-style: italic;
+    margin-bottom: 10px;
+}
+.listing-content.specimen-content .item-nick .gender { font-style: normal; }
+.listing-content.specimen-content .item-nick .gender.female { color: var(--tek-pink); }
+.listing-content.specimen-content .item-nick .gender.male   { color: #60a5fa; }
+.listing-content.specimen-content .item-stats {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+.listing-content.specimen-content .item-lvl {
+    font-family: var(--tek-display);
+    font-size: 1.7rem;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(135deg, #00d4ff 0%, #c084fc 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 6px rgba(0,180,255,0.30));
+}
+.listing-content.specimen-content .item-side { text-align: right; line-height: 1.3; }
+.listing-content.specimen-content .item-lbl {
+    font-family: var(--tek-mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.20em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.listing-content.specimen-content .item-muts {
+    font-family: var(--tek-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--tek-blue);
+    text-shadow: 0 0 5px var(--tek-blue-glow);
+}
+
+/* EGG content */
+.listing-content.egg-content .egg-icon-wrap {
+    width: 60px;
+    height: 76px;
+    margin: 4px auto 10px;
+    position: relative;
+}
+.listing-content.egg-content .egg-icon-wrap svg { width: 100%; height: 100%; filter: drop-shadow(0 0 8px rgba(245,158,11,0.45)); animation: egg-glow 3s ease-in-out infinite; }
+@keyframes egg-glow {
+    0%, 100% { filter: drop-shadow(0 0 8px rgba(245,158,11,0.45)); }
+    50%      { filter: drop-shadow(0 0 14px rgba(245,158,11,0.70)); }
+}
+.listing-content.egg-content .item-name {
+    font-family: var(--tek-display);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+.listing-content.egg-content .item-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    color: var(--tek-text-dim);
+    text-align: center;
+    margin-bottom: 8px;
+}
+.listing-content.egg-content .egg-parents {
+    background: rgba(0,0,0,0.20);
+    padding: 8px 10px;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    color: var(--tek-text-dim);
+    line-height: 1.55;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.listing-content.egg-content .egg-parents .label {
+    font-size: 0.54rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+    display: block;
+}
+.listing-content.egg-content .egg-parents .male   { color: #60a5fa; }
+.listing-content.egg-content .egg-parents .female { color: var(--tek-pink); }
+.listing-content.egg-content .egg-qty {
+    text-align: right;
+    margin-top: 8px;
+    font-family: var(--tek-display);
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--tek-amber);
+    text-shadow: 0 0 6px rgba(245,158,11,0.50);
+}
+.listing-content.egg-content .egg-qty .lbl { font-family: var(--tek-mono); font-size: 0.55rem; letter-spacing: 0.20em; color: var(--tek-text-faint); text-transform: uppercase; font-weight: 600; }
+
+/* RESOURCE content */
+.listing-content.resource-content {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 10px;
+}
+.listing-content.resource-content .resource-glyph {
+    width: 52px;
+    height: 58px;
+    flex-shrink: 0;
+    color: var(--tek-purple);
+    filter: drop-shadow(0 0 8px rgba(139,92,246,0.55));
+}
+.listing-content.resource-content .resource-info { min-width: 0; flex: 1; }
+.listing-content.resource-content .item-name {
+    font-family: var(--tek-display);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+.listing-content.resource-content .quality {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    color: #c4b5fd;
+    letter-spacing: 0.06em;
+}
+.listing-content.resource-content .resource-qty {
+    font-family: var(--tek-display);
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: var(--tek-purple);
+    text-shadow: 0 0 8px rgba(139,92,246,0.55);
+    margin-top: 6px;
+}
+.listing-content.resource-content .resource-qty .lbl { font-family: var(--tek-mono); font-size: 0.55rem; letter-spacing: 0.18em; color: var(--tek-text-faint); text-transform: uppercase; font-weight: 600; margin-left: 5px; }
+
+/* SERVICE content */
+.listing-content.service-content {
+    display: flex;
+    flex-direction: column;
+}
+.listing-content.service-content .item-name {
+    font-family: var(--tek-display);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+.listing-content.service-content .item-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-green);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+.listing-content.service-content .service-desc {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: #94a3b8;
+    padding-left: 10px;
+    border-left: 1px solid rgba(16,185,129,0.25);
+    flex: 1;
+}
+
+/* Wanted block */
+.listing-wanted {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.03);
+    padding: 9px 12px;
+    margin-bottom: 12px;
+    clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+}
+.wanted-label {
+    display: block;
+    font-family: var(--tek-mono);
+    font-size: 0.54rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--tek-text-faint);
+    margin-bottom: 3px;
+}
+.wanted-text {
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    line-height: 1.45;
+    color: var(--tek-text-dim);
+    font-style: italic;
+}
+
+/* Footer */
+.listing-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+.seller-block {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    color: var(--tek-text-dim);
+    min-width: 0;
+}
+.seller-block .name { color: var(--tek-text); font-weight: 600; letter-spacing: 0.04em; }
+.seller-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: #fcd34d;
+}
+.seller-rating .star { font-size: 0.78rem; color: #fbbf24; filter: drop-shadow(0 0 4px rgba(251,191,36,0.50)); }
+.seller-rating .star.full { color: #fde047; }
+.offer-btn {
+    background: rgba(var(--type-rgb), 0.10);
+    border: 1px solid rgba(var(--type-rgb), 0.40);
+    color: rgb(var(--type-rgb));
+    font-family: inherit;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    cursor: pointer;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: all 0.18s;
+    white-space: nowrap;
+}
+.offer-btn:hover {
+    background: rgba(var(--type-rgb), 0.22);
+    filter: drop-shadow(0 0 8px rgba(var(--type-rgb), 0.55));
+}
+.listing.bookmarked .bookmark { color: var(--tek-amber); }
+
+/* "+ Create listing" placeholder card */
+.listing-create {
+    background: linear-gradient(160deg, rgba(10,18,44,0.40) 0%, rgba(4,8,20,0.55) 100%);
+    border: 1.5px dashed rgba(0,180,255,0.30);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 320px;
+}
+.listing-create:hover {
+    background: linear-gradient(160deg, rgba(0,180,255,0.06) 0%, rgba(4,8,20,0.55) 100%);
+    border-color: rgba(0,180,255,0.60);
+}
+.listing-create-glyph {
+    font-family: var(--tek-display);
+    font-size: 2.4rem;
+    color: var(--tek-blue);
+    filter: drop-shadow(0 0 10px var(--tek-blue-glow));
+    line-height: 1;
+}
+.listing-create-label {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    text-align: center;
+}
+.listing-create:hover .listing-create-label { color: var(--tek-blue); }
+
+.bottom-note {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .stage { padding: 60px 14px 80px; }
+}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">PREVIEW MODE ▸ MARKETPLACE</div>
+<a href="dossier-preview.html" class="return-link"><span class="arrow">▸</span> RETURN TO DOSSIER</a>
+
+<canvas id="tekHexCanvas"></canvas>
+
+<div class="stage">
+
+    <!-- ═══════════ HEADER ═══════════ -->
+    <div class="page-header">
+        <div>
+            <div class="page-title">Marketplace</div>
+            <div class="page-sub">
+                <span class="prefix">›</span>
+                <span class="stat-num">142</span> ACTIVE LISTINGS · <span class="stat-num">38</span> TRADERS ONLINE · YOUR REP <span class="stat-num">4.8 ★</span>
+            </div>
+        </div>
+        <button class="btn-create">⬡ Create Listing</button>
+    </div>
+
+    <!-- ═══════════ TABS ═══════════ -->
+    <div class="tab-bar">
+        <button class="tab active">Browse <span class="tab-count">142</span></button>
+        <button class="tab">My Listings <span class="tab-count">3</span></button>
+        <button class="tab">Incoming Offers <span class="tab-count alert">5</span></button>
+        <button class="tab">Wishlist <span class="tab-count">4</span></button>
+        <button class="tab">Completed</button>
+    </div>
+
+    <!-- ═══════════ TOOLBAR ═══════════ -->
+    <div class="toolbar">
+        <div class="toolbar-row">
+            <div class="tb-search">
+                <svg class="tb-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" class="tb-search-input" placeholder="Search listings — species, item, seller, or what they want…" />
+            </div>
+            <select class="sort-select">
+                <option>Newest first</option>
+                <option>Highest rated</option>
+                <option>Most muts</option>
+                <option>Highest level</option>
+            </select>
+        </div>
+        <div class="toolbar-row">
+            <div class="filter-chips" id="filterChips">
+                <button class="chip active" data-filter="all">All <span class="count">142</span></button>
+                <button class="chip" data-filter="specimen">⬡ Specimens <span class="count">58</span></button>
+                <button class="chip" data-filter="egg">◇ Eggs <span class="count">31</span></button>
+                <button class="chip" data-filter="resource">◊ Resources <span class="count">42</span></button>
+                <button class="chip" data-filter="service">◎ Services <span class="count">11</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-count">
+        Showing <span class="num" id="resultsNum">12</span> of <span class="num">142</span> · sorted by <span class="num">newest</span>
+    </div>
+
+    <!-- ═══════════ LISTING GRID ═══════════ -->
+    <div class="listing-grid" id="listingGrid">
+
+        <!-- LISTING 1: Specimen — Wyvern Stormcaller -->
+        <a class="listing specimen" data-cat="specimen">
+            <div class="listing-top">
+                <span class="type-chip">⬡ Specimen</span>
+                <span class="posted">2h ago</span>
+            </div>
+            <div class="listing-content specimen-content">
+                <div class="item-name">Wyvern · Lightning</div>
+                <div class="item-nick">"Stormcaller" · <span class="gender male">♂</span> · Apex</div>
+                <div class="item-stats">
+                    <div class="item-lvl">442</div>
+                    <div class="item-side">
+                        <div class="item-lbl">Total Lvl</div>
+                        <div class="item-muts">58 muts</div>
+                    </div>
+                </div>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"3 Rex eggs with boss-tier parents (8k+ HP, 500%+ MEL). Open to similar bloodline offers."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Specter</span></span>
+                <span class="seller-rating"><span class="star full">★</span>4.9</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- LISTING 2: Egg — Yutyrannus eggs -->
+        <a class="listing egg" data-cat="egg">
+            <div class="listing-top">
+                <span class="type-chip">◇ Egg</span>
+                <span class="posted">5h ago</span>
+            </div>
+            <div class="listing-content egg-content">
+                <div class="egg-icon-wrap">
+                    <svg viewBox="0 0 24 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <ellipse cx="12" cy="20" rx="10" ry="11.5" fill="rgba(245,158,11,0.10)" stroke="#f59e0b"/>
+                        <path d="M9 14 L11 16 L9 18 M14 18 L12 20 L14 22" stroke="#fcd34d" stroke-width="1" opacity="0.6"/>
+                    </svg>
+                </div>
+                <div class="item-name">Yutyrannus eggs</div>
+                <div class="item-sub">Fertilized · ready to hatch</div>
+                <div class="egg-parents">
+                    <span class="label">Lineage</span>
+                    <span class="male">♂ Specter</span> × <span class="female">♀ Roar</span> (39 muts)
+                </div>
+                <div class="egg-qty">2 <span class="lbl">eggs</span></div>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"Ascendant tek saddle blueprint + 50 Element shards. Or trade for a bred Argy."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Casper4422</span></span>
+                <span class="seller-rating"><span class="star full">★</span>4.8</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- LISTING 3: Resource — Element shards -->
+        <a class="listing resource" data-cat="resource">
+            <div class="listing-top">
+                <span class="type-chip">◊ Resource</span>
+                <span class="posted">7h ago</span>
+            </div>
+            <div class="listing-content resource-content">
+                <svg class="resource-glyph" viewBox="0 0 24 32" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12,2 22,10 18,28 6,28 2,10" fill="rgba(139,92,246,0.18)" stroke="#a78bfa"/>
+                    <polygon points="12,8 18,12 16,22 8,22 6,12" fill="none" stroke="#c4b5fd" stroke-width="0.8" opacity="0.6"/>
+                </svg>
+                <div class="resource-info">
+                    <div class="item-name">Element shards</div>
+                    <div class="quality">Refined · obelisk-grade</div>
+                    <div class="resource-qty">200 <span class="lbl">×</span></div>
+                </div>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"Bred Apex Rex with 30+ muts. Or 1 Wyvern egg + 20 Mindwipe tonics."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Hera</span></span>
+                <span class="seller-rating"><span class="star full">★</span>4.7</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- LISTING 4: Service — Boss carry -->
+        <a class="listing service" data-cat="service">
+            <div class="listing-top">
+                <span class="type-chip">◎ Service</span>
+                <span class="posted">1d ago</span>
+            </div>
+            <div class="listing-content service-content">
+                <div class="item-name">Boss Carry · Alpha Manticore</div>
+                <div class="item-sub">War Room · 4 seats open</div>
+                <p class="service-desc">Run with our boss squad. We bring 19 Rexes + Yuty, you bring tributes + saddle. Tested 12+ kills.</p>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"50 Element + tribute items. Or a high-melee Rex breeding pair."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Apex</span></span>
+                <span class="seller-rating"><span class="star full">★</span>5.0</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- LISTING 5: Specimen — Argentavis -->
+        <a class="listing specimen" data-cat="specimen">
+            <div class="listing-top">
+                <span class="type-chip">⬡ Specimen</span>
+                <span class="posted">1d ago</span>
+            </div>
+            <div class="listing-content specimen-content">
+                <div class="item-name">Argentavis</div>
+                <div class="item-nick">"Pack Mule" · <span class="gender female">♀</span> · Standard</div>
+                <div class="item-stats">
+                    <div class="item-lvl">168</div>
+                    <div class="item-side">
+                        <div class="item-lbl">Total Lvl</div>
+                        <div class="item-muts">8 muts</div>
+                    </div>
+                </div>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"Weight-stacked Argy mate (♂, 8+ weight muts) for breeding line."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Hera</span></span>
+                <span class="seller-rating"><span class="star full">★</span>4.7</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- LISTING 6: Egg — Wyvern Lightning egg -->
+        <a class="listing egg" data-cat="egg">
+            <div class="listing-top">
+                <span class="type-chip">◇ Egg</span>
+                <span class="posted">2d ago</span>
+            </div>
+            <div class="listing-content egg-content">
+                <div class="egg-icon-wrap">
+                    <svg viewBox="0 0 24 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <ellipse cx="12" cy="20" rx="10" ry="11.5" fill="rgba(245,158,11,0.10)" stroke="#f59e0b"/>
+                        <path d="M9 14 L11 16 L9 18 M14 18 L12 20 L14 22" stroke="#fcd34d" stroke-width="1" opacity="0.6"/>
+                    </svg>
+                </div>
+                <div class="item-name">Wyvern · Lightning</div>
+                <div class="item-sub">Fertilized · stolen from caldera</div>
+                <div class="egg-parents">
+                    <span class="label">Stat</span>
+                    Base Lvl 364 · expected 78+ MEL on hatch
+                </div>
+                <div class="egg-qty">1 <span class="lbl">egg</span></div>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"High-melee Rex with 18+ MEL mutations. Or 80 element shards."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Specter</span></span>
+                <span class="seller-rating"><span class="star full">★</span>4.9</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- LISTING 7: Resource — Ascendant Rex saddle -->
+        <a class="listing resource" data-cat="resource">
+            <div class="listing-top">
+                <span class="type-chip">◊ Resource</span>
+                <span class="posted">3d ago</span>
+            </div>
+            <div class="listing-content resource-content">
+                <svg class="resource-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" fill="rgba(139,92,246,0.18)" stroke="#a78bfa"/>
+                </svg>
+                <div class="resource-info">
+                    <div class="item-name">Rex saddle</div>
+                    <div class="quality">Ascendant · 124 armor</div>
+                    <div class="resource-qty">1 <span class="lbl">unit</span></div>
+                </div>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"10 Mindwipe tonics + 80 medical brews. Need them before Saturday's Manticore run."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Bloodfang</span></span>
+                <span class="seller-rating"><span class="star full">★</span>4.8</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- LISTING 8: Service — Breeding stud -->
+        <a class="listing service" data-cat="service">
+            <div class="listing-top">
+                <span class="type-chip">◎ Service</span>
+                <span class="posted">3d ago</span>
+            </div>
+            <div class="listing-content service-content">
+                <div class="item-name">Breeding Stud · Apex Rex</div>
+                <div class="item-sub">75 base MEL · 30 mut Lvls</div>
+                <p class="service-desc">Rent my Crimson Rex (♂, 372 Lvl) for a breeding cycle. I keep the line, you keep one offspring per pairing.</p>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"4 hours of imprint babysitting + share of cycle output."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Casper4422</span></span>
+                <span class="seller-rating"><span class="star full">★</span>4.8</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- LISTING 9: Specimen — Therizinosaurus -->
+        <a class="listing specimen" data-cat="specimen">
+            <div class="listing-top">
+                <span class="type-chip">⬡ Specimen</span>
+                <span class="posted">4d ago</span>
+            </div>
+            <div class="listing-content specimen-content">
+                <div class="item-name">Therizinosaurus</div>
+                <div class="item-nick">"Slasher" · <span class="gender male">♂</span> · Bloodline</div>
+                <div class="item-stats">
+                    <div class="item-lvl">298</div>
+                    <div class="item-side">
+                        <div class="item-lbl">Total Lvl</div>
+                        <div class="item-muts">31 muts</div>
+                    </div>
+                </div>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"Bred Yutyrannus (any gender, 30+ muts). Theri is fully imprinted."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Ironclad</span></span>
+                <span class="seller-rating"><span class="star full">★</span>4.6</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- LISTING 10: Resource — Mindwipe tonics -->
+        <a class="listing resource" data-cat="resource">
+            <div class="listing-top">
+                <span class="type-chip">◊ Resource</span>
+                <span class="posted">5d ago</span>
+            </div>
+            <div class="listing-content resource-content">
+                <svg class="resource-glyph" viewBox="0 0 24 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 4 L16 4 L16 8 L20 12 L20 26 Q20 30 12 30 Q4 30 4 26 L4 12 L8 8 Z" fill="rgba(139,92,246,0.18)" stroke="#a78bfa"/>
+                    <line x1="8" y1="4" x2="16" y2="4"/>
+                </svg>
+                <div class="resource-info">
+                    <div class="item-name">Mindwipe Tonic</div>
+                    <div class="quality">Crafted · 1h cooldown each</div>
+                    <div class="resource-qty">20 <span class="lbl">×</span></div>
+                </div>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"Medical brews — 200 total. Or 1 stack of Element."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Echo</span></span>
+                <span class="seller-rating"><span class="star full">★</span>4.5</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- LISTING 11: Egg — Rex eggs ×3 -->
+        <a class="listing egg" data-cat="egg">
+            <div class="listing-top">
+                <span class="type-chip">◇ Egg</span>
+                <span class="posted">6d ago</span>
+            </div>
+            <div class="listing-content egg-content">
+                <div class="egg-icon-wrap">
+                    <svg viewBox="0 0 24 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <ellipse cx="12" cy="20" rx="10" ry="11.5" fill="rgba(245,158,11,0.10)" stroke="#f59e0b"/>
+                        <path d="M9 14 L11 16 L9 18 M14 18 L12 20 L14 22" stroke="#fcd34d" stroke-width="1" opacity="0.6"/>
+                    </svg>
+                </div>
+                <div class="item-name">Rex eggs</div>
+                <div class="item-sub">Fertilized · combat-tier line</div>
+                <div class="egg-parents">
+                    <span class="label">Lineage</span>
+                    <span class="male">♂ Apex</span> × <span class="female">♀ Crimson</span> (38 muts combined)
+                </div>
+                <div class="egg-qty">3 <span class="lbl">eggs</span></div>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"1 Wyvern egg (lightning preferred). Or 100 Element shards."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Apex</span></span>
+                <span class="seller-rating"><span class="star full">★</span>5.0</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- LISTING 12: Service — Imprint care -->
+        <a class="listing service" data-cat="service">
+            <div class="listing-top">
+                <span class="type-chip">◎ Service</span>
+                <span class="posted">1w ago</span>
+            </div>
+            <div class="listing-content service-content">
+                <div class="item-name">Imprint Care · 24h shift</div>
+                <div class="item-sub">Reliable · 30+ shifts completed</div>
+                <p class="service-desc">I'll keep your baby fed and imprinted across a full 24h cycle. Awake for every cuddle prompt. Perfect for working survivors.</p>
+            </div>
+            <div class="listing-wanted">
+                <span class="wanted-label">Wanted</span>
+                <p class="wanted-text">"1 Element. Or any saddle blueprint Apprentice+ quality."</p>
+            </div>
+            <div class="listing-footer">
+                <span class="seller-block"><span class="name">Tempest</span></span>
+                <span class="seller-rating"><span class="star full">★</span>4.7</span>
+                <button class="offer-btn">Make Offer ▸</button>
+            </div>
+        </a>
+
+        <!-- Create listing placeholder -->
+        <div class="listing-create">
+            <div class="listing-create-glyph">+</div>
+            <div class="listing-create-label">List Something</div>
+        </div>
+
+    </div>
+
+</div>
+
+<div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
+
+<script>
+(function () {
+    const canvas = document.getElementById('tekHexCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const R = 32, W = R * Math.sqrt(3), H = R * 2;
+    let phase = 0;
+    function drawHex(x, y, opacity) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 6;
+            const px = x + (R - 1) * Math.cos(a);
+            const py = y + (R - 1) * Math.sin(a);
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(0,180,255,${opacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cw = canvas.width, ch = canvas.height;
+        const cols = Math.ceil(cw / W) + 3;
+        const rows = Math.ceil(ch / (H * 0.75)) + 3;
+        for (let row = -1; row < rows; row++) {
+            for (let col = -1; col < cols; col++) {
+                const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
+                const y = row * H * 0.75;
+                const dx = x - cw * 0.5, dy = y - ch * 0.5;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
+                drawHex(x, y, 0.07 + wave * 0.09);
+            }
+        }
+        phase += 0.005;
+        requestAnimationFrame(draw);
+    }
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize(); draw();
+})();
+
+/* Filter chips */
+const resultsNum = document.getElementById('resultsNum');
+document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const filter = chip.dataset.filter;
+        let shown = 0;
+        document.querySelectorAll('.listing[data-cat]').forEach(item => {
+            const match = filter === 'all' || item.dataset.cat === filter;
+            item.style.display = match ? '' : 'none';
+            if (match) shown++;
+        });
+        resultsNum.textContent = shown;
+    });
+});
+</script>
+
+</body>
+</html>

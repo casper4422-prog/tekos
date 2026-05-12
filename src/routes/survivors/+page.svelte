@@ -1,107 +1,331 @@
 <script lang="ts">
-	import { Users, Search, Wifi, Dna, Shield } from 'lucide-svelte';
-	import { onMount } from 'svelte';
+    import { onMount } from 'svelte';
+    import { Search, Users } from 'lucide-svelte';
+    import PageHeader from '$lib/components/PageHeader.svelte';
+    import HexAvatar from '$lib/components/HexAvatar.svelte';
 
-	type Survivor = { id:number; nickname:string|null; email:string; bio:string|null; online:boolean; specimens:number; tribe:{name:string}|null };
+    type Survivor = {
+        id: number;
+        nickname: string | null;
+        email: string;
+        bio: string | null;
+        online: boolean;
+        specimens: number;
+        tribe: { name: string } | null;
+    };
 
-	let survivors = $state<Survivor[]>([]);
-	let total     = $state(0);
-	let page      = $state(1);
-	let pages     = $state(1);
-	let loading   = $state(false);
-	let q         = $state('');
-	let onlineOnly = $state(false);
+    let survivors = $state<Survivor[]>([]);
+    let total     = $state(0);
+    let page      = $state(1);
+    let pages     = $state(1);
+    let loading   = $state(false);
+    let q         = $state('');
+    let onlineOnly = $state(false);
 
-	async function load(reset = false) {
-		if (reset) { page = 1; survivors = []; }
-		loading = true;
-		const params = new URLSearchParams({ page: String(page) });
-		if (q.trim()) params.set('q', q.trim());
-		if (onlineOnly) params.set('online', 'true');
-		const res = await fetch(`/api/survivors?${params}`);
-		if (res.ok) {
-			const data = await res.json();
-			survivors = reset ? data.users : [...survivors, ...data.users];
-			total = data.total; pages = data.pages;
-		}
-		loading = false;
-	}
+    async function load(reset = false) {
+        if (reset) { page = 1; survivors = []; }
+        loading = true;
+        const params = new URLSearchParams({ page: String(page) });
+        if (q.trim()) params.set('q', q.trim());
+        if (onlineOnly) params.set('online', 'true');
+        const res = await fetch(`/api/survivors?${params}`);
+        if (res.ok) {
+            const data = await res.json();
+            survivors = reset ? data.users : [...survivors, ...data.users];
+            total = data.total;
+            pages = data.pages;
+        }
+        loading = false;
+    }
 
-	function display(s: Survivor) { return s.nickname ?? s.email; }
+    function setFilter(filter: 'all' | 'online') {
+        onlineOnly = filter === 'online';
+        load(true);
+    }
 
-	onMount(() => load());
+    function displayName(s: Survivor) {
+        return s.nickname ?? s.email.split('@')[0];
+    }
 
-	async function loadMore() { page++; await load(); }
+    onMount(() => load());
 </script>
 
-<div class="std-page">
-	<div class="std-page-header">
-		<div class="page-title">
-			<h1>Survivors</h1>
-			<div class="page-subtitle">{total} registered on TekOS</div>
-		</div>
-	</div>
+<svelte:head>
+    <title>⬡ TekOS — Survivors</title>
+</svelte:head>
 
-	<div class="dir-controls">
-		<div class="dir-search-row">
-			<input class="form-control" placeholder="Search by name or email..." bind:value={q}
-				onkeydown={(e) => e.key === 'Enter' && load(true)} />
-			<button class="btn btn-primary" onclick={() => load(true)} disabled={loading}><Search size={14} /></button>
-		</div>
-		<label class="dir-online-toggle">
-			<input type="checkbox" bind:checked={onlineOnly} onchange={() => load(true)} />
-			Online only
-		</label>
-	</div>
+<div class="tek-stage">
+    <PageHeader
+        title="Survivors"
+        crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Survivors' }]}
+        sub={'"The wild remembers. So does the network. Find the names you don\'t yet know."'}
+    />
 
-	{#if loading && survivors.length === 0}
-		<div class="dir-loading">Loading survivors...</div>
-	{:else if survivors.length === 0}
-		<div class="dir-empty">No survivors found.</div>
-	{:else}
-		<div class="dir-grid">
-			{#each survivors as s}
-				<a href="/survivors/{s.id}" class="cham-shell dir-card" style="--cut:9px;--cat-rgb:{s.online ? '34,197,94' : '71,85,105'}">
-					<div class="dir-card-inner">
-						<div class="dir-card-top">
-							<div class="dir-online-dot" class:online={s.online}></div>
-							<div class="dir-name">{display(s)}</div>
-						</div>
-						{#if s.tribe}<div class="dir-tribe"><Shield size={11} /> {s.tribe.name}</div>{/if}
-						{#if s.bio}<div class="dir-bio">{s.bio}</div>{/if}
-						<div class="dir-meta">
-							<span><Dna size={11} /> {s.specimens} specimens</span>
-							<span class="dir-status" class:online={s.online}>{s.online ? 'Online' : 'Offline'}</span>
-						</div>
-					</div>
-				</a>
-			{/each}
-		</div>
-		{#if page < pages}
-			<div style="text-align:center;margin-top:24px">
-				<button class="btn btn-secondary" onclick={loadMore} disabled={loading}>{loading ? 'Loading...' : 'Load More'}</button>
-			</div>
-		{/if}
-	{/if}
+    <!-- Filter bar -->
+    <div class="filter-bar">
+        <div class="search-wrap">
+            <Search size={14} strokeWidth={2} class="search-icon" />
+            <input type="text" class="search-input"
+                bind:value={q}
+                onkeydown={(e) => e.key === 'Enter' && load(true)}
+                placeholder="Search by name, email, or bio…" />
+        </div>
+        <button class="tek-chip" class:on={!onlineOnly} onclick={() => setFilter('all')}>
+            All <span class="num">{total}</span>
+        </button>
+        <button class="tek-chip" class:on={onlineOnly} onclick={() => setFilter('online')}>
+            <span class="tek-pip green pulse"></span>Online
+        </button>
+        <button class="tek-btn-v2" onclick={() => load(true)} disabled={loading}>
+            {loading ? 'SEARCHING…' : 'SEARCH'}
+        </button>
+    </div>
+
+    <!-- Section head -->
+    <div class="tek-section-head">
+        <div class="tek-section-title">
+            {onlineOnly ? 'Online Survivors' : 'All Survivors'}
+        </div>
+        <div class="tek-section-meta">
+            SHOWING <span class="accent">{survivors.length}</span> OF {total.toLocaleString()}
+        </div>
+    </div>
+
+    <!-- Loading / empty / grid -->
+    {#if loading && survivors.length === 0}
+        <div class="tek-empty">
+            <div class="icon">⬡</div>
+            <div class="title">Loading…</div>
+        </div>
+    {:else if survivors.length === 0}
+        <div class="tek-empty">
+            <div class="icon"><Users size={28} strokeWidth={1.5} /></div>
+            <div class="title">No Survivors Found</div>
+            <div class="flavor">"The wild is quiet."</div>
+        </div>
+    {:else}
+        <div class="dir-grid">
+            {#each survivors as s}
+                <a class="dir-card" class:online={s.online} href="/survivors/{s.id}">
+                    <div class="dir-card-head">
+                        <HexAvatar name={displayName(s)} size={44} online={s.online} />
+                        <div class="dir-meta">
+                            <div class="dir-name">{displayName(s)}</div>
+                            {#if s.online}
+                                <div class="dir-status online"><span class="tek-pip green"></span>ONLINE</div>
+                            {:else}
+                                <div class="dir-status offline"><span class="tek-pip"></span>OFFLINE</div>
+                            {/if}
+                        </div>
+                    </div>
+
+                    {#if s.tribe}
+                        <div class="dir-tribe">
+                            <div class="sigil"></div>
+                            <div class="name">{s.tribe.name}</div>
+                        </div>
+                    {:else}
+                        <div class="dir-no-tribe">— No tribe —</div>
+                    {/if}
+
+                    {#if s.bio}
+                        <div class="dir-bio">{s.bio}</div>
+                    {:else}
+                        <div class="dir-bio empty">"No bio yet."</div>
+                    {/if}
+
+                    <div class="dir-stats">
+                        <div class="dir-stat">
+                            <div class="dir-stat-val">{s.specimens}</div>
+                            <div class="dir-stat-label">Specimens</div>
+                        </div>
+                    </div>
+                </a>
+            {/each}
+        </div>
+
+        {#if page < pages}
+            <div class="dir-footer">
+                <button class="tek-btn-v2" onclick={() => { page++; load(false); }} disabled={loading}>
+                    {loading ? 'LOADING…' : '▾ LOAD MORE SURVIVORS'}
+                </button>
+            </div>
+        {/if}
+    {/if}
 </div>
 
 <style>
-.dir-controls { display:flex; align-items:center; gap:14px; margin-bottom:24px; flex-wrap:wrap; }
-.dir-search-row { display:flex; gap:8px; flex:1; min-width:200px; }
-.dir-search-row .form-control { flex:1; }
-.dir-online-toggle { display:flex; align-items:center; gap:7px; font-size:0.85rem; color:#94a3b8; cursor:pointer; white-space:nowrap; }
-.dir-loading,.dir-empty { color:#475569; padding:48px 0; text-align:center; font-size:0.88rem; }
+.filter-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.search-wrap { position: relative; flex: 1; min-width: 240px; }
+.search-wrap :global(.search-icon) {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--tek-blue);
+    pointer-events: none;
+}
+.search-input {
+    width: 100%;
+    background: rgba(5,8,18,0.7);
+    border: 1px solid var(--tek-blue-border);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.84rem;
+    padding: 10px 14px 10px 34px;
+    clip-path: polygon(7px 0%, 100% 0%, calc(100% - 7px) 100%, 0% 100%);
+}
+.search-input::placeholder { color: var(--tek-text-faint); }
+.search-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--tek-blue), 0 0 12px rgba(0,180,255,0.25);
+}
 
-.dir-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
-.dir-card { display:block; text-decoration:none; color:inherit; }
-.dir-card-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:16px 18px; display:flex; flex-direction:column; gap:6px; }
-.dir-card-top { display:flex; align-items:center; gap:8px; }
-.dir-online-dot { width:8px; height:8px; border-radius:50%; background:#475569; flex-shrink:0; }
-.dir-online-dot.online { background:#4ade80; box-shadow:0 0 6px rgba(74,222,128,0.6); }
-.dir-name { font-size:0.95rem; font-weight:700; color:#f1f5f9; }
-.dir-tribe { display:flex; align-items:center; gap:5px; font-size:0.75rem; color:#a78bfa; }
-.dir-bio { font-size:0.78rem; color:#64748b; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.5; }
-.dir-meta { display:flex; align-items:center; justify-content:space-between; margin-top:4px; font-size:0.72rem; color:#475569; }
-.dir-status { color:#475569; }
-.dir-status.online { color:#4ade80; }
+.dir-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.dir-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.97) 100%);
+    border: 1px solid rgba(100,116,139,0.18);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+.dir-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--tek-blue-border);
+    box-shadow: 0 6px 18px rgba(0,180,255,0.10);
+}
+.dir-card.online::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: var(--tek-green);
+    box-shadow: 0 0 6px rgba(16,185,129,0.5);
+}
+
+.dir-card-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+.dir-meta { flex: 1; min-width: 0; }
+.dir-name {
+    font-family: var(--tek-display);
+    font-size: 0.96rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--tek-text);
+    line-height: 1.15;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.dir-status {
+    display: flex; align-items: center; gap: 5px;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+.dir-status.online { color: var(--tek-green); }
+.dir-status.offline { color: var(--tek-text-faint); }
+
+.dir-tribe {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(139,92,246,0.08);
+    border: 1px solid rgba(139,92,246,0.30);
+    padding: 3px 8px 3px 4px;
+    margin-bottom: 8px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    color: var(--tek-purple);
+    letter-spacing: 0.08em;
+    max-width: 100%;
+    overflow: hidden;
+}
+.dir-tribe .sigil {
+    width: 14px; height: 14px;
+    background: linear-gradient(135deg, var(--tek-purple), var(--tek-blue));
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    flex-shrink: 0;
+}
+.dir-tribe .name {
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dir-no-tribe {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    color: var(--tek-text-faint);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    padding: 3px 0;
+    margin-bottom: 8px;
+    display: inline-block;
+    font-style: italic;
+}
+
+.dir-bio {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 0.82rem;
+    color: var(--tek-text-dim);
+    line-height: 1.4;
+    margin-bottom: 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.3em;
+}
+.dir-bio.empty { color: var(--tek-text-faint); }
+
+.dir-stats {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(0,180,255,0.08);
+}
+.dir-stat { text-align: center; }
+.dir-stat-val {
+    font-family: var(--tek-mono);
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: var(--tek-text);
+}
+.dir-stat-label {
+    font-family: var(--tek-mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+.dir-footer {
+    margin-top: 20px;
+    text-align: center;
+    padding: 16px 0;
+}
 </style>

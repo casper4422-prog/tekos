@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import PageHeader from '$lib/components/PageHeader.svelte';
+	import { Plus, Heart, ArrowLeft } from 'lucide-svelte';
 
 	type SpeciesData = Record<string, unknown>;
 
@@ -10,7 +12,7 @@
 	let wlSaving = $state(false);
 
 	onMount(() => {
-		const db = (window as Record<string,unknown>).EXPANDED_SPECIES_DATABASE as Record<string, SpeciesData> | undefined;
+		const db = window.EXPANDED_SPECIES_DATABASE as Record<string, SpeciesData> | undefined;
 		species = db?.[name] ?? null;
 	});
 
@@ -27,16 +29,28 @@
 	const STAT_ICONS: Record<string,string> = { Health:'❤️', Stamina:'⚡', Oxygen:'💧', Food:'🍖', Weight:'🏋️', MeleeDamageMultiplier:'⚔️', SpeedMultiplier:'💨', TorpidityBase:'💤' };
 </script>
 
-<div class="std-page">
+<div class="tek-stage">
+	<PageHeader
+		title={name}
+		crumbs={[
+			{ label: 'Dashboard', href: '/dossier' },
+			{ label: 'Dex', href: '/dex' },
+			{ label: name }
+		]}
+	/>
+
 	<!-- Action bar -->
 	<div class="sdp-action-bar">
-		<a href="/dex" class="btn btn-secondary btn-sm">← Dex</a>
+		<a href="/dex" class="tek-btn-v2 ghost sm">
+			<ArrowLeft size={12} strokeWidth={2.5} /> Back to Dex
+		</a>
 		<div class="sdp-action-btns">
-			<a href="/specimens?species={encodeURIComponent(name)}" class="btn btn-primary">
-				+ Add to Vault
+			<a href="/specimens/add?species={encodeURIComponent(name)}" class="tek-btn-v2 solid">
+				<Plus size={13} strokeWidth={2.5} /> Add to Vault
 			</a>
-			<button class="btn btn-secondary sdp-wish-btn" onclick={addToWishlist} disabled={wlAdded || wlSaving}>
-				{wlAdded ? '✓ On Wishlist' : '♡ Wishlist'}
+			<button class="tek-btn-v2 sdp-wish-btn" onclick={addToWishlist} disabled={wlAdded || wlSaving}>
+				<Heart size={12} strokeWidth={2.5} />
+				{wlAdded ? 'On Wishlist' : (wlSaving ? 'Adding…' : 'Wishlist')}
 			</button>
 		</div>
 	</div>
@@ -132,10 +146,30 @@
 .sdp-wish-btn { font-size:0.84rem !important; }
 
 /* Hero */
-.sdp-hero { background:linear-gradient(160deg,rgba(14,26,54,.9),rgba(5,10,24,.97)); border:1px solid rgba(255,255,255,.06); border-left:3px solid; border-radius:10px; padding:28px 28px 24px; margin-bottom:24px; }
+.sdp-hero {
+	position: relative;
+	background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.97) 100%);
+	border: 1px solid rgba(0,180,255,0.18);
+	border-left: 3px solid;
+	clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+	padding: 24px 26px 22px;
+	margin-bottom: 22px;
+}
 .sdp-hero-top { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
 .sdp-cat-badge { font-size:0.62rem; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; padding:3px 8px; border-radius:4px; border:1px solid; }
-.sdp-name { font-size:2rem; font-weight:700; color:#f1f5f9; margin:0 0 12px; letter-spacing:-0.02em; }
+.sdp-name {
+	font-family: var(--tek-display);
+	font-size: clamp(1.6rem, 4vw, 2.4rem);
+	font-weight: 900;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
+	-webkit-background-clip: text; background-clip: text;
+	-webkit-text-fill-color: transparent;
+	filter: drop-shadow(0 0 10px rgba(0,180,255,0.30));
+	margin: 0 0 12px;
+	line-height: 1.05;
+}
 .sdp-tags { display:flex; gap:6px; flex-wrap:wrap; }
 .sdp-tag { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:99px; padding:3px 10px; font-size:0.75rem; color:#94a3b8; text-transform:capitalize; }
 .sdp-tag.rarity { color:#a855f7; border-color:rgba(168,85,247,.3); background:rgba(168,85,247,.1); }
@@ -143,8 +177,32 @@
 .sdp-body { display:grid; grid-template-columns:1fr 1.2fr; gap:20px; }
 @media (max-width:700px) { .sdp-body { grid-template-columns:1fr; } }
 
-.sdp-section { background:var(--tek-card-bg,rgba(14,26,54,.7)); border:1px solid rgba(255,255,255,.07); border-radius:12px; padding:18px; margin-bottom:14px; }
-.sdp-section-title { font-size:0.85rem; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:.06em; margin:0 0 12px; }
+.sdp-section {
+	position: relative;
+	background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
+	border: 1px solid rgba(0,180,255,0.15);
+	clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+	padding: 16px 18px;
+	margin-bottom: 12px;
+}
+.sdp-section::before {
+	content: '';
+	position: absolute;
+	left: 0; top: 10px; bottom: 0;
+	width: 2px;
+	background: var(--tek-blue);
+	box-shadow: 0 0 5px var(--tek-blue-glow);
+}
+.sdp-section-title {
+	font-family: var(--tek-display);
+	font-size: 0.84rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	color: var(--tek-text);
+	text-transform: uppercase;
+	margin: 0 0 12px;
+}
+.sdp-section-title::before { content: '▸ '; color: var(--tek-blue); }
 .sdp-row { display:flex; justify-content:space-between; gap:12px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,.04); font-size:0.85rem; }
 .sdp-row:last-child { border-bottom:none; }
 .sdp-lbl { color:#64748b; }

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Shield, Users, Dna, Plus, Check, X, LogOut, Megaphone, AlertTriangle, ChevronRight, Wand2, Swords } from 'lucide-svelte';
 	import type { PageData } from './$types';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	let { data }: { data: PageData } = $props();
 
 	type Member    = { id:number; role:string; user:{ id:number; nickname:string|null; email:string; lastSeen:string|null } };
@@ -137,21 +138,25 @@
 	}
 </script>
 
-<div class="std-page">
+<div class="tek-stage">
 {#if membership}
 	{@const tribe = membership.tribe}
 	{@const isOwner = membership.role === 'owner'}
 	{@const isAdmin = membership.role === 'owner' || membership.role === 'admin'}
 
-	<div class="std-page-header">
-		<div class="page-title">
-			<h1>{tribe.name}</h1>
-			<div class="page-subtitle">{tribe.members.length} member{tribe.members.length !== 1 ? 's' : ''}{tribe.mainMap ? ` Â· ${tribe.mainMap}` : ''}</div>
+	<div class="tribe-head-row">
+		<PageHeader
+			title={tribe.name}
+			crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Tribe' }]}
+			sub={`${tribe.members.length} member${tribe.members.length !== 1 ? 's' : ''}${tribe.mainMap ? ' · ' + tribe.mainMap : ''}`}
+			subMono={true}
+		/>
+		<div class="tribe-head-actions">
+			<a href="/tribe/flag" class="tek-btn-v2 ghost"><Wand2 size={13} strokeWidth={2.5} /> Flag Workshop</a>
+			{#if !isOwner}
+				<button class="tek-btn-v2 danger" onclick={leaveTribe}><LogOut size={14} strokeWidth={2.5} /> Leave</button>
+			{/if}
 		</div>
-		<a href="/tribe/flag" class="btn btn-secondary"><Wand2 size={13} /> Flag Workshop</a>
-		{#if !isOwner}
-			<button class="btn btn-danger btn-sm" onclick={leaveTribe}><LogOut size={14} /> Leave</button>
-		{/if}
 	</div>
 
 	{#if tribe.description}<div class="tribe-desc">{tribe.description}</div>{/if}
@@ -354,9 +359,15 @@
 
 {:else}
 	<!-- No tribe -->
-	<div class="std-page-header">
-		<div class="page-title"><h1>Tribe</h1><div class="page-subtitle">Find your people or forge your own</div></div>
-		<button class="btn btn-primary" onclick={() => createStep = 1}><Plus size={14} /> Found a Tribe</button>
+	<div class="tribe-head-row">
+		<PageHeader
+			title="Tribe"
+			crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Tribe' }]}
+			sub="Find your people or forge your own."
+		/>
+		<div class="tribe-head-actions">
+			<button class="tek-btn-v2 solid" onclick={() => createStep = 1}><Plus size={14} strokeWidth={2.5} /> Found a Tribe</button>
+		</div>
 	</div>
 
 	{#if (allTribes?.length ?? 0) === 0}
@@ -479,7 +490,10 @@
 
 <style>
 .tribe-desc { color:#94a3b8; font-size:0.88rem; margin-bottom:20px; line-height:1.6; }
-.tribe-empty { color:#475569; padding:24px 0; font-size:0.88rem; }
+.tribe-empty { color: var(--tek-text-faint); padding: 24px 0; font-family: var(--tek-serif); font-style: italic; font-size: 0.95rem; }
+.tribe-head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+.tribe-head-row :global(.tek-page-header) { margin-bottom: 0; }
+.tribe-head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 .tribe-member-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:8px; }
 .tribe-member { --cut:7px; }

@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (locals.user) redirect(302, '/dossier');
-	else redirect(302, '/login');
+    // Signed-in users skip the landing
+    if (locals.user) throw redirect(302, '/dossier');
+    return {};
 };

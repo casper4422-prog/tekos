@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>⬡ TEKOS — Codex</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.22);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.35);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-discord:      #5865f2;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 70% 50% at 15% 8%,  rgba(0,180,255,0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 45% at 85% 85%, rgba(139,92,246,0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+#tekHexCanvas {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* ── Preview chrome ─────────────────────────────────────────────────────── */
+.demo-banner {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 60;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    color: var(--tek-amber);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    padding: 5px 10px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+
+.return-link {
+    position: fixed;
+    top: 18px;
+    right: 22px;
+    z-index: 50;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.return-link:hover { color: var(--tek-blue); }
+.return-link .arrow { display: inline-block; transform: rotate(180deg); margin-right: 4px; }
+
+/* ── Stage ──────────────────────────────────────────────────────────────── */
+.stage {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px 80px;
+}
+
+/* ── Login panel ────────────────────────────────────────────────────────── */
+.panel {
+    position: relative;
+    width: 100%;
+    max-width: 460px;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.96) 100%);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 36px 34px 28px;
+    overflow: hidden;
+    animation: panel-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* The panel sits inside a slightly larger drop-shadow wrapper to keep glow visible */
+.panel-shell {
+    position: relative;
+    filter:
+        drop-shadow(0 0 1px rgba(0,180,255,0.30))
+        drop-shadow(0 0 40px rgba(0,180,255,0.08))
+        drop-shadow(0 0 100px rgba(139,92,246,0.05))
+        drop-shadow(0 28px 80px rgba(0,0,0,0.65));
+}
+
+@keyframes panel-in {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); filter: blur(2px); }
+    to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+/* Initial scanner sweep across the panel */
+.panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(0,180,255,0.18) 50%, transparent 100%);
+    height: 60px;
+    top: -60px;
+    pointer-events: none;
+    animation: scanner-sweep 1.4s 0.3s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+@keyframes scanner-sweep {
+    0%   { top: -60px; opacity: 0; }
+    20%  { opacity: 1; }
+    100% { top: calc(100% + 20px); opacity: 0; }
+}
+
+/* Left accent rail */
+.panel::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 14px;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue) 0%, var(--tek-purple) 100%);
+    box-shadow: 0 0 8px var(--tek-blue-glow);
+    z-index: 2;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.panel-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+.panel-mark {
+    display: inline-flex;
+    color: var(--tek-blue);
+    filter: drop-shadow(0 0 10px var(--tek-blue-glow));
+    margin-bottom: 12px;
+    animation: mark-pulse 3s ease-in-out infinite;
+}
+@keyframes mark-pulse {
+    0%, 100% { filter: drop-shadow(0 0 10px rgba(0,180,255,0.35)); }
+    50%      { filter: drop-shadow(0 0 18px rgba(0,180,255,0.65)); }
+}
+.panel-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    line-height: 1;
+    background: linear-gradient(135deg, #00d4ff 0%, #00b4ff 60%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+}
+.panel-subtitle {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-dim);
+}
+.panel-subtitle .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+.tabs {
+    display: flex;
+    margin-bottom: 22px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.tab {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--tek-text-faint);
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    padding: 11px 0;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-color 0.2s;
+}
+.tab:hover { color: var(--tek-text-dim); }
+.tab.active {
+    color: var(--tek-blue);
+    border-bottom-color: var(--tek-blue);
+    text-shadow: 0 0 8px rgba(0,180,255,0.35);
+}
+
+/* ── Discord button (primary) ───────────────────────────────────────────── */
+.discord-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 13px;
+    background: linear-gradient(135deg, #5865f2 0%, #4752c4 100%);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    filter: drop-shadow(0 0 10px rgba(88,101,242,0.40));
+    transition: filter 0.18s, transform 0.18s;
+    margin-bottom: 18px;
+}
+.discord-btn:hover {
+    filter: drop-shadow(0 0 20px rgba(88,101,242,0.80));
+    transform: translateY(-1px);
+}
+
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 18px;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    color: var(--tek-text-faint);
+}
+.divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
+}
+
+/* ── Form ───────────────────────────────────────────────────────────────── */
+.field { margin-bottom: 14px; }
+.field-label {
+    display: block;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--tek-text-dim);
+    margin-bottom: 6px;
+}
+.field-input {
+    display: block;
+    width: 100%;
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    color: var(--tek-text);
+    padding: 11px 14px;
+    font-family: inherit;
+    font-size: 0.92rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.field-input::placeholder { color: var(--tek-text-faint); }
+.field-input:hover {
+    border-color: rgba(255,255,255,0.12);
+    border-bottom-color: rgba(0,180,255,0.32);
+}
+.field-input:focus {
+    border-color: rgba(0,180,255,0.40);
+    border-bottom-color: var(--tek-blue);
+    box-shadow: 0 1px 0 rgba(0,180,255,0.45), 0 0 0 3px rgba(0,180,255,0.07);
+    background: rgba(0,15,35,0.92);
+}
+
+/* ── Submit button ──────────────────────────────────────────────────────── */
+.submit-btn {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
+    color: #001a2e;
+    font-family: inherit;
+    font-size: 0.86rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    filter: drop-shadow(0 0 12px rgba(0,180,255,0.50));
+    transition: filter 0.18s, transform 0.18s;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.submit-btn:hover {
+    filter: drop-shadow(0 0 22px rgba(0,180,255,0.80));
+    transform: translateY(-1px);
+}
+.submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ── AI status line ─────────────────────────────────────────────────────── */
+.status-line {
+    margin-top: 16px;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-faint);
+    text-align: center;
+    min-height: 18px;
+    transition: color 0.3s;
+}
+.status-line.active { color: var(--tek-blue); }
+.status-line.error  { color: var(--tek-red); }
+.status-line .prefix { opacity: 0.6; margin-right: 4px; }
+.status-line .pulse-dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    margin-right: 6px;
+    vertical-align: middle;
+    animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
+}
+
+/* ── Guest link ─────────────────────────────────────────────────────────── */
+.guest-row {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    text-align: center;
+}
+.guest-link {
+    background: none;
+    border: none;
+    color: var(--tek-text-faint);
+    font-family: inherit;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.guest-link:hover { color: var(--tek-text-dim); }
+.guest-link .arrow { color: var(--tek-blue); margin-left: 4px; }
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+.bottom-note {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* ── Tab content swap ───────────────────────────────────────────────────── */
+.tab-content { display: none; }
+.tab-content.active { display: block; animation: tab-in 0.3s ease-out; }
+@keyframes tab-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+@media (max-width: 520px) {
+    .panel { padding: 28px 22px 22px; }
+    .panel-title { font-size: 1.25rem; }
+    .bottom-note { font-size: 0.55rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">PREVIEW MODE ▸ CODEX CONCEPT</div>
+<a href="landing-preview.html" class="return-link"><span class="arrow">▸</span> RETURN TO LANDING</a>
+
+<canvas id="tekHexCanvas"></canvas>
+
+<div class="stage">
+    <div class="panel-shell">
+        <div class="panel">
+
+            <div class="panel-header">
+                <div class="panel-mark">
+                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    </svg>
+                </div>
+                <div class="panel-title">CODEX</div>
+                <div class="panel-subtitle">
+                    <span class="prefix">›</span>SURVIVOR ACCESS
+                </div>
+            </div>
+
+            <div class="tabs" role="tablist">
+                <button class="tab active" data-tab="signin" role="tab" aria-selected="true">ENTER</button>
+                <button class="tab" data-tab="register" role="tab" aria-selected="false">AWAKEN</button>
+            </div>
+
+            <!-- SIGN IN TAB -->
+            <div class="tab-content active" data-tab-content="signin">
+                <form id="signinForm">
+                    <div class="field">
+                        <label class="field-label" for="signinId">Survivor or Email</label>
+                        <input class="field-input" id="signinId" type="text" autocomplete="username" placeholder="survivor@theark" />
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="signinKey">Passcode</label>
+                        <input class="field-input" id="signinKey" type="password" autocomplete="current-password" placeholder="••••••••••" />
+                    </div>
+                    <button class="submit-btn" type="submit" id="signinBtn">
+                        Enter the ARK <span aria-hidden="true">▸</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- REGISTER TAB -->
+            <div class="tab-content" data-tab-content="register">
+                <form id="registerForm">
+                    <div class="field">
+                        <label class="field-label" for="regEmail">Email</label>
+                        <input class="field-input" id="regEmail" type="email" autocomplete="email" placeholder="survivor@theark" />
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="regCallsign">Survivor Name</label>
+                        <input class="field-input" id="regCallsign" type="text" placeholder="What should the tribes call you?" />
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="regKey">Passcode</label>
+                        <input class="field-input" id="regKey" type="password" autocomplete="new-password" placeholder="Minimum 8 characters" />
+                    </div>
+                    <button class="submit-btn" type="submit" id="registerBtn">
+                        Awaken <span aria-hidden="true">▸</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- AI status line -->
+            <div class="status-line" id="statusLine">
+                <span class="prefix">›</span>AWAITING SURVIVOR
+            </div>
+
+            <div class="guest-row">
+                <button class="guest-link" type="button">
+                    Browse as guest <span class="arrow">▸</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
+
+<script>
+/* Hex grid background — same as live site */
+(function () {
+    const canvas = document.getElementById('tekHexCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const R = 32, W = R * Math.sqrt(3), H = R * 2;
+    let phase = 0;
+    function drawHex(x, y, opacity) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 6;
+            const px = x + (R - 1) * Math.cos(a);
+            const py = y + (R - 1) * Math.sin(a);
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(0,180,255,${opacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cw = canvas.width, ch = canvas.height;
+        const cols = Math.ceil(cw / W) + 3;
+        const rows = Math.ceil(ch / (H * 0.75)) + 3;
+        for (let row = -1; row < rows; row++) {
+            for (let col = -1; col < cols; col++) {
+                const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
+                const y = row * H * 0.75;
+                const dx = x - cw * 0.5, dy = y - ch * 0.5;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
+                drawHex(x, y, 0.07 + wave * 0.09);
+            }
+        }
+        phase += 0.005;
+        requestAnimationFrame(draw);
+    }
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize);
+    resize();
+    draw();
+})();
+
+/* Tab switching */
+const tabs = document.querySelectorAll('.tab');
+const contents = document.querySelectorAll('.tab-content');
+const statusLine = document.getElementById('statusLine');
+
+tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        const target = tab.dataset.tab;
+        tabs.forEach(t => {
+            const active = t === tab;
+            t.classList.toggle('active', active);
+            t.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        contents.forEach(c => {
+            c.classList.toggle('active', c.dataset.tabContent === target);
+        });
+        setStatus(target === 'register' ? 'AWAITING NEW SURVIVOR' : 'AWAITING SURVIVOR');
+    });
+});
+
+/* AI Companion status line — reacts to focus / typing / submit */
+function setStatus(text, mode) {
+    statusLine.className = 'status-line' + (mode ? ' ' + mode : '');
+    if (mode === 'active') {
+        statusLine.innerHTML = `<span class="pulse-dot"></span>${text}`;
+    } else {
+        statusLine.innerHTML = `<span class="prefix">›</span>${text}`;
+    }
+}
+
+document.querySelectorAll('.field-input').forEach(input => {
+    input.addEventListener('focus', () => {
+        setStatus('SURVIVOR DETECTED', 'active');
+    });
+    input.addEventListener('blur', () => {
+        const isReg = document.querySelector('.tab.active').dataset.tab === 'register';
+        setStatus(isReg ? 'AWAITING NEW SURVIVOR' : 'AWAITING SURVIVOR');
+    });
+});
+
+/* Demo: simulate submit → show "establishing uplink" */
+document.getElementById('signinForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('signinBtn');
+    btn.disabled = true;
+    btn.innerHTML = 'Linking implant…';
+    setStatus('LINKING IMPLANT', 'active');
+    setTimeout(() => {
+        setStatus('IMPLANT NOT RECOGNIZED · CHECK PASSCODE', 'error');
+        btn.disabled = false;
+        btn.innerHTML = 'Enter the ARK <span aria-hidden="true">▸</span>';
+    }, 1400);
+});
+
+document.getElementById('registerForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('registerBtn');
+    btn.disabled = true;
+    btn.innerHTML = 'Awakening…';
+    setStatus('AWAKENING NEW SURVIVOR', 'active');
+    setTimeout(() => {
+        setStatus('SURVIVOR READY · WELCOME TO THE ARK', 'active');
+        btn.disabled = false;
+        btn.innerHTML = 'Awaken <span aria-hidden="true">▸</span>';
+    }, 1400);
+});
+</script>
+
+</body>
+</html>

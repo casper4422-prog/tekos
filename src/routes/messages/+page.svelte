@@ -1,72 +1,159 @@
 <script lang="ts">
-	import { MessageSquare, ChevronRight } from 'lucide-svelte';
-	import type { PageData } from './$types';
-	let { data }: { data: PageData } = $props();
+    import { MessageSquare, ChevronRight } from 'lucide-svelte';
+    import type { PageData } from './$types';
+    import PageHeader from '$lib/components/PageHeader.svelte';
+    import HexAvatar from '$lib/components/HexAvatar.svelte';
 
-	type Convo = { userId:number; nickname:string|null; email:string; lastMessage:string; lastAt:string; unread:number };
-	const convos = data.convos as Convo[];
+    let { data }: { data: PageData } = $props();
 
-	function display(c: Convo) { return c.nickname ?? c.email; }
+    type Convo = {
+        userId: number;
+        nickname: string | null;
+        email: string;
+        lastMessage: string;
+        lastAt: string;
+        unread: number;
+    };
+    const convos = $derived(data.convos as Convo[]);
 
-	function ago(dt: string): string {
-		const diff = Date.now() - new Date(dt).getTime();
-		const m = Math.floor(diff / 60000);
-		if (m < 1) return 'just now';
-		if (m < 60) return `${m}m ago`;
-		const h = Math.floor(m / 60);
-		if (h < 24) return `${h}h ago`;
-		return `${Math.floor(h / 24)}d ago`;
-	}
+    function displayName(c: Convo) { return c.nickname ?? c.email.split('@')[0]; }
+
+    function relTime(d: string) {
+        const diff = Date.now() - new Date(d).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return `${mins}m`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h`;
+        const days = Math.floor(hrs / 24);
+        if (days < 7) return `${days}d`;
+        return new Date(d).toLocaleDateString();
+    }
+
+    const totalUnread = $derived(convos.reduce((s, c) => s + c.unread, 0));
 </script>
 
-<div class="std-page">
-	<div class="std-page-header">
-		<div class="page-title">
-			<h1>Comms</h1>
-			<div class="page-subtitle">Direct messages</div>
-		</div>
-	</div>
+<svelte:head>
+    <title>⬡ TekOS — Messages</title>
+</svelte:head>
 
-	{#if convos.length === 0}
-		<div class="comms-empty">No messages yet. Start a conversation from the Network page.</div>
-	{:else}
-		<div class="comms-list">
-			{#each convos as c}
-				<a class="cham-shell comms-row" href="/messages/{c.userId}" style="--cut:7px">
-					<div class="comms-row-inner">
-						<div class="comms-avatar">
-							<MessageSquare size={16} />
-						</div>
-						<div class="comms-info">
-							<div class="comms-name">{display(c)}</div>
-							<div class="comms-preview">{c.lastMessage}</div>
-						</div>
-						<div class="comms-meta">
-							<div class="comms-time">{ago(c.lastAt)}</div>
-							{#if c.unread > 0}
-								<div class="comms-unread">{c.unread}</div>
-							{/if}
-						</div>
-						<ChevronRight size={14} class="comms-chevron" />
-					</div>
-				</a>
-			{/each}
-		</div>
-	{/if}
+<div class="tek-stage">
+    <PageHeader
+        title="Messages"
+        crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Messages' }]}
+        sub={convos.length === 0
+            ? "No conversations yet — start one from a Survivor's profile."
+            : `${convos.length} conversations · ${totalUnread} unread`}
+        subMono={true}
+    />
+
+    {#if convos.length === 0}
+        <div class="tek-empty">
+            <div class="icon"><MessageSquare size={26} strokeWidth={1.5} /></div>
+            <div class="title">No messages</div>
+            <div class="flavor">"Find a Survivor in Friends or Survivors and tap message."</div>
+            <div style="margin-top: 16px;">
+                <a class="tek-btn-v2 solid" href="/survivors">BROWSE SURVIVORS</a>
+            </div>
+        </div>
+    {:else}
+        <div class="convo-list">
+            {#each convos as c}
+                <a class="convo" class:unread={c.unread > 0} href="/messages/{c.userId}">
+                    <HexAvatar name={displayName(c)} size={48} showPip={false} />
+                    <div class="convo-body">
+                        <div class="convo-head">
+                            <div class="convo-name">{displayName(c)}</div>
+                            <div class="convo-time">{relTime(c.lastAt)}</div>
+                        </div>
+                        <div class="convo-preview">{c.lastMessage}</div>
+                    </div>
+                    {#if c.unread > 0}
+                        <div class="convo-badge">{c.unread}</div>
+                    {:else}
+                        <ChevronRight size={16} strokeWidth={2} class="convo-chevron" />
+                    {/if}
+                </a>
+            {/each}
+        </div>
+    {/if}
 </div>
 
 <style>
-.comms-empty { color:#475569; padding:48px 0; text-align:center; font-size:0.9rem; }
-.comms-list { display:flex; flex-direction:column; gap:5px; }
-.comms-row { display:block; text-decoration:none; color:inherit; max-width:640px; }
-.comms-row-inner { background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1)); padding:14px 16px; display:flex; align-items:center; gap:14px; transition:background .15s; }
-.comms-row:hover .comms-row-inner { background:rgba(14,26,54,0.98); }
-.comms-avatar { width:34px; height:34px; border-radius:50%; background:rgba(0,180,255,0.1); border:1px solid rgba(0,180,255,0.2); display:flex; align-items:center; justify-content:center; color:rgba(0,180,255,0.7); flex-shrink:0; }
-.comms-info { flex:1; min-width:0; }
-.comms-name { font-size:0.9rem; font-weight:600; color:#f1f5f9; }
-.comms-preview { font-size:0.78rem; color:#64748b; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.comms-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
-.comms-time { font-size:0.68rem; color:#475569; }
-.comms-unread { background:#00b4ff; color:#050812; border-radius:99px; padding:1px 7px; font-size:0.65rem; font-weight:800; min-width:20px; text-align:center; }
-:global(.comms-chevron) { color:#334155; flex-shrink:0; }
+.convo-list { display: flex; flex-direction: column; gap: 6px; }
+
+.convo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(100,116,139,0.15);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.15s;
+    position: relative;
+}
+.convo:hover {
+    background: rgba(10,18,44,0.7);
+    border-color: var(--tek-blue-border);
+    transform: translateX(2px);
+}
+.convo.unread {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.96) 100%);
+    border-color: rgba(0,180,255,0.30);
+}
+.convo.unread::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 2px;
+    background: var(--tek-blue);
+    box-shadow: 0 0 6px var(--tek-blue-glow);
+}
+
+.convo-body { flex: 1; min-width: 0; }
+.convo-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+.convo-name {
+    font-family: var(--tek-display);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.convo-time {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+.convo-preview {
+    font-size: 0.84rem;
+    color: var(--tek-text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+.convo.unread .convo-preview { color: var(--tek-text); }
+
+.convo-badge {
+    background: var(--tek-blue);
+    color: #050812;
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    flex-shrink: 0;
+    box-shadow: 0 0 8px var(--tek-blue-glow);
+}
+.convo :global(.convo-chevron) { color: var(--tek-text-faint); flex-shrink: 0; }
 </style>

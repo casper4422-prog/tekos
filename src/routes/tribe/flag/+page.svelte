@@ -74,14 +74,17 @@
 	];
 </script>
 
-<div class="std-page fw-page">
+<div class="tek-stage fw-page">
 
 	<div class="fw-header">
-		<div>
-			<h1 class="fw-title">Flag Workshop</h1>
-			<div class="fw-subtitle">ARK: Survival Ascended · AI prompt builder</div>
+		<div class="fw-header-text">
+			<div class="tek-breadcrumb">
+				<a href="/dossier">DASHBOARD</a><span class="sep">/</span><a href="/tribe">TRIBE</a><span class="sep">/</span><span>FLAG WORKSHOP</span>
+			</div>
+			<h1 class="t-page-title">Flag Workshop</h1>
+			<div class="tek-page-sub">"Forge your tribe's sigil. The wild will know who you are by the colors you fly."</div>
 		</div>
-		<a href="/tribe" class="btn btn-secondary btn-sm">← Tribe</a>
+		<a href="/tribe" class="tek-btn-v2 ghost sm">← Tribe</a>
 	</div>
 
 	<!-- Step 1 -->

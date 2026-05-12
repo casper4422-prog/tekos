@@ -3,7 +3,8 @@
 		User, Dna, BookOpen,
 		Users, Shield, Rss,
 		Repeat2, Sword, Bell, Hexagon,
-		Power, Award, Palette, Flag
+		Power, Award, Settings, Flag,
+		MessageSquare, UserSearch
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { LayoutData } from './$types';
@@ -18,10 +19,11 @@
 			{ page:'dex',       Icon:BookOpen, label:'Dex'       },
 		]},
 		{ section:'Social', color:'gamma', items:[
-			{ page:'feed',      Icon:Rss,     label:'Feed'      },
-			{ page:'friends',   Icon:Users,   label:'Network'   },
-			{ page:'tribe',     Icon:Shield,  label:'Tribe'     },
-			{ page:'settings',  Icon:Palette, label:'Theme'     },
+			{ page:'feed',      Icon:Rss,           label:'Feed'      },
+			{ page:'friends',   Icon:Users,         label:'Network'   },
+			{ page:'messages',  Icon:MessageSquare, label:'Messages'  },
+			{ page:'survivors', Icon:UserSearch,    label:'Survivors' },
+			{ page:'tribe',     Icon:Shield,        label:'Tribe'     },
 		]},
 		{ section:'Operations', color:'alpha', items:[
 			{ page:'marketplace',   Icon:Repeat2, label:'Marketplace'   },
@@ -57,7 +59,7 @@
 		if (theme.bg)     root.style.setProperty('--tek-bg', theme.bg);
 	});
 
-	const SOCIAL_OPS = ['feed','friends','tribe','settings','marketplace','overseer','notifications','badges','survivors','messages','account'];
+	const SOCIAL_OPS = ['feed','friends','tribe','settings','marketplace','overseer','notifications','badges','survivors','messages'];
 	function isLocked(p: string) { return !data.user && SOCIAL_OPS.includes(p); }
 	function exitGuest() { localStorage.removeItem('tekos_guest'); window.location.href = '/login'; }
 </script>
@@ -115,19 +117,22 @@
 				<div class="tek-nav-divider"></div>
 			{/each}
 
-			<!-- Account section — username links to /account, badges listed here -->
+			<!-- Account section — username, badges, settings, disconnect -->
 			<div class="tek-nav-label settings">Account</div>
 			<div class="tek-nav-group-items settings">
 				{#if data.user}
-					<!-- Username → dedicated Edit Account page -->
-					<a class="tek-nav-item profile-item" class:active={isActive('account')} href="/account" onclick={() => sidebarOpen=false} title="Edit account">
+					<!-- Username → Settings (account section) -->
+					<a class="tek-nav-item profile-item" class:active={isActive('settings')} href="/settings" onclick={() => sidebarOpen=false} title="Settings">
 						<span class="nav-icon-wrap"><User size={15} strokeWidth={1.75} /></span>
 						<span class="tek-nav-label-text profile-name">{data.user.nickname ?? data.user.email}</span>
 					</a>
-					<!-- Badges moved here -->
 					<a class="tek-nav-item" class:active={isActive('badges')} href="/badges" onclick={() => sidebarOpen=false}>
 						<span class="nav-icon-wrap"><Award size={15} strokeWidth={1.75} /></span>
 						<span class="tek-nav-label-text">Badges</span>
+					</a>
+					<a class="tek-nav-item" class:active={isActive('settings')} href="/settings" onclick={() => sidebarOpen=false}>
+						<span class="nav-icon-wrap"><Settings size={15} strokeWidth={1.75} /></span>
+						<span class="tek-nav-label-text">Settings</span>
 					</a>
 					<a class="tek-nav-item disconnect-item" href="/api/auth/logout">
 						<span class="nav-icon-wrap"><Power size={15} strokeWidth={1.75} /></span>
