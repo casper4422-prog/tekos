@@ -2,9 +2,7 @@
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
-    import { computeBadges, getStat } from '$lib/badges';
-    import PageHeader from '$lib/components/PageHeader.svelte';
-    import { Upload, Camera, Edit3 } from 'lucide-svelte';
+    import { computeBadges } from '$lib/badges';
 
     type StatKey = 'HP' | 'STA' | 'OXY' | 'FOOD' | 'WGT' | 'MEL' | 'CRA';
     const STATS: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
@@ -13,32 +11,83 @@
     let mode = $state<Mode>('manual');
 
     // ── Form state ──────────────────────────────────────────────────────────
-    let fName    = $state('');
     let fSpecies = $state($page.url.searchParams.get('species') ?? '');
+    let fName    = $state('');
     let fLevel   = $state(1);
-    let fGender  = $state<'Male' | 'Female' | 'Unknown'>('Male');
+    let fGender  = $state<'M' | 'F' | '?'>('M');
     let fServer  = $state('');
     let fNotes   = $state('');
     let fStats   = $state<Record<StatKey, number>>({ HP:0, STA:0, OXY:0, FOOD:0, WGT:0, MEL:0, CRA:0 });
     let fMuts    = $state<Record<StatKey, number>>({ HP:0, STA:0, OXY:0, FOOD:0, WGT:0, MEL:0, CRA:0 });
 
+    let founderOn = $state(false);
+
     let speciesList = $state<string[]>([]);
     let saving = $state(false);
     let error  = $state('');
 
+    let canvasEl: HTMLCanvasElement | null = $state(null);
+
     onMount(() => {
+        // Species autocomplete from global DB
+        // @ts-expect-error global from external script
         const db = window.EXPANDED_SPECIES_DATABASE;
         if (db) speciesList = Object.keys(db).sort();
+
+        // Hex canvas background
+        const canvas = canvasEl;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        let w = 0, h = 0, hexes: { x: number; y: number; size: number }[] = [];
+        let raf = 0;
+        function resize() {
+            w = canvas!.width = window.innerWidth;
+            h = canvas!.height = window.innerHeight;
+            hexes = [];
+            const size = 36, hSpace = size * 1.5, vSpace = size * Math.sqrt(3);
+            for (let y = -size; y < h + size; y += vSpace) {
+                for (let x = -size; x < w + size; x += hSpace) {
+                    const offsetY = (Math.floor(x / hSpace) % 2) * vSpace / 2;
+                    hexes.push({ x, y: y + offsetY, size });
+                }
+            }
+        }
+        function draw() {
+            ctx!.clearRect(0, 0, w, h);
+            const t = Date.now() / 4000;
+            hexes.forEach((hex, i) => {
+                const phase = (Math.sin(t + i * 0.3) + 1) / 2;
+                ctx!.strokeStyle = `rgba(0,180,255,${0.03 + phase * 0.04})`;
+                ctx!.lineWidth = 1;
+                ctx!.beginPath();
+                for (let a = 0; a < 6; a++) {
+                    const angle = (Math.PI / 3) * a;
+                    const px = hex.x + hex.size * Math.cos(angle);
+                    const py = hex.y + hex.size * Math.sin(angle);
+                    if (a === 0) ctx!.moveTo(px, py); else ctx!.lineTo(px, py);
+                }
+                ctx!.closePath();
+                ctx!.stroke();
+            });
+            raf = requestAnimationFrame(draw);
+        }
+        window.addEventListener('resize', resize);
+        resize(); draw();
+        return () => {
+            window.removeEventListener('resize', resize);
+            cancelAnimationFrame(raf);
+        };
     });
 
-    // ── Computed live preview ───────────────────────────────────────────────
+    // ── Live preview derived ────────────────────────────────────────────────
     const badges = $derived(computeBadges(
         { Health: fStats.HP, Stamina: fStats.STA, Oxygen: fStats.OXY, Food: fStats.FOOD, Weight: fStats.WGT, Melee: fStats.MEL, Crafting: fStats.CRA },
         { Health: fMuts.HP, Stamina: fMuts.STA, Oxygen: fMuts.OXY, Food: fMuts.FOOD, Weight: fMuts.WGT, Melee: fMuts.MEL, Crafting: fMuts.CRA }
     ));
 
     function totalLevel(s: StatKey) {
-        return fStats[s] + fMuts[s] * 2;
+        return (fStats[s] || 0) + (fMuts[s] || 0) * 2;
     }
 
     function tradeBump(): string {
@@ -49,17 +98,22 @@
         return '';
     }
 
+    function genderGlyph(g: 'M' | 'F' | '?'): string {
+        return g === 'M' ? '♂' : g === 'F' ? '♀' : '?';
+    }
+
     async function save(saveAndAddAnother = false) {
         if (!fName.trim()) { error = 'Specimen name required.'; return; }
         if (!fSpecies.trim()) { error = 'Species required.'; return; }
         saving = true; error = '';
 
-        // Save using the schema the existing API expects (long-form keys)
+        const genderLong = fGender === 'M' ? 'Male' : fGender === 'F' ? 'Female' : 'Unknown';
+
         const body = {
             name: fName.trim(),
             species: fSpecies.trim(),
             level: fLevel,
-            gender: fGender,
+            gender: genderLong,
             server: fServer.trim() || undefined,
             notes: fNotes.trim() || undefined,
             baseStats: {
@@ -80,65 +134,94 @@
 
         if (res.ok) {
             if (saveAndAddAnother) {
-                // Reset all but species (often you're logging a batch of same species)
+                // Reset all but species
                 fName = '';
                 fLevel = 1;
                 fNotes = '';
                 fStats = { HP:0, STA:0, OXY:0, FOOD:0, WGT:0, MEL:0, CRA:0 };
                 fMuts  = { HP:0, STA:0, OXY:0, FOOD:0, WGT:0, MEL:0, CRA:0 };
                 saving = false;
-                // Quick success flash
                 error = '';
             } else {
                 goto('/specimens');
             }
         } else {
-            const body = await res.json().catch(() => ({}));
-            error = body.error ?? 'Failed to save';
+            const errBody = await res.json().catch(() => ({}));
+            error = errBody.error ?? 'Failed to save';
             saving = false;
         }
     }
 </script>
 
 <svelte:head>
-    <title>⬡ TekOS — Add Specimen</title>
+    <title>⬡ TEKOS — Add Specimen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&family=Crimson+Pro:ital,wght@1,400&display=swap" rel="stylesheet" />
 </svelte:head>
 
-<div class="tek-stage">
-    <PageHeader
-        title="Add Specimen"
-        crumbs={[
-            { label: 'Dashboard', href: '/dossier' },
-            { label: 'Vault', href: '/specimens' },
-            { label: 'Add Specimen' }
-        ]}
-        sub="Record a new bloodline into your vault."
-    />
+<canvas id="tekHexCanvas" bind:this={canvasEl}></canvas>
+
+<div class="stage">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div class="breadcrumb">
+            <a href="/dossier">DASHBOARD</a><span class="sep">/</span><a href="/specimens">VAULT</a><span class="sep">/</span><span>ADD SPECIMEN</span>
+        </div>
+        <h1 class="page-title">Add Specimen</h1>
+        <div class="page-sub">Record a new bloodline into your vault</div>
+    </div>
 
     <!-- Mode tabs -->
     <div class="mode-tabs">
-        <button class="mode-tab" class:active={mode === 'manual'} onclick={() => mode = 'manual'}>
-            <Edit3 size={14} strokeWidth={2} />
+        <button class="mode-tab" class:active={mode === 'manual'} onclick={() => mode = 'manual'} data-mode="manual">
+            <svg class="mt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Manual Entry
         </button>
-        <button class="mode-tab" class:active={mode === 'save'} onclick={() => mode = 'save'}>
-            <Upload size={14} strokeWidth={2} />
+        <button class="mode-tab" class:active={mode === 'save'} onclick={() => mode = 'save'} data-mode="save">
+            <svg class="mt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             Import from ARK Save
             <span class="soon">SOON</span>
         </button>
-        <button class="mode-tab" class:active={mode === 'screenshot'} onclick={() => mode = 'screenshot'}>
-            <Camera size={14} strokeWidth={2} />
+        <button class="mode-tab" class:active={mode === 'screenshot'} onclick={() => mode = 'screenshot'} data-mode="screenshot">
+            <svg class="mt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
             Import from Screenshot
             <span class="soon">SOON</span>
         </button>
     </div>
 
-    {#if mode === 'manual'}
-        <div class="builder-shell">
-            <!-- ═════════════ FORM COLUMN ═════════════ -->
-            <div class="form-col">
+    <!-- Shell -->
+    <div class="builder-shell">
 
-                <!-- Identity -->
+        <!-- ═══════════════ FORM COLUMN ═══════════════ -->
+        <div class="form-col">
+
+            <!-- Dropzone (visible only when import mode tab active) -->
+            <div class="dropzone" class:visible={mode === 'save'} id="dropzoneSave">
+                <div class="dropzone-icon">⬡</div>
+                <div class="dropzone-title">Drop your ARK save file</div>
+                <div class="dropzone-desc">
+                    We'll extract every tame in your save and stage them as Vault entries. Stats only — you can fill in mutation lineage and parents manually after import. Supports <code style="font-family:var(--tek-mono); color:var(--tek-blue);">.ark</code> files up to 200MB.
+                </div>
+                <button class="btn">CHOOSE FILE</button>
+                <div class="dropzone-coming-soon">⏳ FEATURE COMING SOON</div>
+            </div>
+
+            <div class="dropzone" class:visible={mode === 'screenshot'} id="dropzoneShot">
+                <div class="dropzone-icon">⊡</div>
+                <div class="dropzone-title">Drop a screenshot of your tame's stats</div>
+                <div class="dropzone-desc">
+                    Snap your tame's stat menu in ARK and drop it here. TekOS reads the values via OCR — you confirm, then save to your Vault. Works best with the default ARK UI scale and no overlays.
+                </div>
+                <button class="btn">CHOOSE IMAGE</button>
+                <div class="dropzone-coming-soon">⏳ FEATURE COMING SOON</div>
+            </div>
+
+            <!-- Manual form -->
+            <div class="manual-area" class:hidden={mode !== 'manual'} id="manualArea">
+
+                <!-- IDENTITY -->
                 <div class="form-section">
                     <div class="form-section-head">
                         <div class="form-section-title">Identity</div>
@@ -146,68 +229,130 @@
                     <div class="field-grid">
                         <div class="field">
                             <div class="field-label">Species <span class="req">*</span></div>
-                            <input class="tek-input-v2" list="speciesList" bind:value={fSpecies}
-                                placeholder="e.g. Yutyrannus" />
+                            <input class="field-input" id="fSpecies" list="speciesList" placeholder="e.g. Yutyrannus" bind:value={fSpecies} />
                             <datalist id="speciesList">
-                                {#each speciesList as s}<option value={s}>{s}</option>{/each}
+                                {#each speciesList as s}<option value={s}></option>{/each}
                             </datalist>
                         </div>
                         <div class="field">
                             <div class="field-label">Survivor name <span class="req">*</span></div>
-                            <input class="tek-input-v2" bind:value={fName} placeholder="e.g. Roar" />
+                            <input class="field-input" id="fName" placeholder="e.g. Roar" bind:value={fName} />
                         </div>
                         <div class="field">
                             <div class="field-label">Level</div>
-                            <input class="tek-input-v2" type="number" bind:value={fLevel} min="1" max="999" />
+                            <input class="field-input" id="fLevel" type="number" min="1" max="999" bind:value={fLevel} />
                         </div>
                     </div>
                     <div class="field-grid cols-2" style="margin-top: 12px;">
                         <div class="field">
                             <div class="field-label">Gender</div>
-                            <div class="gender-toggle">
-                                <button class="gender-opt" class:active={fGender === 'Male'} onclick={() => fGender = 'Male'}>♂ Male</button>
-                                <button class="gender-opt" class:active={fGender === 'Female'} onclick={() => fGender = 'Female'}>♀ Female</button>
-                                <button class="gender-opt" class:active={fGender === 'Unknown'} onclick={() => fGender = 'Unknown'}>? Unknown</button>
+                            <div class="gender-toggle" id="genderToggle">
+                                <button class="gender-opt" class:active={fGender === 'M'} onclick={() => fGender = 'M'} data-g="M">♂ Male</button>
+                                <button class="gender-opt" class:active={fGender === 'F'} onclick={() => fGender = 'F'} data-g="F">♀ Female</button>
+                                <button class="gender-opt" class:active={fGender === '?'} onclick={() => fGender = '?'} data-g="?">? Unknown</button>
                             </div>
                         </div>
                         <div class="field">
-                            <div class="field-label">Home server (optional)</div>
-                            <input class="tek-input-v2" bind:value={fServer} placeholder="e.g. Ragnarok·07" />
+                            <div class="field-label">Home server</div>
+                            <select class="field-select" id="fServer" bind:value={fServer}>
+                                <option value="">— Not assigned —</option>
+                                <option>Ragnarok·07</option>
+                                <option>The Island·12</option>
+                                <option>Aberration·03</option>
+                                <option>Extinction·05</option>
+                                <option>Scorched·09</option>
+                                <option>Genesis·06</option>
+                            </select>
                         </div>
                     </div>
                 </div>
 
-                <!-- Stats + Mutations -->
+                <!-- BASE STATS + MUTATIONS -->
                 <div class="form-section">
                     <div class="form-section-head">
                         <div class="form-section-title">Base Stats & Mutations</div>
                     </div>
                     <div class="form-section-hint">
-                        Each mutation adds <code>+2 levels</code> to that stat. Total updates live — watch the right panel for auto-computed badges.
+                        Enter base stat levels (at tame) and current mutation count per stat. Each mutation adds <code>+2 levels</code> to that stat — Total updates live.
                     </div>
                     <div class="stats-grid">
                         <div class="stats-head">Stat</div>
                         <div class="stats-head r">Base</div>
-                        <div class="stats-head r">Mut</div>
+                        <div class="stats-head r">Mutations</div>
                         <div class="stats-head r">Total</div>
 
                         {#each STATS as s}
-                            <div class="stats-stat-label">{s}</div>
-                            <input class="stats-input" type="number" min="0" bind:value={fStats[s]} />
-                            <input class="stats-input mut" class:has-val={fMuts[s] > 0} type="number" min="0" bind:value={fMuts[s]} />
-                            <div class="stats-total"><span class="arrow">→</span><span class="t">{totalLevel(s)}</span></div>
+                            <div class="stats-input-row" data-stat={s}>
+                                <div class="stats-stat-label">{s}</div>
+                                <input class="stats-input base" type="number" min="0" bind:value={fStats[s]} />
+                                <input class="stats-input mut" class:has-val={fMuts[s] > 0} type="number" min="0" bind:value={fMuts[s]} />
+                                <div class="stats-total"><span class="arrow">→</span><span class="t">{totalLevel(s)}</span></div>
+                            </div>
                         {/each}
+                    </div>
+                    <div class="stats-help">
+                        ⓘ As you type, watch the right panel — TekOS auto-calculates which Bloodline tier and Boss Ready badges this specimen will unlock.
                     </div>
                 </div>
 
-                <!-- Notes -->
+                <!-- LINEAGE (optional) -->
+                <div class="form-section optional">
+                    <div class="form-section-head">
+                        <div class="form-section-title">Lineage</div>
+                        <div class="optional-tag">Optional</div>
+                    </div>
+                    <div class="form-section-hint">
+                        Pick parents from your existing Vault entries. Used for stat genealogy and family-tree views.
+                    </div>
+                    <div class="lineage-grid">
+                        <div class="parent-picker">
+                            <div class="parent-picker-label">
+                                <span class="parent-icon mother">♀ MOTHER</span>
+                            </div>
+                            <input class="parent-input" placeholder="Search your Vault…" />
+                        </div>
+                        <div class="parent-picker">
+                            <div class="parent-picker-label">
+                                <span class="parent-icon father">♂ FATHER</span>
+                            </div>
+                            <input class="parent-input" placeholder="Search your Vault…" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STAT GENEALOGY (optional) -->
+                <div class="form-section optional">
+                    <div class="form-section-head">
+                        <div class="form-section-title">Stat Genealogy</div>
+                        <div class="optional-tag">Optional</div>
+                    </div>
+                    <div class="form-section-hint">
+                        For consolidation breeding — track which <em>founder wild-tame</em> contributed each base stat. This populates the Founders Index on the specimen's detail page.
+                    </div>
+                    <div class="genealogy-grid">
+                        {#each STATS as s}
+                            <div class="gen-stat-label">{s}</div>
+                            <select class="gen-select">
+                                <option>— No founder —</option>
+                            </select>
+                        {/each}
+                    </div>
+                    <div class="founder-toggle-row">
+                        <div class="toggle" class:on={founderOn} id="founderToggle" onclick={() => founderOn = !founderOn} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { founderOn = !founderOn; } }}></div>
+                        <div class="founder-toggle-label">
+                            <span class="t">Mark this specimen as a founder</span>
+                            <span class="d">Adds it to the Founders Index — its base stats can then be cited as origin for future descendants.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NOTES -->
                 <div class="form-section optional">
                     <div class="form-section-head">
                         <div class="form-section-title">Notes</div>
                         <div class="optional-tag">Optional</div>
                     </div>
-                    <textarea class="notes-area" bind:value={fNotes}
-                        placeholder="Color mutations, breeding plans, where you tamed, who you bought from…"></textarea>
+                    <textarea class="notes-area" bind:value={fNotes} placeholder="Color mutations, behavioral quirks, breeding plans, where you tamed them, who you bought from…"></textarea>
                 </div>
 
                 {#if error}
@@ -216,112 +361,176 @@
 
                 <!-- Action bar -->
                 <div class="action-bar">
-                    <a class="tek-btn-v2 ghost" href="/specimens">Cancel</a>
+                    <a class="btn ghost" href="/specimens">Cancel</a>
                     <div class="spacer"></div>
-                    <button class="tek-btn-v2" onclick={() => save(true)} disabled={saving}>
-                        Save & Add Another
-                    </button>
-                    <button class="tek-btn-v2 solid" onclick={() => save(false)} disabled={saving}>
-                        {saving ? 'SAVING…' : 'Save to Vault'}
-                    </button>
+                    <button class="btn" onclick={() => save(true)} disabled={saving}>Save & Add Another</button>
+                    <button class="btn solid" onclick={() => save(false)} disabled={saving}>{saving ? 'SAVING…' : 'Save to Vault'}</button>
                 </div>
 
             </div>
+        </div>
 
-            <!-- ═════════════ LIVE PREVIEW ═════════════ -->
-            <div class="preview-col">
-                <div class="preview-header">
-                    <span class="live-pip"></span>Live Preview
+        <!-- ═══════════════ LIVE PREVIEW COLUMN ═══════════════ -->
+        <div class="preview-col">
+            <div class="preview-header"><span class="live-pip"></span>Live Preview</div>
+            <div class="preview-card">
+                <div class="pv-species" id="pvSpecies">{(fSpecies || '—').toUpperCase()}</div>
+                <div class="pv-name" class:placeholder={!fName.trim()} id="pvName">{fName.trim() || 'Unnamed'}</div>
+                <div class="pv-meta">
+                    <div class="item"><span>LVL</span><span class="v" id="pvLevel">{fLevel || '—'}</span></div>
+                    <div class="item"><span class="gender" class:m={fGender === 'M'} class:f={fGender === 'F'} id="pvGender">{genderGlyph(fGender)}</span></div>
+                    {#if fServer.trim()}
+                        <div class="item"><span>HOME</span><span class="v" id="pvServer">{fServer.trim()}</span></div>
+                    {/if}
                 </div>
-                <div class="preview-card">
-                    <div class="pv-species">{(fSpecies || '—').toUpperCase()}</div>
-                    <div class="pv-name" class:placeholder={!fName.trim()}>
-                        {fName.trim() || 'Unnamed'}
-                    </div>
-                    <div class="pv-meta">
-                        <div class="item"><span>LVL</span><span class="v">{fLevel || '—'}</span></div>
-                        <div class="item">
-                            <span class="gender" class:m={fGender === 'Male'} class:f={fGender === 'Female'}>
-                                {fGender === 'Female' ? '♀' : fGender === 'Male' ? '♂' : '?'}
-                            </span>
-                        </div>
-                        {#if fServer.trim()}
-                            <div class="item"><span>HOME</span><span class="v">{fServer.trim()}</span></div>
-                        {/if}
-                    </div>
 
-                    <div class="pv-stats">
-                        <div class="pv-stats-head">
-                            <div>Stat</div><div class="r">Base</div><div class="r">Mut</div>
-                        </div>
+                <div class="pv-stats">
+                    <div class="pv-stats-head">
+                        <div>Stat</div>
+                        <div class="r">Base</div>
+                        <div class="r">Mut</div>
+                    </div>
+                    <div id="pvStatsList">
                         {#each STATS as s}
                             <div class="pv-stat-row">
                                 <span class="pv-stat-label">{s}</span>
                                 <span class="pv-stat-base">{fStats[s]}</span>
-                                <span class="pv-stat-mut" class:has-mut={fMuts[s] > 0}>
-                                    {fMuts[s] > 0 ? `+${fMuts[s]}` : '·'}
-                                </span>
+                                <span class="pv-stat-mut" class:has-mut={fMuts[s] > 0}>{fMuts[s] > 0 ? `+${fMuts[s]}` : '·'}</span>
                             </div>
                         {/each}
                     </div>
+                </div>
 
-                    <div class="pv-badges-block">
-                        <div class="pv-badges-label">Auto-Computed Badges</div>
-                        <div class="pv-badges">
-                            {#if badges.bloodline}
-                                <div class="pv-badge {badges.bloodline}">
-                                    {badges.bloodline === 'diamond' ? '✦' :
-                                     badges.bloodline === 'gold' ? '◈' : '⬢'} {badges.bloodline.toUpperCase()} BLOODLINE
-                                </div>
-                            {/if}
-                            {#if badges.bossReady}
-                                <div class="pv-badge {badges.bossReady}">
-                                    {badges.bossReady === 'titan' ? '◆ TITAN SLAYER' :
-                                     badges.bossReady === 'alpha' ? 'α ALPHA READY' :
-                                     badges.bossReady === 'beta'  ? 'β BETA READY'  :
-                                     'γ GAMMA READY'}
-                                </div>
-                            {/if}
-                            {#each badges.roles as role}
-                                <div class="pv-badge role">
-                                    {role === 'tank' ? '▣ BOSS TANK' :
-                                     role === 'dps' ? '⚔ BOSS DPS' :
-                                     role === 'bruiser' ? '⚒ BOSS BRUISER' : '⤳ BOSS RUNNER'}
-                                </div>
-                            {/each}
-                            {#if !badges.bloodline && !badges.bossReady && badges.roles.length === 0}
-                                <div class="pv-badges-empty">No badges yet — keep building.</div>
-                            {/if}
-                        </div>
-                        {#if tradeBump()}
-                            <div class="pv-value-bump"><span class="x">✦</span>{tradeBump()}</div>
+                <div class="pv-badges-block">
+                    <div class="pv-badges-label">Auto-Computed Badges</div>
+                    <div class="pv-badges" id="pvBadges">
+                        {#if badges.bloodline}
+                            <div class="pv-badge {badges.bloodline}">
+                                {badges.bloodline === 'diamond' ? '✦' : badges.bloodline === 'gold' ? '◈' : '⬢'} {badges.bloodline.toUpperCase()} BLOODLINE
+                            </div>
+                        {/if}
+                        {#if badges.bossReady}
+                            <div class="pv-badge {badges.bossReady}">
+                                {badges.bossReady === 'titan' ? '◆ TITAN SLAYER' :
+                                 badges.bossReady === 'alpha' ? 'α ALPHA READY' :
+                                 badges.bossReady === 'beta'  ? 'β BETA READY'  :
+                                 'γ GAMMA READY'}
+                            </div>
+                        {/if}
+                        {#each badges.roles as role}
+                            <div class="pv-badge role">
+                                {role === 'tank' ? '▣ BOSS TANK' :
+                                 role === 'dps' ? '⚔ BOSS DPS' :
+                                 role === 'bruiser' ? '⚒ BOSS BRUISER' : '⤳ BOSS RUNNER'}
+                            </div>
+                        {/each}
+                        {#if !badges.bloodline && !badges.bossReady && badges.roles.length === 0}
+                            <div class="pv-badges-empty">No badges yet — keep breeding.</div>
                         {/if}
                     </div>
+                    {#if tradeBump()}
+                        <div class="pv-value-bump" id="pvValue"><span class="x">✦</span>{tradeBump()}</div>
+                    {/if}
                 </div>
             </div>
         </div>
-    {:else if mode === 'save'}
-        <div class="dropzone">
-            <div class="dropzone-icon">⬡</div>
-            <div class="dropzone-title">Drop your ARK save file</div>
-            <div class="dropzone-desc">
-                We'll extract every tame in your save and stage them as Vault entries. Stats only — you'll fill in mutation lineage manually after import.
-            </div>
-            <div class="dropzone-coming-soon">⏳ FEATURE COMING SOON</div>
-        </div>
-    {:else}
-        <div class="dropzone">
-            <div class="dropzone-icon">⊡</div>
-            <div class="dropzone-title">Drop a screenshot of your tame's stats</div>
-            <div class="dropzone-desc">
-                Snap the stat menu in ARK and drop it here. TekOS reads the values via OCR — you confirm, then save to your Vault.
-            </div>
-            <div class="dropzone-coming-soon">⏳ FEATURE COMING SOON</div>
-        </div>
-    {/if}
+
+    </div>
+
 </div>
 
 <style>
+:root {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.30);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.50);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-pink:         #f472b6;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+
+    --tier-bronze:      #cd7f32;
+    --tier-silver:      #c8c8d2;
+    --tier-gold:        #ffd700;
+    --tier-diamond:     #00b4ff;
+
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --tek-serif:        'Crimson Pro', Georgia, serif;
+}
+
+:global(*), :global(*::before), :global(*::after) { box-sizing: border-box; margin: 0; padding: 0; }
+:global(html), :global(body) {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+:global(body::before) {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 50% at 20% 10%, rgba(0,180,255,0.10) 0%, transparent 50%),
+        radial-gradient(ellipse 55% 50% at 85% 90%, rgba(139,92,246,0.08) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+}
+#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.stage {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    padding: 60px 24px 80px;
+    max-width: 1320px;
+    margin: 0 auto;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PAGE HEADER
+   ═════════════════════════════════════════════════════════════════════════ */
+.page-header { margin-bottom: 18px; }
+.breadcrumb {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.breadcrumb a { color: var(--tek-text-dim); text-decoration: none; }
+.breadcrumb a:hover { color: var(--tek-blue); }
+.breadcrumb .sep { color: var(--tek-text-faint); margin: 0 6px; }
+.page-title {
+    font-family: var(--tek-display);
+    font-size: clamp(1.7rem, 3.4vw, 2.3rem);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(0,180,255,0.30));
+}
+.page-sub {
+    font-family: var(--tek-mono); font-size: 0.72rem;
+    letter-spacing: 0.14em; color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-top: 6px;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   IMPORT MODE TABS
+   ═════════════════════════════════════════════════════════════════════════ */
 .mode-tabs {
     display: flex;
     gap: 4px;
@@ -348,6 +557,11 @@
     border-bottom-color: var(--tek-blue);
     text-shadow: 0 0 8px var(--tek-blue-glow);
 }
+.mode-tab .mt-icon {
+    width: 14px; height: 14px;
+    opacity: 0.7;
+}
+.mode-tab.active .mt-icon { opacity: 1; }
 .mode-tab .soon {
     font-size: 0.56rem;
     color: var(--tek-amber);
@@ -357,22 +571,29 @@
     margin-left: 4px;
 }
 
+/* ═════════════════════════════════════════════════════════════════════════
+   TWO-COLUMN LAYOUT — FORM + LIVE PREVIEW
+   ═════════════════════════════════════════════════════════════════════════ */
 .builder-shell {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 360px;
     gap: 24px;
     align-items: start;
 }
-@media (max-width: 1000px) { .builder-shell { grid-template-columns: 1fr; } }
-.form-col { min-width: 0; }
+@media (max-width: 1000px) {
+    .builder-shell { grid-template-columns: 1fr; }
+}
 
+/* Form column */
+.form-col { min-width: 0; }
 .form-section {
-    position: relative;
     background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.96) 100%);
     border: 1px solid rgba(0,180,255,0.18);
     clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
     padding: 20px 24px 22px;
     margin-bottom: 14px;
+    position: relative;
+    backdrop-filter: blur(8px);
 }
 .form-section::before {
     content: '';
@@ -382,7 +603,9 @@
     background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
     box-shadow: 0 0 8px var(--tek-blue-glow);
 }
-.form-section.optional::before { background: linear-gradient(180deg, var(--tek-purple), rgba(139,92,246,0.3)); }
+.form-section.optional::before {
+    background: linear-gradient(180deg, var(--tek-purple), rgba(139,92,246,0.3));
+}
 .form-section-head {
     display: flex;
     align-items: center;
@@ -398,8 +621,13 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--tek-text);
+    display: flex; align-items: center; gap: 8px;
 }
-.form-section-title::before { content: '▸ '; color: var(--tek-blue); }
+.form-section-title::before {
+    content: '▸';
+    color: var(--tek-blue);
+}
+.form-section.optional .form-section-title::before { color: var(--tek-purple); }
 .optional-tag {
     font-family: var(--tek-mono);
     font-size: 0.60rem;
@@ -417,11 +645,20 @@
     margin-bottom: 12px;
     line-height: 1.5;
 }
-.form-section-hint code { color: var(--tek-blue); background: rgba(0,180,255,0.08); padding: 1px 5px; }
 
-.field-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; }
+/* Form rows / fields */
+.field-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 12px;
+}
 .field-grid.cols-2 { grid-template-columns: 1fr 1fr; }
-.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
 .field-label {
     font-family: var(--tek-mono);
     font-size: 0.62rem;
@@ -430,7 +667,36 @@
     text-transform: uppercase;
 }
 .field-label .req { color: var(--tek-amber); margin-left: 3px; }
-
+.field-input,
+.field-select {
+    background: rgba(5,8,18,0.65);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.84rem;
+    padding: 9px 12px;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: all 0.15s;
+    width: 100%;
+    min-width: 0;
+}
+.field-input::placeholder { color: var(--tek-text-faint); }
+.field-input:focus,
+.field-select:focus {
+    outline: none;
+    border-color: var(--tek-blue);
+    box-shadow: 0 0 0 1px var(--tek-blue), 0 0 10px rgba(0,180,255,0.20);
+    background: rgba(5,8,18,0.85);
+}
+.field-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--tek-blue) 50%), linear-gradient(135deg, var(--tek-blue) 50%, transparent 50%);
+    background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 30px;
+}
 .gender-toggle {
     display: flex;
     gap: 2px;
@@ -445,9 +711,9 @@
     border: none;
     color: var(--tek-text-dim);
     font-family: var(--tek-mono);
-    font-size: 0.72rem;
-    letter-spacing: 0.10em;
-    padding: 8px 0;
+    font-size: 0.74rem;
+    letter-spacing: 0.12em;
+    padding: 7px 0;
     cursor: pointer;
     text-transform: uppercase;
     transition: all 0.15s;
@@ -455,9 +721,12 @@
 .gender-opt.active {
     background: rgba(0,180,255,0.15);
     color: var(--tek-blue);
+    text-shadow: 0 0 6px var(--tek-blue-glow);
 }
 
-/* Stats grid */
+/* ═════════════════════════════════════════════════════════════════════════
+   STATS GRID — Base + Mutations
+   ═════════════════════════════════════════════════════════════════════════ */
 .stats-grid {
     display: grid;
     grid-template-columns: 70px 1fr 1fr 60px;
@@ -481,6 +750,10 @@
     letter-spacing: 0.16em;
     color: var(--tek-text);
     text-transform: uppercase;
+    padding: 4px 0;
+}
+.stats-input-row {
+    display: contents;
 }
 .stats-input {
     background: rgba(5,8,18,0.65);
@@ -492,9 +765,15 @@
     text-align: right;
     clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
     width: 100%;
+    transition: all 0.15s;
     min-width: 0;
 }
-.stats-input:focus { outline: none; border-color: var(--tek-blue); box-shadow: 0 0 0 1px var(--tek-blue); }
+.stats-input:focus {
+    outline: none;
+    border-color: var(--tek-blue);
+    box-shadow: 0 0 0 1px var(--tek-blue);
+    background: rgba(5,8,18,0.85);
+}
 .stats-input.mut.has-val {
     color: var(--tek-blue);
     text-shadow: 0 0 6px var(--tek-blue-glow);
@@ -506,10 +785,185 @@
     font-weight: 700;
     color: var(--tek-blue);
     text-align: right;
+    padding: 4px 8px 4px 0;
     text-shadow: 0 0 6px var(--tek-blue-glow);
 }
-.stats-total .arrow { color: var(--tek-text-faint); font-weight: 400; margin-right: 4px; }
+.stats-total .arrow {
+    color: var(--tek-text-faint);
+    font-weight: 400;
+    margin-right: 4px;
+}
+.stats-help {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.08em;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(139,92,246,0.05);
+    border-left: 2px solid rgba(139,92,246,0.40);
+    line-height: 1.5;
+}
+.stats-help code {
+    color: var(--tek-blue);
+    background: rgba(0,180,255,0.08);
+    padding: 1px 5px;
+}
 
+/* ═════════════════════════════════════════════════════════════════════════
+   LINEAGE — Parent pickers
+   ═════════════════════════════════════════════════════════════════════════ */
+.lineage-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+@media (max-width: 700px) {
+    .lineage-grid { grid-template-columns: 1fr; }
+}
+.parent-picker {
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(100,116,139,0.20);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 12px 14px;
+}
+.parent-picker-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.parent-icon {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.parent-icon.mother { color: var(--tek-pink); }
+.parent-icon.father { color: var(--tek-blue); }
+.parent-input {
+    background: rgba(5,8,18,0.65);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.84rem;
+    padding: 8px 12px;
+    width: 100%;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+}
+.parent-input::placeholder { color: var(--tek-text-faint); }
+.parent-input:focus {
+    outline: none;
+    border-color: var(--tek-blue);
+    box-shadow: 0 0 0 1px var(--tek-blue);
+}
+.parent-selected {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(0,180,255,0.06);
+    border: 1px solid var(--tek-blue-border);
+    font-family: var(--tek-mono);
+    font-size: 0.78rem;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+}
+.parent-selected .name { color: var(--tek-text); flex: 1; }
+.parent-selected .species { color: var(--tek-text-dim); }
+.parent-selected .x { color: var(--tek-text-faint); cursor: pointer; }
+.parent-selected .x:hover { color: var(--tek-red); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   STAT GENEALOGY — Founder per stat
+   ═════════════════════════════════════════════════════════════════════════ */
+.genealogy-grid {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 6px 14px;
+    align-items: center;
+}
+.gen-stat-label {
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.gen-select {
+    background: rgba(5,8,18,0.65);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.78rem;
+    padding: 7px 30px 7px 12px;
+    width: 100%;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--tek-purple) 50%), linear-gradient(135deg, var(--tek-purple) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+}
+.gen-select:focus { outline: none; border-color: var(--tek-purple); }
+.gen-select option { background: var(--tek-bg); color: var(--tek-text); }
+.founder-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(139,92,246,0.05);
+    border: 1px solid rgba(139,92,246,0.25);
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+}
+.toggle {
+    position: relative;
+    width: 38px; height: 20px;
+    background: rgba(15,23,42,0.9);
+    border: 1px solid rgba(100,116,139,0.30);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    background: var(--tek-text-dim);
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+.toggle.on {
+    background: rgba(139,92,246,0.25);
+    border-color: var(--tek-purple);
+}
+.toggle.on::after {
+    transform: translateX(18px);
+    background: var(--tek-purple);
+    box-shadow: 0 0 5px rgba(139,92,246,0.5);
+}
+.founder-toggle-label {
+    flex: 1;
+    font-size: 0.86rem;
+}
+.founder-toggle-label .t {
+    color: var(--tek-text);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 2px;
+}
+.founder-toggle-label .d {
+    color: var(--tek-text-dim);
+    font-size: 0.74rem;
+    line-height: 1.4;
+}
+
+/* Notes textarea */
 .notes-area {
     background: rgba(5,8,18,0.65);
     border: 1px solid rgba(100,116,139,0.25);
@@ -523,7 +977,11 @@
     clip-path: polygon(6px 0%, 100% 0%, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0% 100%, 0% 6px);
     line-height: 1.5;
 }
-.notes-area:focus { outline: none; border-color: var(--tek-blue); }
+.notes-area:focus {
+    outline: none;
+    border-color: var(--tek-blue);
+    box-shadow: 0 0 0 1px var(--tek-blue);
+}
 
 .form-error {
     margin: 10px 0;
@@ -535,6 +993,9 @@
     font-size: 0.78rem;
 }
 
+/* ═════════════════════════════════════════════════════════════════════════
+   ACTION BAR (bottom of form)
+   ═════════════════════════════════════════════════════════════════════════ */
 .action-bar {
     display: flex;
     align-items: center;
@@ -543,12 +1004,55 @@
     background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.96) 100%);
     border: 1px solid rgba(0,180,255,0.18);
     clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
-    margin-top: 16px;
 }
 .action-bar .spacer { flex: 1; }
+.btn {
+    background: rgba(0,180,255,0.08);
+    border: 1px solid var(--tek-blue-border);
+    color: var(--tek-blue);
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    cursor: pointer;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: all 0.15s;
+    text-decoration: none;
+    display: inline-block;
+}
+.btn:hover {
+    background: rgba(0,180,255,0.18);
+    box-shadow: 0 0 12px rgba(0,180,255,0.30);
+}
+.btn.ghost {
+    background: transparent;
+    border-color: rgba(100,116,139,0.30);
+    color: var(--tek-text-dim);
+}
+.btn.ghost:hover {
+    border-color: var(--tek-text);
+    color: var(--tek-text);
+    box-shadow: none;
+}
+.btn.solid {
+    background: linear-gradient(90deg, var(--tek-blue), var(--tek-purple));
+    color: #050812;
+    border: none;
+    font-weight: 700;
+    padding: 11px 22px;
+}
+.btn.solid:hover {
+    box-shadow: 0 0 16px rgba(0,180,255,0.45);
+}
 
-/* Live preview */
-.preview-col { position: sticky; top: 24px; }
+/* ═════════════════════════════════════════════════════════════════════════
+   LIVE PREVIEW CARD (right column, sticky)
+   ═════════════════════════════════════════════════════════════════════════ */
+.preview-col {
+    position: sticky;
+    top: 24px;
+}
 .preview-header {
     font-family: var(--tek-mono);
     font-size: 0.62rem;
@@ -559,7 +1063,7 @@
     padding-left: 4px;
     display: flex; align-items: center; gap: 6px;
 }
-.live-pip {
+.preview-header .live-pip {
     display: inline-block;
     width: 6px; height: 6px;
     border-radius: 50%;
@@ -567,7 +1071,10 @@
     box-shadow: 0 0 5px rgba(16,185,129,0.6);
     animation: livePulse 1.6s ease-in-out infinite;
 }
-@keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
 
 .preview-card {
     position: relative;
@@ -576,6 +1083,7 @@
     clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
     padding: 18px 20px 16px;
     overflow: hidden;
+    backdrop-filter: blur(8px);
     box-shadow: 0 0 32px rgba(0,180,255,0.10);
 }
 .preview-card::before {
@@ -589,6 +1097,7 @@
     opacity: 0.6;
 }
 .preview-card > * { position: relative; z-index: 1; }
+
 .pv-species {
     font-family: var(--tek-mono);
     font-size: 0.66rem;
@@ -620,11 +1129,16 @@
     background: none;
 }
 .pv-meta {
-    display: flex; flex-wrap: wrap; gap: 6px 12px;
-    font-family: var(--tek-mono); font-size: 0.66rem;
-    letter-spacing: 0.10em; color: var(--tek-text-dim);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text-dim);
     text-transform: uppercase;
-    margin-bottom: 14px; padding-bottom: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
     border-bottom: 1px solid rgba(0,180,255,0.10);
 }
 .pv-meta .item { display: flex; align-items: center; gap: 4px; }
@@ -632,21 +1146,32 @@
 .pv-meta .gender.m { color: var(--tek-blue); }
 .pv-meta .gender.f { color: var(--tek-pink); }
 
-.pv-stats { margin-bottom: 14px; }
+/* Stat rows in preview */
+.pv-stats {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 14px;
+}
 .pv-stats-head {
-    display: grid; grid-template-columns: 55px 1fr 1fr; gap: 10px;
+    display: grid;
+    grid-template-columns: 55px 1fr 1fr;
+    gap: 10px;
     font-family: var(--tek-mono);
     font-size: 0.56rem;
     letter-spacing: 0.20em;
     color: var(--tek-text-faint);
     text-transform: uppercase;
-    padding-bottom: 5px; margin-bottom: 4px;
+    padding-bottom: 5px;
+    margin-bottom: 4px;
     border-bottom: 1px solid rgba(0,180,255,0.06);
 }
 .pv-stats-head .r { text-align: right; }
 .pv-stat-row {
-    display: grid; grid-template-columns: 55px 1fr 1fr; gap: 10px;
+    display: grid;
+    grid-template-columns: 55px 1fr 1fr;
+    gap: 10px;
     padding: 4px 0;
+    align-items: baseline;
     border-bottom: 1px dashed rgba(100,116,139,0.10);
 }
 .pv-stat-row:last-child { border-bottom: none; }
@@ -658,11 +1183,29 @@
     color: var(--tek-text-dim);
     text-transform: uppercase;
 }
-.pv-stat-base { font-family: var(--tek-mono); font-size: 0.9rem; color: var(--tek-text); text-align: right; }
-.pv-stat-mut { font-family: var(--tek-mono); font-size: 0.86rem; text-align: right; color: var(--tek-text-faint); }
-.pv-stat-mut.has-mut { color: var(--tek-blue); text-shadow: 0 0 6px var(--tek-blue-glow); font-weight: 700; }
+.pv-stat-base {
+    font-family: var(--tek-mono);
+    font-size: 0.9rem;
+    color: var(--tek-text);
+    text-align: right;
+}
+.pv-stat-mut {
+    font-family: var(--tek-mono);
+    font-size: 0.86rem;
+    text-align: right;
+    color: var(--tek-text-faint);
+}
+.pv-stat-mut.has-mut {
+    color: var(--tek-blue);
+    text-shadow: 0 0 6px var(--tek-blue-glow);
+    font-weight: 700;
+}
 
-.pv-badges-block { padding-top: 12px; border-top: 1px solid rgba(0,180,255,0.10); }
+/* Computed-badges block under stats */
+.pv-badges-block {
+    padding-top: 12px;
+    border-top: 1px solid rgba(0,180,255,0.10);
+}
 .pv-badges-label {
     font-family: var(--tek-mono);
     font-size: 0.58rem;
@@ -671,8 +1214,15 @@
     text-transform: uppercase;
     margin-bottom: 8px;
 }
-.pv-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.pv-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
 .pv-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-family: var(--tek-mono);
     font-size: 0.62rem;
     font-weight: 700;
@@ -697,6 +1247,8 @@
     font-style: italic;
     letter-spacing: 0.05em;
 }
+
+/* Trade-value bump */
 .pv-value-bump {
     margin-top: 10px;
     font-family: var(--tek-mono);
@@ -707,13 +1259,32 @@
 }
 .pv-value-bump .x { color: var(--tek-text-faint); margin-right: 4px; }
 
-/* Dropzone */
+/* Reset card while empty */
+.pv-empty-message {
+    padding: 20px 0 4px;
+    font-family: var(--tek-serif);
+    font-style: italic;
+    color: var(--tek-text-faint);
+    font-size: 0.9rem;
+    text-align: center;
+    line-height: 1.5;
+}
+
+/* Drop zone (import mode) */
 .dropzone {
     background: linear-gradient(160deg, rgba(10,18,44,0.6) 0%, rgba(4,8,20,0.88) 100%);
     border: 2px dashed rgba(0,180,255,0.35);
     clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
     padding: 42px 30px;
     text-align: center;
+    transition: all 0.2s;
+    cursor: pointer;
+    display: none;
+}
+.dropzone.visible { display: block; }
+.dropzone:hover {
+    border-color: var(--tek-blue);
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
 }
 .dropzone-icon {
     width: 56px; height: 56px;
@@ -742,6 +1313,7 @@
     margin: 0 auto 16px;
 }
 .dropzone-coming-soon {
+    margin-top: 14px;
     font-family: var(--tek-mono);
     font-size: 0.66rem;
     letter-spacing: 0.16em;
@@ -751,6 +1323,9 @@
     border: 1px solid rgba(245,158,11,0.40);
     background: rgba(245,158,11,0.08);
     display: inline-block;
-    margin-top: 8px;
 }
+
+/* Hide manual form when in import modes */
+.manual-area { display: block; }
+.manual-area.hidden { display: none; }
 </style>

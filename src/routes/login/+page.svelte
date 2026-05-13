@@ -1,61 +1,100 @@
 <script lang="ts">
-    type Mode = 'enter' | 'awaken';
+    import { onMount } from 'svelte';
 
-    let mode      = $state<Mode>('enter');
-    let survivor  = $state('');
-    let passcode  = $state('');
-    let nickname  = $state('');
-    let error     = $state('');
-    let status    = $state('');
-    let loading   = $state(false);
+    type Mode = 'signin' | 'register';
 
-    async function enterCodex(e: Event) {
+    let activeTab = $state<Mode>('signin');
+    let statusText = $state('AWAITING SURVIVOR');
+    let statusMode = $state<'' | 'active' | 'error'>('');
+    let statusUsePulse = $state(false);
+
+    // Sign in form fields
+    let signinId = $state('');
+    let signinKey = $state('');
+    let signinBtnDisabled = $state(false);
+    let signinBtnLabel = $state('Enter the ARK');
+
+    // Register form fields
+    let regEmail = $state('');
+    let regCallsign = $state('');
+    let regKey = $state('');
+    let registerBtnDisabled = $state(false);
+    let registerBtnLabel = $state('Awaken');
+
+    let canvasEl: HTMLCanvasElement | null = $state(null);
+
+    function setStatus(text: string, mode: '' | 'active' | 'error' = '') {
+        statusText = text;
+        statusMode = mode;
+        statusUsePulse = mode === 'active';
+    }
+
+    function selectTab(target: Mode) {
+        activeTab = target;
+        setStatus(target === 'register' ? 'AWAITING NEW SURVIVOR' : 'AWAITING SURVIVOR');
+    }
+
+    function handleFieldFocus() {
+        setStatus('SURVIVOR DETECTED', 'active');
+    }
+
+    function handleFieldBlur() {
+        setStatus(activeTab === 'register' ? 'AWAITING NEW SURVIVOR' : 'AWAITING SURVIVOR');
+    }
+
+    async function handleSigninSubmit(e: Event) {
         e.preventDefault();
-        loading = true; error = ''; status = 'Linking implant…';
+        signinBtnDisabled = true;
+        signinBtnLabel = 'Linking implant…';
+        setStatus('LINKING IMPLANT', 'active');
         try {
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier: survivor, password: passcode })
+                body: JSON.stringify({ email: signinId, password: signinKey })
             });
-            const body = await res.json();
+            const body = await res.json().catch(() => ({}));
             if (res.ok) {
-                status = 'Uplink established. Redirecting…';
+                setStatus('Uplink established. Redirecting…', 'active');
                 window.location.href = '/dossier';
             } else {
-                error = body.error ?? 'Identity rejected. Try again.';
-                status = '';
-                loading = false;
+                const msg = (body && body.error) ? String(body.error).toUpperCase() : 'IMPLANT NOT RECOGNIZED · CHECK PASSCODE';
+                setStatus(msg, 'error');
+                signinBtnDisabled = false;
+                signinBtnLabel = 'Enter the ARK';
             }
         } catch {
-            error = 'Network connection unstable.';
-            status = '';
-            loading = false;
+            setStatus('NETWORK CONNECTION UNSTABLE', 'error');
+            signinBtnDisabled = false;
+            signinBtnLabel = 'Enter the ARK';
         }
     }
 
-    async function awaken(e: Event) {
+    async function handleRegisterSubmit(e: Event) {
         e.preventDefault();
-        loading = true; error = ''; status = 'Initializing new survivor…';
+        registerBtnDisabled = true;
+        registerBtnLabel = 'Awakening…';
+        setStatus('AWAKENING NEW SURVIVOR', 'active');
         try {
             const res = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: survivor, password: passcode, nickname })
+                body: JSON.stringify({ email: regEmail, password: regKey, nickname: regCallsign })
             });
-            const body = await res.json();
+            const body = await res.json().catch(() => ({}));
             if (res.ok) {
-                status = 'Awakening complete. Redirecting…';
+                setStatus('Uplink established. Redirecting…', 'active');
                 window.location.href = '/dossier';
             } else {
-                error = body.error ?? 'Awakening failed.';
-                status = '';
-                loading = false;
+                const msg = (body && body.error) ? String(body.error).toUpperCase() : 'AWAKENING FAILED';
+                setStatus(msg, 'error');
+                registerBtnDisabled = false;
+                registerBtnLabel = 'Awaken';
             }
         } catch {
-            error = 'Network connection unstable.';
-            status = '';
-            loading = false;
+            setStatus('NETWORK CONNECTION UNSTABLE', 'error');
+            registerBtnDisabled = false;
+            registerBtnLabel = 'Awaken';
         }
     }
 
@@ -64,297 +103,521 @@
         window.location.href = '/dex';
     }
 
-    function setMode(m: Mode) {
-        mode = m;
-        error = ''; status = '';
-    }
+    onMount(() => {
+        /* Hex grid background — same as live site */
+        const canvas = canvasEl;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const R = 32, W = R * Math.sqrt(3), H = R * 2;
+        let phase = 0;
+        let rafId = 0;
+
+        function drawHex(x: number, y: number, opacity: number) {
+            ctx!.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = (Math.PI / 3) * i - Math.PI / 6;
+                const px = x + (R - 1) * Math.cos(a);
+                const py = y + (R - 1) * Math.sin(a);
+                i === 0 ? ctx!.moveTo(px, py) : ctx!.lineTo(px, py);
+            }
+            ctx!.closePath();
+            ctx!.strokeStyle = `rgba(0,180,255,${opacity})`;
+            ctx!.lineWidth = 1;
+            ctx!.stroke();
+        }
+        function draw() {
+            ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
+            const cw = canvas!.width, ch = canvas!.height;
+            const cols = Math.ceil(cw / W) + 3;
+            const rows = Math.ceil(ch / (H * 0.75)) + 3;
+            for (let row = -1; row < rows; row++) {
+                for (let col = -1; col < cols; col++) {
+                    const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
+                    const y = row * H * 0.75;
+                    const dx = x - cw * 0.5, dy = y - ch * 0.5;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
+                    drawHex(x, y, 0.07 + wave * 0.09);
+                }
+            }
+            phase += 0.005;
+            rafId = requestAnimationFrame(draw);
+        }
+        function resize() {
+            canvas!.width = window.innerWidth;
+            canvas!.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+        draw();
+
+        return () => {
+            cancelAnimationFrame(rafId);
+            window.removeEventListener('resize', resize);
+        };
+    });
 </script>
 
 <svelte:head>
-    <title>⬡ TekOS — Codex</title>
+    <title>⬡ TEKOS — Codex</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 </svelte:head>
 
-<div id="tekLoginWrap">
-    <div class="tek-login-panel">
+<canvas id="tekHexCanvas" bind:this={canvasEl}></canvas>
 
-        <!-- Logo -->
-        <div class="tek-login-logo">
-            <div class="tek-login-hex">⬡</div>
-            <div class="tek-login-title">CODEX</div>
-            <div class="tek-login-sub">Identity uplink · TekOS Survivor Network</div>
-        </div>
+<div class="stage">
+    <div class="panel-shell">
+        <div class="panel">
 
-        <!-- Mode tabs -->
-        <div class="codex-tabs">
-            <button class="codex-tab" class:active={mode === 'enter'}  onclick={() => setMode('enter')}>
-                <span class="t-glyph">▸</span>
-                ENTER
-            </button>
-            <button class="codex-tab" class:active={mode === 'awaken'} onclick={() => setMode('awaken')}>
-                <span class="t-glyph">✦</span>
-                AWAKEN
-            </button>
-        </div>
-
-        {#if mode === 'enter'}
-            <form onsubmit={enterCodex}>
-                <div class="codex-field">
-                    <label class="codex-label" for="loginSurvivor">SURVIVOR</label>
-                    <input class="codex-input" id="loginSurvivor" type="text"
-                        bind:value={survivor} required autocomplete="username"
-                        placeholder="Email or Survivor handle" />
+            <div class="panel-header">
+                <div class="panel-mark">
+                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    </svg>
                 </div>
-                <div class="codex-field">
-                    <label class="codex-label" for="loginPasscode">PASSCODE</label>
-                    <input class="codex-input" id="loginPasscode" type="password"
-                        bind:value={passcode} required autocomplete="current-password"
-                        placeholder="••••••••" />
+                <div class="panel-title">CODEX</div>
+                <div class="panel-subtitle">
+                    <span class="prefix">›</span>SURVIVOR ACCESS
                 </div>
-                <button type="submit" class="codex-submit" disabled={loading}>
-                    {loading ? 'LINKING IMPLANT…' : 'AWAKEN ▸'}
-                </button>
-            </form>
-
-            <div class="codex-divider"><span>or</span></div>
-
-            <button class="codex-discord" onclick={() => window.location.href = '/api/auth/discord/start'}>
-                <svg width="18" height="18" viewBox="0 0 71 55" fill="currentColor" aria-hidden="true">
-                    <path d="M60.1 4.9A58.6 58.6 0 0045.6.5a.2.2 0 00-.2.1 40.9 40.9 0 00-1.8 3.7 54.1 54.1 0 00-16.3 0 37.2 37.2 0 00-1.9-3.7.2.2 0 00-.2-.1A58.4 58.4 0 0010.6 4.9a.2.2 0 00-.1.1C1.5 18.4-.9 31.5.3 44.5a.2.2 0 00.1.1 58.9 58.9 0 0017.7 9 .2.2 0 00.2-.1 42.1 42.1 0 003.6-5.9.2.2 0 00-.1-.3 38.8 38.8 0 01-5.5-2.6.2.2 0 010-.4l1.1-.8a.2.2 0 01.2 0c11.5 5.3 24 5.3 35.4 0a.2.2 0 01.2 0l1.1.8a.2.2 0 010 .4 36.1 36.1 0 01-5.6 2.6.2.2 0 00-.1.3 47.3 47.3 0 003.6 5.9.2.2 0 00.2.1A58.7 58.7 0 0070.6 44.6a.2.2 0 00.1-.1c1.4-14.9-2.4-27.9-10.5-39.5a.2.2 0 00-.1-.1zM23.7 36.7c-3.5 0-6.4-3.2-6.4-7.2s2.9-7.2 6.4-7.2c3.6 0 6.5 3.3 6.4 7.2 0 3.9-2.8 7.2-6.4 7.2zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.5 0 6.4 3.3 6.4 7.2 0 3.9-2.9 7.2-6.4 7.2z"/>
-                </svg>
-                Continue with Discord
-            </button>
-
-        {:else}
-            <form onsubmit={awaken}>
-                <div class="codex-field">
-                    <label class="codex-label" for="regSurvivor">EMAIL <span class="req">*</span></label>
-                    <input class="codex-input" id="regSurvivor" type="email"
-                        bind:value={survivor} required autocomplete="email"
-                        placeholder="your@email.com" />
-                </div>
-                <div class="codex-field">
-                    <label class="codex-label" for="regNickname">SURVIVOR NAME</label>
-                    <input class="codex-input" id="regNickname" type="text"
-                        bind:value={nickname} autocomplete="nickname"
-                        placeholder="The name the wild will remember" />
-                </div>
-                <div class="codex-field">
-                    <label class="codex-label" for="regPasscode">PASSCODE <span class="req">*</span></label>
-                    <input class="codex-input" id="regPasscode" type="password"
-                        bind:value={passcode} required autocomplete="new-password"
-                        placeholder="At least 8 characters" />
-                </div>
-                <button type="submit" class="codex-submit" disabled={loading}>
-                    {loading ? 'INITIALIZING IMPLANT…' : 'BEGIN AWAKENING ▸'}
-                </button>
-            </form>
-        {/if}
-
-        {#if status && !error}
-            <div class="codex-status" role="status">
-                <span class="dot"></span>{status}
             </div>
-        {/if}
-        {#if error}
-            <div class="tek-login-error" role="alert">{error}</div>
-        {/if}
 
-        <!-- Guest access -->
-        <div class="codex-guest">
-            <button type="button" class="codex-guest-btn" onclick={browseAsGuest}>
-                <span class="t-glyph">›</span>
-                Browse as guest — Dex &amp; Specimens, no implant required
-            </button>
+            <div class="tabs" role="tablist">
+                <button class="tab" class:active={activeTab === 'signin'} data-tab="signin" role="tab" aria-selected={activeTab === 'signin'} onclick={() => selectTab('signin')}>ENTER</button>
+                <button class="tab" class:active={activeTab === 'register'} data-tab="register" role="tab" aria-selected={activeTab === 'register'} onclick={() => selectTab('register')}>AWAKEN</button>
+            </div>
+
+            <!-- SIGN IN TAB -->
+            <div class="tab-content" class:active={activeTab === 'signin'} data-tab-content="signin">
+                <form id="signinForm" onsubmit={handleSigninSubmit}>
+                    <div class="field">
+                        <label class="field-label" for="signinId">Survivor or Email</label>
+                        <input class="field-input" id="signinId" type="text" autocomplete="username" placeholder="survivor@theark" bind:value={signinId} onfocus={handleFieldFocus} onblur={handleFieldBlur} />
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="signinKey">Passcode</label>
+                        <input class="field-input" id="signinKey" type="password" autocomplete="current-password" placeholder="••••••••••" bind:value={signinKey} onfocus={handleFieldFocus} onblur={handleFieldBlur} />
+                    </div>
+                    <button class="submit-btn" type="submit" id="signinBtn" disabled={signinBtnDisabled}>
+                        {signinBtnLabel} {#if signinBtnLabel === 'Enter the ARK'}<span aria-hidden="true">▸</span>{/if}
+                    </button>
+                </form>
+            </div>
+
+            <!-- REGISTER TAB -->
+            <div class="tab-content" class:active={activeTab === 'register'} data-tab-content="register">
+                <form id="registerForm" onsubmit={handleRegisterSubmit}>
+                    <div class="field">
+                        <label class="field-label" for="regEmail">Email</label>
+                        <input class="field-input" id="regEmail" type="email" autocomplete="email" placeholder="survivor@theark" bind:value={regEmail} onfocus={handleFieldFocus} onblur={handleFieldBlur} />
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="regCallsign">Survivor Name</label>
+                        <input class="field-input" id="regCallsign" type="text" placeholder="What should the tribes call you?" bind:value={regCallsign} onfocus={handleFieldFocus} onblur={handleFieldBlur} />
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="regKey">Passcode</label>
+                        <input class="field-input" id="regKey" type="password" autocomplete="new-password" placeholder="Minimum 8 characters" bind:value={regKey} onfocus={handleFieldFocus} onblur={handleFieldBlur} />
+                    </div>
+                    <button class="submit-btn" type="submit" id="registerBtn" disabled={registerBtnDisabled}>
+                        {registerBtnLabel} {#if registerBtnLabel === 'Awaken'}<span aria-hidden="true">▸</span>{/if}
+                    </button>
+                </form>
+            </div>
+
+            <!-- AI status line -->
+            <div class="status-line {statusMode}" id="statusLine">
+                {#if statusUsePulse}
+                    <span class="pulse-dot"></span>{statusText}
+                {:else}
+                    <span class="prefix">›</span>{statusText}
+                {/if}
+            </div>
+
+            <div class="guest-row">
+                <button class="guest-link" type="button" onclick={browseAsGuest}>
+                    Browse as guest <span class="arrow">▸</span>
+                </button>
+            </div>
+
         </div>
-
     </div>
 </div>
 
+<div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
+
 <style>
-.codex-tabs {
-    display: flex;
-    gap: 0;
-    margin-bottom: 22px;
-    background: rgba(5,8,18,0.6);
-    border: 1px solid rgba(0,180,255,0.18);
-    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+:root {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.22);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.35);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-discord:      #5865f2;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 }
-.codex-tab {
-    flex: 1;
-    background: transparent;
-    border: none;
-    color: var(--tek-text-dim);
-    font-family: var(--tek-mono);
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    padding: 13px 8px;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: inline-flex;
+
+:global(*), :global(*::before), :global(*::after) { box-sizing: border-box; margin: 0; padding: 0; }
+:global(html), :global(body) {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+:global(body::before) {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 70% 50% at 15% 8%,  rgba(0,180,255,0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 45% at 85% 85%, rgba(139,92,246,0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+#tekHexCanvas {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* ── Stage ──────────────────────────────────────────────────────────────── */
+.stage {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    text-transform: uppercase;
-}
-.codex-tab:hover { color: var(--tek-text); }
-.codex-tab.active {
-    background: rgba(0,180,255,0.14);
-    color: var(--tek-blue);
-    text-shadow: 0 0 6px var(--tek-blue-glow);
-}
-.codex-tab .t-glyph {
-    color: var(--tek-blue);
-    text-shadow: 0 0 5px var(--tek-blue-glow);
+    padding: 60px 24px 80px;
 }
 
-.codex-field { margin-bottom: 14px; }
-.codex-label {
-    display: block;
-    font-family: var(--tek-mono);
-    font-size: 0.62rem;
-    font-weight: 600;
-    letter-spacing: 0.20em;
-    color: var(--tek-blue);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    text-shadow: 0 0 6px var(--tek-blue-glow);
-}
-.codex-label .req { color: var(--tek-amber); margin-left: 3px; }
-.codex-input {
-    width: 100%;
-    background: rgba(5,8,18,0.7);
-    border: 1px solid rgba(100,116,139,0.30);
-    color: var(--tek-text);
-    font-family: var(--tek-mono);
-    font-size: 0.88rem;
-    padding: 11px 14px;
-    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
-    transition: all 0.15s;
-    letter-spacing: 0.04em;
-}
-.codex-input::placeholder { color: var(--tek-text-faint); }
-.codex-input:focus {
-    outline: none;
-    border-color: var(--tek-blue);
-    box-shadow: 0 0 0 1px var(--tek-blue), 0 0 14px rgba(0,180,255,0.20);
-    background: rgba(5,8,18,0.9);
-}
-
-.codex-submit {
-    width: 100%;
-    background: linear-gradient(90deg, var(--tek-blue), var(--tek-purple));
-    color: #050812;
-    border: none;
-    font-family: var(--tek-mono);
-    font-size: 0.86rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    padding: 13px;
-    margin-top: 4px;
-    cursor: pointer;
-    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
-    transition: all 0.2s;
-    text-transform: uppercase;
-}
-.codex-submit:hover:not(:disabled) {
-    box-shadow: 0 0 18px rgba(0,180,255,0.45);
-}
-.codex-submit:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.codex-divider {
-    text-align: center;
-    margin: 18px 0;
+/* ── Login panel ────────────────────────────────────────────────────────── */
+.panel {
     position: relative;
-    font-family: var(--tek-mono);
-    font-size: 0.66rem;
-    letter-spacing: 0.20em;
-    color: var(--tek-text-faint);
-    text-transform: uppercase;
+    width: 100%;
+    max-width: 460px;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.96) 100%);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 36px 34px 28px;
+    overflow: hidden;
+    animation: panel-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.codex-divider span {
-    background: var(--tek-bg);
-    padding: 0 14px;
+
+/* The panel sits inside a slightly larger drop-shadow wrapper to keep glow visible */
+.panel-shell {
     position: relative;
-    z-index: 1;
+    filter:
+        drop-shadow(0 0 1px rgba(0,180,255,0.30))
+        drop-shadow(0 0 40px rgba(0,180,255,0.08))
+        drop-shadow(0 0 100px rgba(139,92,246,0.05))
+        drop-shadow(0 28px 80px rgba(0,0,0,0.65));
 }
-.codex-divider::before {
+
+@keyframes panel-in {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); filter: blur(2px); }
+    to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+/* Initial scanner sweep across the panel */
+.panel::after {
     content: '';
     position: absolute;
-    top: 50%; left: 0; right: 0;
-    height: 1px;
-    background: rgba(100,116,139,0.20);
+    inset: 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(0,180,255,0.18) 50%, transparent 100%);
+    height: 60px;
+    top: -60px;
+    pointer-events: none;
+    animation: scanner-sweep 1.4s 0.3s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+@keyframes scanner-sweep {
+    0%   { top: -60px; opacity: 0; }
+    20%  { opacity: 1; }
+    100% { top: calc(100% + 20px); opacity: 0; }
 }
 
-.codex-discord {
-    width: 100%;
-    background: #5865f2;
-    color: #fff;
-    border: none;
-    font-family: var(--tek-font);
-    font-weight: 600;
-    font-size: 0.92rem;
-    padding: 11px;
-    cursor: pointer;
-    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    transition: all 0.2s;
-}
-.codex-discord:hover {
-    background: #4752d4;
-    box-shadow: 0 0 18px rgba(88,101,242,0.45);
+/* Left accent rail */
+.panel::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 14px;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue) 0%, var(--tek-purple) 100%);
+    box-shadow: 0 0 8px var(--tek-blue-glow);
+    z-index: 2;
 }
 
-.codex-status {
-    margin-top: 14px;
-    padding: 9px 12px;
-    background: rgba(0,180,255,0.06);
-    border-left: 2px solid var(--tek-blue);
-    font-family: var(--tek-mono);
-    font-size: 0.76rem;
-    letter-spacing: 0.10em;
-    color: var(--tek-blue);
-    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
-}
-.codex-status .dot {
-    display: inline-block;
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: var(--tek-blue);
-    box-shadow: 0 0 6px var(--tek-blue-glow);
-    margin-right: 8px;
-    animation: pulse 1.6s ease-in-out infinite;
-}
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-.codex-guest {
-    margin-top: 18px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(100,116,139,0.12);
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.panel-header {
     text-align: center;
+    margin-bottom: 24px;
 }
-.codex-guest-btn {
+.panel-mark {
+    display: inline-flex;
+    color: var(--tek-blue);
+    filter: drop-shadow(0 0 10px var(--tek-blue-glow));
+    margin-bottom: 12px;
+    animation: mark-pulse 3s ease-in-out infinite;
+}
+@keyframes mark-pulse {
+    0%, 100% { filter: drop-shadow(0 0 10px rgba(0,180,255,0.35)); }
+    50%      { filter: drop-shadow(0 0 18px rgba(0,180,255,0.65)); }
+}
+.panel-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    line-height: 1;
+    background: linear-gradient(135deg, #00d4ff 0%, #00b4ff 60%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+}
+.panel-subtitle {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-dim);
+}
+.panel-subtitle .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+.tabs {
+    display: flex;
+    margin-bottom: 22px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.tab {
+    flex: 1;
     background: none;
     border: none;
     color: var(--tek-text-faint);
     font-family: var(--tek-mono);
     font-size: 0.72rem;
-    letter-spacing: 0.10em;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    padding: 11px 0;
     cursor: pointer;
-    padding: 6px 4px;
-    transition: color 0.15s;
-    display: inline-flex;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-color 0.2s;
+}
+.tab:hover { color: var(--tek-text-dim); }
+.tab.active {
+    color: var(--tek-blue);
+    border-bottom-color: var(--tek-blue);
+    text-shadow: 0 0 8px rgba(0,180,255,0.35);
+}
+
+/* ── Discord button (primary) ───────────────────────────────────────────── */
+.discord-btn {
+    width: 100%;
+    display: flex;
     align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 13px;
+    background: linear-gradient(135deg, #5865f2 0%, #4752c4 100%);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    filter: drop-shadow(0 0 10px rgba(88,101,242,0.40));
+    transition: filter 0.18s, transform 0.18s;
+    margin-bottom: 18px;
+}
+.discord-btn:hover {
+    filter: drop-shadow(0 0 20px rgba(88,101,242,0.80));
+    transform: translateY(-1px);
+}
+
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 18px;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    color: var(--tek-text-faint);
+}
+.divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
+}
+
+/* ── Form ───────────────────────────────────────────────────────────────── */
+.field { margin-bottom: 14px; }
+.field-label {
+    display: block;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--tek-text-dim);
+    margin-bottom: 6px;
+}
+.field-input {
+    display: block;
+    width: 100%;
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    color: var(--tek-text);
+    padding: 11px 14px;
+    font-family: inherit;
+    font-size: 0.92rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.field-input::placeholder { color: var(--tek-text-faint); }
+.field-input:hover {
+    border-color: rgba(255,255,255,0.12);
+    border-bottom-color: rgba(0,180,255,0.32);
+}
+.field-input:focus {
+    border-color: rgba(0,180,255,0.40);
+    border-bottom-color: var(--tek-blue);
+    box-shadow: 0 1px 0 rgba(0,180,255,0.45), 0 0 0 3px rgba(0,180,255,0.07);
+    background: rgba(0,15,35,0.92);
+}
+
+/* ── Submit button ──────────────────────────────────────────────────────── */
+.submit-btn {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
+    color: #001a2e;
+    font-family: inherit;
+    font-size: 0.86rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    filter: drop-shadow(0 0 12px rgba(0,180,255,0.50));
+    transition: filter 0.18s, transform 0.18s;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     gap: 8px;
 }
-.codex-guest-btn:hover {
-    color: var(--tek-blue);
+.submit-btn:hover {
+    filter: drop-shadow(0 0 22px rgba(0,180,255,0.80));
+    transform: translateY(-1px);
 }
-.codex-guest-btn .t-glyph { color: var(--tek-blue); }
+.submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ── AI status line ─────────────────────────────────────────────────────── */
+.status-line {
+    margin-top: 16px;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-faint);
+    text-align: center;
+    min-height: 18px;
+    transition: color 0.3s;
+}
+.status-line.active { color: var(--tek-blue); }
+.status-line.error  { color: var(--tek-red); }
+.status-line .prefix { opacity: 0.6; margin-right: 4px; }
+.status-line .pulse-dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    margin-right: 6px;
+    vertical-align: middle;
+    animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
+}
+
+/* ── Guest link ─────────────────────────────────────────────────────────── */
+.guest-row {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    text-align: center;
+}
+.guest-link {
+    background: none;
+    border: none;
+    color: var(--tek-text-faint);
+    font-family: inherit;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.guest-link:hover { color: var(--tek-text-dim); }
+.guest-link .arrow { color: var(--tek-blue); margin-left: 4px; }
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+.bottom-note {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* ── Tab content swap ───────────────────────────────────────────────────── */
+.tab-content { display: none; }
+.tab-content.active { display: block; animation: tab-in 0.3s ease-out; }
+@keyframes tab-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+@media (max-width: 520px) {
+    .panel { padding: 28px 22px 22px; }
+    .panel-title { font-size: 1.25rem; }
+    .bottom-note { font-size: 0.55rem; }
+}
 </style>

@@ -1,45 +1,22 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { UserPlus, Check, X, Search, MessageSquare, Users } from 'lucide-svelte';
     import type { PageData } from './$types';
-    import PageHeader from '$lib/components/PageHeader.svelte';
-    import HexAvatar from '$lib/components/HexAvatar.svelte';
 
     let { data }: { data: PageData } = $props();
 
-    type SearchResult = { id: number; nickname: string | null; email: string; discordName: string | null };
-
     let searchQ = $state('');
-    let searchResults = $state<SearchResult[]>([]);
-    let searchLoading = $state(false);
     let actionLoading = $state<number | null>(null);
+    let expandedId = $state<number | null>(null);
 
-    async function search() {
-        if (!searchQ.trim()) { searchResults = []; return; }
-        searchLoading = true;
-        try {
-            const res = await fetch(`/api/users/search?q=${encodeURIComponent(searchQ.trim())}`);
-            if (res.ok) {
-                const body = await res.json();
-                searchResults = body.users ?? [];
-            }
-        } catch {}
-        searchLoading = false;
+    type Friend = { id: number; friendId: number; nickname: string | null; email: string; discordName: string | null; online: boolean };
+    type Pending = { id: number; nickname: string | null; email: string; discordName: string | null };
+
+    function displayName(f: { nickname: string | null; email: string }) {
+        return f.nickname ?? f.email.split('@')[0];
     }
 
-    async function sendRequest(toId: number) {
-        actionLoading = toId;
-        try {
-            await fetch('/api/friends', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ friendId: toId })
-            });
-            // Refresh page
-            window.location.reload();
-        } catch {
-            actionLoading = null;
-        }
+    function initial(f: { nickname: string | null; email: string }) {
+        return displayName(f).charAt(0).toUpperCase();
     }
 
     async function accept(id: number) {
@@ -51,11 +28,13 @@
         });
         window.location.reload();
     }
+
     async function reject(id: number) {
         actionLoading = id;
         await fetch(`/api/friends/${id}`, { method: 'DELETE' });
         window.location.reload();
     }
+
     async function remove(id: number) {
         if (!confirm('Remove from your network?')) return;
         actionLoading = id;
@@ -63,358 +42,1019 @@
         window.location.reload();
     }
 
-    function displayName(f: { nickname: string | null; email: string }) {
-        return f.nickname ?? f.email.split('@')[0];
+    function toggleExpand(id: number) {
+        expandedId = expandedId === id ? null : id;
     }
 
-    const onlineCount = $derived(data.friends.filter(f => f.online).length);
-    const onlineFriends  = $derived(data.friends.filter(f => f.online));
+    const onlineFriends = $derived(data.friends.filter(f => f.online));
     const offlineFriends = $derived(data.friends.filter(f => !f.online));
+    const onlineCount = $derived(onlineFriends.length);
+    const pendingCount = $derived(data.incoming.length);
+    const totalCount = $derived(data.friends.length);
+
+    onMount(() => {
+        const canvas = document.getElementById('tekHexCanvas') as HTMLCanvasElement | null;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const R = 32, W = R * Math.sqrt(3), H = R * 2;
+        let phase = 0;
+        let rafId = 0;
+
+        function drawHex(x: number, y: number, opacity: number) {
+            ctx!.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = (Math.PI / 3) * i - Math.PI / 6;
+                const px = x + (R - 1) * Math.cos(a);
+                const py = y + (R - 1) * Math.sin(a);
+                i === 0 ? ctx!.moveTo(px, py) : ctx!.lineTo(px, py);
+            }
+            ctx!.closePath();
+            ctx!.strokeStyle = `rgba(0,180,255,${opacity})`;
+            ctx!.lineWidth = 1;
+            ctx!.stroke();
+        }
+        function draw() {
+            ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
+            const cw = canvas!.width, ch = canvas!.height;
+            const cols = Math.ceil(cw / W) + 3;
+            const rows = Math.ceil(ch / (H * 0.75)) + 3;
+            for (let row = -1; row < rows; row++) {
+                for (let col = -1; col < cols; col++) {
+                    const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
+                    const y = row * H * 0.75;
+                    const dx = x - cw * 0.5, dy = y - ch * 0.5;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
+                    drawHex(x, y, 0.07 + wave * 0.09);
+                }
+            }
+            phase += 0.005;
+            rafId = requestAnimationFrame(draw);
+        }
+        function resize() { canvas!.width = window.innerWidth; canvas!.height = window.innerHeight; }
+        window.addEventListener('resize', resize);
+        resize(); draw();
+
+        return () => {
+            cancelAnimationFrame(rafId);
+            window.removeEventListener('resize', resize);
+        };
+    });
 </script>
 
 <svelte:head>
-    <title>⬡ TekOS — Network</title>
+    <title>⬡ TEKOS — Network</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
 </svelte:head>
 
-<div class="tek-stage">
-    <PageHeader
-        title="Network"
-        crumbs={[{ label: 'Dashboard', href: '/dossier' }, { label: 'Network' }]}
-        sub="The Survivors who travel with you."
-    />
+<canvas id="tekHexCanvas"></canvas>
 
-    <!-- Telemetry -->
-    <div class="net-stats">
-        <div class="net-stat">
-            <div class="val">{data.friends.length}</div>
-            <div class="label">Friends</div>
-        </div>
-        <div class="net-stat">
-            <div class="val green">{onlineCount}</div>
-            <div class="label">Online Now</div>
-        </div>
-        <div class="net-stat">
-            <div class="val amber">{data.incoming.length}</div>
-            <div class="label">Incoming Requests</div>
-        </div>
-        <div class="net-stat">
-            <div class="val">{data.sent.length}</div>
-            <div class="label">Sent Requests</div>
+<div class="stage">
+
+    <!-- ═══════════ HEADER ═══════════ -->
+    <div class="page-header">
+        <div>
+            <div class="page-title">Network</div>
+            <div class="page-sub">
+                <span class="prefix">›</span>
+                <span class="stat-num">{totalCount}</span> SURVIVORS LINKED · <span class="stat-num green">{onlineCount}</span> ONLINE NOW · <span class="stat-num">{pendingCount}</span> PENDING
+            </div>
         </div>
     </div>
 
-    <!-- Discovery -->
-    <section class="section-block">
-        <div class="tek-section-head">
-            <div class="tek-section-title">Discovery</div>
-            <a class="tek-section-meta" href="/survivors">BROWSE ALL SURVIVORS ▸</a>
+    <!-- ═══════════ DISCOVERY ═══════════ -->
+    <section class="section">
+        <div class="section-header">
+            <span class="pip"></span>
+            Discover Survivors
+            <span class="rule"></span>
         </div>
-
-        <div class="search-row">
-            <div class="search-wrap">
-                <Search size={14} strokeWidth={2} class="search-icon" />
-                <input class="search-input" type="text"
-                    bind:value={searchQ}
-                    onkeydown={(e) => e.key === 'Enter' && search()}
-                    placeholder="Search by name, email, or Discord handle…" />
+        <div class="discover-panel">
+            <div class="discover-search">
+                <svg class="discover-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" class="discover-search-input" bind:value={searchQ} placeholder="Search by callsign — e.g. Specter, Hera, Crimson…" />
             </div>
-            <button class="tek-btn-v2" onclick={search} disabled={searchLoading}>
-                {searchLoading ? 'SEARCHING…' : 'SEARCH'}
-            </button>
-        </div>
+            <div class="suggest-label">Suggested · based on tribe + mutual connections</div>
+            <div class="suggest-grid">
 
-        {#if searchResults.length > 0}
-            <div class="search-results">
-                {#each searchResults as r}
-                    <div class="row-card">
-                        <HexAvatar name={displayName(r)} size={40} showPip={false} />
-                        <div class="row-info">
-                            <div class="row-name">{displayName(r)}</div>
-                            {#if r.discordName}<div class="row-handle">⌬ {r.discordName}</div>{/if}
-                        </div>
-                        <button class="tek-btn-v2 sm" onclick={() => sendRequest(r.id)} disabled={actionLoading === r.id}>
-                            <UserPlus size={12} strokeWidth={2.5} />
-                            {actionLoading === r.id ? '…' : 'ADD'}
-                        </button>
+                <div class="suggest-card">
+                    <div class="suggest-avatar">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(16,185,129,0.18)" stroke="#10b981" stroke-width="2"/>
+                            <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#86efac">C</text>
+                        </svg>
                     </div>
-                {/each}
+                    <div class="suggest-id">
+                        <div class="suggest-name">Crimson</div>
+                        <div class="suggest-reason">Apex Pack · Allied tribe</div>
+                    </div>
+                    <button class="suggest-add-btn">+ Add</button>
+                </div>
+
+                <div class="suggest-card">
+                    <div class="suggest-avatar">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(6,182,212,0.18)" stroke="#06b6d4" stroke-width="2"/>
+                            <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#67e8f9">D</text>
+                        </svg>
+                    </div>
+                    <div class="suggest-id">
+                        <div class="suggest-name">Drift</div>
+                        <div class="suggest-reason">Top Wyvern breeder · Server top 5</div>
+                    </div>
+                    <button class="suggest-add-btn">+ Add</button>
+                </div>
+
+                <div class="suggest-card">
+                    <div class="suggest-avatar">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(167,139,250,0.18)" stroke="#a78bfa" stroke-width="2"/>
+                            <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#c4b5fd">C</text>
+                        </svg>
+                    </div>
+                    <div class="suggest-id">
+                        <div class="suggest-name">Cinder</div>
+                        <div class="suggest-reason">Mutual friend with Hera</div>
+                    </div>
+                    <button class="suggest-add-btn">+ Add</button>
+                </div>
+
             </div>
-        {/if}
+        </div>
     </section>
 
-    <!-- Incoming requests -->
+    <!-- ═══════════ PENDING REQUESTS ═══════════ -->
     {#if data.incoming.length > 0}
-        <section class="section-block">
-            <div class="tek-section-head">
-                <div class="tek-section-title">Incoming Requests</div>
-                <div class="tek-section-meta"><span class="accent">{data.incoming.length}</span> AWAITING</div>
+    <section class="section">
+        <div class="section-header">
+            <span class="pip amber"></span>
+            Pending Requests
+            <span class="count amber">{data.incoming.length}</span>
+            <span class="rule"></span>
+        </div>
+        <div class="pending-panel">
+            <div class="pending-head">
+                <span class="amber-pip"></span>
+                <span>{data.incoming.length} Survivor{data.incoming.length === 1 ? '' : 's'} want to connect</span>
             </div>
-            <div class="list-stack">
-                {#each data.incoming as r}
-                    <div class="row-card amber">
-                        <HexAvatar name={displayName(r)} size={40} showPip={false} />
-                        <div class="row-info">
-                            <div class="row-name">{displayName(r)}</div>
-                            {#if r.discordName}<div class="row-handle">⌬ {r.discordName}</div>{/if}
-                        </div>
-                        <div class="row-actions">
-                            <button class="tek-btn-v2 sm" onclick={() => accept(r.id)} disabled={actionLoading === r.id}>
-                                <Check size={12} strokeWidth={2.5} />ACCEPT
-                            </button>
-                            <button class="tek-btn-v2 ghost sm" onclick={() => reject(r.id)} disabled={actionLoading === r.id}>
-                                <X size={12} strokeWidth={2.5} />DENY
-                            </button>
-                        </div>
-                    </div>
-                {/each}
-            </div>
-        </section>
-    {/if}
 
-    <!-- Online now -->
-    {#if onlineFriends.length > 0}
-        <section class="section-block">
-            <div class="tek-section-head">
-                <div class="tek-section-title">Online Now</div>
-                <div class="tek-section-meta">
-                    <span class="tek-pip green pulse"></span>
-                    <span class="accent">{onlineFriends.length}</span> ACTIVE
+            {#each data.incoming as r (r.id)}
+            <div class="pending-row">
+                <div class="pending-avatar">
+                    <svg viewBox="0 0 100 110">
+                        <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="2"/>
+                        <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#fcd34d">{initial(r)}</text>
+                    </svg>
+                </div>
+                <div class="pending-info">
+                    <div class="pending-name">{displayName(r)}</div>
+                    <div class="pending-meta">{#if r.discordName}⌬ {r.discordName} · {/if}{r.email}</div>
+                </div>
+                <div class="pending-actions">
+                    <button class="pending-btn decline" onclick={() => reject(r.id)} disabled={actionLoading === r.id}>Decline</button>
+                    <button class="pending-btn accept" onclick={() => accept(r.id)} disabled={actionLoading === r.id}>Accept</button>
                 </div>
             </div>
-            <div class="friends-grid">
-                {#each onlineFriends as f}
-                    <div class="friend-card online">
-                        <a class="friend-link" href="/survivors/{f.friendId}">
-                            <HexAvatar name={displayName(f)} size={48} online={true} />
-                            <div class="friend-info">
-                                <div class="friend-name">{displayName(f)}</div>
-                                <div class="friend-status online"><span class="tek-pip green"></span>ONLINE</div>
-                            </div>
-                        </a>
-                        <div class="friend-actions">
-                            <a class="tek-btn-v2 ghost sm" href="/messages/{f.friendId}" title="Message">
-                                <MessageSquare size={12} strokeWidth={2} />
-                            </a>
-                        </div>
-                    </div>
-                {/each}
-            </div>
-        </section>
+            {/each}
+        </div>
+    </section>
     {/if}
 
-    <!-- All friends -->
-    <section class="section-block">
-        <div class="tek-section-head">
-            <div class="tek-section-title">{onlineFriends.length > 0 ? 'Offline' : 'All Friends'}</div>
-            <div class="tek-section-meta">{offlineFriends.length} OF {data.friends.length}</div>
+    <!-- ═══════════ ONLINE NOW ═══════════ -->
+    {#if onlineFriends.length > 0}
+    <section class="section">
+        <div class="section-header">
+            <span class="pip green"></span>
+            Online Now
+            <span class="count green">{onlineFriends.length}</span>
+            <span class="rule"></span>
+        </div>
+        <div class="online-grid">
+
+            {#each onlineFriends as f (f.id)}
+            <div class="online-card">
+                <div class="online-top">
+                    <div class="online-avatar">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke="#00b4ff" stroke-width="2"/>
+                            <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#7dd3fc">{initial(f)}</text>
+                        </svg>
+                        <div class="pip"></div>
+                    </div>
+                    <div class="online-id">
+                        <div class="online-name">{displayName(f)}</div>
+                        <div class="online-tribe">{#if f.discordName}⌬ {f.discordName}{:else}⌬ Survivor{/if}</div>
+                    </div>
+                </div>
+                <div class="online-activity">
+                    <span class="action">Online</span> · Active now
+                </div>
+                <div class="online-quick-actions">
+                    <a class="qa-btn" href="/messages/{f.friendId}">✉ DM</a>
+                    <a class="qa-btn" href="/survivors/{f.friendId}">⬡ View</a>
+                </div>
+            </div>
+            {/each}
+
+        </div>
+    </section>
+    {/if}
+
+    <!-- ═══════════ ALL FRIENDS ═══════════ -->
+    <section class="section">
+        <div class="section-header">
+            <span class="pip"></span>
+            All Friends
+            <span class="count">{data.friends.length}</span>
+            <span class="rule"></span>
         </div>
 
         {#if data.friends.length === 0}
-            <div class="tek-empty">
-                <div class="icon"><Users size={26} strokeWidth={1.5} /></div>
-                <div class="title">Your network is empty</div>
-                <div class="flavor">"No Survivor walks alone for long. Use Discovery above to find others."</div>
+            <div class="discover-panel" style="text-align:center; padding: 36px 24px;">
+                <div style="font-family: var(--tek-display); font-size: 1rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tek-text); margin-bottom: 8px;">Your network is empty</div>
+                <div style="font-family: var(--tek-mono); font-size: 0.72rem; color: var(--tek-text-dim);">"No Survivor walks alone for long. Use Discovery above to find others."</div>
             </div>
         {:else}
-            <div class="friends-grid">
-                {#each offlineFriends as f}
-                    <div class="friend-card">
-                        <a class="friend-link" href="/survivors/{f.friendId}">
-                            <HexAvatar name={displayName(f)} size={48} online={false} />
-                            <div class="friend-info">
-                                <div class="friend-name">{displayName(f)}</div>
-                                <div class="friend-status offline"><span class="tek-pip"></span>OFFLINE</div>
+        <div class="friends-list">
+
+            {#each data.friends as f (f.id)}
+            <div class="friend-row" class:online={f.online} class:expanded={expandedId === f.id} data-name={displayName(f).toLowerCase()}>
+                <div class="friend-main" onclick={() => toggleExpand(f.id)} role="button" tabindex="0" onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpand(f.id)}>
+                    <div class="friend-avatar">
+                        <svg viewBox="0 0 100 110">
+                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke="#00b4ff" stroke-width="2"/>
+                            <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#7dd3fc">{initial(f)}</text>
+                        </svg>
+                        <div class="pip" class:online={f.online}></div>
+                    </div>
+                    <div class="friend-id">
+                        <div class="friend-callsign">{displayName(f)}</div>
+                        <div class="friend-meta">{#if f.discordName}<span class="tribe">⌬ {f.discordName}</span><span class="sep">·</span>{/if}{f.email}</div>
+                    </div>
+                    <span class="friend-status" class:online={f.online}>{f.online ? '● Online' : 'Offline'}</span>
+                    <span class="expand-chevron">▸</span>
+                </div>
+                <div class="friend-detail">
+                    <div class="friend-detail-inner">
+                        <div>
+                            <div class="detail-block-label">Top Specimens</div>
+                            <div class="top-specimens">
+                                <div class="top-spec-row" style="color: var(--tek-text-dim); font-style: italic;">No specimens shared yet</div>
                             </div>
-                        </a>
-                        <div class="friend-actions">
-                            <a class="tek-btn-v2 ghost sm" href="/messages/{f.friendId}" title="Message">
-                                <MessageSquare size={12} strokeWidth={2} />
-                            </a>
-                            <button class="tek-btn-v2 ghost sm" onclick={() => remove(f.id)} disabled={actionLoading === f.id} title="Remove">
-                                <X size={12} strokeWidth={2.5} />
-                            </button>
+                        </div>
+                        <div>
+                            <div class="detail-block-label">Stats</div>
+                            <div class="detail-stats">
+                                <div class="dstat"><div class="dstat-val gradient">—</div><div class="dstat-lbl">Specimens</div></div>
+                                <div class="dstat"><div class="dstat-val">—</div><div class="dstat-lbl">Badges</div></div>
+                                <div class="dstat"><div class="dstat-val amber">—</div><div class="dstat-lbl">Trade Rep</div></div>
+                            </div>
+                            <div class="detail-recent">
+                                <span class="action">Linked to your network</span><span class="time">· Friend</span>
+                            </div>
+                        </div>
+                        <div class="action-row">
+                            <a class="act-btn primary" href="/survivors/{f.friendId}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>View Dossier</a>
+                            <a class="act-btn secondary" href="/messages/{f.friendId}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Send DM</a>
+                            <button class="act-btn secondary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Invite to Tribe</button>
+                            <button class="act-btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>Invite to War Room</button>
+                            <button class="act-btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>Trade</button>
+                            <button class="act-btn danger" onclick={(e) => { e.stopPropagation(); remove(f.id); }} disabled={actionLoading === f.id}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/></svg>Remove</button>
                         </div>
                     </div>
-                {/each}
+                </div>
             </div>
+            {/each}
+
+        </div>
         {/if}
     </section>
 
-    <!-- Sent requests (collapsed) -->
+    <!-- ═══════════ SENT REQUESTS ═══════════ -->
     {#if data.sent.length > 0}
-        <section class="section-block">
-            <details>
-                <summary>
-                    <span class="t-eyebrow">Sent requests · {data.sent.length} pending</span>
-                </summary>
-                <div class="list-stack" style="margin-top: 12px;">
-                    {#each data.sent as r}
-                        <div class="row-card subtle">
-                            <HexAvatar name={displayName(r)} size={36} showPip={false} />
-                            <div class="row-info">
-                                <div class="row-name">{displayName(r)}</div>
-                            </div>
-                            <button class="tek-btn-v2 ghost sm" onclick={() => reject(r.id)} disabled={actionLoading === r.id}>
-                                CANCEL
-                            </button>
-                        </div>
-                    {/each}
+    <section class="section">
+        <div class="section-header">
+            <span class="pip amber"></span>
+            Sent Requests
+            <span class="count amber">{data.sent.length}</span>
+            <span class="rule"></span>
+        </div>
+        <div class="pending-panel">
+            <div class="pending-head">
+                <span class="amber-pip"></span>
+                <span>Awaiting response</span>
+            </div>
+
+            {#each data.sent as r (r.id)}
+            <div class="pending-row">
+                <div class="pending-avatar">
+                    <svg viewBox="0 0 100 110">
+                        <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="2"/>
+                        <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#fcd34d">{initial(r)}</text>
+                    </svg>
                 </div>
-            </details>
-        </section>
+                <div class="pending-info">
+                    <div class="pending-name">{displayName(r)}</div>
+                    <div class="pending-meta">{r.email} · Awaiting response</div>
+                </div>
+                <div class="pending-actions">
+                    <button class="pending-btn decline" onclick={() => reject(r.id)} disabled={actionLoading === r.id}>Cancel</button>
+                </div>
+            </div>
+            {/each}
+        </div>
+    </section>
     {/if}
+
 </div>
 
-<style>
-.section-block { margin-bottom: 28px; }
+<div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
 
-.net-stats {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 24px;
+<style>
+:global(:root) {
+    --tek-bg:           #050812;
+    --tek-blue:         #00b4ff;
+    --tek-blue-dim:     rgba(0, 180, 255, 0.12);
+    --tek-blue-border:  rgba(0, 180, 255, 0.30);
+    --tek-blue-glow:    rgba(0, 180, 255, 0.50);
+    --tek-purple:       #8b5cf6;
+    --tek-amber:        #f59e0b;
+    --tek-green:        #10b981;
+    --tek-red:          #ef4444;
+    --tek-pink:         #f472b6;
+    --tek-text:         #e2e8f0;
+    --tek-text-dim:     #64748b;
+    --tek-text-faint:   #334155;
+    --tek-font:         'Inter', system-ui, sans-serif;
+    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 }
-@media (max-width: 600px) { .net-stats { grid-template-columns: repeat(2, 1fr); } }
-.net-stat {
+
+:global(*), :global(*::before), :global(*::after) { box-sizing: border-box; margin: 0; padding: 0; }
+:global(html), :global(body) {
+    background: var(--tek-bg);
+    color: var(--tek-text);
+    font-family: var(--tek-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+:global(body::before) {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 50% at 20% 10%, rgba(0,180,255,0.10) 0%, transparent 50%),
+        radial-gradient(ellipse 55% 50% at 85% 90%, rgba(139,92,246,0.08) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+}
+#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.stage {
+    position: relative; z-index: 2;
+    min-height: 100vh;
+    padding: 70px 24px 80px;
+    max-width: 1180px;
+    margin: 0 auto;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PAGE HEADER
+   ═════════════════════════════════════════════════════════════════════════ */
+.page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+}
+.page-title {
+    font-family: var(--tek-display);
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 12px rgba(0,180,255,0.30));
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.page-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.page-sub .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+.page-sub .stat-num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
+.page-sub .stat-num.green { color: var(--tek-green); text-shadow: 0 0 5px rgba(16,185,129,0.5); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   SECTION SCAFFOLD
+   ═════════════════════════════════════════════════════════════════════════ */
+.section { margin-bottom: 36px; }
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 18px;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--tek-text-dim);
+}
+.section-header .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--tek-blue); box-shadow: 0 0 8px var(--tek-blue-glow); }
+.section-header .pip.green { background: var(--tek-green); box-shadow: 0 0 8px rgba(16,185,129,0.7); }
+.section-header .pip.amber { background: var(--tek-amber); box-shadow: 0 0 8px rgba(245,158,11,0.7); }
+.section-header .rule { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(0,180,255,0.18), transparent); }
+.section-header .count { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); margin-left: 6px; }
+.section-header .count.green { color: var(--tek-green); text-shadow: 0 0 5px rgba(16,185,129,0.5); }
+.section-header .count.amber { color: var(--tek-amber); text-shadow: 0 0 5px rgba(245,158,11,0.5); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   DISCOVERY — search + suggestions
+   ═════════════════════════════════════════════════════════════════════════ */
+.discover-panel {
+    background: linear-gradient(160deg, rgba(10,18,44,0.88) 0%, rgba(4,8,20,0.96) 100%);
+    backdrop-filter: blur(14px);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 18px 22px 16px 24px;
     position: relative;
-    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
-    border: 1px solid rgba(0,180,255,0.15);
-    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
-    padding: 12px 16px;
 }
-.net-stat::before {
+.discover-panel::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 7px var(--tek-blue-glow);
+}
+.discover-search { position: relative; margin-bottom: 16px; }
+.discover-search-input {
+    width: 100%;
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    color: var(--tek-text);
+    padding: 11px 14px 11px 40px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    outline: none;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    transition: border-color 0.2s, background 0.2s;
+}
+.discover-search-input::placeholder { color: var(--tek-text-faint); }
+.discover-search-input:focus {
+    border-color: rgba(0,180,255,0.40);
+    border-bottom-color: var(--tek-blue);
+    background: rgba(0,15,35,0.92);
+}
+.discover-search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--tek-text-faint);
+    pointer-events: none;
+}
+
+.suggest-label {
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+.suggest-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+@media (max-width: 720px) { .suggest-grid { grid-template-columns: 1fr; } }
+
+.suggest-card {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.04);
+    padding: 10px 12px 10px 10px;
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    transition: all 0.18s;
+    cursor: pointer;
+}
+.suggest-card:hover {
+    background: rgba(0,180,255,0.05);
+    border-color: rgba(0,180,255,0.25);
+}
+.suggest-avatar { width: 36px; height: 40px; flex-shrink: 0; }
+.suggest-avatar svg { width: 100%; height: 100%; filter: drop-shadow(0 0 5px rgba(0,180,255,0.30)); }
+.suggest-id { min-width: 0; line-height: 1.3; }
+.suggest-name {
+    font-family: var(--tek-display);
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.suggest-reason {
+    font-family: var(--tek-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.10em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+.suggest-add-btn {
+    background: rgba(0,180,255,0.10);
+    border: 1px solid rgba(0,180,255,0.35);
+    color: #7dd3fc;
+    font-family: inherit;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 5px 9px;
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.18s;
+    white-space: nowrap;
+}
+.suggest-add-btn:hover { background: rgba(0,180,255,0.25); filter: drop-shadow(0 0 6px var(--tek-blue-glow)); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PENDING REQUESTS
+   ═════════════════════════════════════════════════════════════════════════ */
+.pending-panel {
+    background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(245,158,11,0.02) 100%);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 12px 22px 12px 24px;
+    position: relative;
+    filter: drop-shadow(-3px 0 14px rgba(245,158,11,0.16));
+}
+.pending-panel::before {
     content: '';
     position: absolute;
     left: 0; top: 10px; bottom: 0;
     width: 2px;
-    background: var(--tek-blue);
-    box-shadow: 0 0 6px var(--tek-blue-glow);
+    background: var(--tek-amber);
+    box-shadow: 0 0 6px rgba(245,158,11,0.55);
 }
-.net-stat .val {
-    font-family: var(--tek-display);
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--tek-blue);
-    line-height: 1;
-    text-shadow: 0 0 8px var(--tek-blue-glow);
-}
-.net-stat .val.green { color: var(--tek-green); text-shadow: 0 0 8px rgba(16,185,129,0.4); }
-.net-stat .val.amber { color: var(--tek-amber); text-shadow: 0 0 8px rgba(245,158,11,0.4); }
-.net-stat .label {
-    font-family: var(--tek-mono);
-    font-size: 0.62rem;
-    letter-spacing: 0.16em;
-    color: var(--tek-text-dim);
-    text-transform: uppercase;
-    margin-top: 3px;
-}
-
-/* Search */
-.search-row { display: flex; gap: 10px; margin-bottom: 14px; }
-.search-wrap { position: relative; flex: 1; min-width: 240px; }
-.search-wrap :global(.search-icon) {
-    position: absolute;
-    left: 12px; top: 50%;
-    transform: translateY(-50%);
-    color: var(--tek-blue);
-    pointer-events: none;
-}
-.search-input {
-    width: 100%;
-    background: rgba(5,8,18,0.7);
-    border: 1px solid var(--tek-blue-border);
-    color: var(--tek-text);
-    font-family: var(--tek-mono);
-    font-size: 0.84rem;
-    padding: 10px 14px 10px 34px;
-    clip-path: polygon(7px 0%, 100% 0%, calc(100% - 7px) 100%, 0% 100%);
-}
-.search-input:focus { outline: none; box-shadow: 0 0 0 1px var(--tek-blue); }
-.search-results { display: flex; flex-direction: column; gap: 6px; }
-
-/* Row card (search results, incoming requests, sent requests) */
-.row-card, .list-stack > .row-card {
+.pending-head {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    background: rgba(5,8,18,0.5);
-    border: 1px solid rgba(100,116,139,0.15);
-    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
-}
-.row-card.amber {
-    background: rgba(245,158,11,0.04);
-    border-color: rgba(245,158,11,0.25);
-    border-left: 2px solid var(--tek-amber);
-}
-.row-card.subtle { opacity: 0.85; }
-.row-info { flex: 1; min-width: 0; }
-.row-name { font-size: 0.92rem; font-weight: 600; color: var(--tek-text); }
-.row-handle { font-family: var(--tek-mono); font-size: 0.72rem; color: var(--tek-text-dim); margin-top: 2px; }
-.row-actions { display: flex; gap: 6px; }
-.list-stack { display: flex; flex-direction: column; gap: 6px; }
-
-/* Friends grid */
-.friends-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 10px;
+    margin-bottom: 10px;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.20em;
+    color: var(--tek-amber);
+    text-transform: uppercase;
 }
-.friend-card {
-    display: flex;
-    align-items: center;
+.pending-head .amber-pip {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--tek-amber);
+    box-shadow: 0 0 7px rgba(245,158,11,0.7);
+    animation: amber-pulse 1.8s ease-in-out infinite;
+}
+@keyframes amber-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.pending-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto auto;
     gap: 12px;
-    padding: 12px 14px;
-    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
-    border: 1px solid rgba(100,116,139,0.18);
-    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
-    transition: all 0.15s;
-    position: relative;
+    align-items: center;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(245,158,11,0.10);
 }
-.friend-card.online::before {
+.pending-row:last-child { border-bottom: none; }
+.pending-avatar { width: 32px; height: 36px; }
+.pending-avatar svg { width: 100%; height: 100%; }
+.pending-info { min-width: 0; line-height: 1.3; }
+.pending-name {
+    font-family: var(--tek-display);
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+}
+.pending-meta {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+}
+.pending-actions { display: flex; gap: 5px; }
+.pending-btn {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.10);
+    color: var(--tek-text-dim);
+    font-family: inherit;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 5px 11px;
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.18s;
+}
+.pending-btn.accept {
+    background: rgba(16,185,129,0.15);
+    border-color: rgba(16,185,129,0.40);
+    color: #86efac;
+}
+.pending-btn.accept:hover { background: rgba(16,185,129,0.30); filter: drop-shadow(0 0 6px rgba(16,185,129,0.45)); }
+.pending-btn.decline:hover { color: #fca5a5; border-color: rgba(239,68,68,0.40); }
+.pending-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   ONLINE NOW — prominent grid
+   ═════════════════════════════════════════════════════════════════════════ */
+.online-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+@media (max-width: 980px) { .online-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 540px) { .online-grid { grid-template-columns: 1fr; } }
+
+.online-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.98) 100%);
+    backdrop-filter: blur(12px);
+    clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+    padding: 14px 16px 14px 18px;
+    cursor: pointer;
+    transition: transform 0.2s ease, filter 0.22s ease;
+    filter: drop-shadow(0 0 1px rgba(16,185,129,0.35)) drop-shadow(0 8px 22px rgba(0,0,0,0.42));
+}
+.online-card:hover {
+    transform: translateY(-2px);
+    filter: drop-shadow(0 0 2px rgba(16,185,129,0.75)) drop-shadow(0 12px 30px rgba(0,0,0,0.55));
+}
+.online-card::before {
     content: '';
     position: absolute;
     left: 0; top: 12px; bottom: 0;
     width: 2px;
     background: var(--tek-green);
-    box-shadow: 0 0 5px rgba(16,185,129,0.5);
+    box-shadow: 0 0 6px rgba(16,185,129,0.7);
 }
-.friend-card:hover { transform: translateY(-2px); border-color: var(--tek-blue-border); }
-.friend-link {
-    flex: 1;
+.online-top {
     display: flex;
     align-items: center;
-    gap: 12px;
-    text-decoration: none;
-    color: inherit;
-    min-width: 0;
+    gap: 10px;
+    margin-bottom: 10px;
 }
-.friend-info { flex: 1; min-width: 0; }
-.friend-name {
+.online-avatar { width: 36px; height: 40px; flex-shrink: 0; position: relative; }
+.online-avatar svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgba(0,180,255,0.40)); }
+.online-avatar .pip {
+    position: absolute;
+    bottom: 2px; right: -1px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--tek-green);
+    border: 2px solid #050812;
+    box-shadow: 0 0 5px rgba(16,185,129,0.7);
+}
+.online-id { min-width: 0; line-height: 1.3; }
+.online-name {
     font-family: var(--tek-display);
     font-size: 0.86rem;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.04em;
     color: var(--tek-text);
     text-transform: uppercase;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
-    margin-bottom: 4px;
 }
+.online-tribe {
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    color: var(--tek-amber);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-top: 1px;
+}
+.online-tribe.ally { color: #86efac; }
+.online-tribe.neutral { color: var(--tek-text-faint); }
+.online-activity {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    color: var(--tek-text-dim);
+    line-height: 1.45;
+    padding: 8px 10px;
+    background: rgba(0,0,0,0.25);
+    border-left: 2px solid rgba(16,185,129,0.40);
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    margin-bottom: 10px;
+}
+.online-activity .action { color: var(--tek-green); font-weight: 700; }
+.online-activity .target { color: #c4b5fd; font-weight: 600; }
+
+.online-quick-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+.qa-btn {
+    background: rgba(0,180,255,0.06);
+    border: 1px solid rgba(0,180,255,0.22);
+    color: #7dd3fc;
+    font-family: inherit;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 5px;
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-decoration: none;
+}
+.qa-btn:hover { background: rgba(0,180,255,0.18); filter: drop-shadow(0 0 5px var(--tek-blue-glow)); }
+.qa-btn svg { width: 10px; height: 10px; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   ALL FRIENDS — compact rows, expandable
+   ═════════════════════════════════════════════════════════════════════════ */
+.friends-list { display: flex; flex-direction: column; gap: 5px; }
+
+.friend-row {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    position: relative;
+    transition: all 0.22s;
+    filter: drop-shadow(0 0 1px rgba(0,180,255,0.18)) drop-shadow(0 6px 16px rgba(0,0,0,0.35));
+}
+.friend-row::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: rgba(0,180,255,0.30);
+    box-shadow: 0 0 4px rgba(0,180,255,0.40);
+}
+.friend-row.online::before { background: var(--tek-green); box-shadow: 0 0 5px rgba(16,185,129,0.55); }
+.friend-row.expanded { filter: drop-shadow(0 0 2px rgba(0,180,255,0.50)) drop-shadow(0 12px 28px rgba(0,0,0,0.55)); }
+
+.friend-main {
+    display: grid;
+    grid-template-columns: 32px 1fr auto auto;
+    gap: 14px;
+    align-items: center;
+    padding: 11px 18px 11px 20px;
+    cursor: pointer;
+    transition: background 0.18s;
+}
+.friend-main:hover { background: rgba(0,180,255,0.04); }
+.friend-avatar { width: 30px; height: 34px; position: relative; flex-shrink: 0; }
+.friend-avatar svg { width: 100%; height: 100%; filter: drop-shadow(0 0 4px rgba(0,180,255,0.30)); }
+.friend-avatar .pip {
+    position: absolute;
+    bottom: 2px; right: -1px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--tek-text-faint);
+    border: 2px solid #050812;
+}
+.friend-avatar .pip.online { background: var(--tek-green); box-shadow: 0 0 4px rgba(16,185,129,0.6); }
+
+.friend-id { min-width: 0; line-height: 1.3; }
+.friend-callsign {
+    font-family: var(--tek-display);
+    font-size: 0.86rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.friend-meta {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+}
+.friend-meta .tribe { color: var(--tek-amber); font-weight: 600; }
+.friend-meta .tribe.ally { color: #86efac; }
+.friend-meta .tribe.neutral { color: var(--tek-text-faint); }
+.friend-meta .sep { color: var(--tek-text-faint); margin: 0 5px; }
+
 .friend-status {
-    display: flex; align-items: center; gap: 5px;
     font-family: var(--tek-mono);
     font-size: 0.6rem;
     letter-spacing: 0.14em;
+    color: var(--tek-text-faint);
     text-transform: uppercase;
+    white-space: nowrap;
 }
 .friend-status.online { color: var(--tek-green); }
-.friend-status.offline { color: var(--tek-text-faint); }
-.friend-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
-details summary { cursor: pointer; list-style: none; padding: 4px 0; }
-details summary::-webkit-details-marker { display: none; }
-details summary::before { content: '▸ '; color: var(--tek-blue); }
-details[open] summary::before { content: '▾ '; }
+.expand-chevron {
+    color: var(--tek-text-faint);
+    font-family: var(--tek-display);
+    font-size: 0.7rem;
+    transition: transform 0.25s;
+}
+.friend-row.expanded .expand-chevron { transform: rotate(90deg); color: var(--tek-blue); }
+
+/* Expanded detail panel */
+.friend-detail {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+    border-top: 1px solid rgba(255,255,255,0.04);
+}
+.friend-row.expanded .friend-detail { max-height: 600px; }
+.friend-detail-inner {
+    padding: 18px 22px 18px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+}
+@media (max-width: 720px) { .friend-detail-inner { grid-template-columns: 1fr; } }
+
+.detail-block-label {
+    font-family: var(--tek-mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--tek-text-faint);
+    margin-bottom: 8px;
+}
+
+.top-specimens { display: flex; flex-direction: column; gap: 5px; }
+.top-spec-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 9px;
+    align-items: center;
+    padding: 6px 10px 6px 8px;
+    background: rgba(0,0,0,0.20);
+    border-left: 2px solid rgba(239,68,68,0.30);
+    clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+}
+.top-spec-row.combat { border-left-color: rgba(239,68,68,0.40); }
+.top-spec-row.flyer  { border-left-color: rgba(6,182,212,0.40); }
+.top-spec-row.mount  { border-left-color: rgba(249,115,22,0.40); }
+.top-spec-row .species { color: var(--tek-text); font-weight: 600; }
+.top-spec-row .nick { color: var(--tek-text-dim); font-style: italic; }
+.top-spec-row .lvl {
+    font-family: var(--tek-display);
+    font-weight: 800;
+    font-size: 0.78rem;
+    background: linear-gradient(135deg, #00d4ff, #c084fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.detail-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.dstat {
+    text-align: center;
+    background: rgba(0,0,0,0.25);
+    padding: 6px 4px;
+    clip-path: polygon(3px 0%, 100% 0%, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0% 100%, 0% 3px);
+}
+.dstat-val {
+    font-family: var(--tek-display);
+    font-size: 1rem;
+    font-weight: 900;
+    color: var(--tek-blue);
+    text-shadow: 0 0 5px var(--tek-blue-glow);
+    line-height: 1;
+}
+.dstat-val.gradient { background: linear-gradient(135deg, #00d4ff, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 4px rgba(0,180,255,0.30)); }
+.dstat-val.amber { color: #fcd34d; text-shadow: 0 0 5px rgba(251,191,36,0.45); }
+.dstat-lbl {
+    font-family: var(--tek-mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-top: 3px;
+}
+
+.detail-recent {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    color: var(--tek-text-dim);
+    line-height: 1.4;
+    padding: 8px 10px;
+    background: rgba(0,0,0,0.20);
+    clip-path: polygon(3px 0%, 100% 0%, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0% 100%, 0% 3px);
+    margin-bottom: 12px;
+}
+.detail-recent .action { color: #c4b5fd; }
+.detail-recent .time { color: var(--tek-text-faint); margin-left: 4px; }
+
+/* Action toolbar */
+.action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding-top: 4px;
+    grid-column: 1 / -1;
+}
+.act-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: filter 0.18s, transform 0.18s, background 0.18s;
+    text-decoration: none;
+}
+.act-btn svg { width: 11px; height: 11px; }
+.act-btn.primary {
+    background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
+    color: #001a2e;
+    filter: drop-shadow(0 0 6px rgba(0,180,255,0.40));
+}
+.act-btn.primary:hover { filter: drop-shadow(0 0 12px rgba(0,180,255,0.75)); transform: translateY(-1px); }
+.act-btn.secondary {
+    background: rgba(0,180,255,0.06);
+    color: #7dd3fc;
+    border: 1px solid rgba(0,180,255,0.22);
+}
+.act-btn.secondary:hover { background: rgba(0,180,255,0.18); border-color: rgba(0,180,255,0.45); }
+.act-btn.ghost {
+    background: transparent;
+    color: var(--tek-text-dim);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.act-btn.ghost:hover { color: var(--tek-text); border-color: rgba(255,255,255,0.20); }
+.act-btn.danger {
+    background: rgba(239,68,68,0.08);
+    color: #fca5a5;
+    border: 1px solid rgba(239,68,68,0.25);
+    margin-left: auto;
+}
+.act-btn.danger:hover { background: rgba(239,68,68,0.18); filter: drop-shadow(0 0 6px rgba(239,68,68,0.45)); }
+.act-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.bottom-note {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .stage { padding: 60px 14px 80px; }
+    .friend-main { grid-template-columns: 32px 1fr auto; gap: 10px; padding: 10px 14px; }
+    .friend-status { display: none; }
+    .pending-row { grid-template-columns: 32px 1fr auto; }
+    .pending-actions .pending-btn.decline { display: none; }
+}
 </style>

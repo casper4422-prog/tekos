@@ -18,6 +18,8 @@
     let bootExiting = $state(false);
     let heroVisible = $state(false);
 
+    let canvasEl: HTMLCanvasElement;
+
     function revealHero() {
         if (heroVisible) return;
         bootExiting = true;
@@ -30,26 +32,77 @@
     }
 
     onMount(() => {
-        // Returning visitors within this session skip the boot
+        // Hex canvas (preview's animated grid)
+        let raf = 0;
+        let phase = 0;
+        const R = 32, W = R * Math.sqrt(3), H = R * 2;
+        const ctx = canvasEl.getContext('2d');
+
+        function drawHex(x: number, y: number, opacity: number) {
+            if (!ctx) return;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = (Math.PI / 3) * i - Math.PI / 6;
+                const px = x + (R - 1) * Math.cos(a);
+                const py = y + (R - 1) * Math.sin(a);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.strokeStyle = `rgba(0,180,255,${opacity})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+        function draw() {
+            if (!ctx) return;
+            ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+            const cw = canvasEl.width, ch = canvasEl.height;
+            const cols = Math.ceil(cw / W) + 3;
+            const rows = Math.ceil(ch / (H * 0.75)) + 3;
+            for (let row = -1; row < rows; row++) {
+                for (let col = -1; col < cols; col++) {
+                    const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
+                    const y = row * H * 0.75;
+                    const dx = x - cw * 0.5, dy = y - ch * 0.5;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
+                    drawHex(x, y, 0.07 + wave * 0.09);
+                }
+            }
+            phase += 0.005;
+            raf = requestAnimationFrame(draw);
+        }
+        function resize() {
+            canvasEl.width = window.innerWidth;
+            canvasEl.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+        draw();
+
+        // Boot sequence
+        const timeouts: ReturnType<typeof setTimeout>[] = [];
         let alreadySeen = false;
         try { alreadySeen = sessionStorage.getItem('tekos_seen_boot') === '1'; } catch {}
 
         if (alreadySeen) {
             heroVisible = true;
-            return;
+        } else {
+            try { sessionStorage.setItem('tekos_seen_boot', '1'); } catch {}
+            BOOT_LINES.forEach((line) => {
+                timeouts.push(setTimeout(() => {
+                    bootLines = [...bootLines, { text: line.text, final: line.final }];
+                }, line.at));
+            });
+            timeouts.push(setTimeout(() => { showCursor = true; }, BOOT_LINES[BOOT_LINES.length - 1].at + 200));
+            timeouts.push(setTimeout(revealHero, BOOT_END));
         }
-        try { sessionStorage.setItem('tekos_seen_boot', '1'); } catch {}
 
-        const timeouts: ReturnType<typeof setTimeout>[] = [];
-        BOOT_LINES.forEach((line) => {
-            timeouts.push(setTimeout(() => {
-                bootLines = [...bootLines, { text: line.text, final: line.final }];
-            }, line.at));
-        });
-        timeouts.push(setTimeout(() => { showCursor = true; }, BOOT_LINES[BOOT_LINES.length - 1].at + 200));
-        timeouts.push(setTimeout(revealHero, BOOT_END));
-
-        return () => timeouts.forEach(clearTimeout);
+        return () => {
+            timeouts.forEach(clearTimeout);
+            window.removeEventListener('resize', resize);
+            cancelAnimationFrame(raf);
+        };
     });
 </script>
 
@@ -57,11 +110,14 @@
     <title>⬡ TekOS — The Survivor Network</title>
 </svelte:head>
 
+<canvas bind:this={canvasEl} id="tekHexCanvas"></canvas>
+
+{#if !heroVisible}
+    <button class="skip-btn" class:hidden={bootExiting} onclick={revealHero}>SKIP ▸</button>
+{/if}
+
 <div class="stage">
-
     {#if !heroVisible}
-        <button class="skip-btn" class:hidden={bootExiting} onclick={revealHero}>SKIP ▸</button>
-
         <div class="boot" class:exit={bootExiting}>
             {#each bootLines as line}
                 <div class="boot-line">
@@ -73,9 +129,9 @@
             {#if showCursor}<span class="boot-cursor"></span>{/if}
         </div>
     {:else}
-
         <div class="hero">
-            <div class="hero-mark" aria-hidden="true">
+
+            <div class="hero-mark">
                 <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                 </svg>
@@ -100,7 +156,7 @@
 
             <div class="cta-stack">
                 <a class="cta cta-discord" href="/api/auth/discord/start">
-                    <svg width="18" height="18" viewBox="0 0 71 55" fill="currentColor" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 71 55" fill="currentColor">
                         <path d="M60.1 4.9A58.6 58.6 0 0045.6.5a.2.2 0 00-.2.1 40.9 40.9 0 00-1.8 3.7 54.1 54.1 0 00-16.3 0 37.2 37.2 0 00-1.9-3.7.2.2 0 00-.2-.1A58.4 58.4 0 0010.6 4.9a.2.2 0 00-.1.1C1.5 18.4-.9 31.5.3 44.5a.2.2 0 00.1.1 58.9 58.9 0 0017.7 9 .2.2 0 00.2-.1 42.1 42.1 0 003.6-5.9.2.2 0 00-.1-.3 38.8 38.8 0 01-5.5-2.6.2.2 0 010-.4l1.1-.8a.2.2 0 01.2 0c11.5 5.3 24 5.3 35.4 0a.2.2 0 01.2 0l1.1.8a.2.2 0 010 .4 36.1 36.1 0 01-5.6 2.6.2.2 0 00-.1.3 47.3 47.3 0 003.6 5.9.2.2 0 00.2.1A58.7 58.7 0 0070.6 44.6a.2.2 0 00.1-.1c1.4-14.9-2.4-27.9-10.5-39.5a.2.2 0 00-.1-.1zM23.7 36.7c-3.5 0-6.4-3.2-6.4-7.2s2.9-7.2 6.4-7.2c3.6 0 6.5 3.3 6.4 7.2 0 3.9-2.8 7.2-6.4 7.2zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.5 0 6.4 3.3 6.4 7.2 0 3.9-2.9 7.2-6.4 7.2z"/>
                     </svg>
                     Continue with Discord
@@ -130,14 +186,33 @@
                     DOSSIERS · <span class="telemetry-val">SYNCHRONIZED</span>
                 </div>
             </div>
+
         </div>
-
     {/if}
-
-    <div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
 </div>
 
+<div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
+
 <style>
+/* Atmospheric layer */
+:global(body::before) {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 70% 50% at 15% 8%,  rgba(0,180,255,0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 45% at 85% 85%, rgba(139,92,246,0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+#tekHexCanvas {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
 .stage {
     position: relative;
     z-index: 2;
@@ -166,7 +241,7 @@
     transition: background 0.2s, border-color 0.2s, opacity 0.3s;
 }
 .skip-btn:hover {
-    background: var(--tek-blue-dim);
+    background: rgba(0,180,255,0.12);
     border-color: var(--tek-blue);
 }
 .skip-btn.hidden { opacity: 0; pointer-events: none; }
@@ -177,221 +252,260 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    width: min(640px, calc(100vw - 48px));
     font-family: var(--tek-mono);
-    font-size: 0.78rem;
-    letter-spacing: 0.10em;
-    color: var(--tek-text-dim);
-    text-align: left;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-width: 320px;
-    transition: opacity 0.4s, transform 0.4s;
+    font-size: 0.82rem;
+    color: var(--tek-blue);
+    letter-spacing: 0.04em;
+    line-height: 2;
+    text-shadow: 0 0 8px rgba(0,180,255,0.35);
+    transition: opacity 0.5s ease, transform 0.5s ease;
 }
 .boot.exit {
     opacity: 0;
-    transform: translate(-50%, -54%);
-    pointer-events: none;
+    transform: translate(-50%, -56%) scale(0.96);
 }
 .boot-line {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 10px;
-    animation: bootIn 0.3s cubic-bezier(0.16,1,0.3,1) backwards;
+    opacity: 0;
+    animation: boot-line-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-@keyframes bootIn {
-    from { opacity: 0; transform: translateX(-8px); }
-    to   { opacity: 1; transform: translateX(0); }
+.boot-line .prefix { color: var(--tek-blue); opacity: 0.5; }
+.boot-line .ok     {
+    color: var(--tek-green);
+    margin-left: auto;
+    opacity: 0;
+    font-weight: 600;
+    text-shadow: 0 0 6px rgba(16,185,129,0.45);
+    animation: boot-ok-in 0.2s 0.18s ease-out forwards;
 }
-.boot-line .prefix { color: var(--tek-blue); text-shadow: 0 0 6px var(--tek-blue-glow); }
-.boot-line .text   { color: var(--tek-text); flex: 1; }
-.boot-line .ok     { color: var(--tek-green); font-size: 0.7rem; }
-.boot-line:last-child .ok { color: var(--tek-blue); text-shadow: 0 0 6px var(--tek-blue-glow); }
 .boot-cursor {
     display: inline-block;
     width: 8px;
     height: 14px;
     background: var(--tek-blue);
-    box-shadow: 0 0 6px var(--tek-blue-glow);
-    margin-left: 4px;
-    animation: blink 1s steps(2) infinite;
-}
-@keyframes blink {
-    50% { opacity: 0; }
+    vertical-align: middle;
+    margin-left: 6px;
+    animation: cursor-blink 0.9s steps(1) infinite;
+    box-shadow: 0 0 8px rgba(0,180,255,0.35);
 }
 
-/* Hero */
+@keyframes boot-line-in {
+    from { opacity: 0; transform: translateX(-6px); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes boot-ok-in {
+    from { opacity: 0; transform: scale(0.85); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes cursor-blink {
+    0%, 50%   { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* Hero (post-boot reveal) */
 .hero {
-    position: relative;
     text-align: center;
-    max-width: 560px;
-    width: 100%;
-    animation: heroIn 0.6s cubic-bezier(0.16,1,0.3,1);
+    max-width: 580px;
+    opacity: 0;
+    animation: hero-in 1.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-@keyframes heroIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
+
+@keyframes hero-in {
+    from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
+    to   { opacity: 1; transform: none; filter: blur(0); }
 }
+
 .hero-mark {
     display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 88px;
+    height: 88px;
+    margin-bottom: 18px;
     color: var(--tek-blue);
-    margin-bottom: 14px;
-    filter: drop-shadow(0 0 18px rgba(0,180,255,0.5));
+    filter: drop-shadow(0 0 14px rgba(0,180,255,0.35)) drop-shadow(0 0 32px rgba(0,180,255,0.20));
+    animation: mark-pulse 3.2s ease-in-out infinite;
 }
+
+@keyframes mark-pulse {
+    0%, 100% { filter: drop-shadow(0 0 14px rgba(0,180,255,0.35)) drop-shadow(0 0 32px rgba(0,180,255,0.20)); }
+    50%      { filter: drop-shadow(0 0 22px rgba(0,180,255,0.55)) drop-shadow(0 0 48px rgba(0,180,255,0.30)); }
+}
+
 .hero-wordmark {
-    font-family: var(--tek-display);
-    font-size: clamp(3rem, 8vw, 5.5rem);
-    font-weight: 900;
-    letter-spacing: 0.10em;
+    font-family: var(--tek-font);
+    font-size: clamp(3rem, 9vw, 4.6rem);
+    font-weight: 800;
+    letter-spacing: 0.18em;
     line-height: 1;
-    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 55%, rgba(0,180,255,0.5) 100%);
+    background: linear-gradient(135deg, #00d4ff 0%, #00b4ff 45%, #8b5cf6 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 18px rgba(0,180,255,0.45));
-    margin-bottom: 10px;
+    filter: drop-shadow(0 0 24px rgba(0,180,255,0.30));
+    margin-bottom: 6px;
 }
+
 .hero-version {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
     font-family: var(--tek-mono);
-    font-size: 0.66rem;
-    letter-spacing: 0.20em;
-    color: var(--tek-blue);
-    background: rgba(0,180,255,0.08);
-    border: 1px solid var(--tek-blue-border);
-    padding: 4px 10px;
-    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
-    text-shadow: 0 0 6px var(--tek-blue-glow);
+    font-size: 0.68rem;
+    letter-spacing: 0.24em;
+    color: var(--tek-text-dim);
+    margin-bottom: 28px;
 }
-.status-dot {
+.hero-version .status-dot {
+    display: inline-block;
     width: 6px; height: 6px;
     border-radius: 50%;
     background: var(--tek-green);
     box-shadow: 0 0 6px rgba(16,185,129,0.6);
-    animation: pulse 1.6s ease-in-out infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+    animation: pip-pulse 2s ease-in-out infinite;
 }
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes pip-pulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(16,185,129,0.6); }
+    50%      { box-shadow: 0 0 12px rgba(16,185,129,0.9); }
+}
 
 .hero-greeting {
     font-family: var(--tek-mono);
-    font-size: 0.9rem;
-    letter-spacing: 0.14em;
-    color: var(--tek-text);
-    margin: 28px 0 14px;
-}
-.hero-greeting .prefix { color: var(--tek-blue); margin-right: 10px; text-shadow: 0 0 6px var(--tek-blue-glow); }
-.hero-tagline {
-    font-family: var(--tek-font);
-    font-size: 1rem;
-    color: var(--tek-text-dim);
-    line-height: 1.6;
-    margin: 0 auto 32px;
-    max-width: 480px;
-}
-.hero-tagline .accent {
+    font-size: 0.82rem;
     color: var(--tek-blue);
-    text-shadow: 0 0 6px var(--tek-blue-glow);
+    letter-spacing: 0.18em;
+    margin-bottom: 16px;
+    text-shadow: 0 0 8px rgba(0,180,255,0.30);
+    opacity: 0;
+    animation: stagger-in 0.7s 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.hero-greeting .prefix { opacity: 0.5; margin-right: 4px; }
+
+.hero-tagline {
+    font-size: 0.98rem;
+    color: var(--tek-text);
+    line-height: 1.65;
+    margin-bottom: 36px;
+    opacity: 0;
+    animation: stagger-in 0.7s 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.hero-tagline .accent { color: var(--tek-blue); }
+
+@keyframes stagger-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
 }
 
 /* CTA stack */
 .cta-stack {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 36px;
+    gap: 10px;
+    margin: 0 auto 32px;
+    max-width: 380px;
+    opacity: 0;
+    animation: stagger-in 0.7s 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
 .cta {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    padding: 13px 28px;
-    font-family: var(--tek-font);
-    font-size: 0.94rem;
-    font-weight: 600;
+    gap: 10px;
+    padding: 13px 22px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
     text-decoration: none;
     cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
-    min-width: 280px;
-}
-.cta-discord {
-    background: #5865f2;
-    color: #fff;
+    border: none;
+    text-transform: uppercase;
     clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
-    box-shadow: 0 0 18px rgba(88,101,242,0.45), inset 0 1px 0 rgba(255,255,255,0.15);
+    transition: filter 0.18s ease, transform 0.18s ease, background 0.18s ease;
+    position: relative;
+}
+
+.cta-discord {
+    background: linear-gradient(135deg, #5865f2 0%, #4752c4 100%);
+    color: #fff;
+    filter: drop-shadow(0 0 12px rgba(88,101,242,0.45));
 }
 .cta-discord:hover {
-    background: #4752d4;
-    box-shadow: 0 0 24px rgba(88,101,242,0.6), inset 0 1px 0 rgba(255,255,255,0.2);
+    filter: drop-shadow(0 0 22px rgba(88,101,242,0.80));
     transform: translateY(-1px);
 }
+
 .cta-alts {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 14px;
-    font-size: 0.78rem;
-    font-family: var(--tek-mono);
-    letter-spacing: 0.10em;
+    margin-top: 4px;
 }
 .cta-alt {
-    background: none;
-    border: none;
+    background: transparent;
     color: var(--tek-text-dim);
-    cursor: pointer;
     font-family: inherit;
-    font-size: inherit;
-    letter-spacing: inherit;
-    padding: 6px 4px;
-    transition: color 0.15s;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    padding: 8px 4px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.18s;
 }
-.cta-alt:hover {
-    color: var(--tek-blue);
-}
-.cta-alt .arrow { transition: transform 0.15s; display: inline-block; }
-.cta-alt:hover .arrow { transform: translateX(3px); color: var(--tek-blue); }
-.cta-alt-sep { color: var(--tek-text-faint); }
+.cta-alt:hover { color: var(--tek-text); }
+.cta-alt .arrow { color: var(--tek-blue); margin-left: 3px; }
+.cta-alt-sep { color: var(--tek-text-faint); font-size: 0.8rem; }
 
-/* Telemetry strip */
+/* Live system telemetry strip */
 .telemetry {
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
+    gap: 20px;
     flex-wrap: wrap;
-    gap: 24px;
-    margin-top: 8px;
-    padding-top: 22px;
-    border-top: 1px solid rgba(255,255,255,0.05);
     font-family: var(--tek-mono);
     font-size: 0.66rem;
-    letter-spacing: 0.18em;
-    color: var(--tek-text-dim);
+    letter-spacing: 0.16em;
+    color: var(--tek-text-faint);
+    opacity: 0;
+    animation: stagger-in 0.7s 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-.telemetry-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
+.telemetry-item { display: flex; align-items: center; gap: 6px; }
 .telemetry-pip {
     width: 5px; height: 5px;
     border-radius: 50%;
     background: var(--tek-green);
     box-shadow: 0 0 5px rgba(16,185,129,0.6);
 }
-.telemetry-pip.blue   { background: var(--tek-blue);   box-shadow: 0 0 5px var(--tek-blue-glow); }
+.telemetry-pip.blue   { background: var(--tek-blue);   box-shadow: 0 0 5px rgba(0,180,255,0.35); }
 .telemetry-pip.purple { background: var(--tek-purple); box-shadow: 0 0 5px rgba(139,92,246,0.6); }
-.telemetry-val { color: var(--tek-text); letter-spacing: 0.10em; }
+.telemetry-val { color: var(--tek-blue); font-weight: 600; }
 
+/* Footer note */
 .bottom-note {
-    position: absolute;
-    bottom: 16px;
-    left: 0; right: 0;
-    text-align: center;
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
     font-family: var(--tek-mono);
-    font-size: 0.6rem;
-    letter-spacing: 0.20em;
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
     color: var(--tek-text-faint);
+    opacity: 0;
+    animation: stagger-in 0.7s 1.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+    .boot { font-size: 0.74rem; }
+    .hero-tagline { font-size: 0.88rem; }
+    .telemetry { gap: 12px; font-size: 0.6rem; }
 }
 </style>
