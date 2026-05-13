@@ -1,7 +1,24 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { onMount } from 'svelte';
+	import { computeBadges } from '$lib/badges';
 	let { data }: { data: PageData } = $props();
+
+	function categoryForSpecies(species: string): string {
+		const s = species.toLowerCase();
+		if (/(wyvern|argentavis|pteranodon|griffin|quetz|tapejara|tropeognathus)/.test(s)) return 'flyer';
+		if (/(basilosaurus|mosasaur|tusoteuthis|megalodon|ichthyosaur)/.test(s)) return 'water';
+		if (/(rex|yutyrannus|carcha|allosaurus|spino|giga|theriz|carno|raptor|sabertooth)/.test(s)) return 'combat';
+		if (/(doedicurus|ankylo|beaver|mammoth)/.test(s)) return 'resource';
+		if (/(direwolf|ravager|equus|paraceratherium|stego|trike)/.test(s)) return 'mount';
+		return 'utility';
+	}
+	function tierLabelFor(baseStats: Record<string,number>|undefined, mutations: Record<string,number>|undefined): string {
+		const b = computeBadges(baseStats, mutations);
+		if (b.bossReady) return `Boss · ${b.bossReady}`;
+		if (b.bloodline) return `${b.bloodline.charAt(0).toUpperCase() + b.bloodline.slice(1)}`;
+		return 'Standard';
+	}
 
 	type Member    = { id:number; role:string; pinnedCreatureId:number|null; user:{ id:number; nickname:string|null; email:string; lastSeen:string|null } };
 	type TribeC    = { id:number; data:Record<string,unknown>; creator:{ id:number; nickname:string|null; email:string } };
@@ -524,15 +541,16 @@
 			<a class="action" href="/vault">View Full Vault <span class="arrow">▸</span></a>
 		</div>
 		<div class="vault-row">
-			{#each tribe.creatures.slice(0, 3) as c, i}
+			{#each tribe.creatures.slice(0, 3) as c}
 				{@const cd = c.data as Record<string,unknown>}
 				{@const lvl = Number(cd.level ?? 1)}
 				{@const muts = Object.values((cd.mutations as Record<string,number>) ?? {}).reduce((a,b) => a + (Number(b)||0), 0)}
-				{@const cat = i === 0 ? 'flyer' : i === 1 ? 'combat' : 'mount'}
+				{@const cat = categoryForSpecies(String(cd.species ?? ''))}
+				{@const tier = tierLabelFor(cd.baseStats as Record<string,number>|undefined, cd.mutations as Record<string,number>|undefined)}
 				<div class="trophy-card {cat}">
 					<div class="trophy-top">
 						<span class="trophy-owner">by <span class="name">{display(c.creator)}</span></span>
-						<span class="trophy-tier">⬢ Bloodline</span>
+						<span class="trophy-tier">⬢ {tier}</span>
 					</div>
 					<div class="trophy-species">{String(cd.species ?? '?')}</div>
 					{#if cd.name}<div class="trophy-nick">"{String(cd.name)}"</div>{/if}

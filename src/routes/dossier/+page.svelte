@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { computeBadges } from '$lib/badges';
     import type { PageData } from './$types';
 
     let { data }: { data: PageData } = $props();
@@ -299,9 +300,11 @@
             <div class="pinned-row">
                 {#each pinned as c}
                     {@const cat = categoryForSpecies(c.species)}
+                    {@const badges = computeBadges(c.baseStats, c.mutations)}
+                    {@const tierLabel = badges.bossReady ? `Boss · ${badges.bossReady}` : badges.bloodline ? `${badges.bloodline.charAt(0).toUpperCase() + badges.bloodline.slice(1)} Bloodline` : 'Standard'}
                     <div class="pin-card {cat}">
                         <div class="pin-top">
-                            <span class="pin-tier">⬢ Bloodline</span>
+                            <span class="pin-tier">⬢ {tierLabel}</span>
                             <svg class="pin-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                         </div>
                         <div class="pin-species">{c.species}</div>
