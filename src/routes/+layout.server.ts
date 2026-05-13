@@ -6,7 +6,8 @@ import { db } from '$lib/db';
 const GUEST_PATHS = ['/dex', '/login', '/api/auth', '/specimens', '/dossier'];
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
-	const isPublic = url.pathname.startsWith('/login') || url.pathname.startsWith('/api/auth');
+	const isLanding = url.pathname === '/';
+	const isPublic = isLanding || url.pathname.startsWith('/login') || url.pathname.startsWith('/api/auth');
 	const isGuest  = GUEST_PATHS.some(p => url.pathname.startsWith(p));
 
 	if (!locals.user && !isPublic && !isGuest) redirect(302, '/login');
