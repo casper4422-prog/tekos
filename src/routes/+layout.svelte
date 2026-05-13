@@ -185,4 +185,7 @@
 :global(.disconnect-item)  { color:#f87171 !important; }
 :global(.disconnect-item:hover) { background:rgba(239,68,68,0.12) !important; }
 :global(.notif-nav-badge)  { background:#ef4444; color:#fff; border-radius:99px; padding:1px 6px; font-size:0.62rem; font-weight:800; margin-left:auto; flex-shrink:0; }
+
+/* Guard: pages must never lock vertical scroll on body — the layout always allows it. */
+:global(html), :global(body) { overflow-y: auto !important; }
 </style>

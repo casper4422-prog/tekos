@@ -170,7 +170,7 @@
 
 <style>
 :global(html), :global(body) {
-    overflow: hidden;
+    overflow-x: hidden;
 }
 :global(body)::before {
     content: '';
