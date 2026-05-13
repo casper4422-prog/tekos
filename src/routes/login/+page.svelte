@@ -100,7 +100,7 @@
 
     function browseAsGuest() {
         try { localStorage.setItem('tekos_guest', '1'); } catch {}
-        window.location.href = '/dex';
+        window.location.href = '/dossier';
     }
 
     onMount(() => {

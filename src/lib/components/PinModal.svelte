@@ -1,80 +1,93 @@
 <!--
-    PinModal — modal for selecting which creatures from the user's vault to pin
-    to their profile (shown as featured on the Dossier).
+    PinModal — dual-mode modal for the TekOS dossier / specimens vault.
 
-    Literal 1:1 port of static/pin-modal-preview.html — same HTML structure, class
-    names, and CSS. The specimen picker is repurposed as a multi-select capped at
-    MAX_PINNED. Hex avatars replace the cat-pip dots per spec.
+    MODES
+    ─────
+    project  (default) — "Pin Breeding Project" picker per pin-modal-preview.html.
+                         Single-select creature + focus stat + target mutations.
+                         onSave({ creatureId, focusStat, targetMutations })
+    featured           — legacy multi-select (up to 4) for dossier "Featured Specimens"
+                         showcase. onSave({ creatureIds })
+
+    Layout, classes, and CSS hooks (`.pm-overlay`, `.pm-card`, `.pm-head`,
+    `.pm-step`, `.stat-pick`, `.stat-pick-cell`, `.mut-counter`) match the
+    static preview at static/pin-modal-preview.html.
 -->
 <script lang="ts">
     import { onMount } from 'svelte';
     import HexAvatar from './HexAvatar.svelte';
     import type { CreatureRow } from '$lib/types';
 
+    // The 8 ARK stats per spec (preview shows 7; spec requires SPD too).
+    const STATS = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA', 'SPD'] as const;
+    type StatKey = (typeof STATS)[number];
+
+    export type ProjectSavePayload = {
+        creatureId: number;
+        focusStat: StatKey | null;
+        targetMutations: number;
+    };
+    export type FeaturedSavePayload = { creatureIds: number[] };
+
     type Props = {
         open?: boolean;
         creatures: CreatureRow[];
-        pinned: number[];
-        onSave: (newPinnedIds: number[]) => Promise<void>;
+        mode?: 'project' | 'featured';
+        /** featured-mode: currently pinned creature ids (multi-select prefill). */
+        pinned?: number[];
+        /** project-mode: edit an existing pinned project — pre-selects the creature. */
+        existingProjectId?: number | null;
+        /** project-mode: existing project being edited (focusStat + targetMutations prefill). */
+        existingProject?: { creatureId: number; focusStat: StatKey | null; targetMutations: number } | null;
+        /** project-mode: max active projects. Default 3. */
+        maxProjects?: number;
+        /** featured-mode: max selections. Default 4. */
+        maxFeatured?: number;
+        onSave: (payload: ProjectSavePayload | FeaturedSavePayload) => Promise<void> | void;
     };
 
     let {
         open = $bindable(false),
         creatures,
-        pinned,
+        mode = 'project',
+        pinned = [],
+        existingProjectId = null,
+        existingProject = null,
+        maxProjects = 3,
+        maxFeatured = 4,
         onSave
     }: Props = $props();
 
-    const MAX_PINNED = 4;
-
-    let selected = $state<number[]>([...pinned]);
+    // ────────────────────────── State ──────────────────────────
     let search = $state('');
     let closing = $state(false);
     let saving = $state(false);
 
-    // Re-sync local selection if `pinned` changes externally while closed
+    // featured-mode: multi-select
+    let selectedIds = $state<number[]>([...pinned]);
+
+    // project-mode: single-select + focus stat + counter
+    let selectedCreatureId = $state<number | null>(existingProjectId ?? null);
+    let focusStat = $state<StatKey | null>(existingProject?.focusStat ?? null);
+    let targetMutations = $state<number>(existingProject?.targetMutations ?? 0);
+
+    // Re-sync on (re)open
     let lastOpen = $state(false);
     $effect(() => {
         if (open && !lastOpen) {
-            selected = [...pinned];
             search = '';
+            if (mode === 'featured') {
+                selectedIds = [...pinned];
+            } else {
+                selectedCreatureId = existingProjectId ?? null;
+                focusStat = existingProject?.focusStat ?? null;
+                targetMutations = existingProject?.targetMutations ?? 0;
+            }
         }
         lastOpen = open;
     });
 
-    function toggle(id: number) {
-        if (selected.includes(id)) {
-            selected = selected.filter((x) => x !== id);
-        } else if (selected.length < MAX_PINNED) {
-            selected = [...selected, id];
-        }
-    }
-
-    function close() {
-        if (saving) return;
-        closing = true;
-        setTimeout(() => {
-            open = false;
-            closing = false;
-        }, 300);
-    }
-
-    function onBackdropClick(e: MouseEvent) {
-        if (e.target === e.currentTarget) close();
-    }
-
-    async function save() {
-        if (saving) return;
-        saving = true;
-        try {
-            await onSave(selected);
-            close();
-        } finally {
-            saving = false;
-        }
-    }
-
-    // Category inference for the per-row accent (--cat-rgb). Falls back to combat hue.
+    // ────────────────────────── Helpers ──────────────────────────
     function rowClass(c: CreatureRow): string {
         const sp = (c.data.species || '').toLowerCase();
         if (/wyvern|argent|ptera|quetzal|griffin|tropeo|tapejara/.test(sp)) return 'flyer';
@@ -84,7 +97,6 @@
         if (/equus|paracer|para|stego|trike/.test(sp)) return 'mount';
         return 'utility';
     }
-
     function sexGlyph(g: string | undefined): string {
         if (!g) return '';
         const lower = g.toLowerCase();
@@ -92,11 +104,31 @@
         if (lower.startsWith('f')) return '♀';
         return '';
     }
-
     function mutTotal(c: CreatureRow): number {
         const m = c.data.mutations || {};
         return Object.values(m).reduce((a, b) => a + (Number(b) || 0), 0);
     }
+    function mutsForStat(c: CreatureRow | null | undefined, stat: StatKey): number {
+        if (!c) return 0;
+        const m = c.data.mutations || {};
+        // The schema may key by lowercase or by full name. Try a few common shapes.
+        const candidates = [stat, stat.toLowerCase(), STAT_FULL_KEY[stat], STAT_FULL_KEY[stat].toLowerCase()];
+        for (const k of candidates) {
+            const v = (m as Record<string, unknown>)[k];
+            if (typeof v === 'number') return v;
+        }
+        return 0;
+    }
+    const STAT_FULL_KEY: Record<StatKey, string> = {
+        HP: 'health',
+        STA: 'stamina',
+        OXY: 'oxygen',
+        FOOD: 'food',
+        WGT: 'weight',
+        MEL: 'melee',
+        CRA: 'crafting',
+        SPD: 'speed'
+    };
 
     const filtered = $derived(
         creatures.filter((c) => {
@@ -109,20 +141,82 @@
         })
     );
 
-    // Hex canvas — literal port of preview's animated hex grid backdrop.
+    const selectedCreature = $derived(
+        mode === 'project' && selectedCreatureId != null
+            ? creatures.find((c) => c.id === selectedCreatureId) ?? null
+            : null
+    );
+
+    // ────────────────────────── Actions ──────────────────────────
+    function toggleFeatured(id: number) {
+        if (mode !== 'featured') return;
+        if (selectedIds.includes(id)) {
+            selectedIds = selectedIds.filter((x) => x !== id);
+        } else if (selectedIds.length < maxFeatured) {
+            selectedIds = [...selectedIds, id];
+        }
+    }
+    function pickProjectCreature(id: number) {
+        if (mode !== 'project') return;
+        selectedCreatureId = id;
+    }
+    function pickStat(s: StatKey) {
+        focusStat = s;
+        // Pre-fill counter from creature's mutations for that stat
+        const c = selectedCreature;
+        if (c) targetMutations = mutsForStat(c, s);
+    }
+    function bumpCounter(delta: number) {
+        targetMutations = Math.max(0, Math.min(99, targetMutations + delta));
+    }
+
+    function close() {
+        if (saving) return;
+        closing = true;
+        setTimeout(() => {
+            open = false;
+            closing = false;
+        }, 300);
+    }
+    function onBackdropClick(e: MouseEvent) {
+        if (e.target === e.currentTarget) close();
+    }
+
+    async function save() {
+        if (saving) return;
+        saving = true;
+        try {
+            if (mode === 'featured') {
+                await onSave({ creatureIds: selectedIds });
+            } else {
+                if (selectedCreatureId == null) return;
+                await onSave({
+                    creatureId: selectedCreatureId,
+                    focusStat: focusStat,
+                    targetMutations
+                });
+            }
+            close();
+        } finally {
+            saving = false;
+        }
+    }
+
+    const canSave = $derived(
+        mode === 'featured' ? selectedIds.length > 0 : selectedCreatureId != null
+    );
+
+    // ────────────────────────── Hex canvas backdrop ──────────────────────────
     let canvasEl: HTMLCanvasElement | null = $state(null);
     onMount(() => {
         if (!canvasEl) return;
         const canvas = canvasEl;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
-        const R = 32,
-            W = R * Math.sqrt(3),
-            H = R * 2;
+        const R = 32, W = R * Math.sqrt(3), H = R * 2;
         let phase = 0;
         let raf = 0;
         let alive = true;
-
         function drawHex(x: number, y: number, opacity: number) {
             ctx!.beginPath();
             for (let i = 0; i < 6; i++) {
@@ -139,16 +233,14 @@
         function draw() {
             if (!alive) return;
             ctx!.clearRect(0, 0, canvas.width, canvas.height);
-            const cw = canvas.width,
-                ch = canvas.height;
+            const cw = canvas.width, ch = canvas.height;
             const cols = Math.ceil(cw / W) + 3;
             const rows = Math.ceil(ch / (H * 0.75)) + 3;
             for (let row = -1; row < rows; row++) {
                 for (let col = -1; col < cols; col++) {
                     const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
                     const y = row * H * 0.75;
-                    const dx = x - cw * 0.5,
-                        dy = y - ch * 0.5;
+                    const dx = x - cw * 0.5, dy = y - ch * 0.5;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
                     drawHex(x, y, 0.07 + wave * 0.09);
@@ -157,13 +249,9 @@
             phase += 0.005;
             raf = requestAnimationFrame(draw);
         }
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize);
-        resize();
-        draw();
+        resize(); draw();
         return () => {
             alive = false;
             cancelAnimationFrame(raf);
@@ -176,52 +264,54 @@
     <canvas bind:this={canvasEl} id="tekHexCanvas"></canvas>
 
     <div
-        class="modal-overlay"
+        class="pm-overlay modal-overlay"
         class:closing
-        id="modalOverlay"
         onclick={onBackdropClick}
         role="dialog"
         aria-modal="true"
         tabindex="-1"
     >
         <div class="modal-panel-wrap">
-            <div class="modal-panel">
+            <div class="pm-card modal-panel">
                 <div class="modal-scanner"></div>
                 <div class="bracket tl"></div>
                 <div class="bracket tr"></div>
                 <div class="bracket bl"></div>
                 <div class="bracket br"></div>
 
-                <!-- Header -->
-                <div class="modal-header">
+                <!-- ── Header ────────────────────────────────────────── -->
+                <div class="pm-head modal-header">
                     <div>
-                        <div class="modal-header-title">Pin Featured Specimens</div>
+                        <div class="modal-header-title">
+                            {mode === 'featured' ? 'Pin Featured Specimens' : 'Pin Breeding Project'}
+                        </div>
                         <div class="modal-header-sub">
-                            <span class="prefix">›</span>SHOWCASE UP TO {MAX_PINNED} ON DOSSIER
+                            <span class="prefix">›</span>
+                            {#if mode === 'featured'}
+                                SHOWCASE UP TO {maxFeatured} ON DOSSIER
+                            {:else}
+                                TRACK A NEW BLOODLINE
+                            {/if}
                         </div>
                     </div>
                     <button class="modal-close" aria-label="Close" onclick={close}>✕</button>
                 </div>
 
-                <!-- Body -->
+                <!-- ── Body ──────────────────────────────────────────── -->
                 <div class="modal-body">
-                    <!-- 1: Specimen -->
-                    <div class="modal-section">
+
+                    <!-- Step 1: Specimen picker (both modes) -->
+                    <div class="pm-step modal-section">
                         <div class="modal-section-label">
                             <span class="num">1</span>Specimen
-                            <span class="opt">{selected.length} / {MAX_PINNED}</span>
+                            {#if mode === 'featured'}
+                                <span class="opt">{selectedIds.length} / {maxFeatured}</span>
+                            {:else}
+                                <span class="opt">SELECT ONE</span>
+                            {/if}
                         </div>
                         <div class="specimen-search">
-                            <svg
-                                class="specimen-search-icon"
-                                width="13"
-                                height="13"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                            >
+                            <svg class="specimen-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                                 <circle cx="11" cy="11" r="8" />
                                 <path d="M21 21l-4.35-4.35" />
                             </svg>
@@ -232,22 +322,26 @@
                                 bind:value={search}
                             />
                         </div>
-                        <div class="specimen-picker" id="specimenPicker">
+                        <div class="specimen-picker">
                             {#each filtered as c (c.id)}
-                                {@const isSel = selected.includes(c.id)}
-                                {@const atMax = !isSel && selected.length >= MAX_PINNED}
+                                {@const isSel = mode === 'featured'
+                                    ? selectedIds.includes(c.id)
+                                    : selectedCreatureId === c.id}
+                                {@const atMax = mode === 'featured'
+                                    && !isSel
+                                    && selectedIds.length >= maxFeatured}
                                 <div
                                     class="specimen-row {rowClass(c)}"
                                     class:selected={isSel}
                                     class:disabled={atMax}
-                                    data-specimen={c.id}
                                     role="button"
                                     tabindex="0"
-                                    onclick={() => toggle(c.id)}
+                                    onclick={() => mode === 'featured' ? toggleFeatured(c.id) : pickProjectCreature(c.id)}
                                     onkeydown={(e) => {
                                         if (e.key === 'Enter' || e.key === ' ') {
                                             e.preventDefault();
-                                            toggle(c.id);
+                                            if (mode === 'featured') toggleFeatured(c.id);
+                                            else pickProjectCreature(c.id);
                                         }
                                     }}
                                 >
@@ -260,15 +354,7 @@
                                             {sexGlyph(c.data.gender)} · Lvl {c.data.level ?? '—'} · {mutTotal(c)} muts
                                         </div>
                                     </div>
-                                    <svg
-                                        class="spec-check"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2.5"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
+                                    <svg class="spec-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="20 6 9 17 4 12" />
                                     </svg>
                                 </div>
@@ -278,14 +364,67 @@
                             {/if}
                         </div>
                     </div>
+
+                    {#if mode === 'project'}
+                        <!-- Step 2: Focus Stat picker -->
+                        <div class="pm-step modal-section">
+                            <div class="modal-section-label">
+                                <span class="num">2</span>Focus Stat
+                                <span class="opt">PICK ONE</span>
+                            </div>
+                            <div class="stat-pick stat-picker">
+                                {#each STATS as s}
+                                    {@const m = mutsForStat(selectedCreature, s)}
+                                    <button
+                                        type="button"
+                                        class="stat-pick-cell stat-btn"
+                                        class:selected={focusStat === s}
+                                        onclick={() => pickStat(s)}
+                                    >
+                                        <div class="stat-btn-label">{s}</div>
+                                        <div class="stat-btn-muts" class:has={m > 0}>
+                                            {m > 0 ? `${m} muts` : '—'}
+                                        </div>
+                                    </button>
+                                {/each}
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Target mutations counter -->
+                        <div class="pm-step modal-section">
+                            <div class="modal-section-label">
+                                <span class="num">3</span>Target Mutations
+                            </div>
+                            <div class="mut-counter counter">
+                                <button class="counter-btn minus" aria-label="Decrement" onclick={() => bumpCounter(-1)}>−</button>
+                                <div class="counter-num">{targetMutations}</div>
+                                <button class="counter-btn plus" aria-label="Increment" onclick={() => bumpCounter(1)}>+</button>
+                            </div>
+                            <div class="counter-hint">
+                                {#if selectedCreature && focusStat}
+                                    Pre-filled from "{selectedCreature.data.name || 'Unnamed'}" · {focusStat} — adjust if needed
+                                {:else if selectedCreature}
+                                    Pick a focus stat to pre-fill from "{selectedCreature.data.name || 'Unnamed'}"
+                                {:else}
+                                    Max 99 · default 0
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
 
-                <!-- Footer -->
+                <!-- ── Footer ────────────────────────────────────────── -->
                 <div class="modal-footer">
                     <button class="btn btn-ghost" onclick={close} disabled={saving}>Cancel</button>
-                    <button class="btn btn-primary" onclick={save} disabled={saving}>
+                    <button class="btn btn-primary" onclick={save} disabled={saving || !canSave}>
                         <span class="glyph">⬢</span>
-                        {saving ? 'Saving…' : 'Pin Selection'}
+                        {#if saving}
+                            Saving…
+                        {:else if mode === 'featured'}
+                            Pin Selection
+                        {:else}
+                            Pin Project
+                        {/if}
                     </button>
                 </div>
             </div>
@@ -318,7 +457,8 @@
 /* ═════════════════════════════════════════════════════════════════════════
    MODAL OVERLAY + PANEL
    ═════════════════════════════════════════════════════════════════════════ */
-.modal-overlay {
+.modal-overlay,
+.pm-overlay {
     position: fixed;
     inset: 0;
     z-index: 100;
@@ -332,7 +472,6 @@
     animation: overlay-in 0.32s ease-out;
 }
 .modal-overlay.closing { animation: overlay-out 0.30s ease-in forwards; }
-.modal-overlay.hidden  { display: none; }
 
 @keyframes overlay-in {
     from { opacity: 0; }
@@ -367,7 +506,8 @@
     to   { opacity: 0; transform: translateY(14px) scale(0.97); }
 }
 
-.modal-panel {
+.modal-panel,
+.pm-card {
     position: relative;
     background: linear-gradient(160deg, rgba(10,18,44,0.97) 0%, rgba(4,8,20,0.99) 100%);
     backdrop-filter: blur(20px);
@@ -427,7 +567,8 @@
 .modal-panel .bracket.br { bottom: 9px; right: 9px; border-left: none; border-top: none; }
 
 /* ── Header ───────────────────────────────────────────────────────────── */
-.modal-header {
+.modal-header,
+.pm-head {
     position: relative;
     z-index: 5;
     display: flex;
@@ -490,11 +631,13 @@
 .modal-body::-webkit-scrollbar { width: 4px; }
 .modal-body::-webkit-scrollbar-thumb { background: rgba(0,180,255,0.25); border-radius: 2px; }
 
-.modal-section {
+.modal-section,
+.pm-step {
     padding: 14px 28px;
     border-bottom: 1px solid rgba(255,255,255,0.04);
 }
-.modal-section:last-child { border-bottom: none; }
+.modal-section:last-child,
+.pm-step:last-child { border-bottom: none; }
 
 .modal-section-label {
     display: flex;
@@ -560,7 +703,7 @@
     pointer-events: none;
 }
 
-.specimen-picker { display: flex; flex-direction: column; gap: 5px; }
+.specimen-picker { display: flex; flex-direction: column; gap: 5px; max-height: 280px; overflow-y: auto; }
 .specimen-row {
     --cat-rgb: 0,180,255;
     display: grid;
@@ -595,12 +738,6 @@
 .specimen-row.mount    { --cat-rgb: 249,115,22; }
 .specimen-row.resource { --cat-rgb: 167,139,250; }
 
-.spec-cat-pip {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: rgb(var(--cat-rgb));
-    box-shadow: 0 0 5px rgba(var(--cat-rgb), 0.8);
-}
 .spec-info { line-height: 1.3; min-width: 0; }
 .spec-name {
     font-size: 0.86rem;
@@ -634,13 +771,15 @@
     text-transform: uppercase;
 }
 
-/* ── Stat picker — 7 buttons, 4+3 grid ────────────────────────────────── */
-.stat-picker {
+/* ── Stat picker — 8 buttons, 4×2 grid ────────────────────────────────── */
+.stat-picker,
+.stat-pick {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 5px;
 }
-.stat-btn {
+.stat-btn,
+.stat-pick-cell {
     background: rgba(0,180,255,0.04);
     border: 1px solid rgba(255,255,255,0.06);
     padding: 9px 8px;
@@ -679,7 +818,8 @@
 .stat-btn.selected .stat-btn-muts.has { color: #c4b5fd; text-shadow: 0 0 5px rgba(196,181,253,0.5); }
 
 /* ── Counter ──────────────────────────────────────────────────────────── */
-.counter {
+.counter,
+.mut-counter {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -732,47 +872,6 @@
     margin-top: 6px;
 }
 
-/* ── Parents inputs ───────────────────────────────────────────────────── */
-.parents-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-}
-.parent-field {
-    position: relative;
-}
-.parent-field-label {
-    font-family: var(--tek-mono);
-    font-size: 0.58rem;
-    letter-spacing: 0.18em;
-    color: var(--tek-text-faint);
-    text-transform: uppercase;
-    margin-bottom: 5px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-.parent-field-label .symbol.male { color: #60a5fa; font-size: 0.8rem; }
-.parent-field-label .symbol.female { color: var(--tek-pink); font-size: 0.8rem; }
-.parent-field-input {
-    width: 100%;
-    background: rgba(4,8,20,0.85);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-bottom: 1px solid rgba(0,180,255,0.16);
-    color: var(--tek-text);
-    padding: 9px 12px;
-    font-family: inherit;
-    font-size: 0.82rem;
-    outline: none;
-    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
-    transition: border-color 0.2s;
-}
-.parent-field-input::placeholder { color: var(--tek-text-faint); }
-.parent-field-input:focus {
-    border-color: rgba(0,180,255,0.40);
-    border-bottom-color: var(--tek-blue);
-}
-
 /* ── Footer ───────────────────────────────────────────────────────────── */
 .modal-footer {
     position: relative;
@@ -813,14 +912,16 @@
     color: #001a2e;
     filter: drop-shadow(0 0 10px rgba(0,180,255,0.45));
 }
-.btn-primary:hover { filter: drop-shadow(0 0 18px rgba(0,180,255,0.75)); transform: translateY(-1px); }
+.btn-primary:hover:not(:disabled) { filter: drop-shadow(0 0 18px rgba(0,180,255,0.75)); transform: translateY(-1px); }
 .btn-primary .glyph { color: #001a2e; }
 
 @media (max-width: 540px) {
-    .stat-picker { grid-template-columns: repeat(3, 1fr); }
-    .parents-row { grid-template-columns: 1fr; }
-    .modal-section { padding: 12px 18px; }
-    .modal-header { padding: 18px 18px 12px; }
+    .stat-picker,
+    .stat-pick { grid-template-columns: repeat(3, 1fr); }
+    .modal-section,
+    .pm-step { padding: 12px 18px; }
+    .modal-header,
+    .pm-head { padding: 18px 18px 12px; }
     .modal-footer { padding: 14px 18px; }
 }
 </style>

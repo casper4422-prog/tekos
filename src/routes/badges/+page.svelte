@@ -1,11 +1,13 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import type { PageData } from './$types';
+    import { MAP_BOSSES, MAP_NAMES, ULTIMATE_BADGES, SPECIAL_ACHIEVEMENTS, type MapId } from '$lib/mapBosses';
+    import { UNDERDOG_META_EXCLUDE, UNDERDOG_CATEGORIES } from '$lib/badges';
 
     let { data }: { data: PageData } = $props();
 
     type SystemTab = 'boss' | 'underdog' | 'prize';
-    let activeTab = $state<SystemTab>('boss');
+    let sys = $state<SystemTab>('boss');
 
     let tekHexCanvas = $state<HTMLCanvasElement | null>(null);
 
@@ -19,7 +21,7 @@
         myth:        '"What you breed becomes folklore. The Obelisks know your name."'
     };
 
-    function setTab(t: SystemTab) { activeTab = t; }
+    function setTab(t: SystemTab) { sys = t; }
 
     onMount(() => {
         const canvas = tekHexCanvas;
@@ -77,7 +79,7 @@
 
     // Per-tab counts
     const bossEarnedCount = $derived(data.badgeWall.bossReady.length);
-    const rolesEarnedCount = $derived(data.badgeWall.roles.length);
+    const underdogEarnedCount = $derived((data.badgeWall.underdog ?? []).length);
     const bloodlineEarnedCount = $derived(data.badgeWall.bloodline.length);
 
     const bossReadyTiers = [
@@ -106,6 +108,51 @@
         { tier: 'gold',    label: 'Gold Bloodline',    tagShort: 'Gold',    thresh: 55, bonus: '+100% trade value' },
         { tier: 'diamond', label: 'Diamond Bloodline', tagShort: 'Diamond', thresh: 60, bonus: 'Priceless · Auction-only' }
     ] as const;
+
+    // Underdog tier ladder (stricter than Boss Ready, requires HP AND MEL both)
+    const underdogTiers = [
+        { tier: 'champion', label: 'Underdog Champion', tagShort: 'Bronze',   thresh: 90,  tierClass: 'tier-champion', rarity: '42% OF SURVIVORS' },
+        { tier: 'hero',     label: 'Underdog Hero',     tagShort: 'Silver',   thresh: 115, tierClass: 'tier-hero',     rarity: '12% OF SURVIVORS' },
+        { tier: 'legend',   label: 'Underdog Legend',   tagShort: 'Gold',     thresh: 140, tierClass: 'tier-legend',   rarity: '4% OF SURVIVORS'  },
+        { tier: 'titan',    label: 'Underdog Titan',    tagShort: 'Diamond',  thresh: 160, tierClass: 'tier-titand',   rarity: '<1% OF SURVIVORS' }
+    ] as const;
+
+    type MapBoss = typeof MAP_BOSSES[number];
+
+    // Group MAP_BOSSES by map for the Map-Specific subsection
+    const mapsWithBosses = $derived.by(() => {
+        const grouped = new Map<MapId, MapBoss[]>();
+        for (const b of MAP_BOSSES) {
+            if (!grouped.has(b.map)) grouped.set(b.map, []);
+            grouped.get(b.map)!.push(b);
+        }
+        return Array.from(grouped.entries()).map(([mapId, bosses]) => ({ mapId, bosses }));
+    });
+
+    // Boss-record helpers
+    const totalMapBossesWon = $derived(
+        Object.values(data.mapBossEarned ?? {}).filter(v => v.earned).length
+    );
+    const totalMapBosses = MAP_BOSSES.length;
+
+    // Underdog Master profile-title progress (5 underdog badges across multiple species)
+    const underdogMasterProgress = $derived(Math.min(underdogEarnedCount, 5));
+
+    // For each Underdog tier — find user's best in-progress non-meta specimen close to threshold
+    function bestUnderdogInProgress(thresh: number) {
+        // We don't have a server-side prepass for underdog. Compute on client from data.creatures if available.
+        // Loader doesn't currently pass creatures; use data.bestInProgress as a stand-in for now (HP/MEL).
+        const best = data.bestInProgress?.[`boss_${thresh === 90 ? 'gamma' : thresh === 115 ? 'beta' : thresh === 140 ? 'alpha' : 'titan'}`];
+        if (!best) return null;
+        if (UNDERDOG_META_EXCLUDE.has(best.species)) return null;
+        if (best.minStat >= thresh) return null;
+        return best;
+    }
+
+    // Helper: format earned-state for ultimate badges
+    function ultStatus(id: string): { earned: boolean; reason?: string } {
+        return data.ultimateEarned?.[id] ?? { earned: false };
+    }
 </script>
 
 <svelte:head>
@@ -274,15 +321,15 @@
          SYSTEM TABS
          ═══════════════════════════════════════════════════════ -->
     <div class="sys-tabs">
-        <button class="sys-tab" class:active={activeTab === 'boss'}     onclick={() => setTab('boss')}>Boss Ready <span class="count">{bossEarnedCount}</span></button>
-        <button class="sys-tab" class:active={activeTab === 'underdog'} onclick={() => setTab('underdog')}>Specialist Roles <span class="count">{rolesEarnedCount}</span></button>
-        <button class="sys-tab" class:active={activeTab === 'prize'}    onclick={() => setTab('prize')}>Prize Bloodline <span class="count">{bloodlineEarnedCount}</span></button>
+        <button class="sys-tab" class:active={sys === 'boss'}     onclick={() => setTab('boss')}>Boss Ready <span class="count">{bossEarnedCount}</span></button>
+        <button class="sys-tab" class:active={sys === 'underdog'} onclick={() => setTab('underdog')}>Underdog <span class="count">{underdogEarnedCount}</span></button>
+        <button class="sys-tab" class:active={sys === 'prize'}    onclick={() => setTab('prize')}>Prize Bloodline <span class="count">{bloodlineEarnedCount}</span></button>
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
          SYSTEM 1: BOSS READY
          ═══════════════════════════════════════════════════════ -->
-    <div class="sys-panel" class:active={activeTab === 'boss'} id="sys-boss">
+    <div class="sys-panel" class:active={sys === 'boss'} id="sys-boss">
 
         <!-- Standard Tier Ladder -->
         <div class="subsection">
@@ -293,6 +340,7 @@
             <div class="badge-grid">
                 {#each bossReadyTiers as t}
                     {@const earned = data.badgeWall.bossReady.filter(b => b.tier === t.tier)}
+                    {@const inProg = earned.length === 0 ? data.bestInProgress?.[`boss_${t.tier}`] : null}
                     <div class="badge-card tier-{t.tier}" class:earned={earned.length > 0} class:locked={earned.length === 0}>
                         <div class="badge-card-head">
                             <div class="badge-icon-frame">
@@ -327,22 +375,21 @@
                                 <div class="badge-earned-by" style="color:var(--tek-text-faint);">— No specimen at threshold</div>
                             {/if}
                         </div>
+                        {#if inProg}
+                            <div class="badge-progress-line">
+                                <div class="badge-progress-line-text">{inProg.name}: HP {inProg.hp} · MEL {inProg.mel} (<span class="need">~{t.hp - inProg.minStat} short</span>)</div>
+                                <div class="badge-progress-line-bar"><div class="fill" style="width:{Math.min(100, (inProg.minStat / t.hp) * 100)}%;"></div></div>
+                            </div>
+                        {/if}
                     </div>
                 {/each}
             </div>
         </div>
 
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         SYSTEM 2: SPECIALIST ROLES (Underdog panel id preserved)
-         ═══════════════════════════════════════════════════════ -->
-    <div class="sys-panel" class:active={activeTab === 'underdog'} id="sys-underdog">
-
-        <!-- Tier Ladder -->
+        <!-- Specialist Roles (was its own tab; now lives inside Boss Ready) -->
         <div class="subsection">
             <div class="subsection-head">
-                <div class="subsection-title">Specialized Roles <span class="subsection-desc">— Focused single-stat or combo</span></div>
+                <div class="subsection-title">Specialist Roles <span class="subsection-desc">— Focused single-stat or combo</span></div>
                 <div class="map-stat"><span class="earned-c">{data.badgeWall.roles.length}</span> EARNED</div>
             </div>
             <div class="badge-grid">
@@ -392,12 +439,220 @@
             </div>
         </div>
 
+        <!-- Map-Specific Bosses -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Map-Specific Bosses <span class="subsection-desc">— Tier requirement + map condition</span></div>
+                <div class="map-stat"><span class="earned-c">{totalMapBossesWon}</span> / {totalMapBosses} EARNED</div>
+            </div>
+
+            {#each mapsWithBosses as m}
+                {@const earnedInMap = m.bosses.filter(b => data.mapBossEarned?.[b.id]?.earned).length}
+                <div class="map-block">
+                    <div class="map-block-head">
+                        <div class="map-name">{MAP_NAMES[m.mapId]}</div>
+                        <div class="map-stat"><span class="earned-c">{earnedInMap}</span> / {m.bosses.length}</div>
+                    </div>
+                    <div class="badge-grid">
+                        {#each m.bosses as boss}
+                            {@const state = data.mapBossEarned?.[boss.id] ?? { earned: false }}
+                            <div class="badge-card tier-map" class:earned={state.earned} class:locked={!state.earned}>
+                                <div class="badge-card-head">
+                                    <div class="badge-icon-frame">
+                                        <svg viewBox="0 0 52 58">
+                                            <defs><linearGradient id="mbG-{boss.id}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs>
+                                            <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#mbG-{boss.id})" stroke-width="2"/>
+                                            <circle cx="26" cy="28" r="7" fill="url(#mbG-{boss.id})" opacity="0.85"/>
+                                        </svg>
+                                    </div>
+                                    <div class="badge-card-name-wrap">
+                                        <div class="badge-tier-tag">Map · {boss.tier === 'titan' ? 'Titan' : boss.tier === 'alpha' ? 'α' : boss.tier === 'beta' ? 'β' : 'γ'}</div>
+                                        <div class="badge-card-name">{boss.name}</div>
+                                    </div>
+                                </div>
+                                <div class="badge-req">{boss.description}</div>
+                                <div class="badge-status">
+                                    {#if state.earned}
+                                        <div class="badge-earned-by">✓ Cleared</div>
+                                    {:else}
+                                        <div class="badge-earned-by" style="color:var(--tek-text-faint);">— {state.reason ?? 'Not yet defeated'}</div>
+                                    {/if}
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/each}
+
+            <!-- Show more maps expander (placeholder for maps with no bosses defined yet) -->
+            <div style="text-align:center; padding: 8px 0;">
+                <button class="btn-ghost-small" type="button">＋ SHOW 5 MORE MAPS · Aberration · Extinction · Genesis · Crystal Isles · Lost Island</button>
+            </div>
+        </div>
+
+        <!-- Ultimate Achievements -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Ultimate Achievements <span class="subsection-desc">— Multi-boss, cross-map</span></div>
+                <div class="map-stat"><span class="earned-c">{ULTIMATE_BADGES.filter(u => ultStatus(u.id).earned).length}</span> / {ULTIMATE_BADGES.length}</div>
+            </div>
+            <div class="badge-grid">
+                {#each ULTIMATE_BADGES as u}
+                    {@const state = ultStatus(u.id)}
+                    <div class="badge-card tier-ult" class:earned={state.earned} class:locked={!state.earned}>
+                        <div class="badge-card-head">
+                            <div class="badge-icon-frame">
+                                <svg viewBox="0 0 52 58">
+                                    <defs><linearGradient id="ulG-{u.id}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/></linearGradient></defs>
+                                    <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#ulG-{u.id})" stroke-width="2"/>
+                                    <path d="M 26 12 L 30 22 L 40 22 L 32 28 L 36 38 L 26 32 L 16 38 L 20 28 L 12 22 L 22 22 Z" fill="url(#ulG-{u.id})"/>
+                                </svg>
+                            </div>
+                            <div class="badge-card-name-wrap">
+                                <div class="badge-tier-tag">Ultimate</div>
+                                <div class="badge-card-name">{u.name}</div>
+                            </div>
+                        </div>
+                        <div class="badge-req">{u.description}</div>
+                        <div class="badge-status">
+                            {#if state.earned}
+                                <div class="badge-earned-by">✓ Achieved</div>
+                            {:else}
+                                <div class="badge-earned-by" style="color:var(--tek-text-faint);">— {state.reason ?? 'Locked'}</div>
+                            {/if}
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SYSTEM 2: UNDERDOG
+         ═══════════════════════════════════════════════════════ -->
+    <div class="sys-panel" class:active={sys === 'underdog'} id="sys-underdog">
+
+        <!-- Meta exclusion explainer -->
+        <div class="meta-exclude">
+            <div class="meta-exclude-head">
+                <div class="meta-exclude-title">⚠ Meta Creatures · Not Eligible</div>
+            </div>
+            <div class="meta-exclude-list">
+                {Array.from(UNDERDOG_META_EXCLUDE).join(' · ')}
+                <div style="color: var(--tek-text-faint); margin-top: 6px; font-size: 0.66rem; letter-spacing: 0.10em;">These are already boss meta — Underdog honors the unconventional.</div>
+            </div>
+        </div>
+
+        <!-- 4 categories -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Eligible Species by Category <span class="subsection-desc">— Non-meta only</span></div>
+            </div>
+            <div class="und-cat-grid">
+                {#each Object.entries(UNDERDOG_CATEGORIES) as [key, cat]}
+                    <div class="und-cat">
+                        <div class="und-cat-name"><span class="und-cat-icon">{cat.icon}</span>{cat.label}</div>
+                        <div class="und-cat-species">{cat.species.join(' · ')}</div>
+                    </div>
+                {/each}
+            </div>
+        </div>
+
+        <!-- Tier Ladder -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Tier Ladder <span class="subsection-desc">— Higher thresholds, non-meta only</span></div>
+                <div class="map-stat"><span class="earned-c">{underdogEarnedCount}</span> EARNED</div>
+            </div>
+            <div class="badge-grid">
+                {#each underdogTiers as t}
+                    {@const earned = (data.badgeWall.underdog ?? []).filter(b => b.tier === t.tier)}
+                    {@const inProg = earned.length === 0 ? bestUnderdogInProgress(t.thresh) : null}
+                    <div class="badge-card {t.tierClass}" class:earned={earned.length > 0} class:locked={earned.length === 0}>
+                        <div class="badge-card-head">
+                            <div class="badge-icon-frame">
+                                <svg viewBox="0 0 52 58">
+                                    <defs>
+                                        <linearGradient id="udG-{t.tier}" x1="0%" y1="0%" x2={t.tier === 'titan' ? '100%' : '0%'} y2="100%">
+                                            {#if t.tier === 'champion'}<stop offset="0%" stop-color="#e8b07f"/><stop offset="100%" stop-color="#cd7f32"/>{/if}
+                                            {#if t.tier === 'hero'}<stop offset="0%" stop-color="#f0f0f5"/><stop offset="100%" stop-color="#c8c8d2"/>{/if}
+                                            {#if t.tier === 'legend'}<stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/>{/if}
+                                            {#if t.tier === 'titan'}<stop offset="0%" stop-color="#ffffff"/><stop offset="50%" stop-color="#a5d8ff"/><stop offset="100%" stop-color="#00b4ff"/>{/if}
+                                        </linearGradient>
+                                    </defs>
+                                    <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#udG-{t.tier})" stroke-width="2"/>
+                                    {#if t.tier === 'titan'}
+                                        <polygon points="26,16 34,28 26,40 18,28" fill="url(#udG-{t.tier})"/>
+                                        <polygon points="26,16 34,28 26,30 18,28" fill="#ffffff" opacity="0.5"/>
+                                    {:else if t.tier === 'legend'}
+                                        <path d="M 14 36 L 18 22 L 22 30 L 26 18 L 30 30 L 34 22 L 38 36 Z" fill="url(#udG-{t.tier})"/>
+                                    {:else if t.tier === 'hero'}
+                                        <path d="M 26 24 L 14 18 Q 10 24 14 32 L 26 28 Z" fill="url(#udG-{t.tier})"/>
+                                        <path d="M 26 24 L 38 18 Q 42 24 38 32 L 26 28 Z" fill="url(#udG-{t.tier})"/>
+                                        <circle cx="26" cy="28" r="3" fill="url(#udG-{t.tier})"/>
+                                    {:else}
+                                        <circle cx="18" cy="22" r="2.5" fill="url(#udG-{t.tier})"/>
+                                        <circle cx="34" cy="22" r="2.5" fill="url(#udG-{t.tier})"/>
+                                        <circle cx="14" cy="30" r="2" fill="url(#udG-{t.tier})"/>
+                                        <circle cx="38" cy="30" r="2" fill="url(#udG-{t.tier})"/>
+                                        <ellipse cx="26" cy="34" rx="7" ry="5" fill="url(#udG-{t.tier})"/>
+                                    {/if}
+                                </svg>
+                            </div>
+                            <div class="badge-card-name-wrap">
+                                <div class="badge-tier-tag">{t.tagShort}</div>
+                                <div class="badge-card-name">{t.label}</div>
+                            </div>
+                        </div>
+                        <div class="badge-req">HP ≥ <span class="req-key">{t.thresh}</span><span class="req-and">AND</span>MEL ≥ <span class="req-key">{t.thresh}</span></div>
+                        <div class="badge-status">
+                            {#if earned.length > 0}
+                                <div class="badge-earned-by">✓ {earned.length} {earned.length === 1 ? 'species' : 'species'}<span class="count">{earnedSpeciesList(earned)}</span></div>
+                            {:else}
+                                <div class="badge-earned-by" style="color:var(--tek-text-faint);">— No non-meta specimen at threshold</div>
+                            {/if}
+                        </div>
+                        {#if inProg}
+                            <div class="badge-progress-line">
+                                <div class="badge-progress-line-text">{inProg.name}: HP {inProg.hp} · MEL {inProg.mel} (<span class="need">~{t.thresh - inProg.minStat} short</span>)</div>
+                                <div class="badge-progress-line-bar"><div class="fill" style="width:{Math.min(100, (inProg.minStat / t.thresh) * 100)}%;"></div></div>
+                            </div>
+                        {/if}
+                    </div>
+                {/each}
+            </div>
+        </div>
+
+        <!-- Underdog profile title hook -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Profile Title Unlock</div>
+            </div>
+            <div class="special-card" class:earned={underdogEarnedCount >= 5}>
+                <div class="special-icon">
+                    <svg viewBox="0 0 44 50">
+                        <defs><linearGradient id="udmG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/></linearGradient></defs>
+                        <polygon points="22,3 40,13 40,37 22,47 4,37 4,13" fill="rgba(10,18,44,0.85)" stroke="url(#udmG)" stroke-width="2"/>
+                        <text x="22" y="30" font-family="Orbitron" font-size="14" font-weight="900" fill="url(#udmG)" text-anchor="middle">★</text>
+                    </svg>
+                </div>
+                <div class="special-info">
+                    <div class="special-name">Underdog Master</div>
+                    <div class="special-desc">Profile title for Survivors with 5+ Underdog badges across multiple species. Worn on your Dossier and in trades.</div>
+                </div>
+                <div class="special-status" class:earned-status={underdogEarnedCount >= 5}>
+                    <span class="pip"></span>{underdogMasterProgress} / 5 underdog badges
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
          SYSTEM 3: PRIZE BLOODLINE
          ═══════════════════════════════════════════════════════ -->
-    <div class="sys-panel" class:active={activeTab === 'prize'} id="sys-prize">
+    <div class="sys-panel" class:active={sys === 'prize'} id="sys-prize">
 
         <!-- Diamond Bloodline feature card — prestige moment -->
         <div class="diamond-feature">
@@ -482,6 +737,37 @@
                     </div>
                 {/each}
             </div>
+        </div>
+
+        <!-- Special Achievements -->
+        <div class="subsection">
+            <div class="subsection-head">
+                <div class="subsection-title">Special Achievements <span class="subsection-desc">— Multi-badge milestones</span></div>
+                <div class="map-stat"><span class="earned-c">{SPECIAL_ACHIEVEMENTS.filter(s => data.specialEarned?.[s.id]?.earned).length}</span> / {SPECIAL_ACHIEVEMENTS.length} EARNED</div>
+            </div>
+
+            {#each SPECIAL_ACHIEVEMENTS as s}
+                {@const state = data.specialEarned?.[s.id] ?? { earned: false, current: 0, target: s.target }}
+                <div class="special-card" class:earned={state.earned}>
+                    <div class="special-icon">
+                        <svg viewBox="0 0 44 50">
+                            <defs><linearGradient id="spG-{s.id}" x1="0%" y1="0%" x2="0%" y2="100%">
+                                {#if state.earned}<stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/>
+                                {:else}<stop offset="0%" stop-color="#c4a3f8"/><stop offset="100%" stop-color="#8b5cf6"/>{/if}
+                            </linearGradient></defs>
+                            <polygon points="22,3 40,13 40,37 22,47 4,37 4,13" fill="rgba(10,18,44,0.85)" stroke="url(#spG-{s.id})" stroke-width="2"/>
+                            <circle cx="22" cy="25" r="6" fill="url(#spG-{s.id})" opacity="0.85"/>
+                        </svg>
+                    </div>
+                    <div class="special-info">
+                        <div class="special-name">{s.name}</div>
+                        <div class="special-desc">{s.description}</div>
+                    </div>
+                    <div class="special-status" class:earned-status={state.earned}>
+                        <span class="pip"></span>{#if state.earned}✓ Achieved{:else if state.reason}{state.reason}{:else}{state.current} / {state.target}{/if}
+                    </div>
+                </div>
+            {/each}
         </div>
 
         <!-- Community recognition strip -->
@@ -1353,4 +1639,206 @@
 .community-gold    .community-tier { color: var(--tier-gold); }
 .community-diamond { background: rgba(0,180,255,0.06);   border-left: 2px solid var(--tier-diamond); }
 .community-diamond .community-tier { color: var(--tier-diamond); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   ADDITIONAL TIER COLORS — Map / Ultimate / Underdog
+   ═════════════════════════════════════════════════════════════════════════ */
+.tier-map     { --tier-rgb: 245, 158, 11; }
+.tier-ult     { --tier-rgb: 255, 215, 0; }
+.tier-champion { --tier-rgb: 205, 127, 50; }
+.tier-hero     { --tier-rgb: 200, 200, 210; }
+.tier-legend   { --tier-rgb: 255, 215, 0; }
+.tier-titand   { --tier-rgb: 0, 180, 255; }
+
+/* Per-badge progress line (shown on locked tier cards with in-progress specimen) */
+.badge-progress-line { margin-top: 10px; }
+.badge-progress-line-text {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+}
+.badge-progress-line-text :global(.have) { color: var(--tek-amber); font-weight: 700; }
+.badge-progress-line-text :global(.need) { color: var(--tek-text); }
+.badge-progress-line-bar {
+    height: 3px;
+    background: rgba(100,116,139,0.15);
+    overflow: hidden;
+}
+.badge-progress-line-bar .fill {
+    height: 100%;
+    background: var(--tek-amber);
+    box-shadow: 0 0 4px rgba(245,158,11,0.5);
+}
+
+/* Map-specific boss subsection — per-map collapsible cards */
+.map-block {
+    background: linear-gradient(160deg, rgba(10,18,44,0.5) 0%, rgba(4,8,20,0.85) 100%);
+    border: 1px solid rgba(0,180,255,0.15);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 16px 16px;
+    margin-bottom: 10px;
+}
+.map-block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0,180,255,0.10);
+}
+.map-name {
+    font-family: var(--tek-display);
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+}
+.map-name::before {
+    content: '◈';
+    color: var(--tek-blue);
+    font-size: 1rem;
+}
+
+/* Underdog category callout */
+.und-cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+}
+.und-cat {
+    background: rgba(5,8,18,0.4);
+    border: 1px solid rgba(100,116,139,0.18);
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 12px 14px;
+}
+.und-cat-name {
+    font-family: var(--tek-display);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.und-cat-icon { color: var(--tek-purple); margin-right: 6px; }
+.und-cat-species {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+    line-height: 1.6;
+}
+
+/* Meta exclusion list */
+.meta-exclude {
+    background: rgba(239,68,68,0.05);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-left-width: 2px;
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    padding: 12px 16px;
+    margin-bottom: 22px;
+}
+.meta-exclude-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px;
+}
+.meta-exclude-title {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--tek-red);
+    text-transform: uppercase;
+}
+.meta-exclude-list {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+    line-height: 1.6;
+}
+
+/* Special Achievement card (Bloodline / Underdog Master) — wider with description */
+.special-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px;
+    align-items: center;
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(139,92,246,0.30);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+.special-card:hover {
+    border-color: var(--tek-purple);
+    transform: translateY(-1px);
+}
+.special-card.earned {
+    background:
+        radial-gradient(ellipse 50% 60% at 30% 50%, rgba(255,215,0,0.10) 0%, transparent 70%),
+        linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.98) 100%);
+    border-color: rgba(255,215,0,0.50);
+}
+.special-icon {
+    width: 44px; height: 50px;
+    flex-shrink: 0;
+}
+.special-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px var(--tier-gold-glow)); }
+.special-info { min-width: 0; }
+.special-name {
+    font-family: var(--tek-display);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+}
+.special-desc {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.04em;
+}
+.special-status {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tek-text-dim);
+    text-align: right;
+}
+.special-status.earned-status { color: var(--tier-gold); }
+.special-status .pip {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--tek-text-faint);
+    margin-right: 6px;
+}
+.special-status.earned-status .pip { background: var(--tier-gold); box-shadow: 0 0 5px rgba(255,215,0,0.5); }
+
+/* utilities */
+.btn-ghost-small {
+    background: transparent;
+    border: 1px solid rgba(100,116,139,0.30);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    cursor: pointer;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.btn-ghost-small:hover {
+    border-color: var(--tek-blue);
+    color: var(--tek-blue);
+}
 </style>

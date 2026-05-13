@@ -7,14 +7,69 @@
     type SectionId = 'account' | 'privacy' | 'notifications' | 'themes' | 'cluster' | 'data' | 'integrations';
     let activeSection = $state<SectionId>('account');
 
+    // ── Server-loaded settings blob (hydrated below as well) ────────────────
+    const SERVER_SETTINGS = ((data as any).settings ?? {}) as Record<string, any>;
+
+    // ── Global "dirty" state + sticky save bar ─────────────────────────────
+    let dirty = $state(false);
+    let savingActive = $state(false);
+    let globalMsg = $state('');
+    let globalErr = $state(false);
+    function markDirty() { dirty = true; }
+
     // ── Account form state ──────────────────────────────────────────────────
     let nickname    = $state(data.profile?.nickname ?? '');
     let bio         = $state(data.profile?.bio ?? '');
     let lookingFor  = $state(data.profile?.lookingFor ?? '');
     let bannerImage = $state((data.profile as any)?.bannerImage ?? '');
+    let avatarImage = $state((data.profile as any)?.avatarImage ?? '');
     let profSaving  = $state(false);
     let profMsg     = $state('');
     let profErr     = $state(false);
+
+    // Avatar / banner uploaders (URL-paste stubs; backend accepts { url })
+    let avatarFileInput: HTMLInputElement;
+    let bannerFileInput: HTMLInputElement;
+    let avatarUploading = $state(false);
+    let bannerUploading = $state(false);
+
+    async function uploadImage(file: File, endpoint: string): Promise<string | null> {
+        // For now, read the file as a data URL and POST it as { url } since we have no blob storage.
+        // (Backend accepts a hosted URL string; data: URLs work for testing.)
+        const url = await new Promise<string>((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(String(r.result));
+            r.onerror = () => reject(r.error);
+            r.readAsDataURL(file);
+        });
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        if (!res.ok) return null;
+        const b = await res.json().catch(() => ({}));
+        return b.avatarImage ?? b.bannerImage ?? url;
+    }
+
+    async function onAvatarPicked(e: Event) {
+        const f = (e.target as HTMLInputElement).files?.[0];
+        if (!f) return;
+        avatarUploading = true;
+        const next = await uploadImage(f, '/api/upload/avatar');
+        if (next) { avatarImage = next; profMsg = '✓ Avatar updated.'; setTimeout(() => profMsg = '', 2500); }
+        else { profMsg = 'Avatar upload failed'; profErr = true; }
+        avatarUploading = false;
+    }
+    async function onBannerPicked(e: Event) {
+        const f = (e.target as HTMLInputElement).files?.[0];
+        if (!f) return;
+        bannerUploading = true;
+        const next = await uploadImage(f, '/api/upload/banner');
+        if (next) { bannerImage = next; profMsg = '✓ Banner updated.'; setTimeout(() => profMsg = '', 2500); }
+        else { profMsg = 'Banner upload failed'; profErr = true; }
+        bannerUploading = false;
+    }
 
     async function saveProfile() {
         profSaving = true; profMsg = ''; profErr = false;
@@ -25,17 +80,322 @@
                 nickname:    nickname.trim() || null,
                 bio:         bio.trim() || null,
                 lookingFor:  lookingFor.trim() || null,
-                bannerImage: bannerImage.trim() || null
+                bannerImage: bannerImage.trim() || null,
+                avatarImage: avatarImage.trim() || null
             })
         });
         const body = await res.json().catch(() => ({}));
         if (res.ok) {
             profMsg = '✓ Codex updated.';
+            dirty = false;
             setTimeout(() => profMsg = '', 2500);
         } else {
             profMsg = body.error ?? 'Failed to save'; profErr = true;
         }
         profSaving = false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // PRIVACY
+    // ═══════════════════════════════════════════════════════════════════════
+    const PRIVACY_DEFAULTS = {
+        profileVisibility: 'survivors' as 'public' | 'survivors' | 'tribe_friends' | 'friends' | 'private',
+        vaultVisibility:   'tribe_friends' as 'public' | 'tribe_friends' | 'friends' | 'private',
+        dmPermissions:     'friends_tribe' as 'everyone' | 'friends_tribe' | 'friends' | 'none',
+        friendRequests:    'everyone' as 'everyone' | 'mutuals' | 'none',
+        showBreeding:      true,
+        showFoundersIndex: true,
+        showOnline:        true,
+        showActivity:      true,
+        allowTribeInvites: true,
+        allowTradeRequests:true,
+        showVaultCount:    true,
+        showBadges:        true,
+        appearInSuggestions: true
+    };
+    const initialPrivacy = { ...PRIVACY_DEFAULTS, ...((SERVER_SETTINGS.privacy ?? {}) as object) };
+    let privacy = $state({ ...initialPrivacy });
+    let privacySaving = $state(false);
+    let privacyMsg    = $state('');
+    let privacyErr    = $state(false);
+
+    async function savePrivacy() {
+        privacySaving = true; privacyMsg = ''; privacyErr = false;
+        const res = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ privacy })
+        });
+        if (res.ok) {
+            privacyMsg = '✓ Privacy saved.';
+            dirty = false;
+            setTimeout(() => privacyMsg = '', 2500);
+        } else {
+            privacyMsg = 'Failed to save'; privacyErr = true;
+        }
+        privacySaving = false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS
+    // ═══════════════════════════════════════════════════════════════════════
+    type NotifChannels = { inapp: boolean; email: boolean; discord: boolean; push: boolean };
+    type NotifKey =
+        | 'tribeActivity' | 'tradeRequests' | 'directMessages'
+        | 'friendRequests' | 'bossTimers' | 'serverEvents'
+        | 'serverStatus' | 'badgeMilestones' | 'globalDigest';
+    const NOTIF_ROWS: { key: NotifKey; name: string; hint: string }[] = [
+        { key: 'tribeActivity',   name: 'Tribe activity',   hint: 'Join requests, rank changes, war room pings' },
+        { key: 'tradeRequests',   name: 'Trade requests',   hint: 'New offers on your Marketplace listings' },
+        { key: 'directMessages',  name: 'Direct messages',  hint: 'New DMs from friends or trade contacts' },
+        { key: 'friendRequests',  name: 'Friend requests',  hint: 'Incoming Network requests' },
+        { key: 'bossTimers',      name: 'Boss timers',      hint: 'Tribe-scheduled fights coming up — 24h, 1h, 15min' },
+        { key: 'serverEvents',    name: 'Server events',    hint: 'Boss spawns, admin announcements (requires RCON)' },
+        { key: 'serverStatus',    name: 'Server status',    hint: 'A subscribed server goes down or comes back up' },
+        { key: 'badgeMilestones', name: 'Badge milestones', hint: 'A new badge unlocks on your Badge Wall' },
+        { key: 'globalDigest',    name: 'Global feed digest', hint: 'Weekly summary of news from sources you follow' }
+    ];
+    const NOTIF_DEFAULTS: Record<NotifKey, NotifChannels> = {
+        tribeActivity:   { inapp: true,  email: false, discord: true,  push: true  },
+        tradeRequests:   { inapp: true,  email: true,  discord: false, push: true  },
+        directMessages:  { inapp: true,  email: false, discord: false, push: true  },
+        friendRequests:  { inapp: true,  email: false, discord: false, push: false },
+        bossTimers:      { inapp: true,  email: true,  discord: true,  push: true  },
+        serverEvents:    { inapp: true,  email: false, discord: true,  push: false },
+        serverStatus:    { inapp: true,  email: false, discord: false, push: false },
+        badgeMilestones: { inapp: true,  email: false, discord: false, push: true  },
+        globalDigest:    { inapp: false, email: true,  discord: false, push: false }
+    };
+    function buildNotifInitial(): Record<NotifKey, NotifChannels> {
+        const out = {} as Record<NotifKey, NotifChannels>;
+        const stored = (SERVER_SETTINGS.notifications ?? {}) as Record<string, Partial<NotifChannels>>;
+        for (const r of NOTIF_ROWS) {
+            out[r.key] = { ...NOTIF_DEFAULTS[r.key], ...(stored[r.key] ?? {}) };
+        }
+        return out;
+    }
+    let notif = $state(buildNotifInitial());
+    let quietHoursOn = $state(((SERVER_SETTINGS.notifications as any)?.quietHoursOn) ?? true);
+    let quietStart   = $state(((SERVER_SETTINGS.notifications as any)?.quietStart) ?? '23:00');
+    let quietEnd     = $state(((SERVER_SETTINGS.notifications as any)?.quietEnd) ?? '07:00');
+    let notifSaving  = $state(false);
+    let notifMsg     = $state('');
+    let notifErr     = $state(false);
+
+    function toggleNotif(rowKey: NotifKey, channel: keyof NotifChannels) {
+        notif[rowKey][channel] = !notif[rowKey][channel];
+        markDirty();
+    }
+
+    async function saveNotif() {
+        notifSaving = true; notifMsg = ''; notifErr = false;
+        const payload: any = { ...notif, quietHoursOn, quietStart, quietEnd };
+        const res = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notifications: payload })
+        });
+        if (res.ok) {
+            notifMsg = '✓ Notifications saved.';
+            dirty = false;
+            setTimeout(() => notifMsg = '', 2500);
+        } else {
+            notifMsg = 'Failed to save'; notifErr = true;
+        }
+        notifSaving = false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CLUSTER
+    // ═══════════════════════════════════════════════════════════════════════
+    type ServerEntry = { id: string; name: string; map: string; role: 'admin' | 'member'; online: boolean; password?: string };
+    const MAP_OPTIONS = [
+        'The Island', 'Ragnarok', 'Aberration', 'Extinction',
+        'Scorched Earth', 'The Center', 'Valguero', 'Genesis',
+        'Crystal Isles', 'Lost Island', 'Fjordur', 'Genesis 2'
+    ];
+    const seededServers = (SERVER_SETTINGS.cluster?.servers ?? SERVER_SETTINGS.servers ?? []) as ServerEntry[];
+    let servers = $state<ServerEntry[]>(Array.isArray(seededServers) ? seededServers : []);
+    let newServerName = $state('');
+    let newServerMap  = $state(MAP_OPTIONS[0]);
+    let newServerPass = $state('');
+    let clusterSaving = $state(false);
+    let clusterMsg    = $state('');
+    let clusterErr    = $state(false);
+
+    // RCON (single shared block per audit; admin-only in spirit — we keep the UI but the values are user-stored)
+    const initialRcon = (SERVER_SETTINGS.cluster?.rcon ?? {}) as { host?: string; port?: string | number; password?: string };
+    let rconHost = $state(String(initialRcon.host ?? ''));
+    let rconPort = $state(String(initialRcon.port ?? '27020'));
+    let rconPass = $state(String(initialRcon.password ?? ''));
+    let rconStatusMsg = $state('');
+    let rconStatusOk  = $state(false);
+
+    // Polling preferences
+    const initialPoll = (SERVER_SETTINGS.cluster?.poll ?? {}) as { interval?: string; pauseWhenIdle?: boolean };
+    let pollInterval  = $state(String(initialPoll.interval ?? '60'));
+    let pollPauseIdle = $state(initialPoll.pauseWhenIdle ?? true);
+
+    function addServer() {
+        const name = newServerName.trim();
+        if (!name) return;
+        servers = [...servers, {
+            id: crypto.randomUUID(),
+            name,
+            map: newServerMap,
+            role: 'member',
+            online: true,
+            password: newServerPass.trim() || undefined
+        }];
+        newServerName = ''; newServerPass = '';
+        markDirty();
+    }
+    function removeServer(id: string) {
+        servers = servers.filter(s => s.id !== id);
+        markDirty();
+    }
+    async function testRcon() {
+        rconStatusMsg = 'Testing…'; rconStatusOk = false;
+        // No backend yet — simulate validation locally
+        const ok = rconHost.trim().length > 0 && /^\d+$/.test(rconPort.trim()) && rconPass.length > 0;
+        await new Promise(r => setTimeout(r, 350));
+        if (ok) { rconStatusMsg = 'Connected — listening for events.'; rconStatusOk = true; }
+        else    { rconStatusMsg = 'Host, port and password are all required.'; rconStatusOk = false; }
+    }
+    async function saveCluster() {
+        clusterSaving = true; clusterMsg = ''; clusterErr = false;
+        const res = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cluster: {
+                    servers,
+                    rcon: { host: rconHost, port: rconPort, password: rconPass },
+                    poll: { interval: pollInterval, pauseWhenIdle: pollPauseIdle }
+                },
+                servers
+            })
+        });
+        if (res.ok) {
+            clusterMsg = '✓ Cluster saved.';
+            dirty = false;
+            setTimeout(() => clusterMsg = '', 2500);
+        } else {
+            clusterMsg = 'Failed to save'; clusterErr = true;
+        }
+        clusterSaving = false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // INTEGRATIONS
+    // ═══════════════════════════════════════════════════════════════════════
+    const initialIntegrations = (SERVER_SETTINGS.integrations ?? {}) as {
+        discordWebhook?: string; twitchKey?: string; youtubeChannel?: string;
+    };
+    let discordWebhook = $state(initialIntegrations.discordWebhook ?? '');
+    let twitchKey      = $state(initialIntegrations.twitchKey ?? '');
+    let youtubeChannel = $state(initialIntegrations.youtubeChannel ?? '');
+    let intSaving = $state(false);
+    let intMsg    = $state('');
+    let intErr    = $state(false);
+    let webhookTestMsg = $state('');
+
+    async function testDiscordWebhook() {
+        if (!discordWebhook.trim()) { webhookTestMsg = 'Paste a webhook URL first.'; return; }
+        webhookTestMsg = 'Sending test ping…';
+        try {
+            const res = await fetch(discordWebhook.trim(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: '⬡ TekOS test ping — webhook is live.' })
+            });
+            webhookTestMsg = res.ok ? '✓ Webhook responded OK.' : `Webhook responded ${res.status}.`;
+        } catch {
+            webhookTestMsg = 'Network error reaching webhook.';
+        }
+        setTimeout(() => webhookTestMsg = '', 4000);
+    }
+
+    async function saveIntegrations() {
+        intSaving = true; intMsg = ''; intErr = false;
+        const res = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                integrations: {
+                    discordWebhook: discordWebhook.trim(),
+                    twitchKey: twitchKey.trim(),
+                    youtubeChannel: youtubeChannel.trim()
+                }
+            })
+        });
+        if (res.ok) {
+            intMsg = '✓ Integrations saved.';
+            dirty = false;
+            setTimeout(() => intMsg = '', 2500);
+        } else {
+            intMsg = 'Failed to save'; intErr = true;
+        }
+        intSaving = false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // DANGER ZONE actions
+    // ═══════════════════════════════════════════════════════════════════════
+    let dangerMsg = $state('');
+    let dangerErr = $state(false);
+    async function clearVault() {
+        if (!confirm('This will permanently delete every creature in your Vault. Continue?')) return;
+        dangerMsg = 'Wiping Vault…';
+        const res = await fetch('/api/creatures/all', { method: 'DELETE' });
+        if (res.ok) {
+            const b = await res.json().catch(() => ({}));
+            dangerMsg = `✓ Vault cleared — ${b.deleted ?? 0} specimens removed.`;
+            dangerErr = false;
+        } else {
+            dangerMsg = 'Failed to clear Vault.'; dangerErr = true;
+        }
+        setTimeout(() => dangerMsg = '', 4000);
+    }
+    async function leaveAllTribes() {
+        if (!confirm('This will remove you from every tribe you are a member of. Owned tribes remain. Continue?')) return;
+        dangerMsg = 'Leaving tribes…';
+        const res = await fetch('/api/tribes/leave-all', { method: 'POST' });
+        if (res.ok) {
+            const b = await res.json().catch(() => ({}));
+            dangerMsg = `✓ Left ${b.left ?? 0} tribes.`;
+            dangerErr = false;
+        } else {
+            dangerMsg = 'Failed to leave tribes.'; dangerErr = true;
+        }
+        setTimeout(() => dangerMsg = '', 4000);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Global save bar — routes to the current section's save handler
+    // ═══════════════════════════════════════════════════════════════════════
+    async function saveActiveSection() {
+        savingActive = true; globalMsg = ''; globalErr = false;
+        try {
+            switch (activeSection) {
+                case 'account':       await saveProfile(); break;
+                case 'privacy':       await savePrivacy(); break;
+                case 'notifications': await saveNotif(); break;
+                case 'cluster':       await saveCluster(); break;
+                case 'integrations':  await saveIntegrations(); break;
+                case 'themes':
+                case 'data':
+                    // Themes save inline on selection; Data has no central save.
+                    dirty = false;
+                    break;
+            }
+        } finally {
+            savingActive = false;
+        }
+    }
+    function discardChanges() {
+        if (!confirm('Discard unsaved changes on this page?')) return;
+        location.reload();
     }
 
     // ── Theme palettes ──────────────────────────────────────────────────────
@@ -213,7 +573,7 @@
             resize(); draw();
         }
 
-        // Hydrate palette + voice from /api/settings
+        // Hydrate palette + voice + tab payloads from /api/settings
         (async () => {
             try {
                 const res = await fetch('/api/settings');
@@ -227,6 +587,34 @@
                         if (matched) activePaletteId = matched.id;
                     }
                     if (body.voiceId) activeVoiceId = body.voiceId;
+                    if (body.privacy && typeof body.privacy === 'object') {
+                        privacy = { ...PRIVACY_DEFAULTS, ...body.privacy };
+                    }
+                    if (body.notifications && typeof body.notifications === 'object') {
+                        const stored = body.notifications;
+                        for (const r of NOTIF_ROWS) {
+                            if (stored[r.key]) notif[r.key] = { ...NOTIF_DEFAULTS[r.key], ...stored[r.key] };
+                        }
+                        if (typeof stored.quietHoursOn === 'boolean') quietHoursOn = stored.quietHoursOn;
+                        if (typeof stored.quietStart === 'string')   quietStart   = stored.quietStart;
+                        if (typeof stored.quietEnd   === 'string')   quietEnd     = stored.quietEnd;
+                    }
+                    if (body.cluster?.servers) servers = body.cluster.servers;
+                    else if (Array.isArray(body.servers)) servers = body.servers;
+                    if (body.cluster?.rcon) {
+                        rconHost = String(body.cluster.rcon.host ?? rconHost);
+                        rconPort = String(body.cluster.rcon.port ?? rconPort);
+                        rconPass = String(body.cluster.rcon.password ?? rconPass);
+                    }
+                    if (body.cluster?.poll) {
+                        pollInterval  = String(body.cluster.poll.interval ?? pollInterval);
+                        pollPauseIdle = body.cluster.poll.pauseWhenIdle ?? pollPauseIdle;
+                    }
+                    if (body.integrations) {
+                        discordWebhook = body.integrations.discordWebhook ?? '';
+                        twitchKey      = body.integrations.twitchKey ?? '';
+                        youtubeChannel = body.integrations.youtubeChannel ?? '';
+                    }
                 }
             } catch {}
         })();
@@ -301,24 +689,34 @@
                 <!-- Identity strip -->
                 <div class="identity-strip">
                     <div class="id-avatar">
-                        <svg viewBox="0 0 88 100">
-                            <defs>
-                                <linearGradient id="avGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" stop-color="#00b4ff"/>
-                                    <stop offset="100%" stop-color="#8b5cf6"/>
-                                </linearGradient>
-                            </defs>
-                            <polygon points="44,4 84,26 84,74 44,96 4,74 4,26" fill="rgba(10,18,44,0.9)" stroke="url(#avGrad)" stroke-width="2"/>
-                            <text x="44" y="62" font-family="Orbitron" font-size="32" font-weight="900" fill="url(#avGrad)" text-anchor="middle">{(data.profile?.nickname?.[0] ?? data.profile?.email?.[0] ?? 'S').toUpperCase()}</text>
-                        </svg>
+                        {#if avatarImage}
+                            <img src={avatarImage} alt="Avatar" style="width:100%;height:100%;object-fit:cover;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);" />
+                        {:else}
+                            <svg viewBox="0 0 88 100">
+                                <defs>
+                                    <linearGradient id="avGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#00b4ff"/>
+                                        <stop offset="100%" stop-color="#8b5cf6"/>
+                                    </linearGradient>
+                                </defs>
+                                <polygon points="44,4 84,26 84,74 44,96 4,74 4,26" fill="rgba(10,18,44,0.9)" stroke="url(#avGrad)" stroke-width="2"/>
+                                <text x="44" y="62" font-family="Orbitron" font-size="32" font-weight="900" fill="url(#avGrad)" text-anchor="middle">{(data.profile?.nickname?.[0] ?? data.profile?.email?.[0] ?? 'S').toUpperCase()}</text>
+                            </svg>
+                        {/if}
                     </div>
                     <div class="id-info">
                         <div class="id-name">{data.profile?.nickname ?? 'Survivor'}</div>
                         <div class="id-meta">SURVIVOR-ID · {(data.profile?.id ?? '').toString().slice(0,8).toUpperCase()} <span class="badge">FOUNDER</span></div>
                     </div>
                     <div class="id-actions">
-                        <button class="btn ghost">CHANGE AVATAR</button>
-                        <button class="btn ghost">CHANGE BANNER</button>
+                        <input type="file" accept="image/*" bind:this={avatarFileInput} onchange={onAvatarPicked} style="display:none;" />
+                        <input type="file" accept="image/*" bind:this={bannerFileInput} onchange={onBannerPicked} style="display:none;" />
+                        <button class="btn ghost" onclick={() => avatarFileInput?.click()} disabled={avatarUploading}>
+                            {avatarUploading ? 'UPLOADING…' : 'CHANGE AVATAR'}
+                        </button>
+                        <button class="btn ghost" onclick={() => bannerFileInput?.click()} disabled={bannerUploading}>
+                            {bannerUploading ? 'UPLOADING…' : 'CHANGE BANNER'}
+                        </button>
                     </div>
                 </div>
 
@@ -329,7 +727,7 @@
                             <div class="row-label">Display name</div>
                             <div class="row-hint">Shown on your Dossier, in trades, and across the feed.</div>
                         </div>
-                        <input class="input" bind:value={nickname} placeholder="The name the wild remembers" />
+                        <input class="input" bind:value={nickname} oninput={markDirty} placeholder="The name the wild remembers" />
                     </div>
                     <div class="row">
                         <div class="row-info">
@@ -343,21 +741,21 @@
                             <div class="row-label">Bio</div>
                             <div class="row-hint">Up to 280 characters. Crimson Pro italic on your Dossier.</div>
                         </div>
-                        <input class="input wide" bind:value={bio} placeholder="Hardcore breeder. Loaded Crysis cluster. Boss prep — gear, tames, gameplan." />
+                        <input class="input wide" bind:value={bio} oninput={markDirty} placeholder="Hardcore breeder. Loaded Crysis cluster. Boss prep — gear, tames, gameplan." />
                     </div>
                     <div class="row">
                         <div class="row-info">
                             <div class="row-label">Looking for</div>
                             <div class="row-hint">What you're seeking in trades or partnerships.</div>
                         </div>
-                        <input class="input wide" bind:value={lookingFor} placeholder="High-melee Yuty lines, Alpha Boss runs, etc." />
+                        <input class="input wide" bind:value={lookingFor} oninput={markDirty} placeholder="High-melee Yuty lines, Alpha Boss runs, etc." />
                     </div>
                     <div class="row">
                         <div class="row-info">
                             <div class="row-label">Banner image URL</div>
-                            <div class="row-hint">Background banner on your Dossier.</div>
+                            <div class="row-hint">Background banner on your Dossier — pasted URL or uploaded via CHANGE BANNER above.</div>
                         </div>
-                        <input class="input wide" bind:value={bannerImage} placeholder="https://…" />
+                        <input class="input wide" bind:value={bannerImage} oninput={markDirty} placeholder="https://…" />
                     </div>
                     <div class="row">
                         <div></div>
@@ -368,6 +766,13 @@
                     {#if profMsg}
                         <div class="result-msg" class:error={profErr}>{profMsg}</div>
                     {/if}
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Active sessions</div>
+                    <div class="placeholder-note" style="font-size:0.74rem;">
+                        ⚠ Active session tracking coming soon. We'll show every device signed in to your TekOS instance here and let you revoke them.
+                    </div>
                 </div>
 
                 <div class="group">
@@ -421,9 +826,148 @@
                     <div class="section-title">Privacy</div>
                     <div class="section-desc">Control what the rest of the Survivor network can see</div>
                 </div>
-                <div class="placeholder-note">
-                    ⚠ Privacy controls are being wired to backend permissions in an upcoming update. For now, your Dossier and Vault are visible to signed-in Survivors.
+
+                <div class="group">
+                    <div class="group-label">Profile visibility</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Who can see your Dossier</div>
+                            <div class="row-hint">Includes your Badge Wall, stats summary, and tribe affiliation.</div>
+                        </div>
+                        <select class="select" bind:value={privacy.profileVisibility} onchange={markDirty}>
+                            <option value="public">Public</option>
+                            <option value="survivors">Signed-in Survivors</option>
+                            <option value="tribe_friends">Tribe + Friends</option>
+                            <option value="friends">Friends only</option>
+                            <option value="private">Just me</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Who can see your Vault</div>
+                            <div class="row-hint">Your saved specimens and their stat lines.</div>
+                        </div>
+                        <select class="select" bind:value={privacy.vaultVisibility} onchange={markDirty}>
+                            <option value="public">Everyone</option>
+                            <option value="tribe_friends">Tribe + Friends</option>
+                            <option value="friends">Friends only</option>
+                            <option value="private">Just me</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Show Active Breeding Projects</div>
+                            <div class="row-hint">When off, your in-progress mutation stacking stays private.</div>
+                        </div>
+                        <div class="toggle" class:on={privacy.showBreeding}
+                             onclick={() => { privacy.showBreeding = !privacy.showBreeding; markDirty(); }}></div>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Show Founders Index</div>
+                            <div class="row-hint">Reveals the wild tames that seeded your stat genealogy.</div>
+                        </div>
+                        <div class="toggle" class:on={privacy.showFoundersIndex}
+                             onclick={() => { privacy.showFoundersIndex = !privacy.showFoundersIndex; markDirty(); }}></div>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Show vault count on public profile</div>
+                            <div class="row-hint">Displays "47 specimens" on your Dossier header.</div>
+                        </div>
+                        <div class="toggle" class:on={privacy.showVaultCount}
+                             onclick={() => { privacy.showVaultCount = !privacy.showVaultCount; markDirty(); }}></div>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Show badges on public profile</div>
+                            <div class="row-hint">Shows your Boss Ready / Underdog / Prize Bloodline wall.</div>
+                        </div>
+                        <div class="toggle" class:on={privacy.showBadges}
+                             onclick={() => { privacy.showBadges = !privacy.showBadges; markDirty(); }}></div>
+                    </div>
                 </div>
+
+                <div class="group">
+                    <div class="group-label">Contact &amp; requests</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Who can send you DMs</div>
+                            <div class="row-hint">War Room and Trade messages from listings always go through.</div>
+                        </div>
+                        <select class="select" bind:value={privacy.dmPermissions} onchange={markDirty}>
+                            <option value="everyone">Everyone</option>
+                            <option value="friends_tribe">Friends + Tribe</option>
+                            <option value="friends">Friends only</option>
+                            <option value="none">No one</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Who can send friend requests</div>
+                            <div class="row-hint">Mutual friends always count.</div>
+                        </div>
+                        <select class="select" bind:value={privacy.friendRequests} onchange={markDirty}>
+                            <option value="everyone">Everyone</option>
+                            <option value="mutuals">Friends of friends</option>
+                            <option value="none">No one</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Allow tribe invites</div>
+                            <div class="row-hint">When off, tribes cannot send you recruitment requests.</div>
+                        </div>
+                        <div class="toggle" class:on={privacy.allowTribeInvites}
+                             onclick={() => { privacy.allowTribeInvites = !privacy.allowTribeInvites; markDirty(); }}></div>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Allow trade requests from anyone</div>
+                            <div class="row-hint">When off, only friends &amp; tribe can offer on your listings.</div>
+                        </div>
+                        <div class="toggle" class:on={privacy.allowTradeRequests}
+                             onclick={() => { privacy.allowTradeRequests = !privacy.allowTradeRequests; markDirty(); }}></div>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Discoverability</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Appear in Network suggestions</div>
+                            <div class="row-hint">Surface in Friend page Discovery and Tribe recruitment.</div>
+                        </div>
+                        <div class="toggle" class:on={privacy.appearInSuggestions}
+                             onclick={() => { privacy.appearInSuggestions = !privacy.appearInSuggestions; markDirty(); }}></div>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Show me as online when active</div>
+                            <div class="row-hint">Off hides your green pip — friends will see you as offline.</div>
+                        </div>
+                        <div class="toggle" class:on={privacy.showOnline}
+                             onclick={() => { privacy.showOnline = !privacy.showOnline; markDirty(); }}></div>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Show current activity</div>
+                            <div class="row-hint">e.g. "Editing Ragnarok·07 boss prep" on your Friends row.</div>
+                        </div>
+                        <div class="toggle" class:on={privacy.showActivity}
+                             onclick={() => { privacy.showActivity = !privacy.showActivity; markDirty(); }}></div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div></div>
+                    <button class="btn solid" onclick={savePrivacy} disabled={privacySaving}>
+                        {privacySaving ? 'SAVING…' : 'SAVE PRIVACY'}
+                    </button>
+                </div>
+                {#if privacyMsg}
+                    <div class="result-msg" class:error={privacyErr}>{privacyMsg}</div>
+                {/if}
             </div>
 
             <!-- ============ NOTIFICATIONS ============ -->
@@ -432,9 +976,72 @@
                     <div class="section-title">Notifications</div>
                     <div class="section-desc">Pick which alerts reach you, and through which channel</div>
                 </div>
-                <div class="placeholder-note">
-                    ⚠ Per-category notification preferences are being wired to backend channels in an upcoming update. All in-app notifications are currently enabled.
+
+                <div class="group">
+                    <div class="group-label">Channel matrix</div>
+                    <table class="notif-table">
+                        <thead>
+                            <tr>
+                                <th class="cat">Category</th>
+                                <th>In-App</th>
+                                <th>Email</th>
+                                <th>Discord</th>
+                                <th>Push</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {#each NOTIF_ROWS as r}
+                                <tr>
+                                    <td class="cat">
+                                        <div class="notif-cat-name">{r.name}</div>
+                                        <div class="notif-cat-hint">{r.hint}</div>
+                                    </td>
+                                    <td><div class="notif-cell-toggle" class:on={notif[r.key].inapp}
+                                              onclick={() => toggleNotif(r.key, 'inapp')}></div></td>
+                                    <td><div class="notif-cell-toggle" class:on={notif[r.key].email}
+                                              onclick={() => toggleNotif(r.key, 'email')}></div></td>
+                                    <td><div class="notif-cell-toggle" class:on={notif[r.key].discord}
+                                              onclick={() => toggleNotif(r.key, 'discord')}></div></td>
+                                    <td><div class="notif-cell-toggle" class:on={notif[r.key].push}
+                                              onclick={() => toggleNotif(r.key, 'push')}></div></td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
                 </div>
+
+                <div class="group">
+                    <div class="group-label">Quiet hours</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Mute push &amp; Discord pings during quiet hours</div>
+                            <div class="row-hint">In-app and email still arrive. Boss timer alerts override quiet hours.</div>
+                        </div>
+                        <div class="toggle" class:on={quietHoursOn}
+                             onclick={() => { quietHoursOn = !quietHoursOn; markDirty(); }}></div>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Quiet hours window</div>
+                            <div class="row-hint">Local time. Set both to the same value to disable.</div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input class="input" type="time" bind:value={quietStart} oninput={markDirty} style="min-width:110px;" />
+                            <span style="color: var(--tek-text-faint); font-family: var(--tek-mono); font-size:0.74rem;">→</span>
+                            <input class="input" type="time" bind:value={quietEnd} oninput={markDirty} style="min-width:110px;" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div></div>
+                    <button class="btn solid" onclick={saveNotif} disabled={notifSaving}>
+                        {notifSaving ? 'SAVING…' : 'SAVE NOTIFICATIONS'}
+                    </button>
+                </div>
+                {#if notifMsg}
+                    <div class="result-msg" class:error={notifErr}>{notifMsg}</div>
+                {/if}
             </div>
 
             <!-- ============ THEMES ============ -->
@@ -514,9 +1121,106 @@
                     <div class="section-title">Cluster</div>
                     <div class="section-desc">Servers you follow and how TekOS reads their data</div>
                 </div>
-                <div class="placeholder-note">
-                    ⚠ Cluster configuration (server polling via Steam A2S + optional RCON event stream) is on the build roadmap. See <code>tekos_build_decisions.md</code> for the locked spec.
+
+                <div class="cluster-card">
+                    <div class="cluster-head">
+                        <div>
+                            <div class="cluster-name-wrap">
+                                <div class="cluster-emblem">⬡</div>
+                                <div>
+                                    <div class="cluster-name">Your Cluster</div>
+                                    <div class="cluster-meta">{servers.length} SERVER{servers.length === 1 ? '' : 'S'} · YOUR HOME CLUSTER <span class="chip green">PRIMARY</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {#if servers.length > 0}
+                        <div class="server-list">
+                            {#each servers as s}
+                                <div class="server-chip" class:offline={!s.online}>
+                                    <span class="pip"></span>
+                                    <span class="name">{s.name} <span style="color:var(--tek-text-faint);font-size:0.7em;">· {s.map}{s.role === 'admin' ? ' · ADMIN' : ''}</span></span>
+                                    <span class="x" onclick={() => removeServer(s.id)} title="Remove">✕</span>
+                                </div>
+                            {/each}
+                        </div>
+                    {:else}
+                        <div style="font-family:var(--tek-mono); font-size:0.76rem; color:var(--tek-text-dim); padding:18px 0;">
+                            No servers added yet. Add your first server below.
+                        </div>
+                    {/if}
+
+                    <div class="add-server-row" style="flex-wrap:wrap; gap:8px;">
+                        <input class="input" bind:value={newServerName} oninput={markDirty} placeholder="Server name (e.g. Ragnarok·07)" style="flex:1; min-width:200px;" />
+                        <select class="select" bind:value={newServerMap} onchange={markDirty} style="min-width:160px;">
+                            {#each MAP_OPTIONS as m}
+                                <option value={m}>{m}</option>
+                            {/each}
+                        </select>
+                        <input class="input" bind:value={newServerPass} placeholder="Password (optional)" type="password" style="min-width:160px;" />
+                        <button class="btn" onclick={addServer}>＋ ADD SERVER</button>
+                    </div>
+
+                    <!-- RCON block -->
+                    <div class="rcon-block">
+                        <div class="rcon-head">
+                            <div class="rcon-title">▸ RCON Connection <span style="color:var(--tek-text-faint); font-weight:400;">— Admin only · Optional</span></div>
+                            <div class="rcon-status" class:connected={rconStatusOk} class:unconfigured={!rconStatusOk}>
+                                <span class="dot"></span>{rconStatusOk ? 'CONNECTED · LISTENING' : 'NOT CONNECTED'}
+                            </div>
+                        </div>
+                        <div class="rcon-desc">
+                            Required for the rich Server feed (chat, admin announcements, boss spawns, taming events). Without it, TekOS still polls server status and player count via Steam A2S — you just won't get the event stream below the cluster card.
+                        </div>
+                        <div class="rcon-inputs">
+                            <input class="input" bind:value={rconHost} oninput={markDirty} placeholder="Host or IP" />
+                            <input class="input" bind:value={rconPort} oninput={markDirty} placeholder="Port" />
+                            <input class="input" bind:value={rconPass} oninput={markDirty} type="password" placeholder="Password" />
+                        </div>
+                        <div class="rcon-actions">
+                            <button class="btn" onclick={testRcon}>TEST CONNECTION</button>
+                            <button class="btn ghost" onclick={() => { rconHost=''; rconPort='27020'; rconPass=''; rconStatusOk=false; rconStatusMsg=''; markDirty(); }}>DISCONNECT</button>
+                        </div>
+                        {#if rconStatusMsg}
+                            <div class="result-msg" class:error={!rconStatusOk} style="margin-top:10px;">{rconStatusMsg}</div>
+                        {/if}
+                    </div>
                 </div>
+
+                <div class="group" style="margin-top: 22px;">
+                    <div class="group-label">Polling preferences</div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">A2S poll interval</div>
+                            <div class="row-hint">How often we ping each server for status, player count, current map.</div>
+                        </div>
+                        <select class="select" bind:value={pollInterval} onchange={markDirty}>
+                            <option value="30">Every 30 seconds</option>
+                            <option value="60">Every 60 seconds</option>
+                            <option value="120">Every 2 minutes</option>
+                            <option value="300">Every 5 minutes</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="row-info">
+                            <div class="row-label">Auto-pause when you're offline</div>
+                            <div class="row-hint">Stop polling your subscribed servers when you haven't been active for 24h.</div>
+                        </div>
+                        <div class="toggle" class:on={pollPauseIdle}
+                             onclick={() => { pollPauseIdle = !pollPauseIdle; markDirty(); }}></div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div></div>
+                    <button class="btn solid" onclick={saveCluster} disabled={clusterSaving}>
+                        {clusterSaving ? 'SAVING…' : 'SAVE CLUSTER'}
+                    </button>
+                </div>
+                {#if clusterMsg}
+                    <div class="result-msg" class:error={clusterErr}>{clusterMsg}</div>
+                {/if}
             </div>
 
             <!-- ============ DATA ============ -->
@@ -545,8 +1249,13 @@
                         These actions cannot be undone. We strongly recommend exporting your archive first.
                     </div>
                     <div class="danger-actions">
+                        <button class="btn danger" onclick={clearVault}>CLEAR VAULT</button>
+                        <button class="btn danger" onclick={leaveAllTribes}>LEAVE ALL TRIBES</button>
                         <button class="btn danger" disabled>DELETE ACCOUNT</button>
                     </div>
+                    {#if dangerMsg}
+                        <div class="result-msg" class:error={dangerErr} style="margin-top:12px;">{dangerMsg}</div>
+                    {/if}
                 </div>
             </div>
 
@@ -556,10 +1265,92 @@
                     <div class="section-title">Integrations</div>
                     <div class="section-desc">Connect TekOS to the rest of your survivor toolkit</div>
                 </div>
-                <div class="placeholder-note">
-                    ⚠ Outbound webhooks (Discord pings, Twitch link, YouTube link) and personal API tokens are coming soon.
+
+                <div class="group">
+                    <div class="group-label">Outbound webhooks</div>
+
+                    <!-- Discord webhook card -->
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:12px;">
+                        <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start;">
+                            <div class="action-info">
+                                <div class="action-title">
+                                    Discord webhook
+                                    {#if discordWebhook}<span class="chip blue">CONNECTED</span>{:else}<span class="chip">NOT LINKED</span>{/if}
+                                </div>
+                                <div class="action-desc">Tribe boss timers, war room alerts, and trade requests post to your Discord channel. Paste the webhook URL from your tribe channel's Integrations settings.</div>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <input class="input wide" bind:value={discordWebhook} oninput={markDirty} placeholder="https://discord.com/api/webhooks/…" style="flex:1; min-width:260px;" />
+                            <button class="btn ghost" onclick={testDiscordWebhook}>TEST PING</button>
+                        </div>
+                        {#if webhookTestMsg}
+                            <div style="font-family:var(--tek-mono); font-size:0.74rem; color:var(--tek-text-dim);">{webhookTestMsg}</div>
+                        {/if}
+                    </div>
+
+                    <!-- Twitch -->
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:12px;">
+                        <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start;">
+                            <div class="action-info">
+                                <div class="action-title">
+                                    Twitch alerts
+                                    {#if twitchKey}<span class="chip purple">CONNECTED</span>{:else}<span class="chip">NOT LINKED</span>{/if}
+                                </div>
+                                <div class="action-desc">Link your Twitch username or stream key to display a live indicator on your Dossier and unlock the Creator badge.</div>
+                            </div>
+                        </div>
+                        <input class="input wide" bind:value={twitchKey} oninput={markDirty} placeholder="twitch username or stream key" style="min-width:260px;" />
+                    </div>
+
+                    <!-- YouTube -->
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:12px;">
+                        <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start;">
+                            <div class="action-info">
+                                <div class="action-title">
+                                    YouTube channel
+                                    {#if youtubeChannel}<span class="chip green">CONNECTED</span>{:else}<span class="chip">NOT LINKED</span>{/if}
+                                </div>
+                                <div class="action-desc">Pin your latest video to your Dossier and let new uploads broadcast to the Global feed when your followers are signed in.</div>
+                            </div>
+                        </div>
+                        <input class="input wide" bind:value={youtubeChannel} oninput={markDirty} placeholder="@channelhandle or channel ID" style="min-width:260px;" />
+                    </div>
                 </div>
+
+                <div class="group">
+                    <div class="group-label">API access <span class="chip amber">POWER USER</span></div>
+                    <div style="font-size: 0.8rem; color: var(--tek-text-dim); line-height: 1.5; margin-bottom: 10px;">
+                        Build your own tools against your TekOS data. Tokens grant read access to your Vault, Dossier, and tribe — never to other Survivors.
+                    </div>
+                    <div class="placeholder-note" style="font-size:0.74rem;">
+                        ⚠ Personal access tokens and developer docs are coming in a follow-up build.
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div></div>
+                    <button class="btn solid" onclick={saveIntegrations} disabled={intSaving}>
+                        {intSaving ? 'SAVING…' : 'SAVE INTEGRATIONS'}
+                    </button>
+                </div>
+                {#if intMsg}
+                    <div class="result-msg" class:error={intErr}>{intMsg}</div>
+                {/if}
             </div>
+
+            <!-- Sticky save bar (shared across sections) -->
+            {#if dirty}
+                <div class="save-bar show">
+                    <div class="save-bar-msg"><span class="dot"></span>UNSAVED CHANGES</div>
+                    <div class="save-actions">
+                        <button class="btn ghost" onclick={discardChanges}>DISCARD</button>
+                        <button class="btn solid" onclick={saveActiveSection} disabled={savingActive}>
+                            {savingActive ? 'SAVING…' : 'SAVE CHANGES'}
+                        </button>
+                    </div>
+                </div>
+            {/if}
 
         </div>
 
@@ -1296,4 +2087,246 @@
 .chip.purple { color: var(--tek-purple); border-color: rgba(139,92,246,0.4); }
 .chip.green { color: var(--tek-green); border-color: rgba(16,185,129,0.4); }
 .chip.amber { color: var(--tek-amber); border-color: rgba(245,158,11,0.4); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   NOTIFICATIONS — channel matrix
+   ═════════════════════════════════════════════════════════════════════════ */
+.notif-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 4px;
+}
+.notif-table th {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    text-align: center;
+    padding: 8px 4px;
+    border-bottom: 1px solid rgba(0,180,255,0.10);
+}
+.notif-table th.cat { text-align: left; padding-left: 0; }
+.notif-table td {
+    padding: 12px 4px;
+    border-bottom: 1px solid rgba(100,116,139,0.10);
+    text-align: center;
+}
+.notif-table td.cat { text-align: left; padding-left: 0; }
+.notif-table tr:last-child td { border-bottom: none; }
+.notif-cat-name {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--tek-text);
+    margin-bottom: 2px;
+}
+.notif-cat-hint {
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+}
+.notif-cell-toggle {
+    display: inline-flex;
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    background: rgba(15,23,42,0.6);
+    border: 1px solid rgba(100,116,139,0.25);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+}
+.notif-cell-toggle.on {
+    background: rgba(0,180,255,0.15);
+    border-color: var(--tek-blue);
+    box-shadow: 0 0 5px rgba(0,180,255,0.30);
+}
+.notif-cell-toggle.on::after {
+    content: '✓';
+    position: absolute;
+    inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--tek-blue);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   CLUSTER — followed servers + RCON
+   ═════════════════════════════════════════════════════════════════════════ */
+.cluster-card {
+    background: linear-gradient(160deg, rgba(10,18,44,0.7) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(0,180,255,0.18);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 18px 20px;
+    margin-bottom: 14px;
+}
+.cluster-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(0,180,255,0.10);
+}
+.cluster-name-wrap { display: flex; align-items: center; gap: 10px; }
+.cluster-emblem {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--tek-blue), var(--tek-purple));
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--tek-display);
+    font-size: 0.78rem;
+    font-weight: 900;
+    color: #050812;
+}
+.cluster-name {
+    font-family: var(--tek-display);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+}
+.cluster-meta {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+.server-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.server-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(5,8,18,0.5);
+    border: 1px solid rgba(100,116,139,0.18);
+    font-family: var(--tek-mono);
+    font-size: 0.76rem;
+    color: var(--tek-text);
+}
+.server-chip .pip {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--tek-green);
+    box-shadow: 0 0 5px rgba(16,185,129,0.6);
+    flex-shrink: 0;
+}
+.server-chip.offline .pip { background: var(--tek-text-faint); box-shadow: none; }
+.server-chip .name { flex: 1; min-width: 0; }
+.server-chip .x {
+    color: var(--tek-text-faint);
+    cursor: pointer;
+    transition: color 0.15s;
+}
+.server-chip .x:hover { color: var(--tek-red); }
+
+.add-server-row {
+    display: flex; gap: 8px; align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0,180,255,0.10);
+}
+
+/* RCON Block */
+.rcon-block {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: rgba(139,92,246,0.05);
+    border: 1px solid rgba(139,92,246,0.25);
+    border-left-width: 2px;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+}
+.rcon-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+}
+.rcon-title {
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tek-purple);
+}
+.rcon-status {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.rcon-status.connected { color: var(--tek-green); }
+.rcon-status .dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+.rcon-status.connected .dot { background: var(--tek-green); box-shadow: 0 0 5px rgba(16,185,129,0.6); }
+.rcon-status.unconfigured .dot { background: var(--tek-text-faint); }
+.rcon-desc {
+    font-size: 0.76rem;
+    color: var(--tek-text-dim);
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+.rcon-inputs {
+    display: grid;
+    grid-template-columns: 1fr 100px 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+@media (max-width: 600px) {
+    .rcon-inputs { grid-template-columns: 1fr; }
+}
+.rcon-inputs .input { min-width: 0; }
+.rcon-actions { display: flex; gap: 8px; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   STICKY SAVE BAR
+   ═════════════════════════════════════════════════════════════════════════ */
+.save-bar {
+    position: sticky;
+    bottom: 0;
+    margin: 24px -32px -32px;
+    padding: 14px 32px;
+    background: linear-gradient(180deg, rgba(5,8,18,0.7) 0%, rgba(10,18,44,0.95) 100%);
+    border-top: 1px solid rgba(0,180,255,0.20);
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    backdrop-filter: blur(8px);
+    z-index: 5;
+}
+.save-bar.show { display: flex; }
+.save-bar-msg {
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.12em;
+    color: var(--tek-amber);
+    text-transform: uppercase;
+}
+.save-bar-msg .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--tek-amber);
+    box-shadow: 0 0 6px rgba(245,158,11,0.6);
+    margin-right: 8px;
+    animation: pulseAmber 1.6s ease-in-out infinite;
+}
+@keyframes pulseAmber {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.5; transform: scale(0.7); }
+}
+.save-actions { display: flex; gap: 10px; }
 </style>

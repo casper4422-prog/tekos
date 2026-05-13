@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import type { PageData } from './$types';
 
 	type SpeciesEntry = {
 		name?: string;
@@ -14,6 +15,9 @@
 		[k: string]: unknown;
 	};
 
+	let { data }: { data: PageData } = $props();
+	const ownedBySpecies = $derived(data.ownedBySpecies ?? {});
+
 	let species = $state<Record<string, SpeciesEntry>>({});
 	let search = $state('');
 	let activeFilter = $state('all');
@@ -27,8 +31,19 @@
 		{ key: 'utility',  label: 'Utility' },
 		{ key: 'mount',    label: 'Mount' },
 		{ key: 'water',    label: 'Water' },
-		{ key: 'resource', label: 'Resource' }
+		{ key: 'resource', label: 'Resource' },
+		{ key: 'boss',     label: 'Boss' }
 	];
+
+	function ownedCount(name: string): number {
+		// Try exact match then case-insensitive
+		if (ownedBySpecies[name]) return ownedBySpecies[name];
+		const lower = name.toLowerCase();
+		for (const k of Object.keys(ownedBySpecies)) {
+			if (k.toLowerCase() === lower) return ownedBySpecies[k];
+		}
+		return 0;
+	}
 
 	// Map DB category → preview category CSS class
 	function previewCat(s: SpeciesEntry): string {
@@ -188,6 +203,7 @@
 			{@const name = (s.name ?? key)}
 			{@const cat = previewCat(s)}
 			{@const dCls = dietClass(s.diet)}
+			{@const owned = ownedCount(name)}
 			<div class="dex-card-wrap" onclick={() => navigateTo(name)} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateTo(name); }}>
 				<div class="dex-card {cat}">
 					<div class="bracket tl"></div><div class="bracket tr"></div>
@@ -206,7 +222,11 @@
 						<p class="dex-excerpt">{excerpt(s.dossierText)}</p>
 					{/if}
 					<div class="dex-footer">
-						<span class="dex-owned untamed"><span class="glyph">○</span>UNTAMED</span>
+						{#if owned > 0}
+							<span class="dex-owned owned"><span class="glyph">⬡</span><span class="count">{owned}</span>OWNED</span>
+						{:else}
+							<span class="dex-owned untamed"><span class="glyph">○</span>UNTAMED</span>
+						{/if}
 						<a class="dex-link" href="/dex/{encodeURIComponent(name)}">Open Dossier <span class="arrow">▸</span></a>
 					</div>
 				</div>

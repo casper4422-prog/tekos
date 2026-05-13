@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { onMount } from 'svelte';
-	import { computeBadges } from '$lib/badges';
+	import { computeBadges, badgeCountForCreature } from '$lib/badges';
 	let { data }: { data: PageData } = $props();
 
 	function categoryForSpecies(species: string): string {
@@ -134,8 +134,17 @@
 			case 'member_kicked':   return `${u} removed a member`;
 			case 'invite_sent':     return `${u} invited ${String(m.targetName ?? 'a survivor')}`;
 			case 'warroom_scheduled': return `${u} scheduled a war room: ${String(m.bossName ?? 'a boss')}`;
+			case 'warroom_completed': return `${u} completed war room against ${String(m.bossName ?? 'a boss')}`;
 			case 'tribe_edited':    return `${u} updated tribe identity`;
 			case 'member_joined':   return `${u} joined the tribe`;
+			case 'badge_earned':    return `${u} earned ${String(m.tier ?? '')} ${String(m.badgeType ?? 'Badge')}${m.species ? ` on ${String(m.species)}` : ''}`;
+			case 'boss_kill':       return `${u} cleared ${String(m.bossName ?? 'a boss')}${m.tier ? ` (${String(m.tier)})` : ''}`;
+			case 'mutation_logged': return `${u} logged a new mutation${m.species ? ` on ${String(m.species)}` : ''}`;
+			case 'creature_logged': return `${u} added a ${String(m.species ?? 'creature')} to the vault`;
+			case 'trade_offer':     return `${u} posted a trade offer to the tribe`;
+			case 'alliance_proposed':  return `${u} proposed an alliance with ${String(m.allyTribeName ?? 'another tribe')}`;
+			case 'alliance_accepted':  return `${u} accepted alliance with ${String(m.allyTribeName ?? 'another tribe')}`;
+			case 'announcement':    return `${u} posted: "${String(m.text ?? '...').slice(0, 80)}"`;
 			default: return `${u} · ${a.eventType.replace(/_/g, ' ')}`;
 		}
 	}
@@ -483,6 +492,11 @@
 				{@const rc = rankClass(m.role)}
 				{@const pinned = pinnedCreatureFor(m.id)}
 				{@const pd = pinned?.data as Record<string,unknown> | undefined}
+				{@const memberCreatures = membership.tribe.creatures.filter(c => c.creator.id === m.user.id)}
+				{@const memberBadgeCount = memberCreatures.reduce((total, c) => {
+					const cd = c.data as Record<string, unknown>;
+					return total + badgeCountForCreature(cd.baseStats as Record<string, number> | undefined, cd.mutations as Record<string, number> | undefined, cd.species as string | undefined);
+				}, 0)}
 				<div class="member-card {rc}">
 					<div class="member-top">
 						<span class="rank-chip">⬢ {rankLabel(m.role)}</span>
@@ -503,8 +517,8 @@
 						<div class="member-pinned"><span class="species">No pin</span></div>
 					{/if}
 					<div class="member-stats">
-						<div class="member-stat"><div class="member-stat-val">{membership.tribe.creatures.filter(c => c.creator.id === m.user.id).length}</div><div class="member-stat-lbl">Specimens</div></div>
-						<div class="member-stat"><div class="member-stat-val">{m.user.id === myId ? 'YOU' : '—'}</div><div class="member-stat-lbl">Status</div></div>
+						<div class="member-stat"><div class="member-stat-val">{memberCreatures.length}</div><div class="member-stat-lbl">Specimens</div></div>
+						<div class="member-stat"><div class="member-stat-val">{memberBadgeCount}</div><div class="member-stat-lbl">Badges</div></div>
 					</div>
 					{#if isOwner && m.user.id !== myId && m.role !== 'owner'}
 						<div class="member-actions">

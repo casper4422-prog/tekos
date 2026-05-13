@@ -28,9 +28,13 @@
 	let sortBy       = $state<'newest'|'level'|'muts'|'rated'>('newest');
 
 	// List form
+	let lListingType = $state<'specimen'|'egg'|'resource'|'service'>('specimen');
 	let lCreatureId = $state<number|null>(null);
 	let lWanted     = $state('');
 	let lPrice      = $state('');
+	let lItemName   = $state('');
+	let lItemQty    = $state('');
+	let lDesc       = $state('');
 
 	// Offer form
 	let oCreatureId = $state<number|null>(null);
@@ -136,8 +140,7 @@
 			});
 		}
 		if (browseFilter !== 'all') {
-			// All listings are specimens for now (schema only supports specimens)
-			list = browseFilter === 'specimen' ? list : [];
+			list = list.filter(t => (String((t as Record<string,unknown>).listingType ?? 'specimen')) === browseFilter);
 		}
 		const sorted = [...list];
 		if (sortBy === 'level') {
@@ -163,12 +166,33 @@
 	}
 
 	async function listCreature() {
-		if (!lCreatureId) return;
 		saving = true;
-		const c = myCreatures.find(x => x.id === lCreatureId);
-		await fetch('/api/trades', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ creatureId:lCreatureId, creatureData:c, wanted:lWanted||null, price:lPrice||null }) });
+		const payload: Record<string, unknown> = {
+			listingType: lListingType,
+			wanted: lWanted || null,
+			price: lPrice || null
+		};
+		if (lListingType === 'specimen') {
+			if (!lCreatureId) { saving = false; return; }
+			const c = myCreatures.find(x => x.id === lCreatureId);
+			payload.creatureId = lCreatureId;
+			payload.creatureData = c;
+		} else {
+			if (!lItemName.trim()) { saving = false; return; }
+			payload.metadata = { item: lItemName.trim(), qty: lItemQty.trim() || null, desc: lDesc.trim() || null };
+		}
+		await fetch('/api/trades', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
 		listOpen = false; saving = false; location.reload();
 	}
+
+	const countByType = $derived.by(() => {
+		const c = { specimen: 0, egg: 0, resource: 0, service: 0 };
+		for (const t of trades) {
+			const ty = String((t as Record<string,unknown>).listingType ?? 'specimen');
+			if (ty in c) c[ty as keyof typeof c]++;
+		}
+		return c;
+	});
 
 	async function removeTrade(id: number) {
 		if (!confirm('Remove this listing?')) return;
@@ -257,10 +281,10 @@
 			<div class="toolbar-row">
 				<div class="filter-chips" id="filterChips">
 					<button class="chip" class:active={browseFilter === 'all'} onclick={() => browseFilter = 'all'}>All <span class="count">{trades.length}</span></button>
-					<button class="chip" class:active={browseFilter === 'specimen'} onclick={() => browseFilter = 'specimen'}>⬡ Specimens <span class="count">{trades.length}</span></button>
-					<button class="chip" class:active={browseFilter === 'egg'} onclick={() => browseFilter = 'egg'}>◇ Eggs <span class="count">0</span></button>
-					<button class="chip" class:active={browseFilter === 'resource'} onclick={() => browseFilter = 'resource'}>◊ Resources <span class="count">0</span></button>
-					<button class="chip" class:active={browseFilter === 'service'} onclick={() => browseFilter = 'service'}>◎ Services <span class="count">0</span></button>
+					<button class="chip" class:active={browseFilter === 'specimen'} onclick={() => browseFilter = 'specimen'}>⬡ Specimens <span class="count">{countByType.specimen}</span></button>
+					<button class="chip" class:active={browseFilter === 'egg'} onclick={() => browseFilter = 'egg'}>◇ Eggs <span class="count">{countByType.egg}</span></button>
+					<button class="chip" class:active={browseFilter === 'resource'} onclick={() => browseFilter = 'resource'}>◊ Resources <span class="count">{countByType.resource}</span></button>
+					<button class="chip" class:active={browseFilter === 'service'} onclick={() => browseFilter = 'service'}>◎ Services <span class="count">{countByType.service}</span></button>
 				</div>
 			</div>
 		</div>
@@ -275,27 +299,39 @@
 			{#each getFiltered() as t}
 				{@const td = t as Record<string,unknown>}
 				{@const cd = (td.creatureData ?? {}) as Record<string,unknown>}
+				{@const meta = (td.metadata ?? {}) as Record<string,unknown>}
+				{@const ltype = String(td.listingType ?? 'specimen')}
 				{@const seller = td.user as Record<string,unknown>}
 				{@const tier = tierFor(cd)}
 				{@const muts = mutCount(cd)}
 				{@const rating = sellerRatings[seller.id as number]}
 				{@const gender = String(cd.gender ?? '').toLowerCase()}
-				<a class="listing specimen" data-cat="specimen" onclick={() => { offerOpen = t; oCreatureId = null; oMessage = ''; }}>
+				{@const typeIcon = ltype === 'egg' ? '◇' : ltype === 'resource' ? '◊' : ltype === 'service' ? '◎' : '⬡'}
+				{@const typeLabel = ltype.charAt(0).toUpperCase() + ltype.slice(1)}
+				<a class="listing {ltype}" data-cat={ltype} onclick={() => { offerOpen = t; oCreatureId = null; oMessage = ''; }}>
 					<div class="listing-top">
-						<span class="type-chip">⬡ Specimen</span>
+						<span class="type-chip">{typeIcon} {typeLabel}</span>
 						<span class="posted">{relTime(td.createdAt)}</span>
 					</div>
-					<div class="listing-content specimen-content">
-						<div class="item-name">{String(cd.species ?? '?')}</div>
-						<div class="item-nick">"{String(cd.name ?? 'Unnamed')}" · <span class="gender {gender}">{gender === 'female' ? '♀' : gender === 'male' ? '♂' : '?'}</span>{#if tier} · <span class="tier-pill {tier}">{tier}</span>{/if}</div>
-						<div class="item-stats">
-							<div class="item-lvl">{Number(cd.level ?? 1)}</div>
-							<div class="item-side">
-								<div class="item-lbl">Total Lvl</div>
-								<div class="item-muts">{muts} muts</div>
+					{#if ltype === 'specimen'}
+						<div class="listing-content specimen-content">
+							<div class="item-name">{String(cd.species ?? '?')}</div>
+							<div class="item-nick">"{String(cd.name ?? 'Unnamed')}" · <span class="gender {gender}">{gender === 'female' ? '♀' : gender === 'male' ? '♂' : '?'}</span>{#if tier} · <span class="tier-pill {tier}">{tier}</span>{/if}</div>
+							<div class="item-stats">
+								<div class="item-lvl">{Number(cd.level ?? 1)}</div>
+								<div class="item-side">
+									<div class="item-lbl">Total Lvl</div>
+									<div class="item-muts">{muts} muts</div>
+								</div>
 							</div>
 						</div>
-					</div>
+					{:else}
+						<div class="listing-content">
+							<div class="item-name">{String(meta.item ?? 'Untitled')}</div>
+							{#if meta.qty}<div class="item-nick">{String(meta.qty)}</div>{/if}
+							{#if meta.desc}<p class="wanted-text" style="margin-top:8px;font-style:italic;color:var(--tek-text-dim)">{String(meta.desc)}</p>{/if}
+						</div>
+					{/if}
 					{#if td.wanted}
 						<div class="listing-wanted">
 							<span class="wanted-label">Wanted</span>
@@ -517,19 +553,37 @@
 <!-- List modal -->
 {#if listOpen}
 <div class="modal active" role="dialog" aria-modal="true">
-	<div class="modal-content" style="max-width:480px">
-		<div class="modal-header"><h2 class="modal-title">List a Specimen</h2><button class="close-btn" onclick={() => listOpen=false}>&times;</button></div>
+	<div class="modal-content" style="max-width:520px">
+		<div class="modal-header"><h2 class="modal-title">Create Listing</h2><button class="close-btn" onclick={() => listOpen=false}>&times;</button></div>
 		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
-			<div class="plan-field"><label class="form-label" for="l-c">Select Specimen *</label>
-				<select id="l-c" class="form-control" bind:value={lCreatureId}>
-					<option value={null}>Choose...</option>
-					{#each myCreatures as c}<option value={c.id}>{creatureName(c)}</option>{/each}
-				</select>
+			<div class="plan-field">
+				<label class="form-label" for="l-t">Listing Type *</label>
+				<div style="display:flex;gap:6px;flex-wrap:wrap">
+					<button type="button" class="chip" class:active={lListingType === 'specimen'} onclick={() => lListingType = 'specimen'}>⬡ Specimen</button>
+					<button type="button" class="chip" class:active={lListingType === 'egg'}      onclick={() => lListingType = 'egg'}>◇ Egg</button>
+					<button type="button" class="chip" class:active={lListingType === 'resource'} onclick={() => lListingType = 'resource'}>◊ Resource</button>
+					<button type="button" class="chip" class:active={lListingType === 'service'}  onclick={() => lListingType = 'service'}>◎ Service</button>
+				</div>
 			</div>
+			{#if lListingType === 'specimen'}
+				<div class="plan-field"><label class="form-label" for="l-c">Select Specimen *</label>
+					<select id="l-c" class="form-control" bind:value={lCreatureId}>
+						<option value={null}>Choose…</option>
+						{#each myCreatures as c}<option value={c.id}>{creatureName(c)}</option>{/each}
+					</select>
+				</div>
+			{:else}
+				<div class="plan-field">
+					<label class="form-label" for="l-item">{lListingType === 'egg' ? 'Egg type' : lListingType === 'resource' ? 'Resource' : 'Service'} *</label>
+					<input id="l-item" class="form-control" bind:value={lItemName} placeholder={lListingType === 'egg' ? 'e.g. Wyvern egg (Fire)' : lListingType === 'resource' ? 'e.g. Black Pearls' : 'e.g. Bred-rex training'} />
+				</div>
+				<div class="plan-field"><label class="form-label" for="l-qty">Quantity / scope</label><input id="l-qty" class="form-control" bind:value={lItemQty} placeholder={lListingType === 'service' ? 'e.g. Per session' : 'e.g. 100×'} /></div>
+				<div class="plan-field"><label class="form-label" for="l-desc">Description</label><textarea id="l-desc" class="form-control" rows="3" bind:value={lDesc} placeholder="Notes, conditions, hours available…"></textarea></div>
+			{/if}
 			<div class="plan-field"><label class="form-label" for="l-w">What are you looking for?</label><input id="l-w" class="form-control" bind:value={lWanted} placeholder="e.g. High melee Rex female" /></div>
 			<div class="plan-field"><label class="form-label" for="l-p">Price / notes</label><input id="l-p" class="form-control" bind:value={lPrice} placeholder="e.g. Open to offers" /></div>
 		</div>
-		<div class="modal-footer"><button class="btn btn-secondary" onclick={() => listOpen=false}>Cancel</button><button class="btn btn-primary" onclick={listCreature} disabled={saving || !lCreatureId}>{saving?'Listing...':'List'}</button></div>
+		<div class="modal-footer"><button class="btn btn-secondary" onclick={() => listOpen=false}>Cancel</button><button class="btn btn-primary" onclick={listCreature} disabled={saving || (lListingType === 'specimen' && !lCreatureId) || (lListingType !== 'specimen' && !lItemName.trim())}>{saving?'Listing…':'List'}</button></div>
 	</div>
 </div>
 {/if}

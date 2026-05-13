@@ -5,11 +5,12 @@
     let { data }: { data: PageData } = $props();
 
     let searchQ = $state('');
+    let searchResults = $state<Array<{ id:number; nickname:string|null; email:string; discordName:string|null; friendStatus:string|null; friendId:number|null }>>([]);
+    let searching = $state(false);
     let actionLoading = $state<number | null>(null);
     let expandedId = $state<number | null>(null);
-
-    type Friend = { id: number; friendId: number; nickname: string | null; email: string; discordName: string | null; online: boolean };
-    type Pending = { id: number; nickname: string | null; email: string; discordName: string | null };
+    let inviteOpen = $state<number | null>(null);
+    let inviteStatus = $state<{ id: number; msg: string } | null>(null);
 
     function displayName(f: { nickname: string | null; email: string }) {
         return f.nickname ?? f.email.split('@')[0];
@@ -42,15 +43,54 @@
         window.location.reload();
     }
 
+    async function sendRequest(toUserId: number) {
+        actionLoading = toUserId;
+        await fetch('/api/friends', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ toUserId })
+        });
+        window.location.reload();
+    }
+
+    let searchTimer: ReturnType<typeof setTimeout> | null = null;
+    $effect(() => {
+        const q = searchQ.trim();
+        if (searchTimer) clearTimeout(searchTimer);
+        if (q.length < 2) { searchResults = []; return; }
+        searching = true;
+        searchTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+                if (res.ok) searchResults = await res.json();
+            } catch {}
+            searching = false;
+        }, 250);
+    });
+
+    async function inviteToTribe(friendId: number) {
+        if (!data.myTribe) { alert('You need to be in a tribe first.'); return; }
+        inviteStatus = { id: friendId, msg: 'Sending…' };
+        try {
+            const res = await fetch(`/api/tribes/${data.myTribe.id}/invite`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: friendId })
+            });
+            inviteStatus = { id: friendId, msg: res.ok ? '✓ Invite sent' : 'Failed' };
+        } catch { inviteStatus = { id: friendId, msg: 'Failed' }; }
+        setTimeout(() => { if (inviteStatus?.id === friendId) inviteStatus = null; }, 2000);
+    }
+
     function toggleExpand(id: number) {
         expandedId = expandedId === id ? null : id;
     }
 
     const onlineFriends = $derived(data.friends.filter(f => f.online));
-    const offlineFriends = $derived(data.friends.filter(f => !f.online));
     const onlineCount = $derived(onlineFriends.length);
     const pendingCount = $derived(data.incoming.length);
     const totalCount = $derived(data.friends.length);
+
+    const suggestColors = ['#10b981','#06b6d4','#a78bfa','#f59e0b','#ef4444','#3b82f6'];
+    function suggestColor(i: number) { return suggestColors[i % suggestColors.length]; }
 
     onMount(() => {
         const canvas = document.getElementById('tekHexCanvas') as HTMLCanvasElement | null;
@@ -137,52 +177,59 @@
                 <svg class="discover-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                 <input type="text" class="discover-search-input" bind:value={searchQ} placeholder="Search by callsign — e.g. Specter, Hera, Crimson…" />
             </div>
-            <div class="suggest-label">Suggested · based on tribe + mutual connections</div>
-            <div class="suggest-grid">
-
-                <div class="suggest-card">
-                    <div class="suggest-avatar">
-                        <svg viewBox="0 0 100 110">
-                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(16,185,129,0.18)" stroke="#10b981" stroke-width="2"/>
-                            <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#86efac">C</text>
-                        </svg>
-                    </div>
-                    <div class="suggest-id">
-                        <div class="suggest-name">Crimson</div>
-                        <div class="suggest-reason">Apex Pack · Allied tribe</div>
-                    </div>
-                    <button class="suggest-add-btn">+ Add</button>
+            {#if searchQ.trim().length >= 2}
+                <div class="suggest-label">Search results{searching ? ' · searching…' : ''}</div>
+                <div class="suggest-grid">
+                    {#each searchResults as u, i (u.id)}
+                        {@const c = suggestColor(i)}
+                        {@const initial = (displayName(u) ?? '?').charAt(0).toUpperCase()}
+                        <div class="suggest-card">
+                            <div class="suggest-avatar">
+                                <svg viewBox="0 0 100 110">
+                                    <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke={c} stroke-width="2"/>
+                                    <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill={c}>{initial}</text>
+                                </svg>
+                            </div>
+                            <div class="suggest-id">
+                                <div class="suggest-name">{displayName(u)}</div>
+                                <div class="suggest-reason">{u.discordName ? `⌬ ${u.discordName}` : u.email}</div>
+                            </div>
+                            {#if u.friendStatus === 'accepted'}
+                                <a class="suggest-add-btn" href="/survivors/{u.id}" style="background:rgba(16,185,129,0.10);border-color:rgba(16,185,129,0.35);color:#86efac">✓ Linked</a>
+                            {:else if u.friendStatus === 'pending'}
+                                <span class="suggest-add-btn" style="background:rgba(245,158,11,0.10);border-color:rgba(245,158,11,0.35);color:#fcd34d">⟳ Pending</span>
+                            {:else}
+                                <button class="suggest-add-btn" onclick={() => sendRequest(u.id)} disabled={actionLoading === u.id}>+ Add</button>
+                            {/if}
+                        </div>
+                    {:else}
+                        <div class="suggest-empty">No survivors match "{searchQ}".</div>
+                    {/each}
                 </div>
-
-                <div class="suggest-card">
-                    <div class="suggest-avatar">
-                        <svg viewBox="0 0 100 110">
-                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(6,182,212,0.18)" stroke="#06b6d4" stroke-width="2"/>
-                            <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#67e8f9">D</text>
-                        </svg>
-                    </div>
-                    <div class="suggest-id">
-                        <div class="suggest-name">Drift</div>
-                        <div class="suggest-reason">Top Wyvern breeder · Server top 5</div>
-                    </div>
-                    <button class="suggest-add-btn">+ Add</button>
+            {:else if data.suggested && data.suggested.length > 0}
+                <div class="suggest-label">Recently active survivors</div>
+                <div class="suggest-grid">
+                    {#each data.suggested as u, i (u.id)}
+                        {@const c = suggestColor(i)}
+                        {@const initial = (displayName(u) ?? '?').charAt(0).toUpperCase()}
+                        <div class="suggest-card">
+                            <div class="suggest-avatar">
+                                <svg viewBox="0 0 100 110">
+                                    <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke={c} stroke-width="2"/>
+                                    <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill={c}>{initial}</text>
+                                </svg>
+                            </div>
+                            <div class="suggest-id">
+                                <div class="suggest-name">{displayName(u)}</div>
+                                <div class="suggest-reason">{u.online ? '● Active now' : (u.discordName ? `⌬ ${u.discordName}` : 'Survivor')}</div>
+                            </div>
+                            <button class="suggest-add-btn" onclick={() => sendRequest(u.id)} disabled={actionLoading === u.id}>+ Add</button>
+                        </div>
+                    {/each}
                 </div>
-
-                <div class="suggest-card">
-                    <div class="suggest-avatar">
-                        <svg viewBox="0 0 100 110">
-                            <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(167,139,250,0.18)" stroke="#a78bfa" stroke-width="2"/>
-                            <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#c4b5fd">C</text>
-                        </svg>
-                    </div>
-                    <div class="suggest-id">
-                        <div class="suggest-name">Cinder</div>
-                        <div class="suggest-reason">Mutual friend with Hera</div>
-                    </div>
-                    <button class="suggest-add-btn">+ Add</button>
-                </div>
-
-            </div>
+            {:else}
+                <div class="suggest-empty">Start typing a callsign to find other survivors.</div>
+            {/if}
         </div>
     </section>
 
@@ -308,20 +355,22 @@
                         <div>
                             <div class="detail-block-label">Stats</div>
                             <div class="detail-stats">
-                                <div class="dstat"><div class="dstat-val gradient">—</div><div class="dstat-lbl">Specimens</div></div>
-                                <div class="dstat"><div class="dstat-val">—</div><div class="dstat-lbl">Badges</div></div>
-                                <div class="dstat"><div class="dstat-val amber">—</div><div class="dstat-lbl">Trade Rep</div></div>
+                                <div class="dstat"><div class="dstat-val gradient">{f.specimenCount}</div><div class="dstat-lbl">Specimens</div></div>
+                                <div class="dstat"><div class="dstat-val">{f.online ? '●' : '○'}</div><div class="dstat-lbl">{f.online ? 'Online' : 'Offline'}</div></div>
+                                <div class="dstat"><div class="dstat-val amber">⌬</div><div class="dstat-lbl">Survivor</div></div>
                             </div>
                             <div class="detail-recent">
-                                <span class="action">Linked to your network</span><span class="time">· Friend</span>
+                                <span class="action">Linked to your network</span><span class="time">· Friend since recently</span>
                             </div>
                         </div>
                         <div class="action-row">
                             <a class="act-btn primary" href="/survivors/{f.friendId}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>View Dossier</a>
                             <a class="act-btn secondary" href="/messages/{f.friendId}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Send DM</a>
-                            <button class="act-btn secondary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Invite to Tribe</button>
-                            <button class="act-btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>Invite to War Room</button>
-                            <button class="act-btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>Trade</button>
+                            {#if data.myTribe}
+                                <button class="act-btn secondary" onclick={(e) => { e.stopPropagation(); inviteToTribe(f.friendId); }} disabled={inviteStatus?.id === f.friendId}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>{inviteStatus?.id === f.friendId ? inviteStatus.msg : 'Invite to Tribe'}</button>
+                            {/if}
+                            <a class="act-btn ghost" href="/overseer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>War Room</a>
+                            <a class="act-btn ghost" href="/marketplace?to={f.friendId}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>Trade</a>
                             <button class="act-btn danger" onclick={(e) => { e.stopPropagation(); remove(f.id); }} disabled={actionLoading === f.id}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/></svg>Remove</button>
                         </div>
                     </div>
@@ -598,6 +647,16 @@
     white-space: nowrap;
 }
 .suggest-add-btn:hover { background: rgba(0,180,255,0.25); filter: drop-shadow(0 0 6px var(--tek-blue-glow)); }
+.suggest-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.suggest-empty {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.08em;
+    text-align: center;
+    padding: 20px 8px;
+    font-style: italic;
+}
 
 /* ═════════════════════════════════════════════════════════════════════════
    PENDING REQUESTS

@@ -322,7 +322,7 @@
 					BOSS ARENA · <span class="stat-num">{BOSSES.length}</span> BOSSES · <span class="stat-num">{sessions.length}</span> WAR ROOMS ACTIVE · <span class="stat-num">{records.length}</span> KILLS LOGGED
 				</div>
 			</div>
-			<button class="btn-create" onclick={() => { /* opens via boss card detail */ }}>⚔ Schedule War Room</button>
+			<button class="btn-create" onclick={() => document.getElementById('boss-arena')?.scrollIntoView({ behavior:'smooth', block:'start' })} title="Pick a boss below to schedule">⚔ Schedule War Room</button>
 		</div>
 
 		<!-- Join code row -->
@@ -380,6 +380,7 @@
 		{/if}
 
 		<!-- ═══════════ BOSS GRID BY MAP ═══════════ -->
+		<div id="boss-arena"></div>
 		{#each grouped() as [mapName, bosses]}
 			<section class="map-section {mapClass(mapName)}" data-map={mapClass(mapName)}>
 				<div class="map-section-header">

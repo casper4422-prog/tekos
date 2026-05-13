@@ -1,16 +1,18 @@
 <script lang="ts">
     import type { PageData } from './$types';
     import { onMount } from 'svelte';
-    import { computeBadges, getStat } from '$lib/badges';
+    import { computeBadges, getStat, type Stats } from '$lib/badges';
+    import PinModal from '$lib/components/PinModal.svelte';
 
     let { data }: { data: PageData } = $props();
     const c = $derived(data.creature);
 
     const STATS = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'] as const;
+    type StatKey = typeof STATS[number];
 
     const badges = $derived(computeBadges(c.baseStats, c.mutations));
 
-    function totalLevel(s: typeof STATS[number]) {
+    function totalLevel(s: StatKey) {
         return getStat(c.baseStats, s) + getStat(c.mutations, s) * 2;
     }
 
@@ -18,14 +20,231 @@
     const grandTotal = $derived(STATS.reduce((sum, s) => sum + totalLevel(s), 0));
 
     const ownerName = $derived(data.owner.nickname ?? data.owner.email);
+    const tribeLabel = $derived(data.userTribeName ?? 'INDEPENDENT');
 
     const loggedDate = $derived(new Date(c.createdAt).toLocaleDateString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, '·'));
+    const loggedDateLong = $derived(new Date(c.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }));
+
+    // ── Species → category mapping (mirrors the vault list page) ────────
+    const CATEGORY_MAP: Record<string, string> = {
+        'wyvern': 'flyer', 'argentavis': 'flyer', 'pteranodon': 'flyer', 'quetzal': 'flyer',
+        'tropeognathus': 'flyer', 'tapejara': 'flyer', 'griffin': 'flyer', 'snow owl': 'flyer',
+        'managarmr': 'flyer', 'desmodus': 'flyer',
+        'rex': 'combat', 'tyrannosaurus': 'combat', 'yutyrannus': 'combat', 'allosaurus': 'combat',
+        'carnotaurus': 'combat', 'giganotosaurus': 'combat', 'spino': 'combat', 'spinosaurus': 'combat',
+        'megalosaurus': 'combat', 'thylacoleo': 'combat', 'sabertooth': 'combat', 'direwolf': 'combat',
+        'baryonyx': 'combat',
+        'basilosaurus': 'water', 'megalodon': 'water', 'mosasaurus': 'water', 'plesiosaurus': 'water',
+        'tusoteuthis': 'water', 'manta': 'water', 'ichthyosaurus': 'water', 'sarco': 'water',
+        'carcharodontosaurus': 'mount', 'paraceratherium': 'mount', 'brontosaurus': 'mount',
+        'diplodocus': 'mount', 'rhinoceros': 'mount', 'woolly rhino': 'mount', 'mammoth': 'mount',
+        'megaloceros': 'mount',
+        'therizinosaurus': 'resource', 'doedicurus': 'resource', 'ankylosaurus': 'resource',
+        'castoroides': 'resource', 'beaver': 'resource', 'mantis': 'resource', 'gacha': 'resource',
+        'broodmother': 'boss', 'megapithecus': 'boss', 'dragon': 'boss', 'manticore': 'boss',
+        'overseer': 'boss'
+    };
+    function categoryFor(species: string): string {
+        const low = (species || '').toLowerCase();
+        if (CATEGORY_MAP[low]) return CATEGORY_MAP[low];
+        for (const key of Object.keys(CATEGORY_MAP)) {
+            if (low.includes(key)) return CATEGORY_MAP[key];
+        }
+        return 'utility';
+    }
+    // Cat-rgb mapping per the design spec
+    const CAT_RGB: Record<string, string> = {
+        combat:   '239,68,68',
+        flyer:    '6,182,212',
+        utility:  '34,197,94',
+        water:    '59,130,246',
+        mount:    '249,115,22',
+        resource: '167,139,250',
+        boss:     '245,158,11'
+    };
+    const category = $derived(categoryFor(c.species));
+    const catRgb   = $derived(CAT_RGB[category] ?? '239,68,68');
+    const catLabel = $derived(category.toUpperCase());
+
+    // ── Stat genealogy: trace each stat to a parent / mutation ──────────
+    type SourceTag = 'paternal' | 'maternal' | 'mutation' | 'unknown';
+    function statSource(s: StatKey): SourceTag {
+        const childBase = getStat(c.baseStats, s);
+        const pat = data.parents.paternal;
+        const mat = data.parents.maternal;
+        const patMatch = pat && getStat(pat.baseStats, s) === childBase;
+        const matMatch = mat && getStat(mat.baseStats, s) === childBase;
+        if (patMatch && !matMatch) return 'paternal';
+        if (matMatch && !patMatch) return 'maternal';
+        if (patMatch && matMatch)  return 'paternal'; // tie → paternal
+        if (getStat(c.mutations, s) > 0) return 'mutation';
+        return 'unknown';
+    }
+
+    function sourceName(tag: SourceTag): string {
+        if (tag === 'paternal' && data.parents.paternal) return `"${data.parents.paternal.name}"`;
+        if (tag === 'maternal' && data.parents.maternal) return `"${data.parents.maternal.name}"`;
+        if (tag === 'mutation') return 'Mutation gain';
+        return '—';
+    }
+
+    function sourceClass(tag: SourceTag): string {
+        if (tag === 'paternal') return 'male';
+        if (tag === 'maternal') return 'female';
+        return '';
+    }
+
+    function genderGlyph(g: string): string {
+        const l = (g || '').toLowerCase();
+        if (l === 'male')   return '♂';
+        if (l === 'female') return '♀';
+        return '?';
+    }
+    function genderClass(g: string): string {
+        const l = (g || '').toLowerCase();
+        if (l === 'male')   return 'male';
+        if (l === 'female') return 'female';
+        return 'unknown';
+    }
+
+    function mutTotal(s: { mutations: Stats }): number {
+        return Object.values(s.mutations ?? {}).reduce((a, b) => a + (Number(b) || 0), 0);
+    }
+
+    function shortDate(d: Date | string): string {
+        return new Date(d).toLocaleDateString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, '·');
+    }
+
+    function relTime(d: Date | string): string {
+        const diff = Date.now() - new Date(d).getTime();
+        const day = 24 * 60 * 60 * 1000;
+        if (diff < day) return 'today';
+        const days = Math.floor(diff / day);
+        if (days === 1) return '1d ago';
+        if (days < 7) return `${days}d ago`;
+        const weeks = Math.floor(days / 7);
+        if (weeks < 5) return `${weeks}w ago`;
+        const months = Math.floor(days / 30);
+        return `${months}mo ago`;
+    }
+
+    // ── Activity event rendering ────────────────────────────────────────
+    function eventDot(type: string): string {
+        if (type === 'creature_add' || type === 'breed') return 'species';
+        if (type === 'boss_fight' || type === 'boss_record') return 'boss';
+        if (type === 'trade_list' || type === 'trade_open') return 'trade';
+        if (type === 'pin' || type === 'project_pin') return 'diamond';
+        return '';
+    }
+    function eventText(e: { type: string; data: Record<string, unknown> }): string {
+        const d = e.data ?? {};
+        if (e.type === 'creature_add') return `Logged to vault as ${d.species ?? c.species} "${d.name ?? c.name}"`;
+        if (e.type === 'breed')        return `Bred offspring "${d.name ?? 'unnamed'}"`;
+        if (e.type === 'boss_fight')   return `Committed to ${d.bossName ?? 'a boss'} run`;
+        if (e.type === 'trade_list')   return `Listed on marketplace`;
+        if (e.type === 'pin' || e.type === 'project_pin') return `Pinned as breeding project`;
+        if (e.type === 'retire')       return `Retired to vault archive`;
+        return e.type.replace(/_/g, ' ');
+    }
+
+    // ── Action handlers ────────────────────────────────────────────────
+    let showPartnerPicker = $state(false);
+    let partnerSearch     = $state('');
+    let pinModalOpen      = $state(false);
+    let saving            = $state(false);
+
+    const oppositeGender = $derived(c.gender?.toLowerCase() === 'male' ? 'female' : 'male');
+
+    const partnerCandidates = $derived(
+        data.vault
+            .filter(v => v.gender?.toLowerCase() === oppositeGender && v.species === c.species)
+            .filter(v => !partnerSearch.trim() || v.name.toLowerCase().includes(partnerSearch.toLowerCase()))
+            .slice(0, 30)
+    );
+
+    const currentPartner = $derived(
+        c.partnerId ? data.vault.find(v => v.id === c.partnerId) ?? null : null
+    );
+
+    async function setPartner(partnerId: number | null) {
+        if (saving) return;
+        saving = true;
+        try {
+            const next: Record<string, unknown> = { ...data.rawData };
+            if (partnerId === null) delete next.partnerId; else next.partnerId = partnerId;
+            const res = await fetch(`/api/creatures/${c.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(next)
+            });
+            if (res.ok) {
+                showPartnerPicker = false;
+                location.reload();
+            }
+        } finally { saving = false; }
+    }
+
+    function shareLink() {
+        const url = `${location.origin}/specimens/${c.id}`;
+        navigator.clipboard?.writeText(url).then(() => {
+            alert(`Link copied:\n${url}`);
+        }).catch(() => {
+            prompt('Copy this link', url);
+        });
+    }
+
+    async function retireSpecimen() {
+        if (!confirm(`Retire "${c.name}"? It will be archived but kept in your vault.`)) return;
+        if (saving) return;
+        saving = true;
+        try {
+            const next: Record<string, unknown> = { ...data.rawData, retired: true };
+            const res = await fetch(`/api/creatures/${c.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(next)
+            });
+            if (res.ok) location.reload();
+        } finally { saving = false; }
+    }
 
     async function deleteSpecimen() {
         if (!confirm(`Delete "${c.name}" from your vault? This cannot be undone.`)) return;
         const res = await fetch(`/api/creatures/${c.id}`, { method: 'DELETE' });
         if (res.ok) window.location.href = '/specimens';
     }
+
+    // ── Pin as project: add this creature to user's pinnedCreatures ─────
+    async function savePinSelection(ids: number[]) {
+        await fetch('/api/profile/pinned', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids })
+        });
+        location.reload();
+    }
+    // The PinModal expects a list of CreatureRow shape — adapt vault + this creature
+    const allPinCandidates = $derived(
+        [c, ...data.vault].map(v => ({
+            id: v.id,
+            userId: data.owner.id,
+            data: {
+                name: v.name,
+                species: v.species,
+                level: v.level,
+                gender: v.gender,
+                baseStats: v.baseStats as Stats,
+                mutations: v.mutations as Stats,
+                domesticLevels: {} as Stats
+            },
+            createdAt: 'createdAt' in v ? (v as { createdAt: Date }).createdAt : new Date()
+        }))
+    );
+    // Pre-select this creature in PinModal so opening "Pin as Project" defaults it in,
+    // while preserving the user's existing pins.
+    const currentPins = $derived(
+        Array.from(new Set<number>([...(data.existingPinIds ?? []), c.id]))
+    );
 
     let hexCanvas: HTMLCanvasElement;
     let artifactEl: HTMLDivElement;
@@ -115,7 +334,7 @@
 
 <canvas id="tekHexCanvas" bind:this={hexCanvas}></canvas>
 
-<div class="stage">
+<div class="stage" style="--cat-rgb: {catRgb}">
 
     <!-- ═══════════ BREADCRUMB ═══════════ -->
     <div class="breadcrumb">
@@ -160,7 +379,7 @@
                                     {#if badges.bossReady}
                                         <span class="cat">{badges.bossReady.toUpperCase()} READY</span>
                                     {:else}
-                                        <span class="cat">LVL {c.level}</span>
+                                        <span class="cat">{catLabel}</span>
                                     {/if}
                                 </div>
                             </div>
@@ -189,7 +408,7 @@
 
                             <div class="artifact-footer">
                                 <span>{c.server ?? '—'}</span>
-                                <span class="footer-tribe">⌬ BLOODLINE</span>
+                                <span class="footer-tribe">⌬ {tribeLabel.toUpperCase()}</span>
                                 <span>{loggedDate}</span>
                             </div>
                         </div>
@@ -205,30 +424,203 @@
             {#if data.isOwner}
                 <div class="action-bar">
                     <a class="act-btn primary" href="/specimens/{c.id}/edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</a>
-                    <a class="act-btn secondary" href="/specimens/{c.id}/edit?pin=1"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>Pin as Project</a>
-                    <button class="act-btn secondary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Set Partner</button>
-                    <button class="act-btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Share</button>
-                    <button class="act-btn danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22a8 8 0 0 1 16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 2L18 6"/><path d="M18 2l4 4"/></svg>Retire</button>
+                    <button class="act-btn secondary" onclick={() => pinModalOpen = true}><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>Pin as Project</button>
+                    <button class="act-btn secondary" onclick={() => showPartnerPicker = !showPartnerPicker}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Set Partner</button>
+                    <button class="act-btn ghost" onclick={shareLink}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Share</button>
+                    <button class="act-btn danger" onclick={retireSpecimen} disabled={c.retired}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22a8 8 0 0 1 16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 2L18 6"/><path d="M18 2l4 4"/></svg>{c.retired ? 'Retired' : 'Retire'}</button>
                     <button class="act-btn danger" onclick={deleteSpecimen}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>Delete</button>
+                </div>
+
+                <!-- Set Partner inline picker (toggled by action bar) -->
+                {#if showPartnerPicker}
+                    <div class="partner-picker">
+                        <div class="partner-picker-head">
+                            <span class="partner-picker-title">Set Partner</span>
+                            <span class="partner-picker-meta">
+                                {#if currentPartner}
+                                    Current: <strong>"{currentPartner.name}"</strong>
+                                    <button class="partner-clear" onclick={() => setPartner(null)} disabled={saving}>Clear</button>
+                                {:else}
+                                    No partner set
+                                {/if}
+                            </span>
+                            <button class="partner-close" onclick={() => showPartnerPicker = false} aria-label="Close">✕</button>
+                        </div>
+                        <input
+                            type="text"
+                            class="partner-search"
+                            placeholder="Search {oppositeGender} {c.species}…"
+                            bind:value={partnerSearch}
+                        />
+                        <div class="partner-list">
+                            {#each partnerCandidates as p (p.id)}
+                                <button class="partner-row {genderClass(p.gender)}" onclick={() => setPartner(p.id)} disabled={saving}>
+                                    <span class="gender-glyph {genderClass(p.gender)}">{genderGlyph(p.gender)}</span>
+                                    <div class="partner-id">
+                                        <div class="partner-name">{p.species} <span class="nick">· "{p.name}"</span></div>
+                                        <div class="partner-meta">Lvl {p.level} · {mutTotal(p)} muts</div>
+                                    </div>
+                                    {#if p.id === c.partnerId}<span class="partner-flag">★ Current</span>{/if}
+                                </button>
+                            {:else}
+                                <div class="partner-empty">— No {oppositeGender} {c.species} in your vault</div>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+            {/if}
+
+            <!-- PROJECT CALLOUT — only when this specimen is a pinned project -->
+            {#if data.pinnedProject}
+                <div class="project-callout">
+                    <div class="project-glyph">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                    </div>
+                    <div class="project-text">
+                        <div class="project-label">Active Breeding Project</div>
+                        <div class="project-name">
+                            {#if data.pinnedProject.focusStat}
+                                Stacking · {data.pinnedProject.focusStat}
+                            {:else}
+                                Pinned to Dossier
+                            {/if}
+                        </div>
+                    </div>
+                    <div style="text-align:right">
+                        <div class="project-stat">{data.pinnedProject.targetMutations ?? totalMuts}</div>
+                        <div class="project-stat-lbl">{data.pinnedProject.targetMutations ? 'TARGET' : 'MUTS'}</div>
+                    </div>
+                    <a class="project-open-btn" href="/dossier">Open ▸</a>
                 </div>
             {/if}
 
-            <!-- PROJECT CALLOUT -->
-            <div class="project-callout">
-                <div class="project-glyph">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+            <!-- ANCESTRY — Direct Parents + Stat Genealogy + Founders -->
+            <div class="ancestry">
+                <div class="section-head">
+                    <span class="pip"></span>
+                    Ancestry
+                    <span class="meta">Every base stat traced to a <span class="num">founder wild tame</span></span>
+                    <span class="rule"></span>
                 </div>
-                <div class="project-text">
-                    <div class="project-label">Active Breeding Project</div>
-                    <div class="project-name">Stacking · Melee</div>
-                </div>
-                <div style="text-align:right">
-                    <div class="project-stat">{totalMuts}</div>
-                    <div class="project-stat-lbl">MUTS</div>
-                </div>
-                <button class="project-open-btn">Open ▸</button>
-            </div>
 
+                <!-- DIRECT PARENTS -->
+                <div class="subhead">
+                    <span class="num">1</span>Direct Parents
+                    <span class="count">{(data.parents.paternal ? 1 : 0) + (data.parents.maternal ? 1 : 0)}</span>
+                </div>
+                <div class="ancestor-rows">
+                    {#if data.parents.paternal}
+                        {@const p = data.parents.paternal}
+                        <a class="ancestor male" href="/specimens/{p.id}">
+                            <span class="gender-glyph male">♂</span>
+                            <div class="ancestor-id">
+                                <div class="ancestor-species">{p.species}<span class="nick">· "{p.name}"</span></div>
+                                <div class="ancestor-meta">Father · Lvl {p.level}</div>
+                            </div>
+                            <span class="ancestor-lvl">{p.level}</span>
+                            <span class="ancestor-muts">{mutTotal(p)} muts</span>
+                        </a>
+                    {/if}
+                    {#if data.parents.maternal}
+                        {@const m = data.parents.maternal}
+                        <a class="ancestor female" href="/specimens/{m.id}">
+                            <span class="gender-glyph female">♀</span>
+                            <div class="ancestor-id">
+                                <div class="ancestor-species">{m.species}<span class="nick">· "{m.name}"</span></div>
+                                <div class="ancestor-meta">Mother · Lvl {m.level}</div>
+                            </div>
+                            <span class="ancestor-lvl">{m.level}</span>
+                            <span class="ancestor-muts">{mutTotal(m)} muts</span>
+                        </a>
+                    {/if}
+                    {#if !data.parents.paternal && !data.parents.maternal}
+                        <div class="ancestor unknown">
+                            <span class="gender-glyph unknown">?</span>
+                            <div class="ancestor-id">
+                                <div class="ancestor-species">— No lineage on record</div>
+                                <div class="ancestor-meta">Parents not linked in vault</div>
+                            </div>
+                            <span class="ancestor-lvl">—</span>
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- STAT GENEALOGY -->
+                <div class="subhead">
+                    <span class="num">2</span>Stat Genealogy
+                    <span class="count">{STATS.length} stats traced</span>
+                </div>
+                <div class="stat-geneology">
+                    <div class="statg-header">
+                        <span>Stat</span>
+                        <span class="col-right">Base</span>
+                        <span class="col-right">Mut</span>
+                        <span>Source</span>
+                    </div>
+                    {#each STATS as s}
+                        {@const base = getStat(c.baseStats, s)}
+                        {@const mut = getStat(c.mutations, s)}
+                        {@const tag = statSource(s)}
+                        {@const isActive = data.pinnedProject?.focusStat === s}
+                        <div class="statg-row" class:active-project={isActive}>
+                            <span class="statg-label">{s}</span>
+                            <span class="statg-base">{base}</span>
+                            <span class="statg-mut" class:has={mut > 0} class:zero={mut === 0}>{mut > 0 ? `+${mut}` : '·'}</span>
+                            <span class="statg-source">
+                                <span class="arrow">↳</span>
+                                <span class="name {sourceClass(tag)}">{sourceName(tag)}</span>
+                                <span class="meta">
+                                    {#if tag === 'paternal'}— from father
+                                    {:else if tag === 'maternal'}— from mother
+                                    {:else if tag === 'mutation'}— mutation gain
+                                    {:else}— origin unknown
+                                    {/if}
+                                </span>
+                                {#if isActive}<span class="active-flag">★ Stacking</span>{/if}
+                            </span>
+                        </div>
+                    {/each}
+                </div>
+
+                <!-- FOUNDERS -->
+                <div class="subhead">
+                    <span class="num">3</span>Founders
+                    <span class="count">
+                        {#if data.founders.length}
+                            {data.founders.length} wild tame{data.founders.length === 1 ? '' : 's'} started this line
+                        {:else}
+                            None linked yet
+                        {/if}
+                    </span>
+                </div>
+                <div class="founders-list">
+                    {#each data.founders as f (f.id)}
+                        <a class="founder" href="/specimens/{f.id}">
+                            <span class="founder-glyph">{genderGlyph(f.gender)}</span>
+                            <div class="founder-id">
+                                <div class="founder-name"><span class="titled">"{f.name}"</span> · Founder</div>
+                                <div class="founder-meta">{f.species} · Lvl {f.level} · logged {shortDate(f.createdAt)}</div>
+                            </div>
+                            <div>
+                                <div class="founder-contrib">{mutTotal(f)} muts</div>
+                                <div class="founder-tamed">{shortDate(f.createdAt)}</div>
+                            </div>
+                        </a>
+                    {:else}
+                        <div class="founder deceased">
+                            <span class="founder-glyph">?</span>
+                            <div class="founder-id">
+                                <div class="founder-name">— No founders linked</div>
+                                <div class="founder-meta">Walk lineage requires parents in vault</div>
+                            </div>
+                            <div>
+                                <div class="founder-contrib">—</div>
+                                <div class="founder-tamed">—</div>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
 
             <!-- PROVENANCE / NOTES -->
             <div class="provenance">
@@ -238,12 +630,14 @@
                     <span class="rule"></span>
                 </div>
                 <div class="prov-grid">
-                    <span class="key">Logged</span>     <span class="val">{new Date(c.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })} by <a href="/survivors/{data.owner.id}" class="accent">{ownerName}</a></span>
+                    <span class="key">Logged</span>     <span class="val">{loggedDateLong} by <a href="/survivors/{data.owner.id}" class="accent">{ownerName}</a></span>
                     {#if c.server}
-                        <span class="key">Server</span>     <span class="val tribe">{c.server}</span>
+                        <span class="key">Server</span>     <span class="val tribe">{c.server}{data.userTribeName ? ` (${data.userTribeName} Tribe)` : ''}</span>
                     {/if}
+                    <span class="key">Imprint</span>    <span class="val">{c.imprint != null ? `${c.imprint}%` : '—'}</span>
+                    <span class="key">Wild Lvl</span>   <span class="val">{c.wildLevel != null ? `${c.wildLevel} (before tame)` : '—'}</span>
+                    <span class="key">Tamed Lvl</span>  <span class="val">{c.tamedLevel != null ? c.tamedLevel : c.level}</span>
                     <span class="key">Specimen ID</span> <span class="val">#{c.id}</span>
-                    <span class="key">Level</span>      <span class="val">{c.level}</span>
                 </div>
                 {#if c.notes}
                     <p class="prov-notes">{c.notes}</p>
@@ -253,11 +647,68 @@
         </div>
     </div>
 
-    <!-- Offspring + activity feed are wired off ActivityEvent/parent-child rows
-         once that schema is built. Until then we don't render fake history. -->
+    <!-- ═══════════ OFFSPRING ═══════════ -->
+    <section class="section">
+        <div class="section-head" style="margin-bottom:18px">
+            <span class="pip"></span>
+            Offspring
+            <span class="meta"><span class="num">{data.offspring.length}</span> hatched</span>
+            <span class="rule"></span>
+        </div>
+        {#if data.offspring.length}
+            <div class="offspring-grid">
+                {#each data.offspring as o (o.id)}
+                    {@const oCat = categoryFor(o.species)}
+                    {@const oBadges = computeBadges(o.baseStats, o.mutations)}
+                    {@const tierLabel = oBadges.bossReady ? oBadges.bossReady.charAt(0).toUpperCase() + oBadges.bossReady.slice(1) : oBadges.bloodline ? oBadges.bloodline.charAt(0).toUpperCase() + oBadges.bloodline.slice(1) : 'Standard'}
+                    <a class="offspring-card {oCat}" href="/specimens/{o.id}">
+                        <div class="offspring-top"><span>{genderGlyph(o.gender)} {tierLabel}</span><span>{relTime(o.createdAt)}</span></div>
+                        <div class="offspring-name">{o.species}</div>
+                        <div class="offspring-nick">"{o.name}" · <span class="gender {genderClass(o.gender)}">{genderGlyph(o.gender)}</span></div>
+                        <div class="offspring-bottom">
+                            <div class="offspring-lvl">{o.level}</div>
+                            <div class="offspring-muts">{mutTotal(o)} muts</div>
+                        </div>
+                    </a>
+                {/each}
+            </div>
+        {:else}
+            <div class="empty-state">— No offspring recorded yet</div>
+        {/if}
+    </section>
 
+    <!-- ═══════════ RECENT ACTIVITY ═══════════ -->
+    <section class="section">
+        <div class="section-head" style="margin-bottom:18px">
+            <span class="pip"></span>
+            Recent Activity
+            <span class="rule"></span>
+        </div>
+        {#if data.events.length}
+            <div class="activity-feed">
+                {#each data.events as e (e.id)}
+                    <div class="activity-row">
+                        <span class="activity-dot {eventDot(e.type)}"></span>
+                        <span class="activity-text">{eventText(e)}</span>
+                        <span class="activity-time">{relTime(e.createdAt)}</span>
+                    </div>
+                {/each}
+            </div>
+        {:else}
+            <div class="empty-state">— No activity logged for this specimen yet</div>
+        {/if}
+    </section>
 
 </div>
+
+{#if data.isOwner}
+    <PinModal
+        bind:open={pinModalOpen}
+        creatures={allPinCandidates}
+        pinned={currentPins}
+        onSave={savePinSelection}
+    />
+{/if}
 
 <style>
 :root {
@@ -278,7 +729,7 @@
     --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
     --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
     --tek-serif:        'Crimson Pro', Georgia, serif;
-    --cat-rgb:          239,68,68; /* Roar is combat */
+    --cat-rgb:          239,68,68; /* default — overridden inline by category */
 }
 
 #tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
@@ -654,6 +1105,121 @@
     border: 1px solid rgba(239,68,68,0.30);
 }
 .act-btn.danger:hover { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.55); filter: drop-shadow(0 0 8px rgba(239,68,68,0.40)); }
+.act-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Inline Set Partner picker overlay ─────────────────────────────── */
+.partner-picker {
+    background: linear-gradient(160deg, rgba(10,18,44,0.95) 0%, rgba(4,8,20,0.99) 100%);
+    border: 1px solid rgba(0,180,255,0.30);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 18px 12px;
+    position: relative;
+    filter: drop-shadow(0 0 1px rgba(0,180,255,0.25));
+}
+.partner-picker::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 10px; bottom: 0;
+    width: 2px;
+    background: var(--tek-pink);
+    box-shadow: 0 0 6px rgba(244,114,182,0.55);
+}
+.partner-picker-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-family: var(--tek-mono);
+}
+.partner-picker-title {
+    font-family: var(--tek-display);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tek-pink);
+}
+.partner-picker-meta { font-size: 0.66rem; color: var(--tek-text-dim); letter-spacing: 0.10em; flex: 1; }
+.partner-picker-meta strong { color: var(--tek-text); font-weight: 700; }
+.partner-clear {
+    margin-left: 8px;
+    background: rgba(239,68,68,0.10);
+    border: 1px solid rgba(239,68,68,0.30);
+    color: #fca5a5;
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    cursor: pointer;
+}
+.partner-close {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.10);
+    color: var(--tek-text-dim);
+    width: 22px; height: 22px;
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.partner-search {
+    width: 100%;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    padding: 7px 10px;
+    margin-bottom: 8px;
+    outline: none;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.partner-search:focus { border-color: rgba(0,180,255,0.45); }
+.partner-list { display: flex; flex-direction: column; gap: 3px; max-height: 240px; overflow-y: auto; }
+.partner-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 10px;
+    background: rgba(0,0,0,0.18);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-left: 2px solid rgba(255,255,255,0.06);
+    clip-path: polygon(5px 0%, 100% 0%, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0% 100%, 0% 5px);
+    cursor: pointer;
+    color: inherit;
+    text-align: left;
+    font-family: inherit;
+    transition: all 0.18s;
+}
+.partner-row.male   { border-left-color: rgba(96,165,250,0.45); }
+.partner-row.female { border-left-color: rgba(244,114,182,0.45); }
+.partner-row:hover  { background: rgba(244,114,182,0.06); border-left-color: var(--tek-pink); }
+.partner-row:disabled { opacity: 0.55; cursor: not-allowed; }
+.partner-id { min-width: 0; line-height: 1.3; }
+.partner-name { font-family: var(--tek-mono); font-size: 0.74rem; color: var(--tek-text); font-weight: 600; }
+.partner-name .nick { color: var(--tek-text-dim); font-style: italic; }
+.partner-meta { font-family: var(--tek-mono); font-size: 0.56rem; letter-spacing: 0.10em; color: var(--tek-text-faint); text-transform: uppercase; margin-top: 2px; }
+.partner-flag {
+    font-family: var(--tek-mono);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tek-blue);
+    background: rgba(0,180,255,0.12);
+    padding: 2px 7px;
+    border: 1px solid rgba(0,180,255,0.30);
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+.partner-empty {
+    padding: 18px 12px;
+    text-align: center;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    color: var(--tek-text-faint);
+    font-style: italic;
+}
 
 /* Project callout — links to the breeding project tracker */
 .project-callout {
@@ -729,6 +1295,7 @@
     cursor: pointer;
     transition: all 0.18s;
     white-space: nowrap;
+    text-decoration: none;
 }
 .project-open-btn:hover { background: rgba(0,180,255,0.32); filter: drop-shadow(0 0 8px var(--tek-blue-glow)); }
 
@@ -923,7 +1490,6 @@
     border-left: 2px solid rgba(139,92,246,0.30);
     clip-path: polygon(5px 0%, 100% 0%, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0% 100%, 0% 5px);
     transition: all 0.18s;
-    cursor: pointer;
     text-decoration: none;
     color: inherit;
 }
@@ -1057,9 +1623,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.founder-name .gender.female { color: var(--tek-pink); margin-right: 4px; }
-.founder-name .gender.male   { color: #60a5fa; margin-right: 4px; }
-.founder-name .nick { color: var(--tek-text-dim); font-style: italic; margin-left: 3px; }
 .founder-name .titled { color: #86efac; font-weight: 700; }
 .founder-meta {
     font-family: var(--tek-mono);
@@ -1186,6 +1749,8 @@
     cursor: pointer;
     transition: transform 0.2s ease, filter 0.22s ease;
     filter: drop-shadow(0 0 1px rgba(var(--cat-rgb),0.30)) drop-shadow(0 6px 18px rgba(0,0,0,0.40));
+    text-decoration: none;
+    color: inherit;
 }
 .offspring-card:hover {
     transform: translateY(-2px);
@@ -1199,7 +1764,13 @@
     background: rgb(var(--cat-rgb));
     box-shadow: 0 0 5px rgba(var(--cat-rgb),0.6);
 }
-.offspring-card.combat { --cat-rgb: 239,68,68; }
+.offspring-card.combat   { --cat-rgb: 239,68,68;  }
+.offspring-card.flyer    { --cat-rgb: 6,182,212;  }
+.offspring-card.utility  { --cat-rgb: 34,197,94;  }
+.offspring-card.water    { --cat-rgb: 59,130,246; }
+.offspring-card.mount    { --cat-rgb: 249,115,22; }
+.offspring-card.resource { --cat-rgb: 167,139,250;}
+.offspring-card.boss     { --cat-rgb: 245,158,11; }
 .offspring-top {
     display: flex;
     justify-content: space-between;
@@ -1302,6 +1873,19 @@
     color: var(--tek-text-faint);
     text-transform: uppercase;
     white-space: nowrap;
+}
+
+.empty-state {
+    background: linear-gradient(160deg, rgba(10,18,44,0.6) 0%, rgba(4,8,20,0.75) 100%);
+    border: 1px dashed rgba(255,255,255,0.06);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 30px 20px;
+    text-align: center;
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-faint);
+    font-style: italic;
+    letter-spacing: 0.10em;
 }
 
 @media (max-width: 720px) {

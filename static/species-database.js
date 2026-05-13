@@ -246,7 +246,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Pack hunting AI', 'alpha/beta hierarchy system'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant variant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Forests', 'grasslands', 'redwood forests'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -270,7 +270,7 @@ const SPECIES_DATABASE = {
   id: 'ANGLER_003',
   name: 'Anglerfish',
   icon: '🐟',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'uncommon',
   source: 'Base Game',
   variants: ['Standard', 'X-Variant'],
@@ -513,7 +513,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Reduced weight for metal/stone carried', 'auto-harvest functionality'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Mountains', 'rocky highlands', 'metal-rich areas'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -551,10 +551,10 @@ const SPECIES_DATABASE = {
   sizeClass: 'Small-Medium',
 
   // Taming System
-  tamingMethod: 'Knockout',
+  tamingMethod: 'Passive',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Regular Kibble',
-  favoriteFood: 'Regular Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Spoiled Meat',
   tamingSpeed: 'Moderate',
   torpor: {
     baseValue: 420,
@@ -646,7 +646,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Wall/ceiling climbing', 'web projectiles'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Caves (primarily)', 'swamps', 'dark forest areas'],
   rarityRating: 'Common (in caves)',
   levelRange: '1-150',
@@ -670,7 +670,7 @@ const SPECIES_DATABASE = {
   id: 'ARCH_006',
   name: 'Archaeopteryx',
   icon: '🦅',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'rare',
   source: 'Base Game',
   variants: ['Standard'],
@@ -802,7 +802,7 @@ const SPECIES_DATABASE = {
   id: 'ARGY_007',
   name: 'Argentavis',
   icon: '🦅',
-  category: 'transport',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Base Game',
   variants: ['Standard', 'X-Variant'],
@@ -948,10 +948,10 @@ const SPECIES_DATABASE = {
   sizeClass: 'Large',
 
   // Taming System
-  tamingMethod: 'Knockout',
+  tamingMethod: 'Passive',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Regular Kibble',
-  favoriteFood: 'Regular Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Spoiled Meat',
   tamingSpeed: 'Slow',
   torpor: {
     baseValue: 800,
@@ -1043,7 +1043,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Radiation immunity', 'structure destruction capability'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Caves (primarily)', 'deep swamps', 'underground areas'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -1067,7 +1067,7 @@ const SPECIES_DATABASE = {
   id: 'BARY_009',
   name: 'Baryonyx',
   icon: '🐊',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'uncommon',
   source: 'Base Game',
   variants: ['Standard', 'Aberrant'],
@@ -1177,7 +1177,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Amphibious combat specialist', 'fish-catching ability'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Rivers', 'swamps', 'coastal areas', 'mangrove forests'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -1201,7 +1201,7 @@ const SPECIES_DATABASE = {
   id: 'BASILO_010',
   name: 'Basilosaurus',
   icon: '🐋',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'rare',
   source: 'Base Game',
   variants: ['Standard', 'Aberrant', 'S-Variant'],
@@ -1310,7 +1310,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Electric immunity', 'platform building capability', 'oil generation'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Deep ocean areas', 'arctic waters', 'underwater caves'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -1601,7 +1601,7 @@ const SPECIES_DATABASE = {
   id: 'CARBON_013',
   name: 'Carbonemys',
   icon: '🐢',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard'],
@@ -1750,7 +1750,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Extraordinary Kibble',
+  preferredKibble: 'N/A',
   favoriteFood: 'Extraordinary Kibble',
   tamingSpeed: 'Very Slow',
   torpor: {
@@ -1976,7 +1976,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Charge attack with horns', 'pack hunting behavior'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Plains', 'forests', 'grasslands', 'open areas'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -2149,7 +2149,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Superior Kibble',
+  preferredKibble: 'N/A',
   favoriteFood: 'Beer Liquid',
   tamingSpeed: 'Slow',
   torpor: {
@@ -2373,7 +2373,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['High-quality fish meat source', 'found in large schools'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Shallow waters', 'rivers', 'coastal areas', 'underground rivers'],
   rarityRating: 'Common',
   levelRange: '1-15',
@@ -2397,7 +2397,7 @@ const SPECIES_DATABASE = {
   id: 'COMPY_019',
   name: 'Compsognathus (Compy)',
   icon: '🦎',
-  category: 'combat',
+  category: 'pet',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard'],
@@ -2413,7 +2413,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Simple Kibble',
+  preferredKibble: 'N/A',
   favoriteFood: 'Raw Prime Meat',
   tamingSpeed: 'Fast',
   torpor: {
@@ -2638,7 +2638,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Healing aura ability', 'massive food consumption for healing'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Forests', 'plains', 'areas with diverse food sources'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -2655,7 +2655,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very High',
 
   // Badge Categories
-  badgeCategories: ['utility', 'boss', 'combat']
+  badgeCategories: ['utility', 'boss', 'combat', 'support']
 },
 'Dilophosaur': {
   // Basic Info
@@ -2770,7 +2770,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Turret mode (stays in position and spits at enemies)'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Beaches', 'forests', 'plains', 'most open areas'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -2794,7 +2794,7 @@ const SPECIES_DATABASE = {
   id: 'DIMMET_022',
   name: 'Dimetrodon',
   icon: '🦕',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'uncommon',
   source: 'Base Game',
   variants: ['Standard'],
@@ -2919,14 +2919,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Low',
 
   // Badge Categories
-  badgeCategories: ['utility']
+  badgeCategories: ['utility', 'support']
 },
 'Dimorphodon': {
   // Basic Info
   id: 'DIMORPH_023',
   name: 'Dimorphodon',
   icon: '🦅',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard'],
@@ -2942,8 +2942,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Raw Prime Meat',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 180,
@@ -3058,7 +3058,7 @@ const SPECIES_DATABASE = {
   id: 'DIPLO_024',
   name: 'Diplocaulus',
   icon: '🐸',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'uncommon',
   source: 'Base Game',
   variants: ['Standard'],
@@ -3183,7 +3183,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility', 'transport']
+  badgeCategories: ['utility', 'transport', 'support']
 },
 'Diplodocus': {
   // Basic Info
@@ -3206,7 +3206,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Superior Kibble',
+  preferredKibble: 'Regular Kibble',
   favoriteFood: 'Superior Kibble',
   tamingSpeed: 'Very Slow',
   torpor: {
@@ -3699,7 +3699,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Perfect beginner creature', 'essential for kibble production chains'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Beaches', 'coastal areas', 'safe grasslands'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -3872,7 +3872,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Regular Kibble',
+  preferredKibble: 'N/A',
   favoriteFood: 'Spoiled Meat',
   tamingSpeed: 'Fast',
   torpor: {
@@ -3964,7 +3964,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Converts waste materials into valuable resources', 'essential for crop growth'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Caves', 'underground areas', 'dark locations'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -3988,7 +3988,7 @@ const SPECIES_DATABASE = {
   id: 'DUNKLEO_031',
   name: 'Dunkleosteus',
   icon: '🐟',
-  category: 'harvesting',
+  category: 'aquatic',
   rarity: 'uncommon',
   source: 'Base Game',
   variants: ['Standard'],
@@ -4121,7 +4121,7 @@ const SPECIES_DATABASE = {
   id: 'ELECTRO_032',
   name: 'Electrophorus',
   icon: '⚡',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard'],
@@ -4137,8 +4137,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Regular Kibble',
-  favoriteFood: 'Regular Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Raw Prime Fish Meat',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 400,
@@ -4269,8 +4269,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Unique mounting tame',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'Regular Kibble',
+  favoriteFood: 'Regular Kibble',
   tamingSpeed: 'Moderate',
   torpor: {
     baseValue: 350,
@@ -4402,8 +4402,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Regular Kibble',
-  favoriteFood: 'Regular Kibble',
+  preferredKibble: 'Simple Kibble',
+  favoriteFood: 'Simple Kibble',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 350,
@@ -4519,7 +4519,7 @@ const SPECIES_DATABASE = {
   id: 'BEE_035',
   name: 'Giant Bee',
   icon: '🐝',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'rare',
   source: 'Base Game',
   variants: ['Standard', 'Queen Bee'],
@@ -4535,7 +4535,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Special',
   tamingType: 'Destroy wild hive and capture queen',
-  preferredKibble: 'N/A',
+  preferredKibble: 'Simple Kibble',
   favoriteFood: 'Rare Flowers',
   tamingSpeed: 'Instant',
   torpor: {
@@ -4645,7 +4645,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['utility', 'harvesting']
+  badgeCategories: ['utility', 'harvesting', 'support']
 },
 'Giganotosaurus': {
   // Basic Info
@@ -4919,7 +4919,7 @@ const SPECIES_DATABASE = {
   id: 'HESP_038',
   name: 'Hesperornis',
   icon: '🐧',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'uncommon',
   source: 'Base Game',
   variants: ['Standard'],
@@ -4933,10 +4933,10 @@ const SPECIES_DATABASE = {
   sizeClass: 'Medium',
 
   // Taming System
-  tamingMethod: 'Knockout',
+  tamingMethod: 'Passive',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Raw Prime Fish Meat',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 420,
@@ -5047,6 +5047,137 @@ const SPECIES_DATABASE = {
   // Badge Categories
   badgeCategories: ['utility', 'harvesting']
 },
+'Ichthyosaurus': {
+  // Basic Info
+  id: 'ICHTHYOSAURUS_473',
+  name: 'Ichthyosaurus',
+  icon: '🐬',
+  category: 'aquatic',
+  rarity: 'common',
+  source: 'Base Game',
+  variants: ['Standard', 'X-Variant'],
+
+  // Biology & Lore
+  dossierText: "Ichthyosaurus curiosa is a medium-sized aquatic reptile that resembles a dolphin in both shape and disposition. Streamlined and quick, with large eyes and an elongated snout, the Ichthyosaurus is one of the most curious creatures on the ARKs — frequently approaching survivors and even other tamed Ichthyosaurus and Megalodons. Despite its carnivorous nature, the Ichthyosaurus is gentle, fleeing when attacked rather than fighting back. Its small size and torpor immunity require an unconventional taming method: continuous passive feeding until it bonds with a survivor. Once tamed, it makes an excellent aquatic scout, ignored by most marine predators, and is an essential companion for early ocean exploration and Black Pearl farming alongside Eurypterids.",
+  temperament: 'Curious',
+  diet: 'Carnivore',
+  habitat: 'Shallow and deep ocean waters',
+  realWorldBasis: 'Ichthyosaurus communis (prehistoric marine reptile)',
+  sizeClass: 'Medium',
+
+  // Taming System
+  tamingMethod: 'Passive',
+  tamingType: 'Continuous passive feeding (torpor immune)',
+  preferredKibble: 'Simple Kibble',
+  favoriteFood: 'Raw Mutton',
+  tamingSpeed: 'Moderate',
+  torpor: {
+    baseValue: 300,
+    depleteRate: 'N/A (Torpor immune)'
+  },
+  specialRequirements: 'Torpor immune. Must feed continuously until it accepts the survivor. Will flee when attacked.',
+
+  // Base Statistics (Level 1 Wild)
+  baseStats: {
+    health: 275,
+    stamina: 300,
+    oxygen: 150,
+    food: 1000,
+    weight: 250,
+    melee: 15,
+    speed: 100,
+    torpor: 300
+  },
+
+  // Stat Scaling (Per Level)
+  statScaling: {
+    health: 13.75,
+    stamina: 60,
+    oxygen: 15,
+    food: 100,
+    weight: 5,
+    melee: 0.75,
+    speed: 1.5
+  },
+
+  // Equipment & Combat
+  saddleLevel: 13,
+  saddleType: 'Ichthyosaurus Saddle',
+  saddleArmor: 20,
+  platformLimit: 0,
+  specialAbilities: ['Cannot be knocked back when attacking', 'pushes exhausted swimmers to shore', 'ignored by most marine predators'],
+  attackTypes: ['Bite (15 damage, 0.67s cooldown)'],
+  canCarry: ['Rider can wield weapons underwater for assist-taming'],
+
+  // Utility & Roles
+  primaryRole: 'Aquatic scout and travel mount',
+  secondaryRoles: ['Black Pearl farmer (paired with Eurypterid)', 'underwater taming assist', 'shallow-river traversal'],
+  gatheringResources: ['Raw Meat', 'Raw Fish Meat', 'Hide'],
+  gatheringEfficiency: {
+    'Raw Fish Meat': 6
+  },
+  ratings: {
+    combat: 3,
+    transport: 7,
+    speed: 9,
+    survivability: 5
+  },
+
+  // Environmental Data
+  speeds: {
+    land: 0,
+    flying: 0,
+    swimming: 50,
+    climbing: 0
+  },
+  environmentalResistances: ['Torpor immunity', 'water adapted'],
+  preferredBiome: 'Coastal and ocean waters',
+  temperatureRange: {
+    min: 5,
+    max: 35
+  },
+  oxygenRequirement: 'Water breathing',
+
+  // Breeding Genetics
+  breeding: {
+    cooldown: '18-48 hours',
+    gestationTime: '7 hours 56 minutes',
+    babyFoodConsumption: 'Moderate',
+    maturationTime: '2 days, 9 hours, 52 minutes',
+    colorRegions: 3,
+    colorRegionNames: ['Body', 'Back and Fins', 'Belly'],
+    mutationChance: 7.31,
+    breedingDifficulty: 'Easy'
+  },
+
+  // Special Functions
+  workstation: 'None',
+  resourceProduction: 'None',
+  structureFunctions: 'None',
+  buffAuras: ['None'],
+  debuffAbilities: ['None'],
+  uniqueMechanics: ['Torpor immunity', 'attracted to allied Ichthyosaurus and Megalodons', 'can fit through Dinosaur Gates'],
+
+  // Spawn & Location
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Genesis Part 2', 'Lost Island', 'Fjordur'],
+  spawnZones: ['Coastal waters', 'shallow oceans', 'reefs'],
+  rarityRating: 'Common',
+  levelRange: '1-150',
+  packBehavior: 'Pods (loose groups)',
+  territorialBehavior: 'Non-aggressive, flees when attacked',
+
+  // Management Metadata
+  difficultyRating: 'Easy',
+  beginnerFriendly: true,
+  endGameViable: false,
+  bossFightCapable: false,
+  pvpMeta: 'Low',
+  resourceInvestment: 'Low',
+  maintenanceLevel: 'Low',
+
+  // Badge Categories
+  badgeCategories: ['transport', 'utility']
+},
 'Hyaenodon': {
   // Basic Info
   id: 'HYAENO_039',
@@ -5066,10 +5197,10 @@ const SPECIES_DATABASE = {
   sizeClass: 'Medium',
 
   // Taming System
-  tamingMethod: 'Knockout',
+  tamingMethod: 'Passive',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Superior Kibble',
-  favoriteFood: 'Superior Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Raw Mutton',
   tamingSpeed: 'Moderate',
   torpor: {
     baseValue: 500,
@@ -5185,7 +5316,7 @@ const SPECIES_DATABASE = {
   id: 'ICHTHY_040',
   name: 'Ichthyornis',
   icon: '🐦',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard'],
@@ -5201,8 +5332,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'Regular Kibble',
+  favoriteFood: 'Regular Kibble',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 50,
@@ -5317,7 +5448,7 @@ const SPECIES_DATABASE = {
   id: 'RHYNIOGNATHA_080',
   name: 'Rhyniognatha',
   icon: '🪲',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Fjordur DLC',
   variants: ['Standard'],
@@ -5426,7 +5557,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Multi-creature carrying system', 'bio-mechanical technology interface'],
 
   // Spawn & Location
-  spawnMaps: ['Fjordur', 'Lost Island (specific biomes)'],
+  spawnMaps: ['Fjordur', 'Lost Island'],
   spawnZones: ['Ancient forests', 'bio-diverse areas', 'primordial regions'],
   rarityRating: 'Legendary',
   levelRange: '1-150',
@@ -5559,7 +5690,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Wall climbing capability', 'pack hunting coordination'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Mountains', 'cliffs', 'rocky areas', 'caves', 'high elevation areas'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -5578,10 +5709,10 @@ const SPECIES_DATABASE = {
   // Badge Categories
   badgeCategories: ['combat', 'boss']
 },
-'Sarco': {
+'Sarcosuchus': {
   // Basic Info
   id: 'SARCO_082',
-  name: 'Sarco',
+  name: 'Sarcosuchus',
   icon: '🐊',
   category: 'combat',
   rarity: 'common',
@@ -5692,7 +5823,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Death roll attack system', 'ambush capabilities', 'amphibious travel'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Rivers', 'swamps', 'coastal waters', 'marshlands'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -5825,7 +5956,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Stance switching system', 'amphibious specialization', 'thermoregulation'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Rivers', 'lakes', 'coastal areas', 'anywhere near water'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -5959,7 +6090,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Hardened mode system', 'damage reflection capability'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Plains', 'forests', 'areas with abundant vegetation'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -5983,7 +6114,7 @@ const SPECIES_DATABASE = {
   id: 'TAPEJARA_085',
   name: 'Tapejara',
   icon: '🦅',
-  category: 'transport',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Base Game',
   variants: ['Standard'],
@@ -5999,8 +6130,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Regular Kibble',
-  favoriteFood: 'Regular Kibble',
+  preferredKibble: 'Superior Kibble',
+  favoriteFood: 'Superior Kibble',
   tamingSpeed: 'Moderate',
   torpor: {
     baseValue: 450,
@@ -6223,7 +6354,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Pack hunting coordination', 'extreme speed capabilities'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Plains', 'forests', 'open areas', 'grasslands'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -6357,7 +6488,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Multi-resource gathering system', 'delicate vs power harvesting modes'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Forests', 'jungles', 'areas with dense vegetation'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -6490,7 +6621,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Climbing with cargo capability', 'ambush pounce system', 'stealth positioning'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Redwood forests', 'caves', 'cliffs', 'anywhere with vertical surfaces'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -6528,10 +6659,10 @@ const SPECIES_DATABASE = {
   sizeClass: 'Large',
 
   // Taming System
-  tamingMethod: 'Knockout',
+  tamingMethod: 'Passive',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Superior Kibble',
-  favoriteFood: 'Superior Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Fertile Egg',
   tamingSpeed: 'Slow',
   torpor: {
     baseValue: 350,
@@ -6622,7 +6753,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Ambush positioning', 'venom delivery system', 'egg production'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Swamps', 'caves', 'dense vegetation', 'dark humid areas'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -6887,7 +7018,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Charge attack system', 'rider dismounting capability'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Plains', 'forests', 'grasslands', 'beaches', 'areas with vegetation'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -7019,7 +7150,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Intelligence-based pack coordination', 'special taming method'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Forests', 'grasslands', 'areas with good hunting opportunities'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -7036,14 +7167,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['combat', 'boss']
+  badgeCategories: ['combat', 'boss', 'scout']
 },
 'Tusoteuthis': {
   // Basic Info
   id: 'TUSOTEUTHIS_093',
   name: 'Tusoteuthis',
   icon: '🦑',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'rare',
   source: 'Base Game',
   variants: ['Standard'],
@@ -7287,7 +7418,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Structure-breaking charge attacks', 'cold-weather specialization'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Tundra', 'snow-covered areas', 'cold mountains', 'frigid regions'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -7444,7 +7575,7 @@ const SPECIES_DATABASE = {
   id: 'MEGALODON_052',
   name: 'Megalodon',
   icon: '🦈',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard', 'Tek', 'Alpha'],
@@ -7686,7 +7817,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Day/night cycle performance variation', 'cave specialization'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Caves', 'underground areas', 'dark forest depths'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -7703,7 +7834,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['combat', 'boss']
+  badgeCategories: ['combat', 'boss', 'scout']
 },
 'Megatherium': {
   // Basic Info
@@ -7820,7 +7951,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Insect killer buff system', 'enhanced chitin gathering'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Forests', 'swamps', 'areas with abundant vegetation and insects'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -7844,7 +7975,7 @@ const SPECIES_DATABASE = {
   id: 'MESOPITHECUS_055',
   name: 'Mesopithecus',
   icon: '🐒',
-  category: 'utility',
+  category: 'pet',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard', 'Aberrant'],
@@ -7860,8 +7991,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'Basic Kibble',
+  favoriteFood: 'Basic Kibble',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 125,
@@ -7952,7 +8083,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Helmet wearing capability', 'tree climbing', 'feces projectile attacks'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Jungles', 'forests', 'redwood areas', 'tree-dense regions'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -7976,7 +8107,7 @@ const SPECIES_DATABASE = {
   id: 'MICRORAPTOR_056',
   name: 'Microraptor',
   icon: '🐦',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard'],
@@ -7992,8 +8123,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Raw Prime Meat',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 80,
@@ -8124,8 +8255,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Regular Kibble',
-  favoriteFood: 'Regular Kibble',
+  preferredKibble: 'Simple Kibble',
+  favoriteFood: 'Simple Kibble',
   tamingSpeed: 'Moderate',
   torpor: {
     baseValue: 550,
@@ -8235,14 +8366,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Low',
 
   // Badge Categories
-  badgeCategories: ['utility', 'transport']
+  badgeCategories: ['utility', 'transport', 'support']
 },
 'Mosasaurus': {
   // Basic Info
   id: 'MOSASAURUS_058',
   name: 'Mosasaurus',
   icon: '🐊',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'rare',
   source: 'Base Game',
   variants: ['Standard', 'Tek', 'Alpha'],
@@ -8484,7 +8615,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Training system for specialized harvesting', 'complex taming requirements'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Plains', 'forests', 'grasslands', 'areas with diverse vegetation'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -8508,7 +8639,7 @@ const SPECIES_DATABASE = {
   id: 'ONYC_060',
   name: 'Onyc',
   icon: '🦇',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard', 'Aberrant'],
@@ -8524,8 +8655,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Raw Mutton',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 50,
@@ -8616,7 +8747,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Blood draining attacks', 'cave specialization', 'swarm behavior'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Caves', 'underground areas', 'dark caverns'],
   rarityRating: 'Common (in caves)',
   levelRange: '1-150',
@@ -8633,14 +8764,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['combat', 'utility']
+  badgeCategories: ['combat', 'utility', 'scout']
 },
 'Jerboa': {
   // Basic Info
   id: 'JERBOA_096',
   name: 'Jerboa',
   icon: '🐭',
-  category: 'utility',
+  category: 'pet',
   rarity: 'common',
   source: 'Scorched Earth DLC',
   variants: ['Standard'],
@@ -8656,8 +8787,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Mejoberries',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 15,
@@ -8769,7 +8900,7 @@ const SPECIES_DATABASE = {
   id: 'LYMANTRIA_097',
   name: 'Lymantria',
   icon: '🦋',
-  category: 'transport',
+  category: 'flyer',
   rarity: 'common',
   source: 'Scorched Earth DLC',
   variants: ['Standard'],
@@ -8916,9 +9047,9 @@ const SPECIES_DATABASE = {
   sizeClass: 'Large',
 
   // Taming System
-  tamingMethod: 'Knockout',
+  tamingMethod: 'Passive',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Superior Kibble',
+  preferredKibble: 'N/A',
   favoriteFood: 'Deathworm Horn',
   tamingSpeed: 'Slow',
   torpor: {
@@ -9034,7 +9165,7 @@ const SPECIES_DATABASE = {
   id: 'PHOENIX_100',
   name: 'Phoenix',
   icon: '🔥',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Scorched Earth DLC',
   variants: ['Standard'],
@@ -9143,7 +9274,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Resurrection system', 'mobile smelting', 'extreme heat weather dependency'],
 
   // Spawn & Location
-  spawnMaps: ['Scorched Earth', 'Ragnarok (desert areas)'],
+  spawnMaps: ['Scorched Earth', 'Ragnarok'],
   spawnZones: ['Only during extreme heat wave weather events in desert areas'],
   rarityRating: 'Legendary (only during specific weather)',
   levelRange: '1-150',
@@ -9183,7 +9314,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Must use specialized ammunition (cannons, catapults, rockets)',
-  preferredKibble: 'N/A',
+  preferredKibble: 'Extraordinary Kibble',
   favoriteFood: 'Sulfur',
   tamingSpeed: 'Extremely Slow',
   torpor: {
@@ -9411,7 +9542,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Ranged spine projectile system', 'natural armor plating'],
 
   // Spawn & Location
-  spawnMaps: ['Scorched Earth', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration (Aberrant)'],
+  spawnMaps: ['Scorched Earth', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ['Deserts', 'arid regions', 'rocky outcrops', 'hot climate areas'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -9435,7 +9566,7 @@ const SPECIES_DATABASE = {
   id: 'VULTURE_103',
   name: 'Vulture',
   icon: '🦅',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'common',
   source: 'Scorched Earth DLC',
   variants: ['Standard'],
@@ -9451,7 +9582,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Simple Kibble',
+  preferredKibble: 'N/A',
   favoriteFood: 'Spoiled Meat',
   tamingSpeed: 'Fast',
   torpor: {
@@ -9568,7 +9699,7 @@ const SPECIES_DATABASE = {
   id: 'FIRE_WYVERN_104',
   name: 'Fire Wyvern',
   icon: '🔥',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Scorched Earth DLC',
   variants: ['Standard', 'S-Variant'],
@@ -9700,7 +9831,7 @@ const SPECIES_DATABASE = {
   id: 'LIGHTNING_WYVERN_105',
   name: 'Lightning Wyvern',
   icon: '⚡',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Scorched Earth DLC',
   variants: ['Standard', 'S-Variant'],
@@ -9832,7 +9963,7 @@ const SPECIES_DATABASE = {
   id: 'POISON_WYVERN_106',
   name: 'Poison Wyvern',
   icon: '☠️',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Scorched Earth DLC',
   variants: ['Standard', 'S-Variant'],
@@ -9964,7 +10095,7 @@ const SPECIES_DATABASE = {
   id: 'SHASTASAURUS_107',
   name: 'Shastasaurus',
   icon: '🐋',
-  category: 'transport',
+  category: 'aquatic',
   rarity: 'rare',
   source: 'Base Game',
   variants: ['Standard'],
@@ -9980,8 +10111,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding underwater (non-violent)',
-  preferredKibble: 'Exceptional Kibble',
-  favoriteFood: 'Exceptional Kibble',
+  preferredKibble: 'Extraordinary Kibble',
+  favoriteFood: 'Extraordinary Kibble',
   tamingSpeed: 'Very Slow',
   torpor: {
     baseValue: 2500,
@@ -10205,7 +10336,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Underground burrowing system', 'radiation immunity', 'special taming requirements'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Valguero (underground areas)', 'Crystal Isles', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Aberration', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Underground caverns', 'rocky areas', 'radiation zones'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -10229,7 +10360,7 @@ const SPECIES_DATABASE = {
   id: 'BULBDOG_109',
   name: 'Bulbdog',
   icon: '💡',
-  category: 'utility',
+  category: 'pet',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Standard'],
@@ -10245,8 +10376,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Aggeravic Mushroom',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 90,
@@ -10336,7 +10467,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Adjustable light intensity', 'enemy detection system', 'Reaper protection'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Valguero (underground)', 'Crystal Isles', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Aberration', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Underground areas', 'bioluminescent zones', 'cave systems'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -10353,14 +10484,143 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility']
+  badgeCategories: ['utility', 'scout']
+},
+'Cat': {
+  // Basic Info
+  id: 'CAT_474',
+  name: 'Cat',
+  icon: '🐱',
+  category: 'pet',
+  rarity: 'common',
+  source: 'Base Game (April Fools 2025, Patch 64.1)',
+  variants: ['Siamese', 'Calico', 'Bengal', 'Tabby'],
+
+  // Biology & Lore
+  dossierText: "The Cat is exactly what it sounds like — a small, mercurial carnivorous mammal whose mood is utterly unpredictable. Originally ported as a curious April Fools' asset from Atlas, the Cat became a permanent fixture in ARK: Survival Ascended thanks to its surprisingly useful (and adorable) niche. Cats display three radically different temperaments toward any given survivor: some are passive and will purr at your approach, others are aggressive and will pounce on your face, and the most paranoid will simply flee. Only the passive ones can be tamed, and only via patient feeding of Raw Prime Fish Meat. Once tamed, a Cat rides on the survivor's shoulder, scares away common pests (Compy, Microraptor, Pegomastax, Ichthyornis, Meganeura, Titanomyrma), wears tiny helmets, and occasionally vomits hairballs when petted. Tamed Cats can also be bred, with four coat patterns currently known.",
+  temperament: 'Variable (Passive / Aggressive / Fearful)',
+  diet: 'Carnivore',
+  habitat: 'Domesticated zones, beaches, urban-style ruins',
+  realWorldBasis: 'Felis catus (domestic cat)',
+  sizeClass: 'Tiny',
+
+  // Taming System
+  tamingMethod: 'Passive',
+  tamingType: 'Hand-feed Raw Prime Fish Meat to passive cats only',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Raw Prime Fish Meat',
+  tamingSpeed: 'Slow (only passive temperament accepts food)',
+  torpor: {
+    baseValue: 100,
+    depleteRate: 'N/A'
+  },
+  specialRequirements: 'Only passive-temperament cats can be tamed. Aggressive and fearful cats must be left alone.',
+
+  // Base Statistics (Level 1 Wild)
+  baseStats: {
+    health: 125,
+    stamina: 100,
+    oxygen: 150,
+    food: 450,
+    weight: 60,
+    melee: 10,
+    speed: 100,
+    torpor: 100
+  },
+
+  // Stat Scaling (Per Level)
+  statScaling: {
+    health: 6.25,
+    stamina: 10,
+    oxygen: 15,
+    food: 45,
+    weight: 1.2,
+    melee: 0.5,
+    speed: 1
+  },
+
+  // Equipment & Combat
+  saddleLevel: 0,
+  saddleType: 'Shoulder pet (helmet-equippable)',
+  saddleArmor: 0,
+  platformLimit: 0,
+  specialAbilities: ['Pest repulsion aura (Compy, Microraptor, Pegomastax, Ichthyornis, Meganeura, Titanomyrma)', 'pounce face-latch (obscures attacker vision)', 'hairball production on petting'],
+  attackTypes: ['Bite (10 damage)', 'Pounce (10 damage + face latch)'],
+  canCarry: ['Shoulder-mounted by survivor', 'wears helmets'],
+
+  // Utility & Roles
+  primaryRole: 'Shoulder pet and pest controller',
+  secondaryRoles: ['Decorative companion', 'face-latch nuisance defense', 'breeding novelty'],
+  gatheringResources: ['Raw Meat (negligible)', 'Hide (negligible)'],
+  gatheringEfficiency: {},
+  ratings: {
+    combat: 1,
+    transport: 0,
+    speed: 5,
+    survivability: 2
+  },
+
+  // Environmental Data
+  speeds: {
+    land: 25,
+    flying: 0,
+    swimming: 10,
+    climbing: 0
+  },
+  environmentalResistances: ['None'],
+  preferredBiome: 'Beaches, ruins, settled areas',
+  temperatureRange: {
+    min: -10,
+    max: 40
+  },
+  oxygenRequirement: 'Air breathing',
+
+  // Breeding Genetics
+  breeding: {
+    cooldown: '18-48 hours',
+    gestationTime: '2 hours',
+    babyFoodConsumption: 'Low',
+    maturationTime: '1 day',
+    colorRegions: 4,
+    colorRegionNames: ['Body', 'Pattern', 'Belly', 'Eyes'],
+    mutationChance: 7.31,
+    breedingDifficulty: 'Easy'
+  },
+
+  // Special Functions
+  workstation: 'None',
+  resourceProduction: 'Hairballs (cosmetic) when petted (10% chance)',
+  structureFunctions: 'None',
+  buffAuras: ['Pest repulsion: scares away nearby small pest creatures'],
+  debuffAbilities: ['Face latch: pounce obscures enemy vision'],
+  uniqueMechanics: ['Variable wild temperament (only passives tameable)', 'shoulder pet', 'four coat patterns', 'hairball production', 'Feline Form skill (player transformation)'],
+
+  // Spawn & Location
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Astraeos', 'Lost Colony'],
+  spawnZones: ['Beaches', 'ruins', 'urban-style areas'],
+  rarityRating: 'Common',
+  levelRange: '1-150',
+  packBehavior: 'Solitary (occasionally small groups)',
+  territorialBehavior: 'Variable per individual',
+
+  // Management Metadata
+  difficultyRating: 'Easy',
+  beginnerFriendly: true,
+  endGameViable: false,
+  bossFightCapable: false,
+  pvpMeta: 'Low',
+  resourceInvestment: 'Low',
+  maintenanceLevel: 'Low',
+
+  // Badge Categories
+  badgeCategories: ['utility', 'pet']
 },
 'Featherlight': {
   // Basic Info
   id: 'FEATHERLIGHT_110',
   name: 'Featherlight',
   icon: '✨',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Standard'],
@@ -10376,8 +10636,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Aquatic Mushroom',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 60,
@@ -10468,7 +10728,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Independent flying capability', 'aerial reconnaissance', 'adjustable light intensity'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Valguero (underground)', 'Crystal Isles', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Aberration', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Underground areas', 'bioluminescent zones', 'high cave chambers'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -10492,7 +10752,7 @@ const SPECIES_DATABASE = {
   id: 'GLOWTAIL_111',
   name: 'Glowtail',
   icon: '🌟',
-  category: 'utility',
+  category: 'pet',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Standard'],
@@ -10508,8 +10768,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Ascerbic Mushroom',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 70,
@@ -10600,7 +10860,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Prehensile tail object manipulation', 'adjustable light intensity', 'task assistance'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Valguero (underground)', 'Crystal Isles', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Aberration', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Underground areas', 'bioluminescent zones', 'cave systems'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -10640,8 +10900,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Extraordinary Kibble',
-  favoriteFood: 'Extraordinary Kibble',
+  preferredKibble: 'Exceptional Kibble',
+  favoriteFood: 'Exceptional Kibble',
   tamingSpeed: 'Slow',
   torpor: {
     baseValue: 2000,
@@ -10734,7 +10994,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Multi-creature grabbing system', 'massive jumping capability'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Valguero (underground)', 'Crystal Isles', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Aberration', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Underground areas', 'rocky caverns', 'vertical cliff faces'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -10774,8 +11034,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Superior Kibble',
-  favoriteFood: 'Superior Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Raw Mutton',
   tamingSpeed: 'Moderate',
   torpor: {
     baseValue: 600,
@@ -10867,7 +11127,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Wall climbing capability', 'pack hunting coordination'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Valguero (underground)', 'Crystal Isles', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Aberration', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Underground areas', 'rocky terrain', 'cave systems'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -11000,7 +11260,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Xenomorphic reproduction', 'light vulnerability/strength system', 'acid immunity'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Crystal Isles (underground)', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Aberration', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Deepest underground areas', 'radiation zones', 'Element regions'],
   rarityRating: 'Legendary',
   levelRange: '1-150',
@@ -11024,7 +11284,7 @@ const SPECIES_DATABASE = {
   id: 'ROCK_DRAKE_115',
   name: 'Rock Drake',
   icon: '🐲',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Aberration DLC',
   variants: ['Standard', 'S-Variant'],
@@ -11133,7 +11393,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Invisibility system', 'wall climbing', 'gliding capability', 'egg stealing requirement'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Crystal Isles (underground)', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Aberration', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Deep underground areas', 'Element regions', 'dangerous caverns with nests'],
   rarityRating: 'Legendary',
   levelRange: '1-190',
@@ -11173,8 +11433,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Superior Kibble',
-  favoriteFood: 'Superior Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Sweet Vegetable Cake',
   tamingSpeed: 'Moderate',
   torpor: {
     baseValue: 1350,
@@ -11267,7 +11527,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Rolling ball transformation', 'massive storage cheek pouches', 'digging specialization'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Valguero (underground)', 'Crystal Isles', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Aberration', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Underground tunnels', 'cave systems', 'burrow networks'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -11291,7 +11551,7 @@ const SPECIES_DATABASE = {
   id: 'SHINEHORN_117',
   name: 'Shinehorn',
   icon: '🦌',
-  category: 'utility',
+  category: 'pet',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Standard'],
@@ -11307,8 +11567,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Hand-feeding (non-violent)',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Auric Mushroom',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 85,
@@ -11398,7 +11658,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Movement-charged light system', 'creature detection', 'sustained illumination'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Valguero (underground)', 'Crystal Isles', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Aberration', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Underground areas', 'bioluminescent zones', 'cave pastures'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -11415,14 +11675,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility']
+  badgeCategories: ['utility', 'scout']
 },
 'Yi Ling': {
   // Basic Info
   id: 'YI_LING_118',
   name: 'Yi Ling',
   icon: '🦋',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'rare',
   source: 'Lost Island DLC',
   variants: ['Standard'],
@@ -11438,7 +11698,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Must be fed rare crystals and specific materials',
-  preferredKibble: 'N/A',
+  preferredKibble: 'Exceptional Kibble',
   favoriteFood: 'Rare crystals',
   tamingSpeed: 'Slow',
   torpor: {
@@ -11531,7 +11791,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Crystal manipulation', 'dimensional phasing', 'healing support system'],
 
   // Spawn & Location
-  spawnMaps: ['Lost Island', 'Crystal Isles', 'Fjordur (crystal areas)'],
+  spawnMaps: ['Lost Island', 'Crystal Isles', 'Fjordur'],
   spawnZones: ['Crystal formations', 'mystical areas', 'dimensional rifts'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -11942,14 +12202,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['harvesting', 'utility']
+  badgeCategories: ['harvesting', 'utility', 'support']
 },
 'Gasbags': {
   // Basic Info
   id: 'GASBAGS_122',
   name: 'Gasbags',
   icon: '🎈',
-  category: 'transport',
+  category: 'flyer',
   rarity: 'common',
   source: 'Extinction DLC',
   variants: ['Standard', 'R-Gasbags (Genesis Part 2)'],
@@ -12080,7 +12340,7 @@ const SPECIES_DATABASE = {
   id: 'MANAGARMR_123',
   name: 'Managarmr',
   icon: '🐺',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'rare',
   source: 'Extinction DLC',
   variants: ['Standard', 'R-Managarmr (Genesis Part 2)'],
@@ -12096,8 +12356,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Extremely difficult due to mobility, requires trap or Snow Owl freezing',
-  preferredKibble: 'Extraordinary Kibble',
-  favoriteFood: 'Extraordinary Kibble',
+  preferredKibble: 'Exceptional Kibble',
+  favoriteFood: 'Exceptional Kibble',
   tamingSpeed: 'Medium-Fast',
   torpor: {
     baseValue: 825,
@@ -12343,7 +12603,7 @@ const SPECIES_DATABASE = {
   id: 'SCOUT_125',
   name: 'Scout',
   icon: '👁️',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Extinction DLC',
   variants: ['Standard'],
@@ -12467,14 +12727,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Low',
 
   // Badge Categories
-  badgeCategories: ['utility', 'boss']
+  badgeCategories: ['utility', 'boss', 'scout']
 },
 'Snow Owl': {
   // Basic Info
   id: 'SNOW_OWL_126',
   name: 'Snow Owl',
   icon: '🦉',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Extinction DLC',
   variants: ['Standard', 'R-Snow Owl (Genesis Part 2)'],
@@ -12599,7 +12859,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Low',
 
   // Badge Categories
-  badgeCategories: ['utility', 'combat', 'boss']
+  badgeCategories: ['utility', 'combat', 'boss', 'support', 'scout']
 },
 'Velonasaur': {
   // Basic Info
@@ -12737,7 +12997,7 @@ const SPECIES_DATABASE = {
   id: 'GRIFFIN_128',
   name: 'Griffin',
   icon: '🦅',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Ragnarok DLC',
   variants: ['Standard'],
@@ -12976,7 +13236,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Milk production system', 'herd behavior', 'massive weight tolerance'],
 
   // Spawn & Location
-  spawnMaps: ['Ragnarok (ARK: Survival Ascended)', 'additional maps planned'],
+  spawnMaps: ['Ragnarok'],
   spawnZones: ['Highland plains', 'grassland areas', 'open meadows'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -13107,7 +13367,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Stealth system', 'combat taming', 'psychological warfare abilities'],
 
   // Spawn & Location
-  spawnMaps: ['Valguero (upcoming)', 'additional maps planned'],
+  spawnMaps: ['Valguero'],
   spawnZones: ['Dense forest areas', 'jungle regions', 'areas with good stalking cover'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -13124,14 +13384,147 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['combat', 'boss']
+  badgeCategories: ['combat', 'boss', 'scout']
+},
+'Elderclaw': {
+  // Basic Info
+  id: 'ELDERCLAW_472',
+  name: 'Elderclaw',
+  icon: '🌿',
+  category: 'combat',
+  rarity: 'legendary',
+  source: 'Fantastic Tames DLC',
+  variants: ['Standard'],
+
+  // Biology & Lore
+  dossierText: "Osto silvanimus, affectionately nicknamed 'Dire-Groot' by the survivor community, is a fantastical bear-like creature that has formed a profound communion with the forest's soul. Its body is a living testament to the ancient woods — covered in bark, gnarled roots, vibrant flowers, and clusters of mushrooms. Its eyes burn with a steady glow, and wherever it walks, blooms spring from the earth in its wake. Despite its imposing size, the Elderclaw is fundamentally a peaceful guardian, rarely attacking unprovoked. When threatened, however, it reveals tremendous power: entangling enemies with surging roots, raising barkskin shields, and erecting spirit totems that amplify its allies. The Elderclaw cannot be tamed in the traditional sense — survivors must defeat a wild Elderclaw and either claim its baby or harvest a seed, which must then be planted in a Large Crop Plot and patiently nurtured with rare resources during specific 5-minute growth windows.",
+  temperament: 'Passive',
+  diet: 'Omnivore',
+  habitat: 'Forests, woodlands, vegetation-dense biomes',
+  realWorldBasis: 'Fantasy creature (plant-based bear hybrid)',
+  sizeClass: 'Large',
+
+  // Taming System
+  tamingMethod: 'Special',
+  tamingType: 'Cannot tame adults directly. Defeat a wild Elderclaw, then either (1) claim its baby or (2) plant its seed in a Large Crop Plot and tend it with Ammonite Bile, Bio Toxin, Black Pearl, Giant Bee Honey, Leech Blood, or Sap within 5-minute windows.',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Rare seed resources (Ammonite Bile, Bio Toxin, Black Pearl, Honey, Leech Blood, Sap)',
+  tamingSpeed: 'Slow (seed cultivation)',
+  torpor: {
+    baseValue: 1000,
+    depleteRate: 'N/A'
+  },
+  specialRequirements: 'Requires the Fantastic Tames paid DLC. Adults cannot be tamed conventionally — only seed cultivation or baby claim after parent death.',
+
+  // Base Statistics (Level 1 Wild)
+  baseStats: {
+    health: 800,
+    stamina: 350,
+    oxygen: 250,
+    food: 2800,
+    weight: 650,
+    melee: 35,
+    speed: 100,
+    torpor: 1000
+  },
+
+  // Stat Scaling (Per Level)
+  statScaling: {
+    health: 160,
+    stamina: 35,
+    oxygen: 25,
+    food: 280,
+    weight: 13,
+    melee: 1.75,
+    speed: 1
+  },
+
+  // Equipment & Combat
+  saddleLevel: 0,
+  saddleType: 'No saddle required (natural barkskin armor)',
+  saddleArmor: 80,
+  platformLimit: 0,
+  specialAbilities: ['Lunge (charge with Tangled debuff)', 'Root Burst (30m AoE Rooted immobilization)', 'Bark Shield (35% damage reduction)', 'Spirit Totem (45m radius ally buff aura)', 'Detonate Totem (Empowered +70% damage at 100+ charges)', 'Natural armor scaling with level', 'Rider bee immunity'],
+  attackTypes: ['Bite (30 damage while moving)', 'Claw swipe (35 damage standing)', 'Lunge (50 damage + Tangled debuff)'],
+  canCarry: ['None (cannot wield weapons while riding)'],
+
+  // Utility & Roles
+  primaryRole: 'Tanky boss-fight support and crowd controller',
+  secondaryRoles: ['Spirit Totem buff carrier', 'Root Burst lockdown', 'Sustainable resource harvester (corpseblossom)'],
+  gatheringResources: ['Fiber', 'Rare Flower', 'Rare Mushroom', 'Thatch', 'Wood', 'Corpseblossom drops: Leech Blood, Sap, Honey, Bio Toxin, Ammonite Bile, Black Pearl (5% chance on last-hit)'],
+  gatheringEfficiency: {
+    'Rare Flower': 8,
+    'Rare Mushroom': 8,
+    'Wood': 5
+  },
+  ratings: {
+    combat: 8,
+    transport: 4,
+    speed: 5,
+    survivability: 10
+  },
+
+  // Environmental Data
+  speeds: {
+    land: 22,
+    flying: 0,
+    swimming: 40,
+    climbing: 0
+  },
+  environmentalResistances: ['Natural barkskin armor', 'Bee attack immunity (rider)'],
+  preferredBiome: 'Forests, woodland canopy zones',
+  temperatureRange: {
+    min: -10,
+    max: 40
+  },
+  oxygenRequirement: 'Air breathing',
+
+  // Breeding Genetics
+  breeding: {
+    cooldown: 'N/A (seed cultivation)',
+    gestationTime: 'N/A (Elderclaw Seed in Large Crop Plot)',
+    babyFoodConsumption: 'Standard (tamed seed)',
+    maturationTime: 'Standard crop growth cycle',
+    colorRegions: 5,
+    colorRegionNames: ['Wood Main', 'Flowers', 'Glow and Butterflies', 'Mushrooms', 'Wood Details'],
+    mutationChance: 7.31,
+    breedingDifficulty: 'Hard (seed-based propagation)'
+  },
+
+  // Special Functions
+  workstation: 'None',
+  resourceProduction: 'Corpseblossom system: configure via radial menu to yield specific harvestable resources after last-hitting prey',
+  structureFunctions: 'None',
+  buffAuras: ['Spirit Totem grants "Near Spirit Totem" buff to allies (+5% damage at 0 charges, scaling to +25% at 200 charges)'],
+  debuffAbilities: ['Tangled (50% movement slow, 2s) from Lunge', 'Rooted (5-15s immobilization, scaling with totem charges) from Root Burst'],
+  uniqueMechanics: ['Seed-based taming (cannot tame adults)', 'Spirit Totem charge accumulation', 'Detonate Totem Empowered state', 'Natural armor scaling', 'Corpseblossom resource configuration'],
+
+  // Spawn & Location
+  spawnMaps: ['Valguero', 'The Center', 'Aberration', 'Extinction', 'Ragnarok', 'Astraeos', 'Lost Colony'],
+  spawnZones: ['Forests', 'woodland biomes', 'dense vegetation areas'],
+  rarityRating: 'Legendary',
+  levelRange: '1-150',
+  packBehavior: 'Solitary',
+  territorialBehavior: 'Neutral (rarely attacks unprovoked)',
+
+  // Management Metadata
+  difficultyRating: 'Hard',
+  beginnerFriendly: false,
+  endGameViable: true,
+  bossFightCapable: true,
+  pvpMeta: 'High',
+  resourceInvestment: 'High',
+  maintenanceLevel: 'Medium',
+
+  // Badge Categories
+  badgeCategories: ['combat', 'utility', 'support']
 },
 'Ice Wyvern': {
   // Basic Info
   id: 'ICE_WYVERN_131',
   name: 'Ice Wyvern',
   icon: '❄️',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Ragnarok DLC',
   variants: ['Standard'],
@@ -13262,7 +13655,7 @@ const SPECIES_DATABASE = {
   id: 'SPRING_DRAKELING_132',
   name: 'Spring Drakeling',
   icon: '🌸',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Fantastic Tames DLC',
   variants: ['Spring (Seasonal Variant)'],
@@ -13369,7 +13762,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Torch attraction', 'XP challenge taming', 'treasure detection', 'parachute mode', 'seasonal breeding compatibility'],
 
   // Spawn & Location
-  spawnMaps: ['Multiple maps with Fantastic Tames DLC enabled'],
+  spawnMaps: [],
   spawnZones: ['Lush grasslands', 'meadows', 'spring-like biomes'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -13386,14 +13779,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility']
+  badgeCategories: ['utility', 'support']
 },
 'Winter Drakeling': {
   // Basic Info
   id: 'WINTER_DRAKELING_133',
   name: 'Winter Drakeling',
   icon: '❄️',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Fantastic Tames DLC',
   variants: ['Winter (Seasonal Variant)'],
@@ -13500,7 +13893,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Torch attraction', 'XP challenge taming', 'treasure detection', 'controlled descent', 'seasonal breeding compatibility'],
 
   // Spawn & Location
-  spawnMaps: ['Multiple maps with Fantastic Tames DLC enabled'],
+  spawnMaps: [],
   spawnZones: ['Snow biomes', 'cold regions', 'ice caves', 'frozen areas'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -13517,14 +13910,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility']
+  badgeCategories: ['utility', 'support']
 },
 'Autumn Drakeling': {
   // Basic Info
   id: 'AUTUMN_DRAKELING_135',
   name: 'Autumn Drakeling',
   icon: '🍂',
-  category: 'harvesting',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Fantastic Tames DLC',
   variants: ['Autumn (Seasonal Variant)'],
@@ -13631,7 +14024,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Torch attraction', 'XP challenge taming', 'treasure detection', 'harvest enhancement', 'seasonal breeding compatibility'],
 
   // Spawn & Location
-  spawnMaps: ['Multiple maps with Fantastic Tames DLC enabled'],
+  spawnMaps: [],
   spawnZones: ['Redwood forests', 'jungle biomes', 'resource-rich areas'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -13648,7 +14041,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['harvesting', 'utility']
+  badgeCategories: ['harvesting', 'utility', 'support']
 },
 'Veilwyn': {
   // Basic Info
@@ -13762,7 +14155,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Companion mode system', 'teleportation abilities', 'self-cloning', 'dimensional phasing'],
 
   // Spawn & Location
-  spawnMaps: ['Lost Colony', 'potentially other maps with expansion'],
+  spawnMaps: ['Lost Colony'],
   spawnZones: ['Dimensional anomalies', 'mysterious areas', 'special locations'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -13779,14 +14172,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['combat', 'boss', 'utility']
+  badgeCategories: ['combat', 'boss', 'utility', 'support']
 },
 'Oasisaur': {
   // Basic Info
   id: 'OASISAUR_137',
   name: 'Oasisaur',
   icon: '🏝️',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Frontier Adventure Pack (Bob\'s Tall Tales)',
   variants: ['Standard'],
@@ -13893,7 +14286,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Creature resurrection system', 'autonomous resource generation', 'flying platform construction'],
 
   // Spawn & Location
-  spawnMaps: ['Scorched Earth (with Frontier Adventure Pack)'],
+  spawnMaps: ['Scorched Earth'],
   spawnZones: ['Open sky areas, floating above various biomes'],
   rarityRating: 'Legendary',
   levelRange: '1-150',
@@ -13910,14 +14303,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Low',
 
   // Badge Categories
-  badgeCategories: ['utility', 'transport']
+  badgeCategories: ['utility', 'transport', 'support']
 },
 'Cosmo': {
   // Basic Info
   id: 'COSMO_138',
   name: 'Cosmo',
   icon: '🕷️',
-  category: 'utility',
+  category: 'pet',
   rarity: 'uncommon',
   source: 'Steampunk Ascent (Bob\'s Tall Tales)',
   variants: ['Standard'],
@@ -14024,7 +14417,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Web grappling system', 'ammunition recycling', 'fall damage prevention', 'movement-based taming'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration (with Steampunk Ascent DLC)'],
+  spawnMaps: ['Aberration'],
   spawnZones: ['Blue zones', 'green zones near portals', 'cave systems'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -14048,7 +14441,7 @@ const SPECIES_DATABASE = {
   id: 'SIR_5RM8_139',
   name: 'SIR-5rM8',
   icon: '🤖',
-  category: 'utility',
+  category: 'pet',
   rarity: 'uncommon',
   source: 'Steampunk Ascent (Bob\'s Tall Tales)',
   variants: ['Standard'],
@@ -14155,7 +14548,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Multi-mode operation system', 'automated sorting', 'inventory management', 'sap collection capability'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration (with Steampunk Ascent DLC)', 'craftable anywhere'],
+  spawnMaps: ['Aberration'],
   spawnZones: ['Crafting stations', 'steampunk facilities', 'survivor bases'],
   rarityRating: 'Uncommon (crafting-dependent)',
   levelRange: 'Variable (depends on crafting quality)',
@@ -14179,7 +14572,7 @@ const SPECIES_DATABASE = {
   id: 'ARMADOGGO_140',
   name: 'Armadoggo',
   icon: '🛡️',
-  category: 'utility',
+  category: 'pet',
   rarity: 'uncommon',
   source: 'Wasteland War (Bob\'s Tall Tales)',
   variants: ['Standard'],
@@ -14286,7 +14679,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Companion mode system', 'technology tracking', 'burrowing recovery', 'armor attachment system'],
 
   // Spawn & Location
-  spawnMaps: ['Extinction (with Wasteland War DLC)'],
+  spawnMaps: ['Extinction'],
   spawnZones: ['Wasteland areas', 'corrupted zones', 'technological ruins'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -14417,7 +14810,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Mission reward acquisition', 'technological integration', 'industrial platform construction'],
 
   // Spawn & Location
-  spawnMaps: ['Available through Mad Mark mission (Extinction-based)'],
+  spawnMaps: [],
   spawnZones: ['Mission reward only - not found in wild'],
   rarityRating: 'Legendary (Extremely Rare)',
   levelRange: 'Variable (mission reward scaling)',
@@ -14457,8 +14850,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Standard knockout with tranq arrows/darts',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'Basic Kibble',
+  favoriteFood: 'Basic Kibble',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 180,
@@ -14549,7 +14942,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Tek sensor array', 'enemy detection radar', 'structure scanning capabilities'],
 
   // Spawn & Location
-  spawnMaps: ['All maps (Tek variants spawn in specific conditions)'],
+  spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
   spawnZones: ['Open plains', 'grasslands', 'areas with Element presence'],
   rarityRating: 'Epic',
   levelRange: '1-150',
@@ -14566,7 +14959,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Low',
 
   // Badge Categories
-  badgeCategories: ['utility']
+  badgeCategories: ['utility', 'scout']
 },
 'Tek Raptor': {
   // Basic Info
@@ -14680,7 +15073,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced pack bonus system', 'improved pounce mechanics', 'night vision capabilities'],
 
   // Spawn & Location
-  spawnMaps: ['All maps (Tek variants in specific conditions)'],
+  spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
   spawnZones: ['Forest edges', 'plains', 'rocky terrain', 'caves'],
   rarityRating: 'Epic',
   levelRange: '1-150',
@@ -14697,7 +15090,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Low',
 
   // Badge Categories
-  badgeCategories: ['combat', 'boss']
+  badgeCategories: ['combat', 'boss', 'scout']
 },
 'Tek Triceratops': {
   // Basic Info
@@ -14812,7 +15205,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced charge attack system', 'shield generation capabilities', 'tactical support functions'],
 
   // Spawn & Location
-  spawnMaps: ['All maps (Tek variants in specific conditions)'],
+  spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
   spawnZones: ['Open grasslands', 'plains', 'areas near Element sources'],
   rarityRating: 'Epic',
   levelRange: '1-150',
@@ -14944,7 +15337,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Hardened plate system', 'ally cover generation', 'enhanced gathering modes'],
 
   // Spawn & Location
-  spawnMaps: ['All maps (Tek variants in specific conditions)'],
+  spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
   spawnZones: ['Forest areas', 'plains', 'rocky terrain with Element presence'],
   rarityRating: 'Epic',
   levelRange: '1-150',
@@ -15075,7 +15468,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced roar system', 'pack leadership capabilities', 'boss-tier combat performance'],
 
   // Spawn & Location
-  spawnMaps: ['All maps (Tek variants in specific conditions)'],
+  spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
   spawnZones: ['Apex predator territories', 'areas with high Element concentration'],
   rarityRating: 'Legendary',
   levelRange: '1-150',
@@ -15099,7 +15492,7 @@ const SPECIES_DATABASE = {
   id: 'TEK_QUETZAL_147',
   name: 'Tek Quetzal',
   icon: '🦅',
-  category: 'transport',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Base Game (Tek Variant)',
   variants: ['Tek Enhancement of Standard Quetzal'],
@@ -15207,7 +15600,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Aerial platform construction', 'enhanced flight systems', 'massive cargo management'],
 
   // Spawn & Location
-  spawnMaps: ['All maps (Tek variants in specific conditions)'],
+  spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
   spawnZones: ['High altitude areas', 'mountain peaks', 'aerial territories'],
   rarityRating: 'Legendary',
   levelRange: '1-150',
@@ -15338,7 +15731,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Controlled fury system', 'enhanced rage management', 'ultimate combat protocols'],
 
   // Spawn & Location
-  spawnMaps: ['All maps (Tek variants in extremely rare conditions)'],
+  spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
   spawnZones: ['Ultimate apex territories', 'areas with maximum Element concentration'],
   rarityRating: 'Mythical',
   levelRange: '1-150',
@@ -15378,7 +15771,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Feed vegetables or sweet vegetable cake',
-  preferredKibble: 'Achatina Kibble (Aberrant)',
+  preferredKibble: 'Sweet Vegetable Cake',
   favoriteFood: 'Sweet Vegetable Cake',
   tamingSpeed: 'Medium',
   torpor: {
@@ -15470,7 +15863,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Aberrant adaptation', 'radiation immunity', 'autonomous cementing paste production'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (bog)', 'other maps with aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground areas', 'radiation zones', 'cave systems', 'mushroom forests'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -15601,7 +15994,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced pack bonus system', 'aberrant adaptation', 'coordinated cave hunting'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground areas', 'cave systems', 'mushroom forests'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -15625,7 +16018,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_ANGLERFISH_151',
   name: 'Aberrant Anglerfish',
   icon: '🐟',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'uncommon',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Anglerfish'],
@@ -15641,7 +16034,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Underwater knockout taming',
-  preferredKibble: 'Angler Kibble (Aberrant)',
+  preferredKibble: 'Regular Kibble',
   favoriteFood: 'Raw Mutton',
   tamingSpeed: 'Medium',
   torpor: {
@@ -15732,7 +16125,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced lure system', 'electrical discharge capabilities', 'aberrant adaptation'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (bog/ocean)', 'other maps with aberrant aquatic zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground waterways', 'contaminated pools', 'cave water systems'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -15865,7 +16258,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Aberrant resource detection', 'enhanced mining capabilities', 'radiation immunity'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Crystal caves', 'metal-rich underground areas', 'aberrant mineral deposits'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -15903,9 +16296,9 @@ const SPECIES_DATABASE = {
   sizeClass: 'Small',
 
   // Taming System
-  tamingMethod: 'Knockout',
+  tamingMethod: 'Passive',
   tamingType: 'Standard knockout, difficult due to web placement',
-  preferredKibble: 'Araneo Kibble (Aberrant)',
+  preferredKibble: 'N/A',
   favoriteFood: 'Spoiled Meat',
   tamingSpeed: 'Fast',
   torpor: {
@@ -15997,7 +16390,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced climbing system', 'web travel capabilities', 'aberrant adaptation'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant cave zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground caves', 'web-covered areas', 'dark crevices'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -16021,7 +16414,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_ARCHAEOPTERYX_154',
   name: 'Aberrant Archaeopteryx',
   icon: '🦆',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Archaeopteryx'],
@@ -16037,7 +16430,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Must approach carefully, feed while gliding',
-  preferredKibble: 'Archaeopteryx Kibble (Aberrant)',
+  preferredKibble: 'Simple Kibble',
   favoriteFood: 'Chitin',
   tamingSpeed: 'Fast',
   torpor: {
@@ -16128,7 +16521,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced parachute system', 'thermal detection', 'aberrant adaptation'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Upper cave areas', 'thermal vents', 'cliff faces', 'aerial cave zones'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -16152,7 +16545,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_ARGENTAVIS_155',
   name: 'Aberrant Argentavis',
   icon: '🦅',
-  category: 'transport',
+  category: 'flyer',
   rarity: 'rare',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Argentavis'],
@@ -16259,7 +16652,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced cave flight system', 'improved cargo management', 'aberrant adaptation'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with large aberrant cave systems'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Large cave chambers', 'thermal updrafts', 'high cave areas'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -16299,7 +16692,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Must feed repellent-treated items, extremely dangerous',
-  preferredKibble: 'Arthropluera Kibble (Aberrant)',
+  preferredKibble: 'N/A',
   favoriteFood: 'Broth of Enlightenment',
   tamingSpeed: 'Very Slow',
   torpor: {
@@ -16390,7 +16783,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced acid warfare system', 'climbing capabilities', 'corrosive environment immunity'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with corrosive aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Acid pools', 'corrosive areas', 'deep caves', 'toxic zones'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -16414,7 +16807,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_BARYONYX_157',
   name: 'Aberrant Baryonyx',
   icon: '🐊',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'uncommon',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Baryonyx'],
@@ -16430,7 +16823,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Standard knockout, benefits from fish',
-  preferredKibble: 'Baryonyx Kibble (Aberrant)',
+  preferredKibble: 'Regular Kibble',
   favoriteFood: 'Raw Fish Meat',
   tamingSpeed: 'Medium',
   torpor: {
@@ -16521,7 +16914,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced amphibious combat', 'fish stunning capabilities', 'aberrant aquatic adaptation'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant aquatic zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground waterways', 'contaminated pools', 'swamp areas'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -16545,7 +16938,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_BASILOSAURUS_158',
   name: 'Aberrant Basilosaurus',
   icon: '🐋',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'rare',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Basilosaurus'],
@@ -16652,7 +17045,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Depth immunity', 'thermal protection system', 'underwater platform capabilities'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration (deep areas)', 'Genesis Part 1 (ocean)', 'other maps with deep aberrant waters'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Deep underground waters', 'large aquatic chambers', 'abyssal zones'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -16692,7 +17085,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Standard knockout, attracted to insects',
-  preferredKibble: 'Beelzebufo Kibble (Aberrant)',
+  preferredKibble: 'Regular Kibble',
   favoriteFood: 'Chitin',
   tamingSpeed: 'Medium',
   torpor: {
@@ -16784,7 +17177,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Insect to cementing paste conversion', 'enhanced jumping system', 'swamp navigation'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (bog)', 'other maps with aberrant swamp zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground swamps', 'contaminated pools', 'mushroom wetlands'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -16808,7 +17201,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_CARBONEMYS_160',
   name: 'Aberrant Carbonemys',
   icon: '🐢',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Carbonemys'],
@@ -16917,7 +17310,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced shell defense system', 'radiation immunity', 'improved aberrant gathering'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant safe zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground forests', 'mushroom groves', 'safe zones', 'peaceful areas'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -17048,7 +17441,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced speed system', 'cave navigation optimization', 'pursuit endurance'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant cave systems'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Cave tunnels', 'narrow passages', 'hunting corridors'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -17072,7 +17465,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_CNIDARIA_162',
   name: 'Aberrant Cnidaria',
   icon: '🪼',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Cnidaria'],
@@ -17177,7 +17570,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Swarm coordination', 'electrical field generation', 'environmental hazard role'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (ocean/bog)', 'other maps with aberrant aquatic zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Contaminated waterways', 'underground pools', 'electrical zones'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -17201,7 +17594,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_COELACANTH_163',
   name: 'Aberrant Coelacanth',
   icon: '🐟',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Coelacanth'],
@@ -17308,7 +17701,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced meat quality', 'radiation resistance', 'fast evasion systems'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant aquatic zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Contaminated waterways', 'underground rivers', 'toxic pools'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -17440,7 +17833,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced healing system', 'radiation-resistant medical support', 'food efficiency optimization'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground areas with diverse food sources', 'mushroom forests'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -17457,7 +17850,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'High',
 
   // Badge Categories
-  badgeCategories: ['utility', 'combat', 'boss']
+  badgeCategories: ['utility', 'combat', 'boss', 'support']
 },
 'Aberrant Dilophosaur': {
   // Basic Info
@@ -17480,8 +17873,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Standard knockout, pack complications',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'Basic Kibble',
+  favoriteFood: 'Basic Kibble',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 100,
@@ -17571,7 +17964,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced pack hunting system', 'venom warfare', 'cave navigation optimization'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant cave zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Cave systems', 'narrow passages', 'ambush points'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -17703,7 +18096,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced thermal regulation system', 'temperature resistance', 'egg incubation assistance'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with thermal aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Thermal areas', 'temperature-variable cave systems'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -17720,14 +18113,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Low',
 
   // Badge Categories
-  badgeCategories: ['utility']
+  badgeCategories: ['utility', 'support']
 },
 'Aberrant Dimorphodon': {
   // Basic Info
   id: 'ABERRANT_DIMORPHODON_167',
   name: 'Aberrant Dimorphodon',
   icon: '🦇',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Dimorphodon'],
@@ -17743,8 +18136,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Standard knockout, pack complications',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Raw Prime Meat',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 80,
@@ -17834,7 +18227,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced echolocation system', 'pack flight coordination', 'cave navigation specialization'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with large aberrant cave systems'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Cave chambers', 'aerial spaces', 'roosting areas'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -17851,14 +18244,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility']
+  badgeCategories: ['utility', 'scout']
 },
 'Aberrant Diplocaulus': {
   // Basic Info
   id: 'ABERRANT_DIPLOCAULUS_168',
   name: 'Aberrant Diplocaulus',
   icon: '🦎',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Diplocaulus'],
@@ -17874,7 +18267,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Must feed while swimming, very gentle',
-  preferredKibble: 'Diplocaulus Kibble (Aberrant)',
+  preferredKibble: 'Simple Kibble',
   favoriteFood: 'Raw Fish Meat',
   tamingSpeed: 'Fast',
   torpor: {
@@ -17965,7 +18358,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced oxygen generation system', 'toxin immunity', 'emergency life support'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (bog/ocean)', 'other maps with aberrant aquatic zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Contaminated waterways', 'underground pools', 'safe water areas'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -17982,7 +18375,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility']
+  badgeCategories: ['utility', 'support']
 },
 'Aberrant Diplodocus': {
   // Basic Info
@@ -18096,7 +18489,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Multi-passenger system', 'platform capabilities', 'radiation-resistant mass transport'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with large aberrant areas'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Large cave chambers', 'mushroom forests', 'safe zones'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -18115,10 +18508,10 @@ const SPECIES_DATABASE = {
   // Badge Categories
   badgeCategories: ['transport', 'utility']
 },
-'Aberrant Direbear': {
+'Aberrant Dire Bear': {
   // Basic Info
   id: 'ABERRANT_DIREBEAR_170',
-  name: 'Aberrant Direbear',
+  name: 'Aberrant Dire Bear',
   icon: '🐻',
   category: 'combat',
   rarity: 'uncommon',
@@ -18229,7 +18622,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced climbing system', 'honey harvesting specialization', 'territorial behavior benefits'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant mountainous zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Cave systems with vertical elements', 'honey caves', 'safe zones'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -18360,7 +18753,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced egg production system', 'improved survival instincts', 'radiation-resistant companionship'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant safe zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Safe zones', 'mushroom forests', 'protected areas', 'near survivor settlements'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -18493,7 +18886,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced defensive curl system', 'rare mineral detection', 'auto-harvest capabilities'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant mineral zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Stone-rich cave areas', 'crystal formations', 'mineral deposits'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -18625,7 +19018,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Autonomous processing system', 'radiation-resistant waste conversion', 'enhanced production efficiency'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Organic-rich areas', 'waste processing zones', 'mushroom forests'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -18649,7 +19042,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_ELECTROPHORUS_174',
   name: 'Aberrant Electrophorus',
   icon: '⚡',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'uncommon',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Electrophorus'],
@@ -18665,7 +19058,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Underwater knockout, extremely dangerous due to electrical attacks',
-  preferredKibble: 'Electrophorus Kibble (Aberrant)',
+  preferredKibble: 'N/A',
   favoriteFood: 'Raw Fish Meat',
   tamingSpeed: 'Medium',
   torpor: {
@@ -18756,7 +19149,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced electrical warfare system', 'equipment overload capabilities', 'chain lightning coordination'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (ocean/bog)', 'other maps with aberrant aquatic zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Contaminated waterways', 'electrical zones', 'underground pools'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -18796,7 +19189,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Must feed while riding wild (extremely dangerous), requires saddle first',
-  preferredKibble: 'Simple Kibble',
+  preferredKibble: 'Regular Kibble',
   favoriteFood: 'Rockarrot',
   tamingSpeed: 'Medium',
   torpor: {
@@ -18888,7 +19281,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Hazard detection system', 'enhanced cave climbing', 'lasso functionality'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Stable cave areas', 'mushroom plains', 'safe travel routes'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -19019,7 +19412,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Multi-passenger system', 'pack coordination bonuses', 'enhanced evasion capabilities'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with open aberrant areas'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Open cave areas', 'mushroom plains', 'travel corridors'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -19059,7 +19452,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Must feed Mejoberries, completely peaceful but territorial',
-  preferredKibble: 'N/A',
+  preferredKibble: 'Regular Kibble',
   favoriteFood: 'Mejoberry',
   tamingSpeed: 'Medium',
   torpor: {
@@ -19152,7 +19545,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Shoulder-carry system', 'enhanced climbing capabilities', 'fiber processing optimization'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with vertical aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Vertical cave areas', 'mushroom forests', 'elevated territories'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -19285,7 +19678,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Bipedal/quadrupedal locomotion modes', 'seed production system', 'adaptive movement optimization'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with diverse aberrant terrain'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Mixed terrain areas', 'mushroom plains', 'resource-rich zones'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -19416,7 +19809,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced leap attack system', 'grab and roll mechanics', 'amphibious stealth capabilities'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (bog)', 'other maps with aberrant swamp zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground waterways', 'swamp areas', 'ambush points'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -19440,7 +19833,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_LYSTROSAURUS_180',
   name: 'Aberrant Lystrosaurus',
   icon: '🦔',
-  category: 'utility',
+  category: 'pet',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Lystrosaurus'],
@@ -19454,9 +19847,9 @@ const SPECIES_DATABASE = {
   sizeClass: 'Small',
 
   // Taming System
-  tamingMethod: 'Passive',
+  tamingMethod: 'Special',
   tamingType: 'Simply feed by hand, completely peaceful and eager to bond',
-  preferredKibble: 'Basic Kibble',
+  preferredKibble: 'N/A',
   favoriteFood: 'Rare Flower',
   tamingSpeed: 'Very Fast',
   torpor: {
@@ -19545,7 +19938,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced XP bonus system', 'loyalty bonding', 'psychological support benefits'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant safe zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Safe zones', 'companion areas', 'near survivor settlements'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -19562,14 +19955,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility']
+  badgeCategories: ['utility', 'support']
 },
 'Aberrant Manta': {
   // Basic Info
   id: 'ABERRANT_MANTA_181',
   name: 'Aberrant Manta',
   icon: '🐋',
-  category: 'transport',
+  category: 'aquatic',
   rarity: 'rare',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Manta'],
@@ -19674,7 +20067,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Air purification system', 'radiation filtering', 'peaceful aerial transport'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (ocean)', 'other maps with large aberrant aerial spaces'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Large cave chambers', 'aerial spaces', 'clean air zones'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -19714,8 +20107,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Extremely dangerous due to venom and climbing attacks',
-  preferredKibble: 'Superior Kibble',
-  favoriteFood: 'Superior Kibble',
+  preferredKibble: 'Extraordinary Kibble',
+  favoriteFood: 'Extraordinary Kibble',
   tamingSpeed: 'Slow',
   torpor: {
     baseValue: 725,
@@ -19805,7 +20198,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced climbing system', 'venom warfare capabilities', 'stealth ambush mechanics'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with vertical aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Vertical cave areas', 'ceiling spaces', 'wall-mounted territories'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -19829,7 +20222,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_MEGALODON_183',
   name: 'Aberrant Megalodon',
   icon: '🦈',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'rare',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Megalodon'],
@@ -19845,8 +20238,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Must feed while swimming, extremely dangerous due to aggressive nature',
-  preferredKibble: 'Exceptional Kibble',
-  favoriteFood: 'Exceptional Kibble',
+  preferredKibble: 'Superior Kibble',
+  favoriteFood: 'Superior Kibble',
   tamingSpeed: 'Very Slow',
   torpor: {
     baseValue: 1000,
@@ -19936,7 +20329,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced underwater combat system', 'pack hunting coordination', 'territorial dominance mechanics'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (ocean)', 'other maps with large aberrant water bodies'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Deep underground waters', 'large aquatic chambers', 'contaminated ocean areas'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -20067,7 +20460,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Sleep cycle system', 'nocturnal performance bonuses', 'rest state recovery'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with deep aberrant cave zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Deep caves', 'dark territories', 'nocturnal hunting grounds'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -20084,7 +20477,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['combat', 'boss']
+  badgeCategories: ['combat', 'boss', 'scout']
 },
 'Aberrant Megatherium': {
   // Basic Info
@@ -20200,7 +20593,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Insect kill rage system', 'enhanced chitin harvesting', 'specialized insect detection'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant insect populations'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Insect-rich areas', 'arthropod colonies', 'cave systems with bug populations'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -20224,7 +20617,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_MESOPITHECUS_186',
   name: 'Aberrant Mesopithecus',
   icon: '🐒',
-  category: 'utility',
+  category: 'pet',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Mesopithecus'],
@@ -20331,7 +20724,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced tool use system', 'item retrieval capabilities', 'throwing accuracy bonuses'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant safe zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Safe areas', 'companion zones', 'mushroom forests', 'elevated areas'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -20355,7 +20748,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_MICRORAPTOR_187',
   name: 'Aberrant Microraptor',
   icon: '🦅',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Microraptor'],
@@ -20371,8 +20764,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Standard knockout, pack behavior makes solo taming dangerous',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Raw Prime Meat',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 80,
@@ -20462,7 +20855,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced dismounting system', 'pack harassment tactics', 'coordinated aerial attacks'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant aerial zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Cave chambers', 'aerial spaces', 'roosting areas'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -20503,7 +20896,7 @@ const SPECIES_DATABASE = {
   tamingMethod: 'Passive',
   tamingType: 'Must feed specific requested items, learning-based taming',
   preferredKibble: 'Variable (requests random items during taming)',
-  favoriteFood: 'Variable items',
+  favoriteFood: 'N/A',
   tamingSpeed: 'Variable',
   torpor: {
     baseValue: 400,
@@ -20594,7 +20987,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Learning system for resource preferences', 'customizable gathering efficiency', 'adaptive material processing'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with diverse aberrant resources'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Resource-rich areas', 'safe zones', 'foraging grounds'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -20618,7 +21011,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_OTTER_189',
   name: 'Aberrant Otter',
   icon: '🦦',
-  category: 'utility',
+  category: 'pet',
   rarity: 'rare',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Otter'],
@@ -20725,7 +21118,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Artifact detection system', 'thermal insulation bonuses', 'underwater navigation assistance'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (ocean/bog)', 'other maps with clean aberrant water sources'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Clean waterways', 'safe pools', 'thermal zones'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -20854,7 +21247,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced breeding coordination', 'egg incubation bonuses', 'mating stimulation aura'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant breeding zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Nesting areas', 'breeding zones', 'safe reproductive sites'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -20986,7 +21379,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Renewable wool production', 'radiation-safe food production', 'enhanced insulation materials'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant safe zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Safe grazing areas', 'mushroom plains', 'protected valleys'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -21026,8 +21419,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Standard knockout, herd behavior complicates approach',
-  preferredKibble: 'Regular Kibble',
-  favoriteFood: 'Regular Kibble',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Sweet Vegetable Cake',
   tamingSpeed: 'Medium',
   torpor: {
     baseValue: 250,
@@ -21118,7 +21511,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Chemical warfare system', 'herd coordination bonuses', 'war-paint production and application'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant chemical zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Herd territories', 'mushroom plains', 'chemical-rich areas'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -21158,8 +21551,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Standard knockout, high torpor requirement',
-  preferredKibble: 'Regular Kibble',
-  favoriteFood: 'Regular Kibble',
+  preferredKibble: 'Superior Kibble',
+  favoriteFood: 'Superior Kibble',
   tamingSpeed: 'Slow',
   torpor: {
     baseValue: 1550,
@@ -21251,7 +21644,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Platform construction system', 'radiation-resistant transport', 'mobile base capabilities'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with large aberrant cave systems'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Large cave chambers', 'mushroom forests', 'underground plains'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -21291,8 +21684,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Standard knockout, very easy to tame',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'Basic Kibble',
+  favoriteFood: 'Basic Kibble',
   tamingSpeed: 'Very Fast',
   torpor: {
     baseValue: 120,
@@ -21382,7 +21775,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced enemy detection', 'alert system mechanics', 'radiation-resistant beginner mount'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant safe zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Safe zones', 'early exploration areas', 'mushroom plains'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -21406,7 +21799,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_PELAGORNIS_196',
   name: 'Aberrant Pelagornis',
   icon: '🐦',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'rare',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Pelagornis'],
@@ -21422,7 +21815,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Standard knockout, prefers aquatic taming environment',
-  preferredKibble: 'Simple Kibble',
+  preferredKibble: 'Regular Kibble',
   favoriteFood: 'Raw Fish Meat',
   tamingSpeed: 'Fast',
   torpor: {
@@ -21514,7 +21907,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Organic polymer conversion system', 'water landing/takeoff', 'aberrant aquatic adaptation'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant aquatic zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground waterways', 'large cave lakes', 'aquatic zones'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -21554,8 +21947,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Standard knockout, flees when attacked',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'Basic Kibble',
+  favoriteFood: 'Basic Kibble',
   tamingSpeed: 'Fast',
   torpor: {
     baseValue: 120,
@@ -21645,7 +22038,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced fertilizer production system', 'radiation-resistant agriculture', 'fear-based escape behaviors'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant safe zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Safe agricultural zones', 'mushroom plains', 'fertile cave areas'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -21669,7 +22062,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_PIRANHA_198',
   name: 'Aberrant Piranha',
   icon: '🐟',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Piranha'],
@@ -21774,7 +22167,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced swarm coordination', 'sensory perception in darkness', 'environmental hazard role'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant aquatic zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Contaminated waterways', 'underground rivers', 'toxic pools'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -21798,7 +22191,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_PLESIOSAUR_199',
   name: 'Aberrant Plesiosaur',
   icon: '🦕',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'rare',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Plesiosaur'],
@@ -21814,8 +22207,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Deep water knockout taming, extremely dangerous',
-  preferredKibble: 'Exceptional Kibble',
-  favoriteFood: 'Exceptional Kibble',
+  preferredKibble: 'Superior Kibble',
+  favoriteFood: 'Superior Kibble',
   tamingSpeed: 'Very Slow',
   torpor: {
     baseValue: 1000,
@@ -21905,7 +22298,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced echolocation system', 'deep sea adaptation', 'platform construction capabilities'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (ocean)', 'other maps with deep aberrant water bodies'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Deep underground waters', 'large aquatic chambers', 'abyssal zones'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -21922,14 +22315,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'High',
 
   // Badge Categories
-  badgeCategories: ['combat', 'transport', 'boss']
+  badgeCategories: ['combat', 'transport', 'boss', 'scout']
 },
 'Aberrant Pteranodon': {
   // Basic Info
   id: 'ABERRANT_PTERANODON_200',
   name: 'Aberrant Pteranodon',
   icon: '🦅',
-  category: 'transport',
+  category: 'flyer',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Pteranodon'],
@@ -21945,8 +22338,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Aerial knockout, extremely fast and evasive',
-  preferredKibble: 'Simple Kibble',
-  favoriteFood: 'Simple Kibble',
+  preferredKibble: 'Regular Kibble',
+  favoriteFood: 'Regular Kibble',
   tamingSpeed: 'Very Fast',
   torpor: {
     baseValue: 120,
@@ -22036,7 +22429,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced barrel roll', 'cave navigation optimization', 'radiation-resistant flight'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant aerial zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Aerial cave spaces', 'high roosting areas', 'open cave chambers'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -22168,7 +22561,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced venom system', 'vertical climbing capabilities', 'ambush predation tactics'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant cave zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Dark caves', 'ambush points', 'vertical surfaces', 'toxic zones'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -22208,7 +22601,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Must find burrowed creature and feed, extremely dangerous',
-  preferredKibble: 'N/A',
+  preferredKibble: 'Regular Kibble',
   favoriteFood: 'Cooked Lamb Chop',
   tamingSpeed: 'Slow',
   torpor: {
@@ -22299,7 +22692,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Underground burrowing and ambush system', 'hidden storage caches', 'stealth predation'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant burrowing zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Burrowing zones', 'ambush points', 'hidden cache locations'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -22430,7 +22823,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced pack coordination', 'pounce mechanics', 'aberrant adaptation'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Cave systems', 'mushroom forests', 'hunting grounds'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -22454,7 +22847,7 @@ const SPECIES_DATABASE = {
   id: 'ABERRANT_SALMON_204',
   name: 'Aberrant Salmon',
   icon: '🐟',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Aberration DLC',
   variants: ['Aberrant Enhancement of Standard Salmon'],
@@ -22561,7 +22954,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced meat quality', 'radiation-safe food source', 'water quality indication'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant aquatic zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground rivers', 'clean water sources', 'contaminated pools'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -22692,7 +23085,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Ambush lunge mechanics', 'death roll specialization', 'amphibious stealth'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (bog)', 'other maps with aberrant swamp zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Underground swamps', 'contaminated rivers', 'murky waters'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -22824,7 +23217,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Bipedal/quadrupedal stance switching', 'hydration buff system', 'apex amphibious predation'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1 (bog/ocean)', 'other maps with large aberrant water bodies'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Deep underground waterways', 'large aquatic chambers', 'major river systems'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -22956,7 +23349,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Hardened plate system', 'enhanced gathering modes', 'defensive impale attack'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant resource zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Resource-rich areas', 'defensive positions', 'mushroom plains'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -23087,7 +23480,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced charge system', 'herd defense coordination', 'dismounting specialization'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant herd zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Herd territories', 'defensive positions', 'resource-rich areas'],
   rarityRating: 'Common',
   levelRange: '1-150',
@@ -23111,7 +23504,7 @@ const SPECIES_DATABASE = {
   id: 'BLOODSTALKER_209',
   name: 'Bloodstalker',
   icon: '🕷️',
-  category: 'utility',
+  category: 'combat',
   rarity: 'rare',
   source: 'Genesis Part 1 DLC',
   variants: ['Standard', 'R-Bloodstalker (Genesis Part 2)'],
@@ -23235,7 +23628,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['utility', 'transport', 'combat', 'boss']
+  badgeCategories: ['utility', 'transport', 'combat', 'boss', 'scout']
 },
 'Broodmother Lysrix': {
   // Basic Info
@@ -23504,7 +23897,7 @@ const SPECIES_DATABASE = {
   id: 'CRYSTAL_WYVERN_212',
   name: 'Crystal Wyvern',
   icon: '💎',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Crystal Isles DLC',
   variants: ['Tropical', 'Blood', 'Ember'],
@@ -24160,7 +24553,7 @@ const SPECIES_DATABASE = {
   id: 'PARAKEET_FISH_SCHOOL_219',
   name: 'Parakeet Fish School',
   icon: '🐠',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Genesis Part 1 DLC',
   variants: ['Standard'],
@@ -24292,7 +24685,7 @@ const SPECIES_DATABASE = {
   id: 'ASTROCETUS_220',
   name: 'Astrocetus',
   icon: '🐳',
-  category: 'transport',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Genesis Part 1 DLC',
   variants: ['Standard'],
@@ -24308,7 +24701,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Special',
   tamingType: 'Must destroy nodes on its back with a Tek Skiff',
-  preferredKibble: 'N/A',
+  preferredKibble: 'Extraordinary Kibble',
   favoriteFood: 'N/A',
   tamingSpeed: 'Slow',
   torpor: {
@@ -24423,7 +24816,7 @@ const SPECIES_DATABASE = {
   id: 'ASTRODELPHIS_221',
   name: 'Astrodelphis',
   icon: '🐬',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Genesis Part 2 DLC',
   variants: ['Standard'],
@@ -24547,7 +24940,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'High',
 
   // Badge Categories
-  badgeCategories: ['combat', 'transport', 'boss']
+  badgeCategories: ['combat', 'transport', 'boss', 'scout']
 },
 'Brain Slug': {
   // Basic Info
@@ -24683,7 +25076,7 @@ const SPECIES_DATABASE = {
   id: 'CNIDARIA_223',
   name: 'Cnidaria',
   icon: '🪼',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard', 'Aberrant'],
@@ -24814,7 +25207,7 @@ const SPECIES_DATABASE = {
   id: 'DODO_WYVERN_224',
   name: 'Dodo Wyvern',
   icon: '🦤',
-  category: 'boss',
+  category: 'event',
   rarity: 'mythical',
   source: 'Scorched Earth (Fear Evolved Event)',
   variants: ['Event Boss'],
@@ -24945,7 +25338,7 @@ const SPECIES_DATABASE = {
   id: 'DRAGON_226',
   name: 'Dragon',
   icon: '🐉',
-  category: 'boss',
+  category: 'flyer',
   rarity: 'mythical',
   source: 'Base Game (Boss)',
   variants: ['Gamma', 'Beta', 'Alpha'],
@@ -25208,7 +25601,7 @@ const SPECIES_DATABASE = {
   id: 'ICE_TITAN_228',
   name: 'Ice Titan',
   icon: '❄️',
-  category: 'boss',
+  category: 'titan',
   rarity: 'mythical',
   source: 'Extinction DLC (Titan)',
   variants: ['Titan'],
@@ -25337,7 +25730,7 @@ const SPECIES_DATABASE = {
   id: 'FOREST_TITAN_229',
   name: 'Forest Titan',
   icon: '🌳',
-  category: 'boss',
+  category: 'titan',
   rarity: 'mythical',
   source: 'Extinction DLC (Titan)',
   variants: ['Titan'],
@@ -25466,7 +25859,7 @@ const SPECIES_DATABASE = {
   id: 'DESERT_TITAN_230',
   name: 'Desert Titan',
   icon: '🐦',
-  category: 'boss',
+  category: 'titan',
   rarity: 'mythical',
   source: 'Extinction DLC (Titan)',
   variants: ['Titan'],
@@ -25595,7 +25988,7 @@ const SPECIES_DATABASE = {
   id: 'KING_TITAN_231',
   name: 'King Titan',
   icon: '👑',
-  category: 'boss',
+  category: 'titan',
   rarity: 'mythical',
   source: 'Extinction DLC (Final Boss)',
   variants: ['Alpha', 'Beta', 'Gamma'],
@@ -25726,7 +26119,7 @@ const SPECIES_DATABASE = {
   id: 'MAEWING_232',
   name: 'Maewing',
   icon: ' Platypus face',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Genesis Part 2 DLC',
   variants: ['Standard'],
@@ -25851,7 +26244,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Low',
 
   // Badge Categories
-  badgeCategories: ['utility', 'transport']
+  badgeCategories: ['utility', 'transport', 'support']
 },
 'Noglin': {
   // Basic Info
@@ -26119,7 +26512,7 @@ const SPECIES_DATABASE = {
   id: 'SUMMONER_235',
   name: 'Summoner',
   icon: '👻',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'rare',
   source: 'Genesis Part 2 DLC',
   variants: ['Standard'],
@@ -26250,7 +26643,7 @@ const SPECIES_DATABASE = {
   id: 'VOIDWYRM_236',
   name: 'Voidwyrm',
   icon: '🐉',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Genesis Part 2 DLC',
   variants: ['Standard', 'R-Variant'],
@@ -26397,7 +26790,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Special',
   tamingType: 'Must gain its trust by staying near it and killing predators that attack it',
-  preferredKibble: 'N/A',
+  preferredKibble: 'Exceptional Kibble',
   favoriteFood: 'Exceptional Kibble',
   tamingSpeed: 'Slow',
   torpor: {
@@ -26529,7 +26922,7 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Special',
   tamingType: 'Must kill the alpha of a pack to tame the rest of the pack passively',
-  preferredKibble: 'N/A',
+  preferredKibble: 'Exceptional Kibble',
   favoriteFood: 'Exceptional Kibble',
   tamingSpeed: 'Fast',
   torpor: {
@@ -26645,7 +27038,7 @@ const SPECIES_DATABASE = {
   id: 'SINOMACROPS_239',
   name: 'Sinomacrops',
   icon: '🦋',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'common',
   source: 'Lost Island DLC',
   variants: ['Standard'],
@@ -26906,7 +27299,7 @@ const SPECIES_DATABASE = {
   id: 'FJORDHAWK_241',
   name: 'Fjordhawk',
   icon: '🦅',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Fjordur DLC',
   variants: ['Standard'],
@@ -27030,14 +27423,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility']
+  badgeCategories: ['utility', 'support']
 },
 'Desmodus': {
   // Basic Info
   id: 'DESMODUS_242',
   name: 'Desmodus',
   icon: '🦇',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Fjordur DLC',
   variants: ['Standard'],
@@ -27162,7 +27555,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['combat', 'utility', 'pvp']
+  badgeCategories: ['combat', 'utility', 'pvp', 'scout']
 },
 'Fenrir': {
   // Basic Info
@@ -27409,7 +27802,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Platform saddle', 'symbiotic ecosystem'],
 
   // Spawn & Location
-  spawnMaps: ['The Island (Animated Series context)'],
+  spawnMaps: ['The Island'],
   spawnZones: ['Plains, jungles'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -27564,7 +27957,7 @@ const SPECIES_DATABASE = {
   id: 'OVERSEER_246',
   name: 'Overseer',
   icon: '👁️',
-  category: 'boss',
+  category: 'flyer',
   rarity: 'mythical',
   source: 'Base Game (Final Boss)',
   variants: ['Gamma', 'Beta', 'Alpha'],
@@ -27826,7 +28219,7 @@ const SPECIES_DATABASE = {
   id: 'CRYSTAL_WYVERN_QUEEN_248',
   name: 'Crystal Wyvern Queen',
   icon: '👑',
-  category: 'boss',
+  category: 'flyer',
   rarity: 'mythical',
   source: 'Crystal Isles DLC (Final Boss)',
   variants: ['Gamma', 'Beta', 'Alpha'],
@@ -28219,7 +28612,7 @@ const SPECIES_DATABASE = {
   id: 'MANTICORE_251',
   name: 'Manticore',
   icon: '🦁',
-  category: 'boss',
+  category: 'flyer',
   rarity: 'mythical',
   source: 'Scorched Earth DLC (Final Boss)',
   variants: ['Gamma', 'Beta', 'Alpha'],
@@ -28457,7 +28850,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Transformation', 'fire teleport', 'unique taming method'],
 
   // Spawn & Location
-  spawnMaps: ['Scorched Earth (with Bob\'s Tall Tales)'],
+  spawnMaps: ['Scorched Earth'],
   spawnZones: ['Volcanic areas', 'badlands'],
   rarityRating: 'Legendary',
   levelRange: '1-150',
@@ -28589,7 +28982,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Sand swimming', 'explosive-based taming'],
 
   // Spawn & Location
-  spawnMaps: ['Scorched Earth (Ascended)'],
+  spawnMaps: ['Scorched Earth'],
   spawnZones: ['Dunes', 'badlands'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -28720,7 +29113,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Intelligence-based taming', 'pack coordination system', 'problem-solving assistance'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Dark territories', 'intelligent pack zones', 'problem-solving areas'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -28737,7 +29130,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Low',
 
   // Badge Categories
-  badgeCategories: ['combat', 'utility', 'boss']
+  badgeCategories: ['combat', 'utility', 'boss', 'scout']
 },
 'Aberrant Woolly Rhino': {
   // Basic Info
@@ -28760,8 +29153,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Regular Kibble',
-  favoriteFood: 'Regular Kibble',
+  preferredKibble: 'Superior Kibble',
+  favoriteFood: 'Superior Kibble',
   tamingSpeed: 'Medium',
   torpor: {
     baseValue: 420,
@@ -28852,7 +29245,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced charging system', 'structure destruction capabilities', 'momentum conservation'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with cold aberrant zones'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Charging corridors', 'cold zones', 'siege areas'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -28870,6 +29263,542 @@ const SPECIES_DATABASE = {
 
   // Badge Categories
   badgeCategories: ['combat', 'boss']
+},
+'Aberrant Trilobite': {
+  id: 'AB_TRILOBITE_482',
+  name: 'Aberrant Trilobite',
+  icon: ' Trilobite icon',
+  category: 'utility',
+  rarity: 'uncommon',
+  source: 'Aberration DLC',
+  variants: ['Aberrant Variant'],
+  dossierText: 'The Trilobite is a simple, ancient arthropod that scuttles along the island\'s beaches and shallow seabeds. It is a completely passive creature, fleeing clumsily from any perceived threat. It cannot be tamed, but it is a vital early-game resource for survivors. Its hard exoskeleton provides a ready source of Chitin and a surprising amount of Oil and Silica Pearls. Hunting Trilobites is a safe and reliable way for new survivors to gather the materials needed for their first advanced crafting projects.',
+  temperament: 'Passive',
+  diet: 'Omnivore (scavenger)',
+  habitat: 'Beaches, shallow water, ocean floor',
+  realWorldBasis: 'Trilobite',
+  sizeClass: 'Small',
+  tamingMethod: 'Cannot be tamed',
+  tamingType: 'N/A',
+  preferredKibble: 'N/A',
+  favoriteFood: 'N/A',
+  tamingSpeed: 'N/A',
+  torpor: {
+    baseValue: 50,
+    depleteRate: 'N/A'
+  },
+  specialRequirements: 'Harvestable for key early-game resources.',
+  baseStats: {
+    health: 40,
+    stamina: 100,
+    oxygen: 150,
+    food: 450,
+    weight: 50,
+    melee: 0,
+    speed: 100,
+    torpor: 50
+  },
+  statScaling: {
+    health: 8,
+    stamina: 10,
+    oxygen: 15,
+    food: 45,
+    weight: 1,
+    melee: 0,
+    speed: 1
+  },
+  saddleLevel: 0,
+  saddleType: 'N/A',
+  saddleArmor: 0,
+  platformLimit: 0,
+  specialAbilities: ['None'],
+  attackTypes: ['None'],
+  canCarry: ['N/A'],
+  primaryRole: 'Resource source',
+  secondaryRoles: ['Early game material farm'],
+  gatheringResources: ['Chitin', 'Oil', 'Silica Pearls', 'Raw Meat'],
+  gatheringEfficiency: {
+    Oil: 8,
+    Chitin: 8,
+    'Silica Pearls': 7
+  },
+  ratings: {
+    combat: 0,
+    transport: 0,
+    speed: 2,
+    survivability: 2
+  },
+  speeds: {
+    land: 8,
+    flying: 0,
+    swimming: 15,
+    climbing: 0
+  },
+  environmentalResistances: ['Radiation immunity'],
+  preferredBiome: 'Beaches, shallow water (Aberration adaptation)',
+  temperatureRange: {
+    min: 0,
+    max: 50
+  },
+  oxygenRequirement: 'Air and water breathing',
+  breeding: {
+    cooldown: 'Cannot breed',
+    gestationTime: 'N/A',
+    babyFoodConsumption: 'N/A',
+    maturationTime: 'N/A',
+    colorRegions: 2,
+    colorRegionNames: ['Body', 'Shell'],
+    mutationChance: 0,
+    breedingDifficulty: 'Cannot breed'
+  },
+  workstation: 'None',
+  resourceProduction: 'None',
+  structureFunctions: 'None',
+  buffAuras: ['None'],
+  debuffAbilities: ['None'],
+  uniqueMechanics: ['None'],
+  spawnMaps: ['Aberration'],
+  spawnZones: ['Bioluminescence', 'Fertile Land', 'The Emerald Forest'],
+  rarityRating: 'Common',
+  levelRange: '1-150',
+  packBehavior: 'Groups',
+  territorialBehavior: 'Passive',
+  difficultyRating: 'N/A',
+  beginnerFriendly: true,
+  endGameViable: true,
+  bossFightCapable: false,
+  pvpMeta: 'None',
+  resourceInvestment: 'N/A',
+  maintenanceLevel: 'N/A',
+  badgeCategories: ['utility', 'harvesting']
+},
+'Aberrant Titanoboa': {
+  id: 'AB_TITANOBOA_481',
+  name: 'Aberrant Titanoboa',
+  icon: '🐍',
+  category: 'combat',
+  rarity: 'uncommon',
+  source: 'Aberration DLC',
+  variants: ['Aberrant Variant'],
+  dossierText: 'Titanoboa exornantur is an aggressive predator that resides in the island\'s swamps and caves. As the largest snake I\'ve encountered, Titanoboa can be quite intimidating. What makes Titanoboa particularly dangerous is its potent venom, which can rapidly induce unconsciousness in its victims. The snake\'s constricting coils can crush prey while its venom works, making escape nearly impossible once caught. Despite its aggressive nature, Titanoboa eggs are highly valued for their use in creating Exceptional Kibble. However, obtaining these eggs is extremely dangerous, as Titanoboa are excellent ambush predators that often attack without warning.',
+  temperament: 'Aggressive',
+  diet: 'Carnivore (ambush predator, any prey)',
+  habitat: 'Swamps, caves, dense vegetation, anywhere dark and humid',
+  realWorldBasis: 'Titanoboa cerrejonensis',
+  sizeClass: 'Large',
+  tamingMethod: 'Passive',
+  tamingType: 'Violent taming with tranquilizers',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Fertile Egg',
+  tamingSpeed: 'Slow',
+  torpor: {
+    baseValue: 350,
+    depleteRate: 'Very Slow'
+  },
+  specialRequirements: 'Aggressive ambush behavior, potent venom, found in swamps and caves',
+  baseStats: {
+    health: 170,
+    stamina: 200,
+    oxygen: 150,
+    food: 1200,
+    weight: 150,
+    melee: 28,
+    speed: 100,
+    torpor: 350
+  },
+  statScaling: {
+    health: 34,
+    stamina: 20,
+    oxygen: 15,
+    food: 120,
+    weight: 3,
+    melee: 1.4,
+    speed: 1.5
+  },
+  saddleLevel: 0,
+  saddleType: 'Cannot be ridden',
+  saddleArmor: 0,
+  platformLimit: 0,
+  specialAbilities: ['Venomous bite', 'constricting attacks', 'stealth ambush'],
+  attackTypes: ['Venomous bite (causes torpor)', 'constricting coils', 'ambush strikes'],
+  canCarry: ['Cannot carry items or passengers'],
+  primaryRole: 'Ambush predator and venom specialist',
+  secondaryRoles: ['Cave guardian', 'swamp patrol', 'egg producer'],
+  gatheringResources: ['Raw meat', 'hide'],
+  gatheringEfficiency: {
+    'Raw meat': 6,
+    Hide: 5
+  },
+  ratings: {
+    combat: 7,
+    transport: 0,
+    speed: 6,
+    survivability: 6
+  },
+  speeds: {
+    land: 20,
+    flying: 0,
+    swimming: 25,
+    climbing: 0
+  },
+  environmentalResistances: ['Radiation immunity', 'Poison immunity'],
+  preferredBiome: 'Swamps, caves, dense vegetation, dark humid areas (Aberration adaptation)',
+  temperatureRange: {
+    min: 20,
+    max: 40
+  },
+  oxygenRequirement: 'Air breathing',
+  breeding: {
+    cooldown: '18-48 hours',
+    gestationTime: '4 hours, 59 minutes',
+    babyFoodConsumption: 'High',
+    maturationTime: '3 days, 20 hours',
+    colorRegions: 6,
+    colorRegionNames: ['Body', 'belly', 'stripes', 'patterns', 'head', 'markings'],
+    mutationChance: 7.31,
+    breedingDifficulty: 'Hard'
+  },
+  workstation: 'None',
+  resourceProduction: 'Exceptional Kibble eggs (highly valuable)',
+  structureFunctions: 'None',
+  buffAuras: ['None'],
+  debuffAbilities: ['Venomous bite causes rapid torpor increase'],
+  uniqueMechanics: ['Ambush positioning', 'venom delivery system', 'egg production'],
+  spawnMaps: ['Aberration'],
+  spawnZones: ['Bioluminescence', 'Fertile Land', 'The Emerald Forest'],
+  rarityRating: 'Uncommon',
+  levelRange: '1-150',
+  packBehavior: 'Solitary',
+  territorialBehavior: 'Aggressive ambush predator, attacks from hiding',
+  difficultyRating: 'Medium-Hard',
+  beginnerFriendly: false,
+  endGameViable: true,
+  bossFightCapable: false,
+  pvpMeta: 'Low',
+  resourceInvestment: 'Medium',
+  maintenanceLevel: 'Medium',
+  badgeCategories: ['combat', 'utility']
+},
+'Aberrant Meganeura': {
+  id: 'AB_MEGANEURA_480',
+  name: 'Aberrant Meganeura',
+  icon: '🦟',
+  category: 'flyer',
+  rarity: 'uncommon',
+  source: 'Aberration DLC',
+  variants: ['Aberrant Variant'],
+  dossierText: 'Meganeura is a giant dragonfly that buzzes through the island\'s swamps and jungles in large swarms. These insects are opportunistic carnivores, attracted to the scent of blood and carrion. They will aggressively attack any injured creature or descend upon a fresh corpse to feed. While a single Meganeura is little more than a pest, a large swarm can be a significant threat, quickly overwhelming and finishing off a weakened survivor or their tame. They cannot be tamed, but their bodies are a valuable source of Cementing Paste and Chitin.',
+  temperament: 'Aggressive (Opportunistic)',
+  diet: 'Carnivore (carrion)',
+  habitat: 'Swamps, jungles',
+  realWorldBasis: 'Meganeura',
+  sizeClass: 'Small',
+  tamingMethod: 'Cannot be tamed',
+  tamingType: 'N/A',
+  preferredKibble: 'N/A',
+  favoriteFood: 'N/A',
+  tamingSpeed: 'N/A',
+  torpor: {
+    baseValue: 20,
+    depleteRate: 'N/A'
+  },
+  specialRequirements: 'Hostile insect, attacks players and feeds on corpses.',
+  baseStats: {
+    health: 40,
+    stamina: 100,
+    oxygen: 150,
+    food: 450,
+    weight: 20,
+    melee: 8,
+    speed: 100,
+    torpor: 20
+  },
+  statScaling: {
+    health: 8,
+    stamina: 10,
+    oxygen: 15,
+    food: 45,
+    weight: 0.4,
+    melee: 0.4,
+    speed: 1
+  },
+  saddleLevel: 0,
+  saddleType: 'N/A',
+  saddleArmor: 0,
+  platformLimit: 0,
+  specialAbilities: ['Swarm tactics'],
+  attackTypes: ['Bite'],
+  canCarry: ['N/A'],
+  primaryRole: 'Resource source (Cementing Paste)',
+  secondaryRoles: ['Environmental hazard'],
+  gatheringResources: ['Cementing Paste', 'Chitin', 'Raw Meat'],
+  gatheringEfficiency: {
+    'Cementing Paste': 8,
+    Chitin: 8
+  },
+  ratings: {
+    combat: 2,
+    transport: 0,
+    speed: 5,
+    survivability: 1
+  },
+  speeds: {
+    land: 0,
+    flying: 25,
+    swimming: 0,
+    climbing: 0
+  },
+  environmentalResistances: ['Radiation immunity'],
+  preferredBiome: 'Swamps, jungles (Aberration adaptation)',
+  temperatureRange: {
+    min: 15,
+    max: 40
+  },
+  oxygenRequirement: 'Air breathing',
+  breeding: {
+    cooldown: 'Cannot breed',
+    gestationTime: 'N/A',
+    babyFoodConsumption: 'N/A',
+    maturationTime: 'N/A',
+    colorRegions: 2,
+    colorRegionNames: ['Body', 'Wings'],
+    mutationChance: 0,
+    breedingDifficulty: 'Cannot breed'
+  },
+  workstation: 'None',
+  resourceProduction: 'None',
+  structureFunctions: 'None',
+  buffAuras: ['None'],
+  debuffAbilities: ['None'],
+  uniqueMechanics: ['Swarm AI', 'attracted to corpses'],
+  spawnMaps: ['Aberration'],
+  spawnZones: ['Bioluminescence', 'Fertile Land', 'The Emerald Forest'],
+  rarityRating: 'Common',
+  levelRange: '1-150',
+  packBehavior: 'Swarms',
+  territorialBehavior: 'Aggressive',
+  difficultyRating: 'N/A',
+  beginnerFriendly: false,
+  endGameViable: true,
+  bossFightCapable: false,
+  pvpMeta: 'None',
+  resourceInvestment: 'N/A',
+  maintenanceLevel: 'N/A',
+  badgeCategories: ['utility', 'harvesting']
+},
+'Aberrant Gigantoraptor': {
+  id: 'AB_GIGANTORAPTOR_479',
+  name: 'Aberrant Gigantoraptor',
+  icon: '🦖',
+  category: 'utility',
+  rarity: 'rare',
+  source: 'Aberration DLC',
+  variants: ['Aberrant Variant'],
+  dossierText: 'A massive, feathered theropod, the Gigantoraptor is a fiercely protective parent. Unlike other predators of its size, its primary drive is not aggression, but the care of its young. They build large, conspicuous nests where they raise their chicks. What makes the Gigantoraptor truly unique is its taming method; a survivor cannot simply tame an adult. Instead, one must approach its nest, gain the trust of its young, and then prove their worth to the parent by protecting the chicks from harm. A tamed Gigantoraptor is the ultimate nanny, capable of imprinting on and nurturing the young of other species, boosting their stats and providing them with protection. Its piercing call can locate orphaned baby dinosaurs in the wild, making it an invaluable tool for any breeder.',
+  temperament: 'Protective',
+  diet: 'Carnivore',
+  habitat: 'Plains, mountains, badlands',
+  realWorldBasis: 'Gigantoraptor erlianensis',
+  sizeClass: 'Large',
+  tamingMethod: 'Special (Non-Violent)',
+  tamingType: 'Must find a nest, interact with the baby to initiate a hunt, and then claim the baby after the parent is satisfied.',
+  preferredKibble: 'N/A',
+  favoriteFood: 'Raw Prime Meat',
+  tamingSpeed: 'N/A (Imprinting)',
+  torpor: {
+    baseValue: 1800,
+    depleteRate: 'N/A'
+  },
+  specialRequirements: 'Unique taming mechanic involving nests and babies. Adults are untamable.',
+  baseStats: {
+    health: 850,
+    stamina: 400,
+    oxygen: 150,
+    food: 2000,
+    weight: 350,
+    melee: 40,
+    speed: 100,
+    torpor: 1800
+  },
+  statScaling: {
+    health: 170,
+    stamina: 40,
+    oxygen: 15,
+    food: 200,
+    weight: 7,
+    melee: 2,
+    speed: 1
+  },
+  saddleLevel: 75,
+  saddleType: 'Gigantoraptor Saddle',
+  saddleArmor: 25,
+  platformLimit: 0,
+  specialAbilities: ['Nurturing (boosts baby stats)', 'finds wild babies', 'protective parent', 'jump attack'],
+  attackTypes: ['Bite', 'Claw swipe', 'Jump attack'],
+  canCarry: ['None'],
+  primaryRole: 'Breeding assistant and mobile nursery',
+  secondaryRoles: ['Protective mount', 'wild baby finder'],
+  gatheringResources: ['Meat', 'Hide'],
+  gatheringEfficiency: {
+    Meat: 8,
+    Hide: 7
+  },
+  ratings: {
+    combat: 7,
+    transport: 6,
+    speed: 7,
+    survivability: 8
+  },
+  speeds: {
+    land: 35,
+    flying: 0,
+    swimming: 25,
+    climbing: 0
+  },
+  environmentalResistances: ['Radiation immunity'],
+  preferredBiome: 'Plains, mountains, badlands (Aberration adaptation)',
+  temperatureRange: {
+    min: 10,
+    max: 45
+  },
+  oxygenRequirement: 'Air breathing',
+  breeding: {
+    cooldown: '18-48 hours',
+    gestationTime: '4 hours, 59 minutes',
+    babyFoodConsumption: 'High',
+    maturationTime: '3 days, 20 hours',
+    colorRegions: 6,
+    colorRegionNames: ['Body', 'Feathers', 'Head Feathers', 'Legs', 'Claws', 'Beak'],
+    mutationChance: 7.31,
+    breedingDifficulty: 'Hard (due to acquisition)'
+  },
+  workstation: 'Mobile nursery',
+  resourceProduction: 'None',
+  structureFunctions: 'None',
+  buffAuras: ['Provides imprinting and stat boosts to allied babies'],
+  debuffAbilities: ['None'],
+  uniqueMechanics: ['Nurturing system for babies', 'unique taming method'],
+  spawnMaps: ['Aberration'],
+  spawnZones: ['Bioluminescence', 'Fertile Land', 'The Emerald Forest'],
+  rarityRating: 'Rare',
+  levelRange: '1-150',
+  packBehavior: 'Family units (parents with chicks)',
+  territorialBehavior: 'Extremely protective of their nests and young',
+  difficultyRating: 'Hard',
+  beginnerFriendly: false,
+  endGameViable: true,
+  bossFightCapable: true,
+  pvpMeta: 'Medium',
+  resourceInvestment: 'High',
+  maintenanceLevel: 'High',
+  badgeCategories: ['utility', 'combat', 'boss', 'support']
+},
+'Aberrant Fasolasuchus': {
+  id: 'AB_FASOLASUCHUS_478',
+  name: 'Aberrant Fasolasuchus',
+  icon: '🐊',
+  category: 'combat',
+  rarity: 'rare',
+  source: 'Aberration DLC',
+  variants: ['Aberrant Variant'],
+  dossierText: 'The Fasolasuchus is a formidable terrestrial predator that has adapted to thrive in the harsh desert environment. What makes this giant rauisuchian truly exceptional is its ability to swim through sand as if it were water, allowing it to ambush prey from below. Its armored hide provides excellent protection from both physical attacks and the extreme heat of the desert. The Fasolasuchus has a powerful bite that can shred armor, and its tail can create disorienting sandstorms. Taming this beast requires a survivor to exploit its one weakness: a soft underbelly that is exposed when it surfaces. A well-placed explosive can stun the creature, providing a brief window for taming. A tamed Fasolasuchus is a master of desert warfare, an amphibious terror of the sands.',
+  temperament: 'Aggressive',
+  diet: 'Carnivore',
+  habitat: 'Desert dunes, badlands',
+  realWorldBasis: 'Fasolasuchus tenax',
+  sizeClass: 'Large',
+  tamingMethod: 'Special',
+  tamingType: 'Must be stunned with explosives when it surfaces',
+  preferredKibble: 'Exceptional Kibble',
+  favoriteFood: 'Exceptional Kibble',
+  tamingSpeed: 'Slow',
+  torpor: {
+    baseValue: 1500,
+    depleteRate: 'N/A'
+  },
+  specialRequirements: 'Unique taming mechanic involving explosives',
+  baseStats: {
+    health: 900,
+    stamina: 400,
+    oxygen: 150,
+    food: 2500,
+    weight: 450,
+    melee: 50,
+    speed: 100,
+    torpor: 1500
+  },
+  statScaling: {
+    health: 180,
+    stamina: 40,
+    oxygen: 15,
+    food: 250,
+    weight: 9,
+    melee: 2.5,
+    speed: 1.5
+  },
+  saddleLevel: 82,
+  saddleType: 'Fasolasuchus Saddle',
+  saddleArmor: 25,
+  platformLimit: 0,
+  specialAbilities: ['Sand swimming', 'armor-piercing bite', 'sandstorm creation', 'ambush attacks'],
+  attackTypes: ['Bite', 'tail swipe (sandstorm)', 'submerge and surface attack'],
+  canCarry: ['Moderate weight'],
+  primaryRole: 'Desert combat and ambush predator',
+  secondaryRoles: ['Anti-armor specialist', 'PVP disruption', 'sand traversal'],
+  gatheringResources: ['Meat, hide, sand'],
+  gatheringEfficiency: {
+    Sand: 8,
+    Meat: 7
+  },
+  ratings: {
+    combat: 9,
+    transport: 6,
+    speed: 7,
+    survivability: 8
+  },
+  speeds: {
+    land: 30,
+    flying: 0,
+    swimming: 35,
+    climbing: 0
+  },
+  environmentalResistances: ['Radiation immunity', 'Heat immunity', 'sandstorm immunity'],
+  preferredBiome: 'Desert dunes, badlands (Aberration adaptation)',
+  temperatureRange: {
+    min: 10,
+    max: 80
+  },
+  oxygenRequirement: 'Air breathing',
+  breeding: {
+    cooldown: '18-48 hours',
+    gestationTime: '7 hours, 56 minutes',
+    babyFoodConsumption: 'High',
+    maturationTime: '3 days, 12 hours',
+    colorRegions: 6,
+    colorRegionNames: ['Body', 'armor plates', 'belly', 'spines', 'head', 'patterns'],
+    mutationChance: 7.31,
+    breedingDifficulty: 'Hard'
+  },
+  workstation: 'None',
+  resourceProduction: 'None',
+  structureFunctions: 'None',
+  buffAuras: ['None'],
+  debuffAbilities: ['Armor-piercing bite', 'sandstorm disorients enemies'],
+  uniqueMechanics: ['Sand swimming', 'explosive-based taming'],
+  spawnMaps: ['Aberration'],
+  spawnZones: ['Bioluminescence', 'Fertile Land', 'The Emerald Forest'],
+  rarityRating: 'Rare',
+  levelRange: '1-150',
+  packBehavior: 'Solitary',
+  territorialBehavior: 'Highly aggressive ambush predator',
+  difficultyRating: 'Hard',
+  beginnerFriendly: false,
+  endGameViable: true,
+  bossFightCapable: true,
+  pvpMeta: 'Very High',
+  resourceInvestment: 'High',
+  maintenanceLevel: 'Medium',
+  badgeCategories: ['combat', 'boss', 'pvp']
 },
 'Aberrant Yutyrannus': {
   // Basic Info
@@ -28892,8 +29821,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Extremely challenging alpha predator with pack protection',
-  preferredKibble: 'Exceptional Kibble',
-  favoriteFood: 'Exceptional Kibble',
+  preferredKibble: 'Extraordinary Kibble',
+  favoriteFood: 'Extraordinary Kibble',
   tamingSpeed: 'Very Slow',
   torpor: {
     baseValue: 1500,
@@ -28983,7 +29912,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Ultimate pack leadership system', 'fear/courage roar capabilities', 'multi-species coordination'],
 
   // Spawn & Location
-  spawnMaps: ['Aberration', 'Genesis Part 1', 'other maps with large aberrant territories'],
+  spawnMaps: ['Aberration', 'Genesis Part 1'],
   spawnZones: ['Pack territories', 'leadership zones', 'alpha control areas'],
   rarityRating: 'Legendary',
   levelRange: '1-150',
@@ -29000,14 +29929,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Extreme',
 
   // Badge Categories
-  badgeCategories: ['boss', 'combat']
+  badgeCategories: ['boss', 'combat', 'support']
 },
 'Archelon': {
   // Basic Info
   id: 'ARCHELON_215',
   name: 'Archelon',
   icon: '🐢',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'rare',
   source: 'Genesis Part 2 DLC',
   variants: ['Standard'],
@@ -29023,8 +29952,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Passive',
   tamingType: 'Must feed while swimming, completely peaceful',
-  preferredKibble: 'Exceptional Kibble',
-  favoriteFood: 'Exceptional Kibble',
+  preferredKibble: 'Superior Kibble',
+  favoriteFood: 'Superior Kibble',
   tamingSpeed: 'Very Slow',
   torpor: {
     baseValue: 2000,
@@ -29114,7 +30043,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Ultimate underwater platform system', 'deep-sea exploration', 'ecosystem support capabilities'],
 
   // Spawn & Location
-  spawnMaps: ['Genesis Part 2', 'The Center (ocean)', 'Crystal Isles (ocean)', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Genesis Part 2', 'The Center', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Deep ocean areas', 'underwater trenches', 'kelp forests'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -29131,7 +30060,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['utility', 'transport']
+  badgeCategories: ['utility', 'transport', 'support']
 },
 'Ceratosaurus': {
   // Basic Info
@@ -29154,8 +30083,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Aggressive predator with territorial behavior',
-  preferredKibble: 'Regular Kibble',
-  favoriteFood: 'Regular Kibble',
+  preferredKibble: 'Extraordinary Kibble',
+  favoriteFood: 'Extraordinary Kibble',
   tamingSpeed: 'Medium',
   torpor: {
     baseValue: 420,
@@ -29285,8 +30214,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Extremely dangerous apex predator with devastating attacks',
-  preferredKibble: 'Exceptional Kibble',
-  favoriteFood: 'Exceptional Kibble',
+  preferredKibble: 'Superior Kibble',
+  favoriteFood: 'Superior Kibble',
   tamingSpeed: 'Very Slow',
   torpor: {
     baseValue: 2000,
@@ -29400,7 +30329,7 @@ const SPECIES_DATABASE = {
   id: 'XIPHACTINUS_218',
   name: 'Xiphactinus',
   icon: '🐟',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'uncommon',
   source: 'Genesis Part 2 DLC',
   variants: ['Standard'],
@@ -29507,7 +30436,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Enhanced ramming system', 'burst speed capabilities', 'schooling coordination bonuses'],
 
   // Spawn & Location
-  spawnMaps: ['Genesis Part 2', 'The Center (ocean)', 'Crystal Isles (ocean)', 'Lost Island', 'Fjordur'],
+  spawnMaps: ['Genesis Part 2', 'The Center', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ['Open ocean areas', 'deep water zones', 'schooling territories'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -29533,7 +30462,7 @@ const SPECIES_DATABASE = {
   icon: '🦖',
   category: 'combat',
   rarity: 'rare',
-  source: 'Additions Ascended Mod',
+  source: 'Base Game (Additions Ascended integration)',
   variants: ['Standard', 'Ascended', 'Scorched', 'Paleo'],
 
   // Biology & Lore
@@ -29639,7 +30568,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Shield stance system', 'adrenaline rage mode', 'drag weight scaling attacks', 'golem fighter capabilities'],
 
   // Spawn & Location
-  spawnMaps: ['All maps (mod dependent)'],
+  spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
   spawnZones: ['Redwood forests', 'grasslands', 'mountainous areas'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -29772,7 +30701,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Camouflage stealth system', 'grab and consume', 'feeding frenzy rage', 'raptor communication', 'bloodlust stacking'],
 
   // Spawn & Location
-  spawnMaps: ['All maps (mod dependent)'],
+  spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
   spawnZones: ['Everywhere dangerous, limited spawns due to power'],
   rarityRating: 'Legendary (extremely rare)',
   levelRange: '1-150',
@@ -29789,7 +30718,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very High',
 
   // Badge Categories
-  badgeCategories: ['boss', 'combat']
+  badgeCategories: ['boss', 'combat', 'mod']
 },
 'Moro Raptor': {
   // Basic Info
@@ -29905,7 +30834,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Stance switching system', 'echolocation detection', 'deceptive sleep behavior', 'tactical intelligence'],
 
   // Spawn & Location
-  spawnMaps: ['All maps (mod dependent)'],
+  spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
   spawnZones: ['Forests', 'hunting grounds', 'pack territories'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -29922,14 +30851,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['combat', 'boss']
+  badgeCategories: ['combat', 'boss', 'mod', 'scout']
 },
 'Maeguana': {
   // Basic Info
   id: 'MAEGUANA_222',
   name: 'Maeguana',
   icon: '🦎',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Astraeos Map DLC',
   variants: ['Standard (Maewing reskin)'],
@@ -30038,7 +30967,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Nursing pouch system', 'gliding capabilities', 'baby care specialization', 'Mediterranean environmental adaptation'],
 
   // Spawn & Location
-  spawnMaps: ['Astraeos (primary)', 'other Mediterranean-style maps'],
+  spawnMaps: ['Astraeos'],
   spawnZones: ['Rocky coastal areas', 'Mediterranean biomes', 'warm regions'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -30055,7 +30984,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility', 'transport']
+  badgeCategories: ['utility', 'transport', 'support']
 },
 'Dreadmare': {
   // Basic Info
@@ -30064,7 +30993,7 @@ const SPECIES_DATABASE = {
   icon: '🐴',
   category: 'combat',
   rarity: 'legendary',
-  source: 'S-Dino Variants Mod',
+  source: 'Fantastic Tames DLC',
   variants: ['Dreadmare (Female)', 'Dreadstallion (Male)'],
 
   // Biology & Lore
@@ -30170,7 +31099,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Phasing abilities', 'supernatural speed boost', 'fear-based crowd control', 'dark energy system'],
 
   // Spawn & Location
-  spawnMaps: ['Maps with dark/supernatural areas (mod dependent)'],
+  spawnMaps: [],
   spawnZones: ['Dark forests', 'shadowy areas', 'supernatural territories'],
   rarityRating: 'Legendary',
   levelRange: '1-150',
@@ -30303,7 +31232,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Charging system', 'labyrinthine navigation', 'tactical intelligence', 'warrior coordination'],
 
   // Spawn & Location
-  spawnMaps: ['Astraeos (primary)', 'maps with mythological themes'],
+  spawnMaps: ['Astraeos'],
   spawnZones: ['Grasslands', 'mountainous areas', 'labyrinthine territories'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -30320,14 +31249,14 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['combat', 'boss']
+  badgeCategories: ['combat', 'boss', 'mod']
 },
 'Seahorse': {
   // Basic Info
   id: 'SEAHORSE_226',
   name: 'Seahorse',
   icon: '🌊',
-  category: 'utility',
+  category: 'aquatic',
   rarity: 'uncommon',
   source: 'Astraeos - Mythological Creatures Mod',
   variants: ['Standard'],
@@ -30436,7 +31365,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Pearl harvesting specialization', 'current riding', 'underwater navigation enhancement', 'gentle creature coordination'],
 
   // Spawn & Location
-  spawnMaps: ['Astraeos (primary)', 'maps with ocean areas'],
+  spawnMaps: ['Astraeos'],
   spawnZones: ['Deep ocean', 'coral reefs', 'pearl beds', 'underwater caves'],
   rarityRating: 'Uncommon',
   levelRange: '1-150',
@@ -30453,7 +31382,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility', 'harvesting']
+  badgeCategories: ['utility', 'harvesting', 'mod']
 },
 'Cyclops': {
   // Basic Info
@@ -30570,7 +31499,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Energy beam system', 'boulder throwing', 'stone crafting', 'colossal size advantages', 'enhanced stamina over Giganotosaurus'],
 
   // Spawn & Location
-  spawnMaps: ['Astraeos (primary)', 'maps with mountainous areas'],
+  spawnMaps: ['Astraeos'],
   spawnZones: ['Mountainous regions', 'ancient ruins', 'stone quarries'],
   rarityRating: 'Legendary (extremely rare)',
   levelRange: '1-150',
@@ -30587,7 +31516,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Extreme',
 
   // Badge Categories
-  badgeCategories: ['boss', 'combat']
+  badgeCategories: ['boss', 'combat', 'mod']
 },
 'S-Allosaurus': {
   id: "S_ALLO_002",
@@ -30681,7 +31610,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Pack leader buff (red glow on alpha)"],
   debuffAbilities: ["Bleed damage from gnashed attacks"],
   uniqueMechanics: ["S-Dinos can crossbreed with non-S-Dinos"],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Crystal Isles", "Lost Island", "Fjordur", "Aberration (Aberrant variant)"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ["Forests, grasslands, redwood forests. Has a 10% chance to spawn in place of a standard Allosaurus."],
   rarityRating: "Common",
   levelRange: "1-150",
@@ -30694,7 +31623,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "Medium",
   resourceInvestment: "Medium",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'S-Ankylo': {
   id: "S_ANKY_004",
@@ -30790,7 +31719,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["None"],
   debuffAbilities: ["Massive knockback on tail attacks"],
   uniqueMechanics: ["Reduced weight for metal/stone carried", "auto-harvest functionality", "does not stop farming at 50% weight. S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Crystal Isles", "Lost Island", "Fjordur", "Aberration (Aberrant)"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ["Mountains, rocky highlands, metal-rich areas. Has a 10% chance to spawn in place of a standard Ankylosaurus."],
   rarityRating: "Common",
   levelRange: "1-150",
@@ -30803,13 +31732,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Medium",
   resourceInvestment: "Low",
   maintenanceLevel: "Low",
-  badgeCategories: ["harvesting"]
+  badgeCategories: ["harvesting", "mod"]
 },
 'S-Basilosaurus': {
   id: "S_BASILO_010",
   name: "S-Basilosaurus",
   icon: "🐋",
-  category: "utility",
+  category: "aquatic",
   rarity: "rare",
   source: "Base Game (S-Variant)",
   variants: ["Standard", "Aberrant", "S-Variant"],
@@ -30898,7 +31827,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Cold protection for nearby players"],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Electric immunity", "platform building capability", "oil generation. S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Crystal Isles", "Lost Island", "Fjordur", "Aberration (Aberrant)"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ["Deep ocean areas, arctic waters, underwater caves. Has a 10% chance to spawn in place of a standard Basilosaurus."],
   rarityRating: "Rare",
   levelRange: "1-150",
@@ -30911,7 +31840,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Very High",
   maintenanceLevel: "High",
-  badgeCategories: ["utility", "transport"]
+  badgeCategories: ["utility", "transport", "mod"]
 },
 'S-Carcharodontosaurus': {
   id: "S_CARCHA_014",
@@ -31019,7 +31948,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "Very High",
   resourceInvestment: "Extreme",
   maintenanceLevel: "High",
-  badgeCategories: ["boss", "combat"]
+  badgeCategories: ["boss", "combat", "mod"]
 },
 'S-Ceratosaurus': {
   id: "S_CERATO_216",
@@ -31126,7 +32055,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Medium",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'S-Daeodon': {
   id: "S_DAEODON_020",
@@ -31221,7 +32150,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["None"],
   debuffAbilities: ["None"],
   uniqueMechanics: ["AOE attack. Has base stats comparable to a Rex. Does not heal. S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Crystal Isles", "Lost Island", "Fjordur", "Aberration (Aberrant)"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ["Forests, plains, areas with diverse food sources. Has a 10% chance to spawn in place of a standard Daeodon."],
   rarityRating: "Rare",
   levelRange: "1-150",
@@ -31234,7 +32163,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Extreme",
   maintenanceLevel: "Very High",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'S-Deinonychus': {
   id: "S_DEINONYCHUS_2259",
@@ -31328,7 +32257,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Pack leader roar provides damage and speed buff to pack members."],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Knockout tame, Breedable, does not gain bonus levels from taming effectiveness. S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["All maps where Raptors spawn"],
+  spawnMaps: [],
   spawnZones: ["Has a 10% chance to spawn in place of a Raptor."],
   rarityRating: "Uncommon",
   levelRange: "1-150",
@@ -31341,7 +32270,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Medium",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'S-Deinosuchus': {
   id: "S_DEINOSUCHUS_2272",
@@ -31448,13 +32377,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "High",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
-'S-Direbear': {
+'S-Dire Bear': {
   id: "S_DIREBEAR_026",
-  name: "S-Direbear",
+  name: "S-Dire Bear",
   icon: "🐻",
-  category: "utility",
+  category: "combat",
   rarity: "common",
   source: "Base Game (S-Variant)",
   variants: ["Standard", "Polar Bear", "S-Variant"],
@@ -31558,7 +32487,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Medium",
   maintenanceLevel: "Medium",
-  badgeCategories: ["utility", "transport", "combat", "boss"]
+  badgeCategories: ["utility", "transport", "combat", "boss", "mod"]
 },
 'S-Doedicurus': {
   id: "S_DOEDI_029",
@@ -31666,7 +32595,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "Medium",
   resourceInvestment: "Low",
   maintenanceLevel: "Low",
-  badgeCategories: ["harvesting", "utility"]
+  badgeCategories: ["harvesting", "utility", "mod"]
 },
 'S-Fasolasuchus': {
   id: "S_FASOLA_2022",
@@ -31774,7 +32703,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "Medium",
   resourceInvestment: "High",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'S-Fenrir': {
   id: "S_FENRIR_2022",
@@ -31881,13 +32810,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "High",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'S-Fire Wyvern': {
   id: "S_FIRE_WYVERN_104",
   name: "S-Fire Wyvern",
   icon: "🔥",
-  category: "combat",
+  category: "flyer",
   rarity: "legendary",
   source: "Scorched Earth DLC (S-Variant)",
   variants: ["Standard", "S-Variant"],
@@ -31988,13 +32917,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Ultimate",
   resourceInvestment: "Extreme",
   maintenanceLevel: "High",
-  badgeCategories: ["boss", "combat"]
+  badgeCategories: ["boss", "combat", "mod"]
 },
 'S-Griffin': {
   id: "S_GRIFFIN_128",
   name: "S-Griffin",
   icon: "🦅",
-  category: "combat",
+  category: "flyer",
   rarity: "legendary",
   source: "Ragnarok DLC (S-Variant)",
   variants: ["Standard", "S-Variant"],
@@ -32094,13 +33023,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Medium",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "transport", "boss"]
+  badgeCategories: ["combat", "transport", "boss", "mod"]
 },
 'S-Ice Wyvern': {
   id: "S_ICE_WYVERN_131",
   name: "S-Ice Wyvern",
   icon: "❄️",
-  category: "combat",
+  category: "flyer",
   rarity: "legendary",
   source: "Ragnarok DLC (S-Variant)",
   variants: ["Standard", "S-Variant"],
@@ -32200,13 +33129,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Extreme",
   maintenanceLevel: "High",
-  badgeCategories: ["boss", "combat"]
+  badgeCategories: ["boss", "combat", "mod"]
 },
 'S-Lightning Wyvern': {
   id: "S_LIGHTNING_WYVERN_105",
   name: "S-Lightning Wyvern",
   icon: "⚡",
-  category: "combat",
+  category: "flyer",
   rarity: "legendary",
   source: "Scorched Earth DLC (S-Variant)",
   variants: ["Standard", "S-Variant"],
@@ -32307,13 +33236,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Ultimate",
   resourceInvestment: "Extreme",
   maintenanceLevel: "High",
-  badgeCategories: ["boss", "combat"]
+  badgeCategories: ["boss", "combat", "mod"]
 },
 'S-Maeguana': {
   id: "S_MAEGUANA_222",
   name: "S-Maeguana",
   icon: "🦎",
-  category: "utility",
+  category: "flyer",
   rarity: "uncommon",
   source: "Astraeos DLC (S-Variant)",
   variants: ["Standard", "S-Variant"],
@@ -32402,7 +33331,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Breeding efficiency bonus for nearby creatures."],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Rider can use weapons while mounted. Nursing pouch system, gliding capabilities, baby care specialization. S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["Astraeos (primary)", "other Mediterranean-style maps", "Jungle biomes."],
+  spawnMaps: ['Astraeos'],
   spawnZones: ["Rocky coastal areas, Mediterranean biomes, warm regions, Jungles. Has a 10% chance to spawn in place of a standard Maeguana."],
   rarityRating: "Uncommon",
   levelRange: "1-150",
@@ -32415,13 +33344,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Medium",
   resourceInvestment: "Low",
   maintenanceLevel: "Very Low",
-  badgeCategories: ["utility", "transport"]
+  badgeCategories: ["utility", "transport", "support", "mod"]
 },
 'S-Maewing': {
   id: "S_MAEWING_2241",
   name: "S-Maewing",
   icon: "🦦",
-  category: "utility",
+  category: "flyer",
   rarity: "uncommon",
   source: "Genesis Part 2 DLC (S-Variant)",
   variants: ["Standard", "S-Variant"],
@@ -32522,7 +33451,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Low",
   maintenanceLevel: "Low",
-  badgeCategories: ["utility", "transport"]
+  badgeCategories: ["utility", "transport", "support", "mod"]
 },
 'S-Mantis': {
   id: "S_MANTIS_098",
@@ -32629,13 +33558,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "High",
   maintenanceLevel: "Medium",
-  badgeCategories: ["harvesting", "combat", "boss"]
+  badgeCategories: ["harvesting", "combat", "boss", "mod"]
 },
 'S-Megalodon': {
   id: "S_MEGALODON_052",
   name: "S-Megalodon",
   icon: "🦈",
-  category: "combat",
+  category: "aquatic",
   rarity: "common",
   source: "Base Game (S-Variant)",
   variants: ["Standard", "Tek", "Alpha", "S-Variant"],
@@ -32737,7 +33666,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Medium",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat"]
+  badgeCategories: ["combat", "mod"]
 },
 'S-Megalosaurus': {
   id: "S_MEGALOSAURUS_053",
@@ -32832,7 +33761,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Night vision for rider"],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Does not go into forced sleep during daytime, but is still stronger at night.", "S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Crystal Isles", "Lost Island", "Fjordur", "Aberration (Aberrant)"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ["Caves, underground areas, dark forest depths.", "Has a 10% chance to spawn in place of a standard Megalosaurus."],
   rarityRating: "Uncommon",
   levelRange: "1-150",
@@ -32845,13 +33774,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Medium",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod", "scout"]
 },
 'S-Mosasaurus': {
   id: "S_MOSASAURUS_058",
   name: "S-Mosasaurus",
   icon: "🐊",
-  category: "combat",
+  category: "aquatic",
   rarity: "rare",
   source: "Base Game (S-Variant)",
   variants: ["Standard", "Tek", "Alpha", "S-Variant"],
@@ -32954,13 +33883,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Very High",
   resourceInvestment: "Extreme",
   maintenanceLevel: "Very High",
-  badgeCategories: ["combat", "transport"]
+  badgeCategories: ["combat", "transport", "mod"]
 },
 'S-Otter': {
   id: "S_OTTER_061",
   name: "S-Otter",
   icon: "🦦",
-  category: "utility",
+  category: "pet",
   rarity: "common",
   source: "Base Game (S-Variant)",
   variants: ["Standard", "Aberrant", "S-Variant"],
@@ -33049,7 +33978,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Temperature regulation for rider"],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Artifact carrying capability", "thermal regulation", "excellent pearl diver.", "S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Crystal Isles", "Lost Island", "Fjordur", "Aberration (Aberrant)"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ["Rivers, coastal areas, freshwater sources, near water.", "Has a 10% chance to spawn in place of a standard Otter."],
   rarityRating: "Common",
   levelRange: "1-150",
@@ -33062,13 +33991,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Medium",
   resourceInvestment: "Very Low",
   maintenanceLevel: "Very Low",
-  badgeCategories: ["utility"]
+  badgeCategories: ["utility", "mod"]
 },
 'S-Plesiosaur': {
   id: "S_PLESIOSAUR_072",
   name: "S-Plesiosaur",
   icon: "🐉",
-  category: "combat",
+  category: "aquatic",
   rarity: "rare",
   source: "Base Game (S-Variant)",
   variants: ["Standard", "S-Variant"],
@@ -33171,13 +34100,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Very High",
   resourceInvestment: "Extreme",
   maintenanceLevel: "Very High",
-  badgeCategories: ["combat", "transport"]
+  badgeCategories: ["combat", "transport", "mod"]
 },
 'S-Poison Wyvern': {
   id: "S_POISON_WYVERN_106",
   name: "S-Poison Wyvern",
   icon: "☠️",
-  category: "combat",
+  category: "flyer",
   rarity: "legendary",
   source: "Scorched Earth DLC (S-Variant)",
   variants: ["Standard", "S-Variant"],
@@ -33278,13 +34207,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Ultimate",
   resourceInvestment: "Extreme",
   maintenanceLevel: "High",
-  badgeCategories: ["boss", "combat"]
+  badgeCategories: ["boss", "combat", "mod"]
 },
 'S-Queen Bee': {
   id: "S_QUEEN_BEE_035",
   name: "S-Queen Bee",
   icon: "🐝",
-  category: "utility",
+  category: "flyer",
   rarity: "rare",
   source: "Base Game (S-Variant)",
   variants: ["Standard", "Queen Bee", "S-Variant"],
@@ -33384,7 +34313,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "Low",
   resourceInvestment: "Medium",
   maintenanceLevel: "Medium",
-  badgeCategories: ["utility", "harvesting"]
+  badgeCategories: ["utility", "harvesting", "support", "mod"]
 },
 'S-Reaper': {
   id: "S_REAPER_114",
@@ -33479,7 +34408,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["None"],
   debuffAbilities: ["Acid attacks cause damage over time"],
   uniqueMechanics: ["Xenomorphic reproduction", "light vulnerability/strength system", "acid immunity.", "S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["Aberration", "Crystal Isles (underground)", "Lost Island", "Fjordur"],
+  spawnMaps: ['Aberration', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ["Deepest underground areas, radiation zones, Element regions.", "Has a 10% chance to spawn in place of a standard Reaper."],
   rarityRating: "Legendary",
   levelRange: "1-150 (special levels through imprinting)",
@@ -33492,7 +34421,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "Ultimate",
   resourceInvestment: "Extreme",
   maintenanceLevel: "High",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'S-Rex': {
   id: "S_REX_079",
@@ -33586,7 +34515,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Fear aura (intimidates smaller creatures)"],
   debuffAbilities: ["Roar causes fear in smaller creatures"],
   uniqueMechanics: ["THE apex predator, king of ARK creatures.", "S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Crystal Isles", "Lost Island", "Fjordur", "Aberration (Aberrant)"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ["Inland areas, mountain regions, dangerous zones.", "Has a 10% chance to spawn in place of a standard Rex."],
   rarityRating: "Legendary",
   levelRange: "1-150",
@@ -33599,13 +34528,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Extremely High",
   resourceInvestment: "Extreme",
   maintenanceLevel: "High",
-  badgeCategories: ["boss", "combat"]
+  badgeCategories: ["boss", "combat", "mod"]
 },
 'S-Rhyniognatha': {
   id: "S_RHYNIOGNATHA_080",
   name: "S-Rhyniognatha",
   icon: "🪲",
-  category: "combat",
+  category: "flyer",
   rarity: "legendary",
   source: "Fjordur DLC (S-Variant)",
   variants: ["Standard", "S-Variant"],
@@ -33707,13 +34636,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Very High",
   resourceInvestment: "Extreme",
   maintenanceLevel: "Very High",
-  badgeCategories: ["utility", "transport", "combat", "boss"]
+  badgeCategories: ["utility", "transport", "combat", "boss", "mod"]
 },
 'S-Rock Drake': {
   id: "S_ROCK_DRAKE_115",
   name: "S-Rock Drake",
   icon: "🐲",
-  category: "combat",
+  category: "flyer",
   rarity: "legendary",
   source: "Aberration DLC (S-Variant)",
   variants: ["Standard", "S-Variant"],
@@ -33802,7 +34731,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["None"],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Invisibility system", "wall climbing", "gliding capability", "egg stealing requirement.", "S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["Aberration", "Crystal Isles (underground)", "Lost Island", "Fjordur"],
+  spawnMaps: ['Aberration', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ["Deep underground areas, Element regions, dangerous caverns with nests.", "Has a 10% chance to spawn in place of a standard Rock Drake."],
   rarityRating: "Legendary",
   levelRange: "1-190",
@@ -33815,13 +34744,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Ultimate",
   resourceInvestment: "Extreme",
   maintenanceLevel: "High",
-  badgeCategories: ["combat", "boss", "transport"]
+  badgeCategories: ["combat", "boss", "transport", "mod"]
 },
 'S-Shinehorn': {
   id: "S_SHINEHORN_117",
   name: "S-Shinehorn",
   icon: "🦌",
-  category: "utility",
+  category: "pet",
   rarity: "common",
   source: "Aberration DLC (S-Variant)",
   variants: ["Standard", "S-Variant"],
@@ -33908,7 +34837,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Tamehelper aura increases food consumption of wild unconscious creatures.", "Light projection wards off light-sensitive creatures."],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Tamehelper ability can be toggled in server settings.", "Movement-charged light system", "creature detection.", "S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["Aberration", "Valguero (underground)", "Crystal Isles", "Lost Island", "Fjordur"],
+  spawnMaps: ['Aberration', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur'],
   spawnZones: ["Underground areas, bioluminescent zones, cave pastures.", "Replaces 10% of Shinehorn spawns."],
   rarityRating: "Common",
   levelRange: "1-150",
@@ -33921,13 +34850,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Low",
   resourceInvestment: "Very Low",
   maintenanceLevel: "Very Low",
-  badgeCategories: ["utility"]
+  badgeCategories: ["utility", "mod"]
 },
 'S-Snow Owl': {
   id: "S_SNOW_OWL_126",
   name: "S-Snow Owl",
   icon: "🦉",
-  category: "combat",
+  category: "flyer",
   rarity: "uncommon",
   source: "Extinction DLC (S-Variant)",
   variants: ["Standard", "R-Snow Owl", "S-Variant"],
@@ -34028,7 +34957,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "High",
   maintenanceLevel: "Low",
-  badgeCategories: ["utility", "combat", "boss"]
+  badgeCategories: ["utility", "combat", "boss", "support", "mod", "scout"]
 },
 'S-Spinosaurus': {
   id: "S_SPINOSAURUS_083",
@@ -34123,7 +35052,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Hydration buff when in water."],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Stance switching system", "amphibious specialization", "thermoregulation.", "S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Crystal Isles", "Lost Island", "Fjordur", "Aberration (Aberrant)"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ["Rivers, lakes, coastal areas, anywhere near water.", "Has a 10% chance to spawn in place of a standard Spinosaurus."],
   rarityRating: "Uncommon",
   levelRange: "1-150",
@@ -34136,7 +35065,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "High",
   maintenanceLevel: "High",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'S-Therizinosaurus': {
   id: "S_THERIZINOSAUR_087",
@@ -34233,7 +35162,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["None"],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Multi-resource gathering system (delicate vs power harvesting modes).", "S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Crystal Isles", "Lost Island", "Fjordur", "Aberration (Aberrant)"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ["Forests, jungles, areas with dense vegetation.", "Has a 10% chance to spawn in place of a standard Therizinosaurus."],
   rarityRating: "Rare",
   levelRange: "1-150",
@@ -34246,7 +35175,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Extreme",
   maintenanceLevel: "High",
-  badgeCategories: ["harvesting", "combat", "boss"]
+  badgeCategories: ["harvesting", "combat", "boss", "mod"]
 },
 'S-Thylacoleo': {
   id: "S_THYLACOLEO_088",
@@ -34341,7 +35270,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["None"],
   debuffAbilities: ["Pounce attack pins and immobilizes targets"],
   uniqueMechanics: ["S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Crystal Isles", "Lost Island", "Fjordur", "Aberration (Aberrant)"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ["Redwood forests, caves, cliffs, anywhere with vertical surfaces.", "Has a 10% chance to spawn in place of a standard Thylacoleo."],
   rarityRating: "Rare",
   levelRange: "1-150",
@@ -34354,11 +35283,11 @@ const SPECIES_DATABASE = {
   pvpMeta: "Very High",
   resourceInvestment: "High",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "boss", "pvp"]
+  badgeCategories: ["combat", "boss", "pvp", "mod"]
 },
-'S-Trike': {
+'S-Triceratops': {
   id: "S_TRICERATOPS_091",
-  name: "S-Trike",
+  name: "S-Triceratops",
   icon: "🦏",
   category: "combat",
   rarity: "common",
@@ -34450,7 +35379,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["None"],
   debuffAbilities: ["Ramming charge dismounts riders"],
   uniqueMechanics: ["Charge attack system", "rider dismounting capability.", "S-Dinos can crossbreed with non-S-Dinos."],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Crystal Isles", "Lost Island", "Fjordur", "Aberration (Aberrant)"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Aberration'],
   spawnZones: ["Plains, forests, grasslands, beaches, areas with vegetation.", "Has a 10% chance to spawn in place of a standard Triceratops."],
   rarityRating: "Common",
   levelRange: "1-150",
@@ -34463,7 +35392,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Low",
   maintenanceLevel: "Low",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'S-Unicorn': {
   id: "S_UNICORN_033",
@@ -34571,7 +35500,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Low",
   maintenanceLevel: "Low",
-  badgeCategories: ["utility", "transport"]
+  badgeCategories: ["utility", "transport", "mod"]
 },
 'S-Velonasaur': {
   id: "S_VELONASAUR_127",
@@ -34677,7 +35606,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Low",
   maintenanceLevel: "Low",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'Ammonite': {
     // Basic Info
@@ -34816,7 +35745,7 @@ const SPECIES_DATABASE = {
     id: 'ATTACK_DRONE_307',
     name: 'Attack Drone',
     icon: '🤖',
-    category: 'combat',
+    category: 'flyer',
     rarity: 'common',
     source: 'Base Game',
     variants: ['Standard'],
@@ -35055,7 +35984,7 @@ const SPECIES_DATABASE = {
     id: 'CRYSTAL_WYVERN_EMBER_312',
     name: 'Ember Crystal Wyvern',
     icon: '💎',
-    category: 'combat',
+    category: 'flyer',
     rarity: 'uncommon',
     source: 'Crystal Isles DLC',
     variants: ['Tropical', 'Blood', 'Ember'],
@@ -35186,7 +36115,7 @@ const SPECIES_DATABASE = {
     id: 'CRYSTAL_WYVERN_TROPICAL_313',
     name: 'Tropical Crystal Wyvern',
     icon: '💎',
-    category: 'combat',
+    category: 'flyer',
     rarity: 'common',
     source: 'Crystal Isles DLC',
     variants: ['Tropical', 'Blood', 'Ember'],
@@ -35317,7 +36246,7 @@ const SPECIES_DATABASE = {
     id: 'CRYSTAL_WYVERN_BLOOD_314',
     name: 'Blood Crystal Wyvern',
     icon: '💎',
-    category: 'combat',
+    category: 'flyer',
     rarity: 'uncommon',
     source: 'Crystal Isles DLC',
     variants: ['Tropical', 'Blood', 'Ember'],
@@ -35818,7 +36747,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Unique passive taming', 'water spray ability'],
 
     // Spawn & Location
-    spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero (with mod)'],
+    spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero'],
     spawnZones: ['Jungles', 'Swamps'],
     rarityRating: 'Uncommon',
     levelRange: '1-150',
@@ -35835,7 +36764,7 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'Medium',
 
     // Badge Categories
-    badgeCategories: ['harvesting', 'combat', 'boss']
+    badgeCategories: ['harvesting', 'combat', 'boss', 'mod']
 },
 'Polar Bear': {
     // Basic Info
@@ -36108,7 +37037,7 @@ const SPECIES_DATABASE = {
     id: 'DODOREX_324',
     name: 'DodoRex',
     icon: '🦤',
-    category: 'boss',
+    category: 'event',
     rarity: 'mythical',
     source: 'Fear Evolved Event',
     variants: ['Event Boss'],
@@ -36239,7 +37168,7 @@ const SPECIES_DATABASE = {
     id: 'DRAKELING_325',
     name: 'Drakeling',
     icon: '🐲',
-    category: 'combat',
+    category: 'flyer',
     rarity: 'mission',
     source: 'Genesis Part 2 DLC',
     variants: ['Rock Drake Minion'],
@@ -36368,7 +37297,7 @@ const SPECIES_DATABASE = {
     id: 'EEL_MINION_327',
     name: 'Eel Minion',
     icon: '⚡',
-    category: 'combat',
+    category: 'aquatic',
     rarity: 'mission',
     source: 'Genesis Part 1 DLC',
     variants: ['Electrophorus Minion'],
@@ -36497,7 +37426,7 @@ const SPECIES_DATABASE = {
     id: 'EURYPTERID_328',
     name: 'Eurypterid',
     icon: '🦂',
-    category: 'utility',
+    category: 'aquatic',
     rarity: 'uncommon',
     source: 'Base Game',
     variants: ['Standard'],
@@ -36764,7 +37693,7 @@ const SPECIES_DATABASE = {
     id: 'GACHACLAUS_325',
     name: 'GachaClaus',
     icon: '🎅',
-    category: 'utility',
+    category: 'event',
     rarity: 'event',
     source: 'Winter Wonderland Event',
     variants: ['Gacha Variant'],
@@ -36871,7 +37800,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning', 'loot crystal production'],
 
     // Spawn & Location
-    spawnMaps: ['All maps'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in various locations during the Winter Wonderland event.'],
     rarityRating: 'Event',
     levelRange: '1-50',
@@ -37003,7 +37932,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Nurturing system for babies', 'unique taming method'],
 
     // Spawn & Location
-    spawnMaps: ['Ragnarok (ASA)'],
+    spawnMaps: ['Ragnarok'],
     spawnZones: ['Highlands', 'Badlands'],
     rarityRating: 'Rare',
     levelRange: '1-150',
@@ -37020,14 +37949,14 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'High',
 
     // Badge Categories
-    badgeCategories: ['utility', 'combat', 'boss']
+    badgeCategories: ['utility', 'combat', 'boss', 'support']
 },
 'Glowbug': {
     // Basic Info
     id: 'GLOWBUG_327',
     name: 'Glowbug',
     icon: '💡',
-    category: 'utility',
+    category: 'flyer',
     rarity: 'common',
     source: 'Aberration DLC',
     variants: ['Standard'],
@@ -37289,7 +38218,7 @@ const SPECIES_DATABASE = {
     id: 'HELICOPRION_329',
     name: 'Helicoprion',
     icon: '🦈',
-    category: 'utility',
+    category: 'aquatic',
     rarity: 'uncommon',
     source: 'ARK Additions Mod',
     variants: ['Standard'],
@@ -37398,7 +38327,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Inventory grinding ability'],
 
     // Spawn & Location
-    spawnMaps: ['The Island', 'The Center', 'Ragnarok (with mod)'],
+    spawnMaps: ['The Island', 'The Center', 'Ragnarok'],
     spawnZones: ['Ocean'],
     rarityRating: 'Uncommon',
     levelRange: '1-150',
@@ -37415,7 +38344,7 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'Low',
 
     // Badge Categories
-    badgeCategories: ['utility', 'harvesting']
+    badgeCategories: ['utility', 'harvesting', 'mod']
 },
 'Ice Golem': {
   id: "ICE_GOLEM_341",
@@ -37791,7 +38720,7 @@ const SPECIES_DATABASE = {
     id: 'INSECT_SWARM_344',
     name: 'Insect Swarm',
     icon: '🦟',
-    category: 'combat',
+    category: 'flyer',
     rarity: 'common',
     source: 'Genesis Part 2 DLC',
     variants: ['Standard'],
@@ -37920,7 +38849,7 @@ const SPECIES_DATABASE = {
     id: 'KAIRUKU_347',
     name: 'Kairuku',
     icon: '🐧',
-    category: 'utility',
+    category: 'aquatic',
     rarity: 'common',
     source: 'Base Game',
     variants: ['Standard'],
@@ -38572,7 +39501,7 @@ const SPECIES_DATABASE = {
     id: 'LEECH_352',
     name: 'Leech',
     icon: '🩸',
-    category: 'utility',
+    category: 'aquatic',
     rarity: 'common',
     source: 'Base Game',
     variants: ['Standard', 'Diseased', 'Corrupted'],
@@ -38834,7 +39763,7 @@ const SPECIES_DATABASE = {
     id: 'LIOPLEURODON_354',
     name: 'Liopleurodon',
     icon: '🌊',
-    category: 'utility',
+    category: 'aquatic',
     rarity: 'mythical',
     source: 'Base Game',
     variants: ['Standard'],
@@ -38956,14 +39885,14 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'None (temporary)',
 
     // Badge Categories
-    badgeCategories: ['utility']
+    badgeCategories: ['utility', 'support']
 },
 'Love Bug': {
     // Basic Info
     id: 'LOVE_BUG_355',
     name: 'Love Bug',
     icon: '💕',
-    category: 'utility',
+    category: 'event',
     rarity: 'event',
     source: 'Valentine\'s Day Event',
     variants: ['Jug Bug Variant'],
@@ -38977,7 +39906,7 @@ const SPECIES_DATABASE = {
     sizeClass: 'Small',
 
     // Taming System
-    tamingMethod: 'Passive',
+    tamingMethod: 'Cannot be tamed',
     tamingType: 'Non-violent temporary tame.',
     preferredKibble: 'N/A',
     favoriteFood: 'Box o\' Chocolates',
@@ -39070,7 +39999,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning', 'temporary tame'],
 
     // Spawn & Location
-    spawnMaps: ['All maps'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of Jug Bugs during the Valentine\'s Day event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -39108,9 +40037,9 @@ const SPECIES_DATABASE = {
     sizeClass: 'Small',
 
     // Taming System
-    tamingMethod: 'Passive',
+    tamingMethod: 'Special',
     tamingType: 'Hand-feeding (non-violent).',
-    preferredKibble: 'Basic Kibble',
+    preferredKibble: 'N/A',
     favoriteFood: 'Rare Flower',
     tamingSpeed: 'Very Fast',
     torpor: {
@@ -39218,14 +40147,14 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'Very Low',
 
     // Badge Categories
-    badgeCategories: ['utility']
+    badgeCategories: ['utility', 'support']
 },
 'Macrophage': {
     // Basic Info
     id: 'MACROPHAGE_357',
     name: 'Macrophage',
     icon: '🦠',
-    category: 'combat',
+    category: 'flyer',
     rarity: 'mission',
     source: 'Genesis Part 1 DLC',
     variants: ['Minion'],
@@ -39486,7 +40415,7 @@ const SPECIES_DATABASE = {
   id: 'MANTA_361',
   name: 'Manta',
   icon: '🌊',
-  category: 'transport',
+  category: 'aquatic',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard', 'Aberrant'],
@@ -39615,7 +40544,7 @@ const SPECIES_DATABASE = {
   id: 'MANTIS_SHRIMP_352',
   name: 'Mantis Shrimp',
   icon: '🦐',
-  category: 'combat',
+  category: 'aquatic',
   rarity: 'rare',
   source: 'ARK Additions Mod',
   variants: ['Standard'],
@@ -39723,7 +40652,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Charged punch ability'],
 
   // Spawn & Location
-  spawnMaps: ['The Island', 'The Center', 'Ragnarok (with mod)'],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok'],
   spawnZones: ['Ocean floor', 'underwater caves'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -39740,7 +40669,7 @@ const SPECIES_DATABASE = {
   maintenanceLevel: 'Medium',
 
   // Badge Categories
-  badgeCategories: ['combat', 'boss']
+  badgeCategories: ['combat', 'boss', 'mod']
 },
 'Megalania': {
   // Basic Info
@@ -39763,8 +40692,8 @@ const SPECIES_DATABASE = {
   // Taming System
   tamingMethod: 'Knockout',
   tamingType: 'Violent taming with tranquilizers',
-  preferredKibble: 'Superior Kibble',
-  favoriteFood: 'Superior Kibble',
+  preferredKibble: 'Extraordinary Kibble',
+  favoriteFood: 'Extraordinary Kibble',
   tamingSpeed: 'Slow',
   torpor: {
     baseValue: 800,
@@ -39879,7 +40808,7 @@ const SPECIES_DATABASE = {
   id: 'MEGANEURA_354',
   name: 'Meganeura',
   icon: '🦟',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard', 'Aberrant'],
@@ -40142,7 +41071,7 @@ const SPECIES_DATABASE = {
   id: 'OTTER_359',
   name: 'Otter',
   icon: '🦦',
-  category: 'utility',
+  category: 'pet',
   rarity: 'common',
   source: 'Base Game',
   variants: ['Standard', 'Aberrant', 'X-Otter', 'S-Otter'],
@@ -40684,8 +41613,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Passive',
     tamingType: 'Non-violent, hand-feeding.',
-    preferredKibble: 'Regular Kibble',
-    favoriteFood: 'Regular Kibble',
+    preferredKibble: 'N/A',
+    favoriteFood: 'Sweet Vegetable Cake',
     tamingSpeed: 'Medium',
     torpor: {
       baseValue: 400,
@@ -40815,8 +41744,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Regular Kibble',
-    favoriteFood: 'Regular Kibble',
+    preferredKibble: 'Superior Kibble',
+    favoriteFood: 'Superior Kibble',
     tamingSpeed: 'Slow',
     torpor: {
       baseValue: 1550,
@@ -40947,14 +41876,14 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Simple Kibble',
-    favoriteFood: 'Simple Kibble',
+    preferredKibble: 'Basic Kibble',
+    favoriteFood: 'Basic Kibble',
     tamingSpeed: 'Very Fast',
     torpor: {
       baseValue: 180,
       depleteRate: 'Fast'
     },
-    specialAbilities: 'Extremely easy to knock out, good for beginners.',
+    specialRequirements: 'Extremely easy to knock out, good for beginners.',
 
     // Base Statistics (Level 1 Wild)
     baseStats: {
@@ -41055,14 +41984,14 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'Very Low',
 
   // Badge Categories
-  badgeCategories: ['utility', 'transport'],
+  badgeCategories: ['utility', 'transport', 'scout'],
 },
 'Party Dodo': {
     // Basic Info
     id: 'PARTY_DODO_367',
     name: 'Party Dodo',
     icon: '🎉',
-    category: 'utility',
+    category: 'event',
     rarity: 'event',
     source: 'ARK Anniversary Event',
     variants: ['Dodo Variant'],
@@ -41169,7 +42098,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
 
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns randomly during ARK Anniversary events.'],
     rarityRating: 'Event',
     levelRange: '1 (fixed)',
@@ -41193,7 +42122,7 @@ const SPECIES_DATABASE = {
     id: 'PEGOMASTAX_368',
     name: 'Pegomastax',
     icon: '盗',
-    category: 'utility',
+    category: 'pet',
     rarity: 'common',
     source: 'Base Game',
     variants: ['Standard'],
@@ -41325,7 +42254,7 @@ const SPECIES_DATABASE = {
     id: 'PELAGORNIS_369',
     name: 'Pelagornis',
     icon: '🐦',
-    category: 'utility',
+    category: 'flyer',
     rarity: 'common',
     source: 'Base Game',
     variants: ['Standard', 'Aberrant'],
@@ -41341,8 +42270,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Simple Kibble',
-    favoriteFood: 'Simple Kibble',
+    preferredKibble: 'Regular Kibble',
+    favoriteFood: 'Regular Kibble',
     tamingSpeed: 'Fast',
     torpor: {
       baseValue: 200,
@@ -41473,8 +42402,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Simple Kibble',
-    favoriteFood: 'Simple Kibble',
+    preferredKibble: 'Basic Kibble',
+    favoriteFood: 'Basic Kibble',
     tamingSpeed: 'Very Fast',
     torpor: {
       baseValue: 120,
@@ -41588,7 +42517,7 @@ const SPECIES_DATABASE = {
     id: 'PIRANHA_371',
     name: 'Piranha',
     icon: '🐟',
-    category: 'combat',
+    category: 'aquatic',
     rarity: 'common',
     source: 'Base Game',
     variants: ['Standard', 'Aberrant'],
@@ -41719,7 +42648,7 @@ const SPECIES_DATABASE = {
     id: 'PLESIOSAUR_372',
     name: 'Plesiosaur',
     icon: '🐉',
-    category: 'combat',
+    category: 'aquatic',
     rarity: 'rare',
     source: 'Base Game',
     variants: ['Standard', 'Aberrant', 'S-Variant'],
@@ -41735,8 +42664,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Exceptional Kibble',
-    favoriteFood: 'Exceptional Kibble',
+    preferredKibble: 'Superior Kibble',
+    favoriteFood: 'Superior Kibble',
     tamingSpeed: 'Very Slow',
     torpor: {
       baseValue: 3000,
@@ -41866,7 +42795,7 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Passive',
     tamingType: 'Non-violent, hand-feeding.',
-    preferredKibble: 'Regular Kibble',
+    preferredKibble: 'N/A',
     favoriteFood: 'Rare Mushroom',
     tamingSpeed: 'Medium',
     torpor: {
@@ -41982,7 +42911,7 @@ const SPECIES_DATABASE = {
     id: 'PTERANODON_374',
     name: 'Pteranodon',
     icon: '🦅',
-    category: 'transport',
+    category: 'flyer',
     rarity: 'common',
     source: 'Base Game',
     variants: ['Standard', 'Aberrant'],
@@ -41998,8 +42927,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Simple Kibble',
-    favoriteFood: 'Simple Kibble',
+    preferredKibble: 'Regular Kibble',
+    favoriteFood: 'Regular Kibble',
     tamingSpeed: 'Very Fast',
     torpor: {
       baseValue: 120,
@@ -42374,7 +43303,7 @@ const SPECIES_DATABASE = {
     id: 'QUETZAL_377',
     name: 'Quetzalcoatlus',
     icon: '🦅',
-    category: 'transport',
+    category: 'flyer',
     rarity: 'rare',
     source: 'Base Game',
     variants: ['Standard', 'Tek'],
@@ -42767,7 +43696,7 @@ const SPECIES_DATABASE = {
     id: 'REINDEER_380',
     name: 'Reindeer',
     icon: '🦌',
-    category: 'utility',
+    category: 'event',
     rarity: 'event',
     source: 'Winter Wonderland Event',
     variants: ['Megaloceros Variant'],
@@ -42874,7 +43803,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning', 'temporary claim for loot'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of Megaloceros during the Winter Wonderland event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -43030,7 +43959,7 @@ const SPECIES_DATABASE = {
     id: 'REX_GHOST_372',
     name: 'Rex Ghost',
     icon: '👻',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Rex Variant'],
@@ -43137,7 +44066,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Rexes during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -43287,12 +44216,12 @@ const SPECIES_DATABASE = {
     // Badge Categories
     badgeCategories: ['boss', 'combat']
 },
-'Skeletal Bronto': {
+'Skeletal Brontosaurus': {
     // Basic Info
     id: 'SKELETAL_BRONTO_374',
-    name: 'Skeletal Bronto',
+    name: 'Skeletal Brontosaurus',
     icon: '💀',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Brontosaurus Variant'],
@@ -43399,7 +44328,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Brontosaurus during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -43423,7 +44352,7 @@ const SPECIES_DATABASE = {
     id: 'SABERTOOTH_SALMON_377',
     name: 'Sabertooth Salmon',
     icon: '🐟',
-    category: 'utility',
+    category: 'aquatic',
     rarity: 'common',
     source: 'Base Game',
     variants: ['Standard', 'Aberrant', 'X-Variant'],
@@ -43554,7 +44483,7 @@ const SPECIES_DATABASE = {
     id: 'SEEKER_378',
     name: 'Seeker',
     icon: '🦇',
-    category: 'combat',
+    category: 'flyer',
     rarity: 'common',
     source: 'Aberration DLC',
     variants: ['Standard'],
@@ -43685,7 +44614,7 @@ const SPECIES_DATABASE = {
     id: 'SKELETAL_CARNOTAURUS_381',
     name: 'Skeletal Carnotaurus',
     icon: '💀',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Carnotaurus Variant'],
@@ -43792,7 +44721,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Carnotaurus during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -43816,7 +44745,7 @@ const SPECIES_DATABASE = {
     id: 'SKELETAL_GIGANOTOSAURUS_382',
     name: 'Skeletal Giganotosaurus',
     icon: '💀',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Giganotosaurus Variant'],
@@ -43923,7 +44852,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning', 'Rage mechanic'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Giganotosaurus during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -43947,7 +44876,7 @@ const SPECIES_DATABASE = {
     id: 'SKELETAL_JERBOA_383',
     name: 'Skeletal Jerboa',
     icon: '💀',
-    category: 'utility',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Jerboa Variant'],
@@ -44078,7 +45007,7 @@ const SPECIES_DATABASE = {
     id: 'SKELETAL_QUETZAL_384',
     name: 'Skeletal Quetzal',
     icon: '💀',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Quetzalcoatlus Variant'],
@@ -44185,7 +45114,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Quetzals during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -44209,7 +45138,7 @@ const SPECIES_DATABASE = {
     id: 'SKELETAL_RAPTOR_385',
     name: 'Skeletal Raptor',
     icon: '💀',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Raptor Variant'],
@@ -44316,7 +45245,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Raptors during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -44340,7 +45269,7 @@ const SPECIES_DATABASE = {
     id: 'SKELETAL_REX_386',
     name: 'Skeletal Rex',
     icon: '💀',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Rex Variant'],
@@ -44447,7 +45376,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Rexes during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -44466,12 +45395,12 @@ const SPECIES_DATABASE = {
     // Badge Categories
     badgeCategories: ['combat']
 },
-'Skeletal Stego': {
+'Skeletal Stegosaurus': {
     // Basic Info
     id: 'SKELETAL_STEGO_387',
-    name: 'Skeletal Stego',
+    name: 'Skeletal Stegosaurus',
     icon: '💀',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Stegosaurus Variant'],
@@ -44578,7 +45507,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Stegosaurus during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -44597,12 +45526,12 @@ const SPECIES_DATABASE = {
     // Badge Categories
     badgeCategories: ['combat']
 },
-'Skeletal Trike': {
+'Skeletal Triceratops': {
     // Basic Info
     id: 'SKELETAL_TRIKE_388',
-    name: 'Skeletal Trike',
+    name: 'Skeletal Triceratops',
     icon: '💀',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Triceratops Variant'],
@@ -44709,7 +45638,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Triceratops during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -44733,7 +45662,7 @@ const SPECIES_DATABASE = {
     id: 'SNOW_OWL_GHOST_389',
     name: 'Snow Owl Ghost',
     icon: '👻',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Snow Owl Variant'],
@@ -44840,7 +45769,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Snow Owls during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -44857,140 +45786,9 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'N/A',
   
     // Badge Categories
-    badgeCategories: ['combat']
+    badgeCategories: ['combat', 'scout']
 },
-'Spino': {
-    // Basic Info
-    id: 'SPINOSAURUS_083', // Matched ID to existing S-Variant
-    name: 'Spinosaurus',
-    icon: '🦕',
-    category: 'combat',
-    rarity: 'uncommon',
-    source: 'Base Game',
-    variants: ['Standard', 'Aberrant', 'S-Variant', 'X-Variant'],
-  
-    // Biology & Lore
-    dossierText: "Spinosaurus is a massive amphibious predator, larger than a Rex and more versatile. It is a master of both land and water. On land, it can switch between a fast quadrupedal stance for travel and a powerful bipedal stance for combat. In the water, it is an incredibly swift and agile swimmer, receiving a hydration buff that increases its speed, damage, and health regeneration. Its massive sail helps it regulate its temperature and serves as an intimidating display. A tamed Spinosaurus is one of the most powerful and adaptable mounts on the island, a true apex predator in any environment.",
-    temperament: 'Territorial',
-    diet: 'Carnivore',
-    habitat: 'Rivers, lakes, swamps',
-    realWorldBasis: 'Spinosaurus aegyptiacus',
-    sizeClass: 'Massive',
-  
-    // Taming System
-    tamingMethod: 'Knockout',
-    tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Exceptional Kibble',
-    favoriteFood: 'Exceptional Kibble',
-    tamingSpeed: 'Very Slow',
-    torpor: {
-      baseValue: 1000,
-      depleteRate: 'Very Fast'
-    },
-    specialRequirements: 'High torpor drain and aggression make it a difficult tame. Prefers fish meat over raw meat.',
-  
-    // Base Statistics (Level 1 Wild)
-    baseStats: {
-      health: 700,
-      stamina: 350,
-      oxygen: 150,
-      food: 2600,
-      weight: 365,
-      melee: 40,
-      speed: 100,
-      torpor: 1000
-    },
-  
-    // Stat Scaling (Per Level)
-    statScaling: {
-      health: 140,
-      stamina: 35,
-      oxygen: 15,
-      food: 260,
-      weight: 7.3,
-      melee: 2,
-      speed: 1.5
-    },
-  
-    // Equipment & Combat
-    saddleLevel: 71,
-    saddleType: 'Spinosaurus Saddle',
-    saddleArmor: 25,
-    platformLimit: 0,
-    specialAbilities: ['Bipedal/quadrupedal stance switching', 'hydration buff (speed, damage, healing)', 'adept swimmer'],
-    attackTypes: ['Bite', 'Claw Swipe (bipedal)', 'Roar'],
-    canCarry: ['None'],
-  
-    // Utility & Roles
-    primaryRole: 'Amphibious apex predator and boss fighter',
-    secondaryRoles: ['Fish and meat harvester', 'fast water transport'],
-    gatheringResources: ['Raw Prime Fish Meat', 'Raw Fish Meat', 'Raw Prime Meat', 'Raw Meat', 'Hide'],
-    gatheringEfficiency: {
-      'Raw Prime Fish Meat': 10,
-      'Raw Meat': 9
-    },
-    ratings: {
-      combat: 9,
-      transport: 7,
-      speed: 8,
-      survivability: 8
-    },
-  
-    // Environmental Data
-    speeds: {
-      land: 30,
-      flying: 0,
-      swimming: 45,
-      climbing: 0
-    },
-    environmentalResistances: ['Hydration buff provides rapid healing'],
-    preferredBiome: 'Rivers, lakes, swamps',
-    temperatureRange: {
-      min: 10,
-      max: 45
-    },
-    oxygenRequirement: 'Air breathing',
-  
-    // Breeding Genetics
-    breeding: {
-      cooldown: '18-48 hours',
-      gestationTime: '5 hours',
-      babyFoodConsumption: 'High',
-      maturationTime: '3 days, 20 hours',
-      colorRegions: 6,
-      colorRegionNames: ['Body', 'Sail', 'Spine', 'Belly', 'Legs', 'Head'],
-      mutationChance: 7.31,
-      breedingDifficulty: 'Hard'
-    },
-  
-    // Special Functions
-    workstation: 'None',
-    resourceProduction: 'None',
-    structureFunctions: 'None',
-    buffAuras: ['Hydration buff when in water'],
-    debuffAbilities: ['Claw attack has high knockback'],
-    uniqueMechanics: ['Stance switching', 'hydration buff'],
-  
-    // Spawn & Location
-    spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur'],
-    spawnZones: ['Rivers', 'Lakes'],
-    rarityRating: 'Uncommon',
-    levelRange: '1-150',
-    packBehavior: 'Solitary',
-    territorialBehavior: 'Territorial, will attack if you get too close',
-  
-    // Management Metadata
-    difficultyRating: 'Hard',
-    beginnerFriendly: false,
-    endGameViable: true,
-    bossFightCapable: true,
-    pvpMeta: 'High',
-    resourceInvestment: 'High',
-    maintenanceLevel: 'High',
-  
-    // Badge Categories
-    badgeCategories: ['combat', 'boss']
-},
+
 'Spirit Dire Bear': {
     // Basic Info
     id: 'SPIRIT_DIRE_BEAR_391',
@@ -45258,7 +46056,7 @@ const SPECIES_DATABASE = {
     id: 'SUPER_TURKEY_393',
     name: 'Super Turkey',
     icon: '🦃',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Turkey Trial Event',
     variants: ['Dodo Variant'],
@@ -45365,7 +46163,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning', 'high damage reduction'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns randomly during the Turkey Trial event.'],
     rarityRating: 'Event',
     levelRange: '250 (fixed)',
@@ -45389,7 +46187,7 @@ const SPECIES_DATABASE = {
     id: 'SURFACE_REAPER_KING_GHOST_394',
     name: 'Surface Reaper King Ghost',
     icon: '👻',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Reaper King Variant'],
@@ -45496,7 +46294,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Reaper Kings during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -45644,14 +46442,14 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'Medium',
 
     // Badge Categories
-    badgeCategories: ['utility', 'harvesting', 'transport', 'combat', 'boss']
+    badgeCategories: ['utility', 'harvesting', 'transport', 'combat', 'boss', 'support']
 },
 'Titanomyrma': {
     // Basic Info
     id: 'TITANOMYRMA_396',
     name: 'Titanomyrma',
     icon: '🐜',
-    category: 'combat',
+    category: 'flyer',
     rarity: 'common',
     source: 'Base Game',
     variants: ['Drone', 'Soldier'],
@@ -45916,7 +46714,7 @@ const SPECIES_DATABASE = {
     id: 'TROPEOGNATHUS_398',
     name: 'Tropeognathus',
     icon: '✈️',
-    category: 'combat',
+    category: 'flyer',
     rarity: 'rare',
     source: 'Crystal Isles DLC',
     variants: ['Standard'],
@@ -46444,7 +47242,7 @@ const SPECIES_DATABASE = {
     id: 'X_ARGENTAVIS_403',
     name: 'X-Argentavis',
     icon: '🦅',
-    category: 'transport',
+    category: 'flyer',
     rarity: 'uncommon',
     source: 'Genesis Part 1 DLC',
     variants: ['Argentavis Variant'],
@@ -46576,7 +47374,7 @@ const SPECIES_DATABASE = {
     id: 'X_BASILOSAURUS_404',
     name: 'X-Basilosaurus',
     icon: '🐋',
-    category: 'utility',
+    category: 'aquatic',
     rarity: 'rare',
     source: 'Genesis Part 1 DLC',
     variants: ['Basilosaurus Variant'],
@@ -46708,7 +47506,7 @@ const SPECIES_DATABASE = {
     id: 'X_DUNKLEOSTEUS_405',
     name: 'X-Dunkleosteus',
     icon: '🐟',
-    category: 'harvesting',
+    category: 'aquatic',
     rarity: 'uncommon',
     source: 'Genesis Part 1 DLC',
     variants: ['Dunkleosteus Variant'],
@@ -46841,7 +47639,7 @@ const SPECIES_DATABASE = {
     id: 'X_ICHTHYOSAURUS_406',
     name: 'X-Ichthyosaurus',
     icon: '🐬',
-    category: 'transport',
+    category: 'aquatic',
     rarity: 'common',
     source: 'Genesis Part 1 DLC',
     variants: ['Ichthyosaurus Variant'],
@@ -46970,7 +47768,7 @@ const SPECIES_DATABASE = {
     id: 'X_MEGALODON_407',
     name: 'X-Megalodon',
     icon: '🦈',
-    category: 'combat',
+    category: 'aquatic',
     rarity: 'common',
     source: 'Genesis Part 1 DLC',
     variants: ['Megalodon Variant'],
@@ -47102,7 +47900,7 @@ const SPECIES_DATABASE = {
     id: 'X_MOSASAURUS_408',
     name: 'X-Mosasaurus',
     icon: '🐊',
-    category: 'combat',
+    category: 'aquatic',
     rarity: 'rare',
     source: 'Genesis Part 1 DLC',
     variants: ['Mosasaurus Variant'],
@@ -47233,7 +48031,7 @@ const SPECIES_DATABASE = {
     id: 'X_OTTER_409',
     name: 'X-Otter',
     icon: '🦦',
-    category: 'utility',
+    category: 'pet',
     rarity: 'common',
     source: 'Genesis Part 1 DLC',
     variants: ['Otter Variant'],
@@ -47381,8 +48179,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Regular Kibble',
-    favoriteFood: 'Regular Kibble',
+    preferredKibble: 'Superior Kibble',
+    favoriteFood: 'Superior Kibble',
     tamingSpeed: 'Slow',
     torpor: {
       baseValue: 1550,
@@ -47512,8 +48310,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Simple Kibble',
-    favoriteFood: 'Simple Kibble',
+    preferredKibble: 'Basic Kibble',
+    favoriteFood: 'Basic Kibble',
     tamingSpeed: 'Very Fast',
     torpor: {
       baseValue: 180,
@@ -47620,7 +48418,7 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'Very Low',
 
     // Badge Categories
-    badgeCategories: ['utility', 'transport']
+    badgeCategories: ['utility', 'transport', 'scout']
 },
 'X-Raptor': {
     // Basic Info
@@ -47906,7 +48704,7 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Must use specialized ammunition (Cannons, Mek Cannon).',
-    preferredKibble: 'N/A',
+    preferredKibble: 'Extraordinary Kibble',
     favoriteFood: 'Sulfur',
     tamingSpeed: 'Extremely Slow',
     torpor: {
@@ -48155,7 +48953,7 @@ const SPECIES_DATABASE = {
     id: 'X_SABERTOOTH_SALMON_416',
     name: 'X-Sabertooth Salmon',
     icon: '🐟',
-    category: 'utility',
+    category: 'aquatic',
     rarity: 'common',
     source: 'Genesis Part 1 DLC',
     variants: ['Sabertooth Salmon Variant'],
@@ -48281,10 +49079,10 @@ const SPECIES_DATABASE = {
     // Badge Categories
     badgeCategories: ['utility']
 },
-'X-Spino': {
+'X-Spinosaurus': {
     // Basic Info
     id: 'X_SPINO_417',
-    name: 'X-Spino',
+    name: 'X-Spinosaurus',
     icon: '🦕',
     category: 'combat',
     rarity: 'uncommon',
@@ -48417,7 +49215,7 @@ const SPECIES_DATABASE = {
     id: 'X_TAPEJARA_418',
     name: 'X-Tapejara',
     icon: '🦅',
-    category: 'transport',
+    category: 'flyer',
     rarity: 'uncommon',
     source: 'Genesis Part 1 DLC',
     variants: ['Tapejara Variant'],
@@ -48433,8 +49231,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Regular Kibble',
-    favoriteFood: 'Regular Kibble',
+    preferredKibble: 'Superior Kibble',
+    favoriteFood: 'Superior Kibble',
     tamingSpeed: 'Moderate',
     torpor: {
       baseValue: 450,
@@ -48828,8 +49626,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Exceptional Kibble',
-    favoriteFood: 'Exceptional Kibble',
+    preferredKibble: 'Extraordinary Kibble',
+    favoriteFood: 'Extraordinary Kibble',
     tamingSpeed: 'Very Slow',
     torpor: {
       baseValue: 1500,
@@ -48936,14 +49734,14 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'High',
 
     // Badge Categories
-    badgeCategories: ['combat', 'boss']
+    badgeCategories: ['combat', 'boss', 'support']
 },
 'Zombie Fire Wyvern': {
     // Basic Info
     id: 'ZOMBIE_FIRE_WYVERN_423',
     name: 'Zombie Fire Wyvern',
     icon: '🧟',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Wyvern Variant'],
@@ -49072,7 +49870,7 @@ const SPECIES_DATABASE = {
     id: 'ZOMBIE_LIGHTNING_WYVERN_424',
     name: 'Zombie Lightning Wyvern',
     icon: '🧟',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Wyvern Variant'],
@@ -49201,7 +49999,7 @@ const SPECIES_DATABASE = {
     id: 'ZOMBIE_POISON_WYVERN_425',
     name: 'Zombie Poison Wyvern',
     icon: '🧟',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Wyvern Variant'],
@@ -49330,7 +50128,7 @@ const SPECIES_DATABASE = {
     id: 'ZOMDODO_426',
     name: 'Zomdodo',
     icon: '🧟',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Dodo Variant'],
@@ -49435,7 +50233,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning', 'DodoRex minion'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns randomly during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -49475,8 +50273,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Exceptional Kibble',
-    favoriteFood: 'Exceptional Kibble',
+    preferredKibble: 'Extraordinary Kibble',
+    favoriteFood: 'Extraordinary Kibble',
     tamingSpeed: 'Very Slow',
     torpor: {
       baseValue: 1500,
@@ -49583,7 +50381,7 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'High',
 
     // Badge Categories
-    badgeCategories: ['combat', 'boss']
+    badgeCategories: ['combat', 'boss', 'support']
 },
 'R-Brontosaurus': {
     // Basic Info
@@ -49724,7 +50522,7 @@ const SPECIES_DATABASE = {
     id: 'R_CARBONEMYS_430',
     name: 'R-Carbonemys',
     icon: '🐢',
-    category: 'combat',
+    category: 'aquatic',
     rarity: 'common',
     source: 'Genesis Part 2 DLC',
     variants: ['Carbonemys Variant'],
@@ -50114,7 +50912,7 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'Very High',
 
     // Badge Categories
-    badgeCategories: ['utility', 'boss', 'combat']
+    badgeCategories: ['utility', 'boss', 'combat', 'support']
 },
 'R-Dilophosaur': {
     // Basic Info
@@ -50534,8 +51332,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Passive',
     tamingType: 'Unique mounting tame',
-    preferredKibble: 'Simple Kibble',
-    favoriteFood: 'Simple Kibble',
+    preferredKibble: 'Regular Kibble',
+    favoriteFood: 'Regular Kibble',
     tamingSpeed: 'Moderate',
     torpor: {
       baseValue: 350,
@@ -50649,7 +51447,7 @@ const SPECIES_DATABASE = {
     id: 'R_GASBAGS_437',
     name: 'R-Gasbags',
     icon: '🎈',
-    category: 'transport',
+    category: 'flyer',
     rarity: 'common',
     source: 'Genesis Part 2 DLC',
     variants: ['Gasbags Variant'],
@@ -51060,8 +51858,8 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Knockout',
     tamingType: 'Violent taming with tranquilizers',
-    preferredKibble: 'Simple Kibble',
-    favoriteFood: 'Simple Kibble',
+    preferredKibble: 'Basic Kibble',
+    favoriteFood: 'Basic Kibble',
     tamingSpeed: 'Very Fast',
     torpor: {
       baseValue: 180,
@@ -51168,7 +51966,7 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'Very Low',
 
     // Badge Categories
-    badgeCategories: ['utility', 'transport']
+    badgeCategories: ['utility', 'transport', 'scout']
 },
 'R-Procoptodon': {
     // Basic Info
@@ -51191,7 +51989,7 @@ const SPECIES_DATABASE = {
     // Taming System
     tamingMethod: 'Passive',
     tamingType: 'Non-violent, hand-feeding.',
-    preferredKibble: 'Regular Kibble',
+    preferredKibble: 'N/A',
     favoriteFood: 'Rare Mushroom',
     tamingSpeed: 'Medium',
     torpor: {
@@ -51306,7 +52104,7 @@ const SPECIES_DATABASE = {
     id: 'R_QUETZAL_442',
     name: 'R-Quetzal',
     icon: '🦅',
-    category: 'transport',
+    category: 'flyer',
     rarity: 'rare',
     source: 'Genesis Part 2 DLC',
     variants: ['Quetzalcoatlus Variant'],
@@ -51695,7 +52493,7 @@ const SPECIES_DATABASE = {
     id: 'R_SNOW_OWL_445',
     name: 'R-Snow Owl',
     icon: '🦉',
-    category: 'utility',
+    category: 'flyer',
     rarity: 'uncommon',
     source: 'Genesis Part 2 DLC',
     variants: ['Snow Owl Variant'],
@@ -51819,7 +52617,7 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'Low',
 
     // Badge Categories
-    badgeCategories: ['utility', 'combat', 'boss']
+    badgeCategories: ['utility', 'combat', 'boss', 'support', 'scout']
 },
 'R-Thylacoleo': {
     // Basic Info
@@ -52088,7 +52886,7 @@ const SPECIES_DATABASE = {
     id: 'BEYLA_448',
     name: 'Beyla',
     icon: '🐝',
-    category: 'boss',
+    category: 'flyer',
     rarity: 'mythical',
     source: 'Fjordur DLC',
     variants: ['World Boss'],
@@ -52479,7 +53277,7 @@ const SPECIES_DATABASE = {
     id: 'MACRO_SUMMONER_453',
     name: 'Macro-Summoner',
     icon: '🐙',
-    category: 'combat',
+    category: 'flyer',
     rarity: 'mission',
     source: 'Genesis Part 2 DLC',
     variants: ['Minion'],
@@ -52739,7 +53537,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_BASILISK_455',
     name: 'Alpha Basilisk',
     icon: '🐍',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Aberration DLC',
     variants: ['Alpha Variant'],
@@ -52870,7 +53668,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_BLOOD_CRYSTAL_WYVERN_456',
     name: 'Alpha Blood Crystal Wyvern',
     icon: '💎',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Crystal Isles DLC',
     variants: ['Alpha Variant'],
@@ -53001,7 +53799,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_CARNOTAURUS_457',
     name: 'Alpha Carnotaurus',
     icon: '🦖',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Base Game',
     variants: ['Alpha Variant'],
@@ -53132,7 +53930,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_DEATHWORM_458',
     name: 'Alpha Deathworm',
     icon: '🐛',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Scorched Earth DLC',
     variants: ['Alpha Variant'],
@@ -53264,7 +54062,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_FIRE_WYVERN_461',
     name: 'Alpha Fire Wyvern',
     icon: '🔥',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Scorched Earth DLC',
     variants: ['Alpha Variant'],
@@ -53396,7 +54194,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_KARKINOS_460',
     name: 'Alpha Karkinos',
     icon: '🦀',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Aberration DLC',
     variants: ['Alpha Variant'],
@@ -53527,7 +54325,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_LEEDSICHTHYS_461',
     name: 'Alpha Leedsichthys',
     icon: '🐋',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Base Game',
     variants: ['Alpha Variant'],
@@ -53658,7 +54456,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_MEGALODON_462',
     name: 'Alpha Megalodon',
     icon: '🦈',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Base Game',
     variants: ['Alpha Variant'],
@@ -53789,7 +54587,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_MOSASAUR_463',
     name: 'Alpha Mosasaur',
     icon: '🐊',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Base Game',
     variants: ['Alpha Variant'],
@@ -53920,7 +54718,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_RAPTOR_464',
     name: 'Alpha Raptor',
     icon: '🦖',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Base Game',
     variants: ['Alpha Variant'],
@@ -54051,7 +54849,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_SURFACE_REAPER_KING_465',
     name: 'Alpha Surface Reaper King',
     icon: '👹',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Extinction DLC',
     variants: ['Alpha Variant'],
@@ -54182,7 +54980,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_T_REX_466',
     name: 'Alpha T-Rex',
     icon: '🦖',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Base Game',
     variants: ['Alpha Variant'],
@@ -54313,7 +55111,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_TUSOTEUTHIS_467',
     name: 'Alpha Tusoteuthis',
     icon: '🦑',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Base Game',
     variants: ['Alpha Variant'],
@@ -54444,7 +55242,7 @@ const SPECIES_DATABASE = {
     id: 'ALPHA_X_TRICERATOPS_468',
     name: 'Alpha X-Triceratops',
     icon: '🦏',
-    category: 'combat',
+    category: 'alpha',
     rarity: 'rare',
     source: 'Genesis Part 1 DLC',
     variants: ['Alpha Variant'],
@@ -54570,12 +55368,274 @@ const SPECIES_DATABASE = {
     // Badge Categories
     badgeCategories: ['combat']
 },
+'Alpha Hulking Revenant': {
+    // Basic Info
+    id: 'ALPHA_HULKING_REVENANT_476',
+    name: 'Alpha Hulking Revenant',
+    icon: '🧟',
+    category: 'alpha',
+    rarity: 'legendary',
+    source: 'Lost Colony Expansion',
+    variants: ['Alpha Variant'],
+
+    // Biology & Lore
+    dossierText: "The Alpha Hulking Revenant is the engorged king of the Lost Colony's undead masses — a mutated, swollen abomination whose mass alone is enough to crush survivors and structures. Surrounded by the crimson aura common to all Alpha encounters, the Alpha Hulking is significantly larger than its Hulking Revenant cousins, packs more health, hits harder, and lingers longer in the Twilight Forest and Arat Prime ruin zones. Untameable and territorial, this creature represents one of the more punishing wild encounters Lost Colony has to offer, dropping superior loot and the very rare Revenant Marrow used in elite crafting recipes.",
+    temperament: 'Aggressive (Alpha)',
+    diet: 'Omnivore (corpse consumption)',
+    habitat: 'Twilight Forest, Arat Prime ruins, Necrocene zones',
+    realWorldBasis: 'Mutated zombie revenant (engorged Alpha variant)',
+    sizeClass: 'Colossal',
+
+    // Taming System
+    tamingMethod: 'Cannot be tamed',
+    tamingType: 'N/A',
+    preferredKibble: 'N/A',
+    favoriteFood: 'N/A',
+    tamingSpeed: 'N/A',
+    torpor: {
+      baseValue: 20000,
+      depleteRate: 'N/A'
+    },
+    specialRequirements: 'Alpha variant, untameable. Wild encounter only. Requires Lost Colony Expansion Pass.',
+
+    // Base Statistics (Level 1 Wild)
+    baseStats: {
+      health: 28000,
+      stamina: 600,
+      oxygen: 150,
+      food: 5000,
+      weight: 1200,
+      melee: 280,
+      speed: 100,
+      torpor: 20000
+    },
+
+    // Stat Scaling (Per Level)
+    statScaling: {
+      health: 5600,
+      stamina: 60,
+      oxygen: 15,
+      food: 500,
+      weight: 24,
+      melee: 14,
+      speed: 1
+    },
+
+    // Equipment & Combat
+    saddleLevel: 0,
+    saddleType: 'N/A',
+    saddleArmor: 0,
+    platformLimit: 0,
+    specialAbilities: ['Massive bulk crush', 'aura of fear (slows nearby survivors)', 'alpha damage resistance', 'corpse healing on kill', 'human feces drop'],
+    attackTypes: ['Slam', 'bite', 'lurching grab'],
+    canCarry: ['Can crush small to medium creatures underfoot'],
+
+    // Utility & Roles
+    primaryRole: 'Alpha Predator (Lost Colony wild encounter)',
+    secondaryRoles: ['Elite loot source', 'Revenant Marrow drop', 'XP farm'],
+    gatheringResources: ['Revenant Marrow (rare)', 'Raw Prime Meat', 'Hide', 'Human Feces'],
+    gatheringEfficiency: {
+      'Revenant Marrow': 10
+    },
+    ratings: {
+      combat: 10,
+      transport: 0,
+      speed: 4,
+      survivability: 10
+    },
+
+    // Environmental Data
+    speeds: {
+      land: 20,
+      flying: 0,
+      swimming: 10,
+      climbing: 0
+    },
+    environmentalResistances: ['Radiation immunity', 'cold resistance', 'high damage resistance'],
+    preferredBiome: 'Twilight Forest, Arat Prime, Necrocene zones',
+    temperatureRange: {
+      min: -50,
+      max: 40
+    },
+    oxygenRequirement: 'Air breathing (undead)',
+
+    // Breeding Genetics
+    breeding: {
+      cooldown: 'Cannot breed',
+      gestationTime: 'N/A',
+      babyFoodConsumption: 'N/A',
+      maturationTime: 'N/A',
+      colorRegions: 6,
+      colorRegionNames: ['Body', 'Bloating', 'Wounds', 'Eyes', 'Aura glow', 'Markings'],
+      mutationChance: 0,
+      breedingDifficulty: 'Cannot breed'
+    },
+
+    // Special Functions
+    workstation: 'None',
+    resourceProduction: 'None',
+    structureFunctions: 'Can destroy up to metal structures with bulk attacks',
+    buffAuras: ['Boosts damage and resistance of nearby wild Revenants.'],
+    debuffAbilities: ['Fear aura slows nearby survivors'],
+    uniqueMechanics: ['Alpha variant mechanics', 'undead immunity to torpor and bleed', 'Revenant Marrow source'],
+
+    // Spawn & Location
+    spawnMaps: ['Lost Colony'],
+    spawnZones: ['Twilight Forest', 'Arat Prime ruins', 'Necrocene zones'],
+    rarityRating: 'Legendary',
+    levelRange: '1-150 (Alpha multiplier applied)',
+    packBehavior: 'Solitary (sometimes accompanied by lesser Revenants)',
+    territorialBehavior: 'Extremely aggressive',
+
+    // Management Metadata
+    difficultyRating: 'Extreme',
+    beginnerFriendly: false,
+    endGameViable: true,
+    bossFightCapable: false,
+    pvpMeta: 'None (untameable)',
+    resourceInvestment: 'N/A',
+    maintenanceLevel: 'N/A',
+
+    // Badge Categories
+    badgeCategories: ['combat']
+},
+'Alpha Ossidon': {
+    // Basic Info
+    id: 'ALPHA_OSSIDON_477',
+    name: 'Alpha Ossidon',
+    icon: '🦍',
+    category: 'alpha',
+    rarity: 'legendary',
+    source: 'Lost Colony Expansion',
+    variants: ['Alpha Variant'],
+
+    // Biology & Lore
+    dossierText: "The Alpha Ossidon is the towering matriarch of the Lost Colony's frozen ape-like predators — a monstrously enlarged Ossidon that prowls the arctic tundra and frozen ravines of Arat Prime. Wreathed in the unmistakable Alpha crimson aura, its boulder-rolling attacks and cryogenic spear-throws are amplified far beyond those of its smaller brethren, and its hide is reinforced with crystalline ice. Like all Alpha encounters, the Alpha Ossidon is untameable, torpor-immune, and drops superior loot to survivors strong enough to bring it down — including the rare Frostmarrow used in cryo-gear recipes.",
+    temperament: 'Territorial (Alpha)',
+    diet: 'Carnivore (Alpha)',
+    habitat: 'Arctic tundra, frozen ravines, Arat Prime cold zones',
+    realWorldBasis: 'Engorged Ossidon (primate variant, mythological scaling)',
+    sizeClass: 'Colossal',
+
+    // Taming System
+    tamingMethod: 'Cannot be tamed',
+    tamingType: 'N/A (torpor immune)',
+    preferredKibble: 'N/A',
+    favoriteFood: 'N/A',
+    tamingSpeed: 'N/A',
+    torpor: {
+      baseValue: 25000,
+      depleteRate: 'N/A (Torpor immune)'
+    },
+    specialRequirements: 'Alpha variant, untameable. Torpor immune. Requires Lost Colony Expansion Pass.',
+
+    // Base Statistics (Level 1 Wild)
+    baseStats: {
+      health: 22000,
+      stamina: 700,
+      oxygen: 150,
+      food: 5000,
+      weight: 1500,
+      melee: 240,
+      speed: 100,
+      torpor: 25000
+    },
+
+    // Stat Scaling (Per Level)
+    statScaling: {
+      health: 4400,
+      stamina: 70,
+      oxygen: 15,
+      food: 500,
+      weight: 30,
+      melee: 12,
+      speed: 1
+    },
+
+    // Equipment & Combat
+    saddleLevel: 0,
+    saddleType: 'N/A',
+    saddleArmor: 0,
+    platformLimit: 0,
+    specialAbilities: ['Amplified boulder roll', 'cryogenic spear hurl (long range)', 'massive AoE stomp', 'alpha damage resistance', 'crystalline ice armor'],
+    attackTypes: ['Boulder roll', 'icicle spear', 'stomp', 'crystalline punch'],
+    canCarry: ['Can grab and roll medium creatures'],
+
+    // Utility & Roles
+    primaryRole: 'Alpha Predator (Lost Colony wild encounter)',
+    secondaryRoles: ['Frostmarrow drop', 'elite loot source', 'XP farm'],
+    gatheringResources: ['Frostmarrow (rare)', 'Raw Prime Meat', 'Hide', 'Crystalline Ice Shard'],
+    gatheringEfficiency: {
+      'Frostmarrow': 10
+    },
+    ratings: {
+      combat: 10,
+      transport: 0,
+      speed: 5,
+      survivability: 10
+    },
+
+    // Environmental Data
+    speeds: {
+      land: 27,
+      flying: 0,
+      swimming: 10,
+      climbing: 0
+    },
+    environmentalResistances: ['Cold immunity', 'cryogenic resistance', 'high damage resistance', 'torpor immunity'],
+    preferredBiome: 'Arctic tundra, frozen wastelands',
+    temperatureRange: {
+      min: -100,
+      max: 10
+    },
+    oxygenRequirement: 'Air breathing',
+
+    // Breeding Genetics
+    breeding: {
+      cooldown: 'Cannot breed',
+      gestationTime: 'N/A',
+      babyFoodConsumption: 'N/A',
+      maturationTime: 'N/A',
+      colorRegions: 6,
+      colorRegionNames: ['Body', 'Skull markings', 'Horn tips', 'Claws', 'Crystalline ice armor', 'Spike base'],
+      mutationChance: 0,
+      breedingDifficulty: 'Cannot breed'
+    },
+
+    // Special Functions
+    workstation: 'None',
+    resourceProduction: 'None',
+    structureFunctions: 'Can destroy up to metal structures with boulder attacks',
+    buffAuras: ['Boosts damage and resistance of nearby wild carnivores in cold zones.'],
+    debuffAbilities: ['Cryo slow on hit', 'fear aura'],
+    uniqueMechanics: ['Alpha variant mechanics', 'torpor immunity', 'Frostmarrow source'],
+
+    // Spawn & Location
+    spawnMaps: ['Lost Colony'],
+    spawnZones: ['Arctic tundra', 'frozen ravines', 'cold mountain regions'],
+    rarityRating: 'Legendary',
+    levelRange: '1-150 (Alpha multiplier applied)',
+    packBehavior: 'Solitary',
+    territorialBehavior: 'Extremely territorial',
+
+    // Management Metadata
+    difficultyRating: 'Extreme',
+    beginnerFriendly: false,
+    endGameViable: true,
+    bossFightCapable: false,
+    pvpMeta: 'None (untameable)',
+    resourceInvestment: 'N/A',
+    maintenanceLevel: 'N/A',
+
+    // Badge Categories
+    badgeCategories: ['combat']
+},
 'Basilisk Ghost': {
     // Basic Info
     id: 'BASILISK_GHOST_469',
     name: 'Basilisk Ghost',
     icon: '👻',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Basilisk Variant'],
@@ -54682,7 +55742,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Basilisks during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -54706,7 +55766,7 @@ const SPECIES_DATABASE = {
     id: 'BONE_FIRE_WYVERN_470',
     name: 'Bone Fire Wyvern',
     icon: '💀',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Wyvern Variant'],
@@ -54813,7 +55873,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Wyverns during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -54837,7 +55897,7 @@ const SPECIES_DATABASE = {
     id: 'BULBDOG_GHOST_471',
     name: 'Bulbdog Ghost',
     icon: '👻',
-    category: 'utility',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Bulbdog Variant'],
@@ -54944,7 +56004,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some light pets during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -54968,7 +56028,7 @@ const SPECIES_DATABASE = {
     id: 'BUNNY_DODO_472',
     name: 'Bunny Dodo',
     icon: '🐰',
-    category: 'utility',
+    category: 'event',
     rarity: 'event',
     source: 'Eggcellent Adventure Event',
     variants: ['Dodo Variant'],
@@ -55075,7 +56135,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning', 'special egg laying'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Dodos during the Eggcellent Adventure event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -55099,7 +56159,7 @@ const SPECIES_DATABASE = {
     id: 'BUNNY_OVIRAPTOR_473',
     name: 'Bunny Oviraptor',
     icon: '🐰',
-    category: 'utility',
+    category: 'event',
     rarity: 'event',
     source: 'Eggcellent Adventure Event',
     variants: ['Oviraptor Variant'],
@@ -55206,7 +56266,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning', 'special egg laying'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Oviraptors during the Eggcellent Adventure event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -55230,7 +56290,7 @@ const SPECIES_DATABASE = {
     id: 'DIREWOLF_GHOST_474',
     name: 'Direwolf Ghost',
     icon: '👻',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Direwolf Variant'],
@@ -55337,7 +56397,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Direwolves during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -55361,7 +56421,7 @@ const SPECIES_DATABASE = {
     id: 'MANTIS_GHOST_475',
     name: 'Mantis Ghost',
     icon: '👻',
-    category: 'combat',
+    category: 'event',
     rarity: 'event',
     source: 'Fear Evolved Event',
     variants: ['Mantis Variant'],
@@ -55468,7 +56528,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Seasonal spawning'],
   
     // Spawn & Location
-    spawnMaps: ['All'],
+    spawnMaps: ['The Island', 'Scorched Earth', 'The Center', 'Aberration', 'Extinction', 'Astraeos', 'Ragnarok', 'Valguero', 'Lost Colony', 'Genesis Part 1', 'Genesis Part 2', 'Fjordur', 'Crystal Isles', 'Lost Island'],
     spawnZones: ['Spawns in place of some Mantis during the Fear Evolved event.'],
     rarityRating: 'Event',
     levelRange: '1-150',
@@ -55492,7 +56552,7 @@ const SPECIES_DATABASE = {
     id: 'MONODON_477',
     name: 'Monodon',
     icon: '🐋',
-    category: 'combat',
+    category: 'aquatic',
     rarity: 'uncommon',
     source: 'ARK Additions Mod',
     variants: ['Standard'],
@@ -55599,7 +56659,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Echolocation ability'],
   
     // Spawn & Location
-    spawnMaps: ['The Island', 'The Center', 'Ragnarok (with mod)'],
+    spawnMaps: ['The Island', 'The Center', 'Ragnarok'],
     spawnZones: ['Snow/Arctic Ocean'],
     rarityRating: 'Uncommon',
     levelRange: '1-150',
@@ -55616,14 +56676,14 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'Medium',
   
     // Badge Categories
-    badgeCategories: ['combat', 'utility']
+    badgeCategories: ['combat', 'utility', 'mod', 'scout']
 },
 'Pygocentrus': {
     // Basic Info
     id: 'PYGOCENTRUS_479',
     name: 'Pygocentrus',
     icon: '🐟',
-    category: 'combat',
+    category: 'aquatic',
     rarity: 'common',
     source: 'ARK Additions Mod',
     variants: ['Standard'],
@@ -55730,7 +56790,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Swarm AI', 'Bleed attack'],
 
     // Spawn & Location
-    spawnMaps: ['The Island', 'The Center', 'Ragnarok (with mod)'],
+    spawnMaps: ['The Island', 'The Center', 'Ragnarok'],
     spawnZones: ['Rivers', 'Swamps'],
     rarityRating: 'Common',
     levelRange: '1-150',
@@ -55747,14 +56807,14 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'N/A',
 
     // Badge Categories
-    badgeCategories: ['combat']
+    badgeCategories: ['combat', 'mod']
 },
 'Qarmoutus': {
     // Basic Info
     id: 'QARMOUTUS_480',
     name: 'Qarmoutus',
     icon: '🐟',
-    category: 'combat',
+    category: 'aquatic',
     rarity: 'uncommon',
     source: 'ARK Additions Mod',
     variants: ['Standard'],
@@ -55861,7 +56921,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Damage reduction debuff'],
   
     // Spawn & Location
-    spawnMaps: ['The Island', 'The Center', 'Ragnarok (with mod)'],
+    spawnMaps: ['The Island', 'The Center', 'Ragnarok'],
     spawnZones: ['Swamps', 'Rivers'],
     rarityRating: 'Uncommon',
     levelRange: '1-150',
@@ -55878,14 +56938,14 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'Low',
   
     // Badge Categories
-    badgeCategories: ['combat', 'utility']
+    badgeCategories: ['combat', 'utility', 'mod']
 },
 'Takifugu': {
     // Basic Info
     id: 'TAKIFUGU_482',
     name: 'Takifugu',
     icon: '🐡',
-    category: 'utility',
+    category: 'aquatic',
     rarity: 'uncommon',
     source: 'ARK Additions Mod',
     variants: ['Standard'],
@@ -55992,7 +57052,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['Inflation defense', 'venom cloud attack'],
   
     // Spawn & Location
-    spawnMaps: ['The Island', 'The Center', 'Ragnarok (with mod)'],
+    spawnMaps: ['The Island', 'The Center', 'Ragnarok'],
     spawnZones: ['Shallow Ocean', 'Coral Reefs'],
     rarityRating: 'Uncommon',
     levelRange: '1-150',
@@ -56009,7 +57069,7 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'N/A',
   
     // Badge Categories
-    badgeCategories: ['utility', 'harvesting']
+    badgeCategories: ['utility', 'harvesting', 'mod']
 },
 'Tiktaalik': {
     // Basic Info
@@ -56124,7 +57184,7 @@ const SPECIES_DATABASE = {
     uniqueMechanics: ['None'],
   
     // Spawn & Location
-    spawnMaps: ['The Island', 'The Center', 'Ragnarok (with mod)'],
+    spawnMaps: ['The Island', 'The Center', 'Ragnarok'],
     spawnZones: ['Swamps'],
     rarityRating: 'Common',
     levelRange: '1-150',
@@ -56141,7 +57201,7 @@ const SPECIES_DATABASE = {
     maintenanceLevel: 'N/A',
   
     // Badge Categories
-    badgeCategories: ['utility']
+    badgeCategories: ['utility', 'mod']
 },
 'Solwyn': {
   id: 'SOLWYN_502',
@@ -56200,7 +57260,7 @@ const SPECIES_DATABASE = {
   difficultyRating: 'Hard (requires Veilwyn progression)',
   beginnerFriendly: false, endGameViable: true, bossFightCapable: true, pvpMeta: 'High',
   resourceInvestment: 'High', maintenanceLevel: 'Medium',
-  badgeCategories: ['utility', 'combat']
+  badgeCategories: ['utility', 'combat', 'support']
 },
 'Malwyn': {
   id: 'MALWYN_503',
@@ -56310,7 +57370,7 @@ const SPECIES_DATABASE = {
   workstation: 'None', resourceProduction: 'None', structureFunctions: 'Can destroy up to metal structures.',
   buffAuras: ['None'], debuffAbilities: ['Cryo slow on hit', 'fear aura slows nearby wild creatures'],
   uniqueMechanics: ['Unique ride-and-roll taming mechanic', 'boulder construction attack', 'cryogenic mucus'],
-  spawnMaps: ['Lost Colony', 'Ragnarok (cold biomes)', 'Valguero (cold biomes)', 'The Center (cold biomes)'],
+  spawnMaps: ['Lost Colony', 'Ragnarok', 'Valguero', 'The Center'],
   spawnZones: ['Arctic tundra', 'frozen wastelands', 'cold mountain regions'],
   rarityRating: 'Rare',
   levelRange: '1-150',
@@ -56325,7 +57385,7 @@ const SPECIES_DATABASE = {
   id: 'GLOON_505',
   name: 'Gloon',
   icon: '👁️',
-  category: 'utility',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Lost Colony Expansion',
   variants: ['Standard'],
@@ -56385,7 +57445,7 @@ const SPECIES_DATABASE = {
   id: 'AURELIAX_506',
   name: 'Aureliax',
   icon: '🐉',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'rare',
   source: 'Lost Colony Expansion',
   variants: ['Standard'],
@@ -56445,7 +57505,7 @@ const SPECIES_DATABASE = {
   id: 'GIGADESMODUS_507',
   name: 'Gigadesmodus',
   icon: '🦇',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Lost Colony Expansion',
   variants: ['Standard'],
@@ -56499,7 +57559,7 @@ const SPECIES_DATABASE = {
   difficultyRating: 'Extreme (requires defeating Lost Colony bosses)',
   beginnerFriendly: false, endGameViable: true, bossFightCapable: true, pvpMeta: 'Extreme',
   resourceInvestment: 'Extreme', maintenanceLevel: 'Low (self-sustaining)',
-  badgeCategories: ['combat', 'boss', 'transport']
+  badgeCategories: ['combat', 'boss', 'transport', 'scout']
 },
 'Cryolophosaurus': {
   id: 'CRYOLOPHOSAURUS_508',
@@ -56624,7 +57684,7 @@ const SPECIES_DATABASE = {
   id: 'NEOPHYTE_510',
   name: 'Neophyte',
   icon: '🦇',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'uncommon',
   source: 'Lost Colony Expansion',
   variants: ['Standard', 'Elite'],
@@ -56731,7 +57791,7 @@ const SPECIES_DATABASE = {
   id: 'GARGOYLE_512',
   name: 'Gargoyle',
   icon: '🗿',
-  category: 'combat',
+  category: 'flyer',
   rarity: 'rare',
   source: 'Lost Colony Expansion',
   variants: ['Standard'],
@@ -56835,7 +57895,7 @@ const SPECIES_DATABASE = {
   id: 'LOST_QUEEN_514',
   name: 'Lost Queen',
   icon: '👸',
-  category: 'boss',
+  category: 'flyer',
   rarity: 'legendary',
   source: 'Lost Colony Expansion',
   variants: ['Standard'],
@@ -56881,7 +57941,7 @@ const SPECIES_DATABASE = {
   difficultyRating: 'Extreme',
   beginnerFriendly: false, endGameViable: true, bossFightCapable: false, pvpMeta: 'None',
   resourceInvestment: 'N/A', maintenanceLevel: 'N/A',
-  badgeCategories: ['combat', 'boss']
+  badgeCategories: ['combat', 'boss', 'scout']
 },
 'S-Pyromane': {
   id: "S_PYROMANE_515",
@@ -56975,7 +58035,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Heat aura provides warmth"],
   debuffAbilities: ["Burning effects on enemies"],
   uniqueMechanics: ["S-Dino crossbreeding enabled", "radiation immunity from S-Variant", "10% wild spawn rate replacing Pyromane", "requires Fantastic Tame DLC ownership"],
-  spawnMaps: ["Maps where Pyromane spawns (volcanic areas)"],
+  spawnMaps: [],
   spawnZones: ["Volcanic regions, lava fields — 10% chance replacing standard Pyromane"],
   rarityRating: "Rare",
   levelRange: "1-150",
@@ -56988,7 +58048,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "High",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'S-Dreadmare': {
   id: "S_DREADMARE_516",
@@ -57081,7 +58141,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Dark energy aura causes fear in nearby wild creatures"],
   debuffAbilities: ["Fear effect slows enemies"],
   uniqueMechanics: ["S-Dino crossbreeding enabled", "radiation immunity from S-Variant", "10% wild spawn rate replacing Dreadmare", "requires Fantastic Tame DLC ownership", "phase-through-obstacle during charge"],
-  spawnMaps: ["Maps where Dreadmare spawns"],
+  spawnMaps: [],
   spawnZones: ["Replacing standard Dreadmare at 10% spawn rate"],
   rarityRating: "Legendary",
   levelRange: "1-150",
@@ -57094,11 +58154,11 @@ const SPECIES_DATABASE = {
   pvpMeta: "Very High",
   resourceInvestment: "High",
   maintenanceLevel: "Low",
-  badgeCategories: ["combat", "transport", "pvp"]
+  badgeCategories: ["combat", "transport", "pvp", "mod"]
 },
-'S-Acro': {
+'S-Acrocanthosaurus': {
   id: "S_ACRO_601",
-  name: "S-Acro",
+  name: "S-Acrocanthosaurus",
   icon: "🦖",
   category: "combat",
   rarity: "rare",
@@ -57187,7 +58247,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Adrenaline activation buffs nearby allied tames"],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Shield stance absorbs damage and charges adrenaline", "frustrated roar taming method", "S-Dino crossbreeding enabled", "radiation immunity"],
-  spawnMaps: ["The Island", "The Center", "Scorched Earth", "Ragnarok", "Valguero", "Aberration", "Extinction", "Genesis", "Crystal Isles", "Genesis Part 2", "Lost Island", "Fjordur", "Astraeos", "Lost Colony"],
+  spawnMaps: ['The Island', 'The Center', 'Scorched Earth', 'Ragnarok', 'Valguero', 'Aberration', 'Extinction', 'Genesis Part 1', 'Crystal Isles', 'Genesis Part 2', 'Lost Island', 'Fjordur', 'Astraeos', 'Lost Colony'],
   spawnZones: ["Redwoods", "grasslands — 10% chance replacing standard Acrocanthosaurus"],
   rarityRating: "Rare",
   levelRange: "1-150",
@@ -57200,7 +58260,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "High",
   maintenanceLevel: "Low",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'S-Andrewsarchus': {
   id: "S_ANDREWSARCHUS_602",
@@ -57293,7 +58353,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["None"],
   debuffAbilities: ["Charge applies knockback on impact"],
   uniqueMechanics: ["Honey-based passive ride taming", "minigun saddle (fires while moving)", "sinks and runs on ocean floor", "S-Dino crossbreeding enabled", "radiation immunity"],
-  spawnMaps: ["Fjordur", "maps with Fjordur spawners"],
+  spawnMaps: ['Fjordur'],
   spawnZones: ["Cold regions, snowy tundra, coastal zones on Fjordur — 10% chance replacing standard Andrewsarchus"],
   rarityRating: "Rare",
   levelRange: "1-150",
@@ -57306,13 +58366,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Medium",
   maintenanceLevel: "Low",
-  badgeCategories: ["combat", "transport"]
+  badgeCategories: ["combat", "transport", "mod"]
 },
 'S-Argentavis': {
   id: "S_ARGENTAVIS_603",
   name: "S-Argentavis",
   icon: "🦅",
-  category: "transport",
+  category: "flyer",
   rarity: "uncommon",
   source: "S-Dino Variants (Nekatus mod) — Base Game (S-Variant)",
   variants: ["S-Variant of Argentavis"],
@@ -57399,7 +58459,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["None"],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Mobile smithy via saddle", "50% weight reduction on major resources", "creature carry via beak", "S-Dino crossbreeding enabled", "radiation immunity"],
-  spawnMaps: ["The Island", "The Center", "Scorched Earth", "Ragnarok", "Valguero", "Aberration", "Extinction", "Genesis", "Crystal Isles", "Genesis Part 2", "Lost Island", "Fjordur", "Astraeos", "Lost Colony"],
+  spawnMaps: ['The Island', 'The Center', 'Scorched Earth', 'Ragnarok', 'Valguero', 'Aberration', 'Extinction', 'Genesis Part 1', 'Crystal Isles', 'Genesis Part 2', 'Lost Island', 'Fjordur', 'Astraeos', 'Lost Colony'],
   spawnZones: ["Mountains, highlands, elevated terrain — 10% chance replacing standard Argentavis"],
   rarityRating: "Uncommon",
   levelRange: "1-150",
@@ -57412,13 +58472,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Medium",
   resourceInvestment: "Low",
   maintenanceLevel: "Low",
-  badgeCategories: ["transport", "utility"]
+  badgeCategories: ["transport", "utility", "mod"]
 },
 'S-Castoroides': {
   id: "S_CASTOROIDES_604",
   name: "S-Castoroides",
   icon: "🦫",
-  category: "utility",
+  category: "harvesting",
   rarity: "uncommon",
   source: "S-Dino Variants (Nekatus mod) — Base Game (S-Variant)",
   variants: ["S-Variant of Castoroides"],
@@ -57507,7 +58567,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["None"],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Mobile smithy via saddle (Ascendant crafting possible)", "50% weight reduction on building resources", "Wild Castoroides build harvestable dams", "S-Dino crossbreeding enabled", "radiation immunity"],
-  spawnMaps: ["The Island", "The Center", "Ragnarok", "Valguero", "Extinction", "Genesis", "Crystal Isles", "Genesis Part 2", "Lost Island", "Fjordur", "Astraeos", "Lost Colony"],
+  spawnMaps: ['The Island', 'The Center', 'Ragnarok', 'Valguero', 'Extinction', 'Genesis Part 1', 'Crystal Isles', 'Genesis Part 2', 'Lost Island', 'Fjordur', 'Astraeos', 'Lost Colony'],
   spawnZones: ["Rivers, swamps, lakesides — 10% chance replacing standard Castoroides"],
   rarityRating: "Uncommon",
   levelRange: "1-150",
@@ -57520,13 +58580,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Low",
   resourceInvestment: "Low",
   maintenanceLevel: "Low",
-  badgeCategories: ["utility", "harvesting"]
+  badgeCategories: ["utility", "harvesting", "mod"]
 },
 'S-Cat': {
   id: "S_CAT_605",
   name: "S-Cat",
   icon: "🐱",
-  category: "utility",
+  category: "pet",
   rarity: "rare",
   source: "S-Dino Variants (Nekatus mod) — Base Game (S-Variant)",
   variants: ["S-Variant of Cat"],
@@ -57626,7 +58686,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "Low",
   resourceInvestment: "Low",
   maintenanceLevel: "Low",
-  badgeCategories: ["utility"]
+  badgeCategories: ["utility", "mod"]
 },
 'S-Direwolf': {
   id: "S_DIREWOLF_606",
@@ -57720,7 +58780,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["Pack bonus buffs all nearby allied Direwolves"],
   debuffAbilities: ["None"],
   uniqueMechanics: ["Pack damage scaling system", "pack howl activates bonus and reveals area", "S-Dino crossbreeding enabled", "radiation immunity"],
-  spawnMaps: ["The Island", "The Center", "Scorched Earth", "Ragnarok", "Valguero", "Aberration", "Extinction", "Genesis", "Crystal Isles", "Genesis Part 2", "Lost Island", "Fjordur", "Astraeos", "Lost Colony"],
+  spawnMaps: ['The Island', 'The Center', 'Scorched Earth', 'Ragnarok', 'Valguero', 'Aberration', 'Extinction', 'Genesis Part 1', 'Crystal Isles', 'Genesis Part 2', 'Lost Island', 'Fjordur', 'Astraeos', 'Lost Colony'],
   spawnZones: ["Snow biomes, tundra, cold highlands — 10% chance replacing standard Direwolf"],
   rarityRating: "Uncommon",
   levelRange: "1-150",
@@ -57733,13 +58793,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Medium",
   resourceInvestment: "Low",
   maintenanceLevel: "Low",
-  badgeCategories: ["combat", "utility"]
+  badgeCategories: ["combat", "utility", "mod"]
 },
 'S-Desmodus': {
   id: "S_DESMODUS_607",
   name: "S-Desmodus",
   icon: "🦇",
-  category: "combat",
+  category: "flyer",
   rarity: "rare",
   source: "S-Dino Variants (Nekatus mod) — Fjordur DLC (S-Variant)",
   variants: ["S-Variant of Desmodus"],
@@ -57839,13 +58899,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Medium",
   maintenanceLevel: "Low",
-  badgeCategories: ["combat", "utility"]
+  badgeCategories: ["combat", "utility", "mod", "scout"]
 },
 'S-Managarmr': {
   id: "S_MANAGARMR_608",
   name: "S-Managarmr",
   icon: "🐉",
-  category: "combat",
+  category: "flyer",
   rarity: "rare",
   source: "S-Dino Variants (Nekatus mod) — Extinction DLC (S-Variant)",
   variants: ["S-Variant of Managarmr"],
@@ -57945,7 +59005,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "Very High",
   resourceInvestment: "High",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "transport"]
+  badgeCategories: ["combat", "transport", "mod"]
 },
 'S-Megaraptor': {
   id: "S_MEGARAPTOR_609",
@@ -58052,7 +59112,7 @@ const SPECIES_DATABASE = {
   pvpMeta: "High",
   resourceInvestment: "Medium",
   maintenanceLevel: "Low",
-  badgeCategories: ["combat", "pvp"]
+  badgeCategories: ["combat", "pvp", "mod"]
 },
 'S-Ossidon': {
   id: "S_OSSIDON_610",
@@ -58145,7 +59205,7 @@ const SPECIES_DATABASE = {
   buffAuras: ["None"],
   debuffAbilities: ["Cryo slow on hit", "fear aura reduces wild creature aggro range nearby"],
   uniqueMechanics: ["Ride-and-roll taming mechanic (rolling creatures into dung ball)", "boulder construction attack", "cryogenic mucus", "S-Dino crossbreeding enabled", "radiation immunity"],
-  spawnMaps: ["Lost Colony", "Ragnarok (cold biomes)", "Valguero (cold biomes)", "The Center (cold biomes)"],
+  spawnMaps: ['Lost Colony', 'Ragnarok', 'Valguero', 'The Center'],
   spawnZones: ["Arctic tundra, frozen wastelands — 10% chance replacing standard Ossidon"],
   rarityRating: "Legendary",
   levelRange: "1-150",
@@ -58158,13 +59218,13 @@ const SPECIES_DATABASE = {
   pvpMeta: "Extreme",
   resourceInvestment: "Very High",
   maintenanceLevel: "Medium",
-  badgeCategories: ["combat", "boss"]
+  badgeCategories: ["combat", "boss", "mod"]
 },
 'Grand Tortugar': {
   id: "GRAND_TORTUGAR_701",
   name: "Grand Tortugar",
   icon: "🐢",
-  category: "utility",
+  category: "aquatic",
   rarity: "rare",
   source: "Astraeos DLC",
   variants: ["Standard", "Platform Saddle variant"],
@@ -58271,7 +59331,7 @@ const SPECIES_DATABASE = {
   id: "NATRIX_702",
   name: "Natrix",
   icon: "🐍",
-  category: "boss",
+  category: "aquatic",
   rarity: "legendary",
   source: "Astraeos DLC",
   variants: ["Gamma", "Beta", "Alpha"],
@@ -58695,7 +59755,7 @@ const SPECIES_DATABASE = {
   id: "HYDRASKOS_706",
   name: "Hydraskos",
   icon: "🐉",
-  category: "boss",
+  category: "aquatic",
   rarity: "legendary",
   source: "Astraeos DLC (Mega Update, February 2026)",
   variants: ["Gamma", "Beta", "Alpha"],
@@ -58796,6 +59856,137 @@ const SPECIES_DATABASE = {
   resourceInvestment: "N/A",
   maintenanceLevel: "N/A",
   badgeCategories: ["combat", "boss"]
+},
+'Pulmonoscorpius Monarch': {
+  // Basic Info
+  id: 'PULMONOSCORPIUS_MONARCH_475',
+  name: 'Pulmonoscorpius Monarch',
+  icon: '🦂',
+  category: 'boss',
+  rarity: 'legendary',
+  source: 'Astraeos DLC (Mega Update, Feb 2026)',
+  variants: ['Standard', 'Astral Variant'],
+
+  // Biology & Lore
+  dossierText: "The Pulmonoscorpius Monarch is the colossal, royal sire of all common scorpions on Astraeos — a tower of chitin and venom that rules the ruined arena chambers beneath the map's ancient sites. Far larger than its kin and adorned with bioluminescent striations and a crown of forward-projecting venom glands, the Monarch is one of the centerpiece miniboss encounters of the Astraeos Mega Update. Its claws can sweep wide arcs, its tail strikes carry a paralyzing venom several tiers above standard scorpion torpor, and its hardened underside is famously difficult to penetrate. Unlike most ARK bosses, the Pulmonoscorpius Monarch can be encountered as a tameable opportunity through specific Astraeos arena progression, though it remains untameable through conventional knockout means.",
+  temperament: 'Aggressive (Mini-Boss)',
+  diet: 'Carnivore',
+  habitat: 'Astraeos arena chambers, ruined depths',
+  realWorldBasis: 'Pulmonoscorpius (royal variant)',
+  sizeClass: 'Massive',
+
+  // Taming System
+  tamingMethod: 'Cannot be tamed (Mini-Boss)',
+  tamingType: 'N/A',
+  preferredKibble: 'N/A',
+  favoriteFood: 'N/A',
+  tamingSpeed: 'N/A',
+  torpor: {
+    baseValue: 50000,
+    depleteRate: 'N/A'
+  },
+  specialRequirements: 'Mini-boss arena encounter. Cannot be tamed conventionally.',
+
+  // Base Statistics (Level 1 Wild)
+  baseStats: {
+    health: 25000,
+    stamina: 1500,
+    oxygen: 150,
+    food: 5000,
+    weight: 1500,
+    melee: 200,
+    speed: 100,
+    torpor: 50000
+  },
+
+  // Stat Scaling (Per Level)
+  statScaling: {
+    health: 5000,
+    stamina: 150,
+    oxygen: 15,
+    food: 500,
+    weight: 30,
+    melee: 10,
+    speed: 1
+  },
+
+  // Equipment & Combat
+  saddleLevel: 0,
+  saddleType: 'N/A',
+  saddleArmor: 0,
+  platformLimit: 0,
+  specialAbilities: ['Wide claw sweep', 'paralytic tail venom (very high torpor)', 'armored underside', 'venom AoE'],
+  attackTypes: ['Claw sweep', 'tail strike (paralytic)', 'venom spray'],
+  canCarry: ['Can grab medium creatures with claws'],
+
+  // Utility & Roles
+  primaryRole: 'Astraeos mini-boss encounter',
+  secondaryRoles: ['Arena trophy source', 'PvE challenge'],
+  gatheringResources: ['Chitin (large amounts)', 'Raw Prime Meat', 'Pulmonoscorpius Monarch Trophy'],
+  gatheringEfficiency: {
+    'Pulmonoscorpius Monarch Trophy': 10
+  },
+  ratings: {
+    combat: 10,
+    transport: 0,
+    speed: 4,
+    survivability: 10
+  },
+
+  // Environmental Data
+  speeds: {
+    land: 25,
+    flying: 0,
+    swimming: 8,
+    climbing: 0
+  },
+  environmentalResistances: ['Heat immunity', 'high physical resistance', 'venom immunity'],
+  preferredBiome: 'Astraeos arena depths',
+  temperatureRange: {
+    min: 5,
+    max: 80
+  },
+  oxygenRequirement: 'Air breathing',
+
+  // Breeding Genetics
+  breeding: {
+    cooldown: 'Cannot breed',
+    gestationTime: 'N/A',
+    babyFoodConsumption: 'N/A',
+    maturationTime: 'N/A',
+    colorRegions: 6,
+    colorRegionNames: ['Body', 'Claws', 'Tail', 'Underside', 'Bioluminescent markings', 'Crown'],
+    mutationChance: 0,
+    breedingDifficulty: 'Cannot breed'
+  },
+
+  // Special Functions
+  workstation: 'None',
+  resourceProduction: 'None',
+  structureFunctions: 'None',
+  buffAuras: ['None'],
+  debuffAbilities: ['Paralytic venom debuffs target movement and torpor'],
+  uniqueMechanics: ['Astraeos arena boss', 'royal Pulmonoscorpius scaling', 'venom paralysis stronger than standard Pulmonoscorpius'],
+
+  // Spawn & Location
+  spawnMaps: ['Astraeos'],
+  spawnZones: ['Astraeos arena chambers', 'ruined depths'],
+  rarityRating: 'Legendary',
+  levelRange: 'Arena-scaled',
+  packBehavior: 'Solitary',
+  territorialBehavior: 'Extremely aggressive within arena',
+
+  // Management Metadata
+  difficultyRating: 'Very Hard',
+  beginnerFriendly: false,
+  endGameViable: true,
+  bossFightCapable: false,
+  pvpMeta: 'None (untameable)',
+  resourceInvestment: 'N/A',
+  maintenanceLevel: 'N/A',
+
+  // Badge Categories
+  badgeCategories: ['combat', 'boss']
 },
 'Minotarchos': {
   id: "MINOTARCHOS_707",
@@ -59119,7 +60310,7 @@ const SPECIES_DATABASE = {
   id: "NUNATAK_710",
   name: "Nunatak",
   icon: "🐲",
-  category: "boss",
+  category: "flyer",
   rarity: "legendary",
   source: "Ragnarok Ascended DLC",
   variants: ["Gamma", "Beta", "Alpha"],
@@ -59225,7 +60416,7 @@ const SPECIES_DATABASE = {
   id: "MOEDER_711",
   name: "Moeder",
   icon: "🐍",
-  category: "boss",
+  category: "aquatic",
   rarity: "legendary",
   source: "Genesis: Part 1 DLC",
   variants: ["Gamma (green glow)", "Beta (blue-purple glow)", "Alpha (red glow)"],
@@ -59331,7 +60522,7 @@ const SPECIES_DATABASE = {
   id: "FOREST_WYVERN_324",
   name: "Forest Wyvern",
   icon: "🌿",
-  category: "boss",
+  category: "flyer",
   rarity: "rare",
   source: "Extinction DLC",
   variants: ["Forest Titan Minion"],

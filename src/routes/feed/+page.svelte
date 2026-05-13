@@ -6,7 +6,27 @@
 
     let canvas = $state<HTMLCanvasElement | null>(null);
 
-    function displayName(u: { nickname: string | null; email: string }) {
+    // Scope + source filter state
+    let scope = $state<'all' | 'following' | 'tribe' | 'server' | 'global'>('all');
+    let source = $state<'all' | 'personal' | 'tribe' | 'server' | 'news'>('all');
+
+    // Global tab source chips (toggles)
+    let activeSources = $state<Record<string, boolean>>({
+        twitter: true,
+        youtube: true,
+        instagram: true,
+        reddit: true,
+        sta: true,
+        wildcard: true,
+        twitch: false
+    });
+    function toggleSource(key: string) {
+        activeSources[key] = !activeSources[key];
+    }
+
+    type Friend = { nickname: string | null; email: string; id?: number };
+
+    function displayName(u: Friend) {
         return u.nickname ?? u.email.split('@')[0];
     }
 
@@ -22,10 +42,21 @@
         return new Date(d).toLocaleDateString();
     }
 
+    function dayBucketLabel(d: Date | string): string {
+        const date = new Date(d);
+        const today = new Date(); today.setHours(0,0,0,0);
+        const target = new Date(date); target.setHours(0,0,0,0);
+        const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000);
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays > 1 && diffDays < 7) return `${diffDays} days ago`;
+        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
     function eventKindClass(type: string): string {
         if (type === 'creature_add') return 'breeding';
-        if (type === 'boss_record') return 'boss';
-        if (type === 'trade_open') return 'trade';
+        if (type === 'boss_record' || type === 'boss') return 'boss';
+        if (type === 'trade_open' || type === 'trade') return 'trade';
         if (type === 'badge_earned') return 'badge';
         return '';
     }
@@ -36,21 +67,191 @@
 
     function eventTypeGlyph(type: string): string {
         if (type === 'creature_add') return '🧬';
-        if (type === 'boss_record') return '⚔';
-        if (type === 'trade_open') return '⇆';
+        if (type === 'boss_record' || type === 'boss') return '⚔';
+        if (type === 'trade_open' || type === 'trade') return '⇆';
         if (type === 'badge_earned') return '⬢';
         return '⬡';
     }
 
-    function eventText(e: { type: string; data: unknown; user: { nickname: string | null; email: string } }): string {
-        const d = (e.data ?? {}) as Record<string, unknown>;
-        const name = displayName(e.user);
-        if (e.type === 'creature_add') return `${name} logged ${d.name ?? d.species ?? 'a specimen'}`;
-        if (e.type === 'boss_record') return `${name} ${d.outcome === 'success' ? 'beat' : 'fought'} ${d.bossName ?? 'a boss'}`;
-        if (e.type === 'trade_open') return `${name} listed ${d.species ?? 'a trade'} on the Marketplace`;
-        if (e.type === 'badge_earned') return `${name} earned ${d.badge ?? 'a badge'}`;
-        return `${name} — ${e.type}`;
+    // Unified feed item shape
+    type FeedItem = {
+        id: string;
+        kind: 'activity' | 'boss' | 'trade';
+        type: string;
+        createdAt: Date | string;
+        user: Friend;
+        data: Record<string, unknown>;
+        metadata: Record<string, unknown>;
+    };
+
+    function meta(d: Record<string, unknown>): Record<string, unknown> {
+        const m = (d?.metadata ?? {}) as Record<string, unknown>;
+        return m && typeof m === 'object' ? m : {};
     }
+
+    // Merge events + bossRecords + recentTrades into one stream
+    const mergedItems = $derived.by<FeedItem[]>(() => {
+        const out: FeedItem[] = [];
+        for (const e of data.events ?? []) {
+            out.push({
+                id: `e-${e.id}`,
+                kind: 'activity',
+                type: e.type,
+                createdAt: e.createdAt,
+                user: e.user,
+                data: (e.data ?? {}) as Record<string, unknown>,
+                metadata: meta((e.data ?? {}) as Record<string, unknown>)
+            });
+        }
+        for (const b of data.bossRecords ?? []) {
+            out.push({
+                id: `b-${b.id}`,
+                kind: 'boss',
+                type: 'boss_record',
+                createdAt: b.createdAt,
+                user: b.user,
+                data: { bossName: b.bossName, outcome: b.outcome, mapName: b.mapName, difficulty: b.difficulty },
+                metadata: { serverCode: b.mapName ?? null }
+            });
+        }
+        for (const t of data.recentTrades ?? []) {
+            const tdata = (t.creatureData ?? {}) as Record<string, unknown>;
+            out.push({
+                id: `t-${t.id}`,
+                kind: 'trade',
+                type: 'trade_open',
+                createdAt: t.createdAt,
+                user: t.user,
+                data: { species: tdata.species ?? tdata.name ?? 'a trade', price: t.price, wanted: t.wanted },
+                metadata: (t.metadata ?? {}) as Record<string, unknown>
+            });
+        }
+        out.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        return out;
+    });
+
+    const friendIdSet = $derived(new Set(data.friendIds ?? []));
+    const tribeMateIdSet = $derived(new Set(data.tribeMateIds ?? []));
+
+    function inScope(it: FeedItem): boolean {
+        if (scope === 'all' || scope === 'global') return true;
+        const uid = (it.user as { id?: number }).id;
+        if (scope === 'following') return uid != null && friendIdSet.has(uid);
+        if (scope === 'tribe') return uid != null && tribeMateIdSet.has(uid);
+        if (scope === 'server') {
+            const code = (it.metadata.serverCode ?? '') as string;
+            return !!data.myServerCode && code === data.myServerCode;
+        }
+        return true;
+    }
+
+    function inSource(it: FeedItem): boolean {
+        if (source === 'all') return true;
+        if (source === 'personal') return it.kind === 'activity' && (it.type === 'creature_add' || it.type === 'badge_earned');
+        if (source === 'tribe') {
+            const uid = (it.user as { id?: number }).id;
+            return uid != null && tribeMateIdSet.has(uid);
+        }
+        if (source === 'server') return it.kind === 'boss' || (it.metadata.serverCode != null && it.metadata.serverCode !== '');
+        if (source === 'news') return false; // news is in Global tab
+        return true;
+    }
+
+    const visibleItems = $derived.by<FeedItem[]>(() =>
+        mergedItems.filter(it => inScope(it) && inSource(it))
+    );
+
+    // Group visible items by day with divider rows
+    type Row = { kind: 'divider'; label: string; key: string } | { kind: 'item'; item: FeedItem; key: string };
+
+    const groupedRows = $derived.by<Row[]>(() => {
+        const rows: Row[] = [];
+        let lastLabel = '';
+        for (const it of visibleItems) {
+            const label = dayBucketLabel(it.createdAt);
+            if (label !== lastLabel) {
+                rows.push({ kind: 'divider', label, key: `d-${label}-${rows.length}` });
+                lastLabel = label;
+            }
+            rows.push({ kind: 'item', item: it, key: it.id });
+        }
+        return rows;
+    });
+
+    function eventText(it: FeedItem): string {
+        const d = it.data;
+        const name = displayName(it.user);
+        if (it.type === 'creature_add') return `${name} logged ${d.name ?? d.species ?? 'a specimen'}`;
+        if (it.type === 'boss_record') return `${name} ${d.outcome === 'success' ? 'beat' : 'fought'} ${d.bossName ?? 'a boss'}`;
+        if (it.type === 'trade_open') return `${name} listed ${d.species ?? 'a trade'} on the Marketplace`;
+        if (it.type === 'badge_earned') return `${name} earned ${d.badge ?? 'a badge'}`;
+        return `${name} — ${it.type}`;
+    }
+
+    function metaLine(it: FeedItem): string {
+        const m = it.metadata;
+        const serverCode = (m.serverCode ?? 'network') as string;
+        const tribe = (m.tribe ?? '—') as string;
+        return `⬡ ${serverCode} · ${tribe}`;
+    }
+
+    // Sub-cards for cluster card: group joined servers by cluster
+    type ClusterGroup = { name: string; servers: Array<Record<string, unknown>> };
+    const clusters = $derived.by<ClusterGroup[]>(() => {
+        const groups = new Map<string, ClusterGroup>();
+        for (const s of (data.joinedServers ?? [])) {
+            const cl = (s.cluster ?? 'Default Cluster') as string;
+            if (!groups.has(cl)) groups.set(cl, { name: cl, servers: [] });
+            groups.get(cl)!.servers.push(s);
+        }
+        return [...groups.values()];
+    });
+
+    // News items (Global tab) — combine ark-news (Wildcard-tagged) + youtube videos, filter by chip state
+    type NewsItem = {
+        id: string;
+        platform: 'twitter' | 'youtube' | 'instagram' | 'reddit' | 'sta' | 'wildcard' | 'twitch';
+        glyph: string;
+        author: string;
+        title?: string;
+        excerpt?: string;
+        link: string;
+        date: string;
+        platformName: string;
+        videoLink?: string;
+    };
+
+    const newsRows = $derived.by<NewsItem[]>(() => {
+        const out: NewsItem[] = [];
+        for (const n of (data.newsItems ?? [])) {
+            out.push({
+                id: `news-${n.link}`,
+                platform: 'wildcard',
+                glyph: '⬢',
+                author: (n.author as string) ?? 'Studio Wildcard',
+                title: n.title as string,
+                excerpt: n.description as string,
+                link: n.link as string,
+                date: n.date as string,
+                platformName: 'Wildcard'
+            });
+        }
+        for (const v of (data.youtubeItems ?? [])) {
+            out.push({
+                id: `yt-${v.link}`,
+                platform: 'youtube',
+                glyph: '▶',
+                author: (v.channelName as string) ?? 'YouTube',
+                title: v.title as string,
+                link: v.link as string,
+                date: v.date as string,
+                platformName: 'YouTube',
+                videoLink: v.link as string
+            });
+        }
+        out.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return out.filter(n => activeSources[n.platform]);
+    });
 
     onMount(() => {
         if (!canvas) return;
@@ -99,20 +300,6 @@
             window.removeEventListener('resize', resize);
         };
     });
-
-    // Source chip toggle (Global tab)
-    let activeSources = $state<Record<string, boolean>>({
-        twitter: true,
-        youtube: true,
-        instagram: true,
-        reddit: true,
-        sta: true,
-        wildcard: true,
-        twitch: false
-    });
-    function toggleSource(key: string) {
-        activeSources[key] = !activeSources[key];
-    }
 </script>
 
 <svelte:head>
@@ -130,37 +317,180 @@
         <div class="page-title">Feed</div>
         <div class="page-sub">
             <span class="prefix">›</span>
-            <span class="num">{data.events.length}</span> EVENTS · <span class="num">{data.friendCount}</span> FOLLOWING
+            <span class="num">{data.eventsToday ?? 0}</span> EVENTS TODAY ·
+            <span class="num">{data.survivorsActive ?? 0}</span> SURVIVORS ACTIVE
         </div>
     </div>
 
-    <!-- Single live feed driven by ActivityEvent rows from the load function -->
-    <div class="tab-content active">
-        <div class="feed">
-            {#if data.events.length === 0}
-                <div style="font-family:var(--tek-serif);font-style:italic;color:var(--tek-text-faint);padding:32px 0;text-align:center;">
-                    No activity yet. Log a specimen, beat a boss, or earn a badge — events show up here.
+    <div class="scope-tabs">
+        <button class="scope-tab" class:active={scope === 'all'} onclick={() => scope = 'all'}>All</button>
+        <button class="scope-tab" class:active={scope === 'following'} onclick={() => scope = 'following'}>Following</button>
+        <button class="scope-tab" class:active={scope === 'tribe'} onclick={() => scope = 'tribe'}>Tribe</button>
+        <button class="scope-tab" class:active={scope === 'server'} onclick={() => scope = 'server'}>Server</button>
+        <button class="scope-tab" class:active={scope === 'global'} onclick={() => scope = 'global'}>Global</button>
+    </div>
+
+    {#if scope !== 'global'}
+        <!-- Filter chips: scope + source AND -->
+        <div class="filter-row">
+            <button class="chip" class:active={source === 'all'} onclick={() => source = 'all'}>All Sources</button>
+            <button class="chip" class:active={source === 'personal'} onclick={() => source = 'personal'}><span class="glyph">⬡</span>Personal</button>
+            <button class="chip" class:active={source === 'tribe'} onclick={() => source = 'tribe'}><span class="glyph">⌬</span>Tribe</button>
+            <button class="chip" class:active={source === 'server'} onclick={() => source = 'server'}><span class="glyph">🌐</span>Server</button>
+            <button class="chip" class:active={source === 'news'} onclick={() => source = 'news'}><span class="glyph">📡</span>News</button>
+        </div>
+
+        {#if scope === 'server'}
+            <!-- Server cluster card + sub-cards -->
+            <div class="section-head">
+                <span class="pip cyan"></span>
+                Your Servers
+                <span class="rule"></span>
+                <a class="action" href="/settings">Manage <span class="arrow">▸</span></a>
+            </div>
+
+            {#if clusters.length === 0}
+                <div class="add-cluster-card">
+                    <span class="glyph">+</span>
+                    <span class="lbl">No clusters connected — link a server in /settings</span>
                 </div>
             {:else}
-                {#each data.events as e (e.id)}
-                    <div class="feed-event {eventKindClass(e.type)}">
-                        <div class="feed-avatar">
-                            <svg viewBox="0 0 100 110">
-                                <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke="#00b4ff" stroke-width="2"/>
-                                <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#7dd3fc">{eventAvatarLetter(displayName(e.user))}</text>
-                            </svg>
-                            <span class="type-glyph">{eventTypeGlyph(e.type)}</span>
+                {#each clusters as cluster (cluster.name)}
+                    <div class="cluster-card">
+                        <div class="cluster-head">
+                            <div class="cluster-info">
+                                <div class="cluster-name">{cluster.name}</div>
+                                <div class="cluster-stats">
+                                    <span class="live-pip"></span>
+                                    <span class="stat">{cluster.servers.length} servers</span>
+                                </div>
+                            </div>
+                            <div class="cluster-actions">
+                                <a class="cluster-btn" href="/settings">+ Add Server</a>
+                            </div>
                         </div>
-                        <div class="feed-body">
-                            <div class="feed-text">{eventText(e)}</div>
-                            <div class="feed-meta"><span class="source">⬡ network</span></div>
+                        <div class="server-grid">
+                            {#each cluster.servers as sv}
+                                <div class="server-card">
+                                    <div class="server-card-top">
+                                        <span class="server-card-name">{sv.name ?? sv.code ?? 'Unknown'}</span>
+                                        <span class="server-card-status online"><span class="pip"></span>Online</span>
+                                    </div>
+                                    <div class="server-card-meta">
+                                        <div><div class="lbl">Map</div><div class="val">{sv.map ?? '—'}</div></div>
+                                        <div><div class="lbl">Code</div><div class="val players">{sv.code ?? sv.name ?? '—'}</div></div>
+                                    </div>
+                                </div>
+                            {/each}
                         </div>
-                        <div class="feed-time">{relTime(e.createdAt)}</div>
+                    </div>
+                {/each}
+                <a class="add-cluster-card" href="/settings">
+                    <span class="glyph">+</span>
+                    <span class="lbl">Add another Cluster</span>
+                </a>
+            {/if}
+
+            <div class="section-head" style="margin-top:24px">
+                <span class="pip cyan"></span>
+                Server Feed
+                <span class="rule"></span>
+            </div>
+        {/if}
+
+        <div class="tab-content active">
+            <div class="feed">
+                {#if groupedRows.length === 0}
+                    <div style="font-family:var(--tek-serif);font-style:italic;color:var(--tek-text-faint);padding:32px 0;text-align:center;">
+                        No activity yet. Log a specimen, beat a boss, or earn a badge — events show up here.
+                    </div>
+                {:else}
+                    {#each groupedRows as row (row.key)}
+                        {#if row.kind === 'divider'}
+                            <div class="date-divider">{row.label}</div>
+                        {:else}
+                            {@const it = row.item}
+                            <div class="feed-event {eventKindClass(it.type)}">
+                                <div class="feed-avatar">
+                                    <svg viewBox="0 0 100 110">
+                                        <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke="#00b4ff" stroke-width="2"/>
+                                        <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#7dd3fc">{eventAvatarLetter(displayName(it.user))}</text>
+                                    </svg>
+                                    <span class="type-glyph">{eventTypeGlyph(it.type)}</span>
+                                </div>
+                                <div class="feed-body">
+                                    <div class="feed-text">{eventText(it)}</div>
+                                    <div class="feed-meta"><span class="source">{metaLine(it)}</span></div>
+                                </div>
+                                <div class="feed-time">{relTime(it.createdAt)}</div>
+                            </div>
+                        {/if}
+                    {/each}
+                {/if}
+            </div>
+        </div>
+    {:else}
+        <!-- Global tab: source chips + news cards -->
+        <div class="section-head">
+            <span class="pip"></span>
+            News Sources
+            <span class="rule"></span>
+            <a class="action" href="/settings">Manage <span class="arrow">▸</span></a>
+        </div>
+
+        <div class="source-row">
+            <span class="source-row-label">Active:</span>
+            <button class="source-chip twitter" class:active={activeSources.twitter} onclick={() => toggleSource('twitter')}><span class="platform-dot"></span>Twitter / X</button>
+            <button class="source-chip youtube" class:active={activeSources.youtube} onclick={() => toggleSource('youtube')}><span class="platform-dot"></span>YouTube</button>
+            <button class="source-chip instagram" class:active={activeSources.instagram} onclick={() => toggleSource('instagram')}><span class="platform-dot"></span>Instagram</button>
+            <button class="source-chip reddit" class:active={activeSources.reddit} onclick={() => toggleSource('reddit')}><span class="platform-dot"></span>Reddit</button>
+            <button class="source-chip sta" class:active={activeSources.sta} onclick={() => toggleSource('sta')}><span class="platform-dot"></span>Survive The Ark</button>
+            <button class="source-chip wildcard" class:active={activeSources.wildcard} onclick={() => toggleSource('wildcard')}><span class="platform-dot"></span>Wildcard</button>
+            <button class="source-chip twitch" class:active={activeSources.twitch} onclick={() => toggleSource('twitch')}><span class="platform-dot"></span>Twitch</button>
+            <a class="source-chip add" href="/settings">+ Add Source</a>
+        </div>
+
+        <div class="section-head" style="margin-top:24px">
+            <span class="pip"></span>
+            Latest News
+            <span class="rule"></span>
+            <span class="count">{newsRows.length} items</span>
+        </div>
+
+        <div class="news-feed">
+            {#if newsRows.length === 0}
+                <div style="font-family:var(--tek-serif);font-style:italic;color:var(--tek-text-faint);padding:32px 0;text-align:center;">
+                    No news yet. Sources will appear here when wired.
+                </div>
+            {:else}
+                {#each newsRows as n (n.id)}
+                    <div class="news-item {n.platform}">
+                        <div class="news-platform">{n.glyph}</div>
+                        <div class="news-body">
+                            <div class="news-header">
+                                <span class="platform-name">{n.platformName}</span>
+                                <span class="sep">·</span>
+                                <span class="author">{n.author}</span>
+                                <span class="time">{relTime(n.date)}</span>
+                            </div>
+                            {#if n.title}<div class="news-title">{n.title}</div>{/if}
+                            {#if n.excerpt}<div class="news-excerpt">{n.excerpt}</div>{/if}
+                            {#if n.videoLink}
+                                <div class="video-thumb">
+                                    <div class="video-thumb-play">
+                                        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+                                    </div>
+                                </div>
+                            {/if}
+                            <div class="news-engage">
+                                <a class="open-btn" href={n.link} target="_blank" rel="noopener noreferrer">Open ▸</a>
+                            </div>
+                        </div>
                     </div>
                 {/each}
             {/if}
         </div>
-    </div>
+    {/if}
 
 </div>
 
@@ -271,9 +601,7 @@
 .chip.active { background: var(--tek-blue); color: #001a2e; border-color: var(--tek-blue); }
 .chip .glyph { font-size: 0.7rem; }
 
-/* ═════════════════════════════════════════════════════════════════════════
-   FEED EVENT (shared by Following / Tribe / Server)
-   ═════════════════════════════════════════════════════════════════════════ */
+/* Feed event */
 .feed { display: flex; flex-direction: column; gap: 8px; }
 .feed-event {
     display: grid;
@@ -324,26 +652,12 @@
 
 .feed-body { min-width: 0; line-height: 1.5; }
 .feed-text { font-size: 0.88rem; color: var(--tek-text); line-height: 1.5; }
-.feed-text .who    { color: #fcd34d; font-weight: 700; }
-.feed-text .who.you{ color: #7dd3fc; }
-.feed-text .who.alpha { color: #ffd700; }
-.feed-text .what   { color: #c4b5fd; font-weight: 600; }
-.feed-text .badge  { color: #fde047; font-weight: 700; }
-.feed-text .boss   { color: #fca5a5; font-weight: 700; }
-.feed-text .tribe  { color: var(--tek-amber); font-weight: 600; }
-.feed-text strong  { color: var(--tek-blue); font-weight: 700; }
-.feed-text .map    { color: #67e8f9; font-weight: 700; font-family: var(--tek-mono); }
 .feed-meta {
     font-family: var(--tek-mono); font-size: 0.6rem;
     letter-spacing: 0.10em; color: var(--tek-text-faint);
     text-transform: uppercase; margin-top: 4px;
 }
-.feed-meta .sep { color: var(--tek-text-faint); margin: 0 6px; }
 .feed-meta .source { color: var(--tek-text-dim); }
-.feed-meta .source.tribe { color: var(--tek-amber); }
-.feed-meta .source.ally  { color: #86efac; }
-.feed-meta .source.map   { color: #67e8f9; }
-
 .feed-time {
     font-family: var(--tek-mono); font-size: 0.62rem;
     letter-spacing: 0.10em; color: var(--tek-text-faint);
@@ -362,13 +676,7 @@
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
 }
 
-.feed-event.diamond { background: linear-gradient(135deg, rgba(0,180,255,0.06) 0%, rgba(139,92,246,0.06) 100%); }
-.feed-event.diamond .feed-text strong { color: #7dd3fc; text-shadow: 0 0 6px var(--tek-blue-glow); }
-.feed-event.admin { background: linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(4,8,20,0.94) 100%); }
-
-/* ═════════════════════════════════════════════════════════════════════════
-   SERVER TAB — cluster card + server sub-cards
-   ═════════════════════════════════════════════════════════════════════════ */
+/* Server tab */
 .section-head {
     display: flex; align-items: center; gap: 12px;
     margin: 0 0 14px;
@@ -423,7 +731,6 @@
     letter-spacing: 0.10em; color: var(--tek-text-dim); text-transform: uppercase;
 }
 .cluster-stats .stat { color: #67e8f9; font-weight: 700; text-shadow: 0 0 5px rgba(6,182,212,0.5); }
-.cluster-stats .sep { color: var(--tek-text-faint); margin: 0 6px; }
 .cluster-stats .live-pip {
     display: inline-block; width: 7px; height: 7px;
     border-radius: 50%; background: var(--tek-green);
@@ -440,11 +747,9 @@
     font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em;
     text-transform: uppercase; padding: 6px 12px; cursor: pointer;
     clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
-    transition: all 0.18s;
+    transition: all 0.18s; text-decoration: none;
 }
 .cluster-btn:hover { background: rgba(6,182,212,0.22); filter: drop-shadow(0 0 6px rgba(6,182,212,0.40)); }
-.cluster-btn.danger { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.25); color: #fca5a5; }
-.cluster-btn.danger:hover { background: rgba(239,68,68,0.20); }
 
 .server-grid {
     display: grid;
@@ -459,12 +764,8 @@
     border-left: 2px solid rgba(6,182,212,0.45);
     padding: 11px 14px;
     clip-path: polygon(5px 0%, 100% 0%, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0% 100%, 0% 5px);
-    transition: all 0.18s; cursor: pointer;
+    transition: all 0.18s;
 }
-.server-card:hover { border-left-color: #06b6d4; background: rgba(6,182,212,0.04); }
-.server-card.offline { border-left-color: rgba(239,68,68,0.45); opacity: 0.65; }
-.server-card.offline:hover { border-left-color: var(--tek-red); }
-
 .server-card-top {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 6px;
@@ -479,7 +780,6 @@
     letter-spacing: 0.18em; text-transform: uppercase;
 }
 .server-card-status.online  { color: #86efac; }
-.server-card-status.offline { color: #fca5a5; }
 .server-card-status .pip { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 4px currentColor; }
 .server-card-meta {
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
@@ -497,6 +797,7 @@
     padding: 18px; margin-bottom: 22px;
     display: flex; align-items: center; justify-content: center; gap: 10px;
     cursor: pointer; transition: all 0.18s;
+    text-decoration: none;
 }
 .add-cluster-card:hover {
     background: linear-gradient(160deg, rgba(6,182,212,0.06) 0%, rgba(4,8,20,0.55) 100%);
@@ -512,9 +813,7 @@
 }
 .add-cluster-card:hover .lbl { color: #67e8f9; }
 
-/* ═════════════════════════════════════════════════════════════════════════
-   GLOBAL TAB — news source aggregation
-   ═════════════════════════════════════════════════════════════════════════ */
+/* Global tab — news sources */
 .source-row {
     display: flex; gap: 6px; flex-wrap: wrap;
     margin-bottom: 22px;
@@ -533,6 +832,7 @@
     text-transform: uppercase; padding: 5px 10px; cursor: pointer;
     clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
     transition: all 0.18s; font-family: inherit;
+    text-decoration: none;
 }
 .source-chip .platform-dot {
     width: 7px; height: 7px; border-radius: 50%;
@@ -547,7 +847,6 @@
 .source-chip.sta .platform-dot       { background: #10b981; box-shadow: 0 0 5px rgba(16,185,129,0.6); }
 .source-chip.wildcard .platform-dot  { background: #8b5cf6; box-shadow: 0 0 5px rgba(139,92,246,0.6); }
 .source-chip.twitch .platform-dot    { background: #9146ff; box-shadow: 0 0 5px rgba(145,70,255,0.6); }
-
 .source-chip.add {
     border-style: dashed; border-color: rgba(0,180,255,0.30); color: var(--tek-text-faint);
 }
@@ -566,7 +865,6 @@
     position: relative;
     transition: transform 0.18s ease, filter 0.22s ease;
     filter: drop-shadow(0 0 1px rgba(255,255,255,0.07)) drop-shadow(0 6px 18px rgba(0,0,0,0.35));
-    cursor: pointer;
 }
 .news-item:hover { transform: translateX(3px); filter: drop-shadow(0 0 2px rgba(0,180,255,0.40)) drop-shadow(0 10px 22px rgba(0,0,0,0.50)); }
 .news-item::before {
@@ -608,11 +906,7 @@
 .news-header .platform-name { color: var(--tek-text-dim); font-weight: 700; }
 .news-item.twitter   .news-header .platform-name { color: #67c8f5; }
 .news-item.youtube   .news-header .platform-name { color: #ff6b6b; }
-.news-item.instagram .news-header .platform-name { color: #f48fb1; }
-.news-item.reddit    .news-header .platform-name { color: #ff8a4c; }
-.news-item.sta       .news-header .platform-name { color: #86efac; }
 .news-item.wildcard  .news-header .platform-name { color: #c4b5fd; }
-.news-item.twitch    .news-header .platform-name { color: #c9a3ff; }
 .news-header .author { color: var(--tek-text); font-weight: 600; }
 .news-header .sep { color: var(--tek-text-faint); }
 .news-header .time { color: var(--tek-text-faint); margin-left: auto; white-space: nowrap; }
@@ -630,10 +924,7 @@
     line-height: 1.55;
     margin-bottom: 8px;
 }
-.news-excerpt .hashtag { color: #67c8f5; }
-.news-excerpt strong { color: var(--tek-text); }
 
-/* Video thumbnail */
 .video-thumb {
     margin-top: 6px;
     background:
@@ -644,12 +935,6 @@
     display: flex; align-items: center; justify-content: center;
     position: relative; overflow: hidden;
 }
-.video-thumb::before {
-    content: ''; position: absolute; inset: 0;
-    background-image:
-        repeating-linear-gradient(60deg, rgba(255,0,0,0.04) 0 1px, transparent 1px 24px),
-        repeating-linear-gradient(-60deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 24px);
-}
 .video-thumb-play {
     width: 50px; height: 50px;
     border-radius: 50%; background: rgba(255,0,0,0.20);
@@ -659,13 +944,6 @@
     box-shadow: 0 0 18px rgba(255,0,0,0.40);
 }
 .video-thumb-play svg { width: 18px; height: 18px; margin-left: 3px; color: #ff6b6b; }
-.video-duration {
-    position: absolute; bottom: 7px; right: 9px;
-    font-family: var(--tek-mono); font-size: 0.62rem; font-weight: 700;
-    background: rgba(0,0,0,0.75); color: #fff;
-    padding: 2px 6px; border-radius: 3px;
-    z-index: 2;
-}
 
 .news-engage {
     display: flex; align-items: center; gap: 14px;
@@ -673,8 +951,6 @@
     font-family: var(--tek-mono); font-size: 0.6rem;
     color: var(--tek-text-faint); letter-spacing: 0.06em;
 }
-.news-engage .stat { display: inline-flex; align-items: center; gap: 4px; }
-.news-engage .stat .num { color: var(--tek-text-dim); font-weight: 700; }
 .news-engage .open-btn {
     margin-left: auto;
     background: rgba(0,180,255,0.08); border: 1px solid rgba(0,180,255,0.25);
@@ -682,6 +958,7 @@
     letter-spacing: 0.14em; padding: 4px 10px; cursor: pointer;
     clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
     transition: all 0.18s; text-transform: uppercase;
+    text-decoration: none;
 }
 .news-engage .open-btn:hover { background: rgba(0,180,255,0.20); filter: drop-shadow(0 0 6px var(--tek-blue-glow)); }
 

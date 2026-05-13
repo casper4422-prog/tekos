@@ -14,7 +14,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
-	const { nickname, bio, lookingFor, currentPassword, newPassword } = await request.json();
+	const { nickname, bio, lookingFor, bannerImage, avatarImage, currentPassword, newPassword } = await request.json();
 
 	if (newPassword) {
 		const user = await db.user.findUnique({ where: { id: locals.user.id } });
@@ -27,8 +27,14 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
 	const updated = await db.user.update({
 		where: { id: locals.user.id },
-		data: { nickname: nickname ?? undefined, bio: bio ?? undefined, lookingFor: lookingFor ?? undefined },
-		select: { id: true, email: true, nickname: true, bio: true, lookingFor: true }
+		data: {
+			nickname: nickname ?? undefined,
+			bio: bio ?? undefined,
+			lookingFor: lookingFor ?? undefined,
+			bannerImage: bannerImage ?? undefined,
+			avatarImage: avatarImage ?? undefined
+		},
+		select: { id: true, email: true, nickname: true, bio: true, lookingFor: true, bannerImage: true, avatarImage: true }
 	});
 	return json(updated);
 };

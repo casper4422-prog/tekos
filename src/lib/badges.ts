@@ -15,15 +15,58 @@
 
 export type Stats = Record<string, number>;
 
-export type BloodlineTier = 'diamond' | 'gold' | 'silver' | 'bronze' | null;
-export type BossTier      = 'titan' | 'alpha' | 'beta' | 'gamma' | null;
-export type RoleBadge     = 'tank' | 'dps' | 'bruiser' | 'runner';
+export type BloodlineTier  = 'diamond' | 'gold' | 'silver' | 'bronze' | null;
+export type BossTier       = 'titan' | 'alpha' | 'beta' | 'gamma' | null;
+export type RoleBadge      = 'tank' | 'dps' | 'bruiser' | 'runner';
+export type UnderdogTier   = 'titan' | 'legend' | 'hero' | 'champion' | null;
+export type UnderdogCategory = 'heavy' | 'tank' | 'aerial' | 'aquatic' | null;
 
 export type CreatureBadges = {
     bloodline: BloodlineTier;
     bossReady: BossTier;
     roles:     RoleBadge[];
+    underdog:  UnderdogTier;
 };
+
+// Species already considered "boss meta" — excluded from Underdog system.
+export const UNDERDOG_META_EXCLUDE = new Set<string>([
+    'Rex','Giga','Giganotosaurus','Carcharo','Carcharodontosaurus','Therizino','Therizinosaurus',
+    'Deinonychus','Megatherium','Yutyrannus','Daeodon','Woolly Rhino','Wooly Rhino','Shadowmane',
+    'Reaper','Reaper King','Reaper Queen','Rock Drake','Megalosaurus','Spino','Spinosaurus',
+    'Allosaurus','Baryonyx','Velonasaur','Managarmr'
+]);
+
+// Underdog categories — non-meta species grouped by combat archetype.
+export const UNDERDOG_CATEGORIES: Record<UnderdogCategory & string, { label: string; icon: string; species: string[] }> = {
+    heavy: {
+        label: 'Heavy Hitters',
+        icon: '⚔',
+        species: ['Carno','Sarco','Direwolf','Sabertooth','Thylacoleo','Raptor','Terror Bird','Megalania','Mantis','Pachyrhinosaurus','Pachyrhino','Stego','Stegosaurus','Kentro','Kentrosaurus']
+    },
+    tank: {
+        label: 'Tank Surprises',
+        icon: '🛡',
+        species: ['Diplo','Diplodocus','Bronto','Brontosaurus','Paracer','Paraceratherium','Carbonemys','Doedicurus','Ankylo','Ankylosaurus','Trike','Triceratops','Mammoth','Chalico','Chalicotherium','Gigantopithecus','Dire Bear','Direbear']
+    },
+    aerial: {
+        label: 'Aerial Underdogs',
+        icon: '✈',
+        species: ['Argent','Argentavis','Pteranodon','Tapejara','Griffin','Snow Owl','Tropeognathus','Phoenix','Wyvern','Lightning Wyvern','Fire Wyvern','Poison Wyvern','Ice Wyvern','Crystal Wyvern']
+    },
+    aquatic: {
+        label: 'Aquatic Warriors',
+        icon: '≋',
+        species: ['Dunkleosteus','Anglerfish','Electrophorus','Megalodon','Plesiosaur','Plesiosaurus','Diplocaulus','Beelzebufo']
+    }
+};
+
+export function underdogCategoryFor(species: string): UnderdogCategory {
+    const s = (species || '').toLowerCase();
+    for (const key of Object.keys(UNDERDOG_CATEGORIES) as Array<keyof typeof UNDERDOG_CATEGORIES>) {
+        if (UNDERDOG_CATEGORIES[key].species.some(sp => sp.toLowerCase() === s)) return key;
+    }
+    return null;
+}
 
 function n(s: Stats | undefined, k: string) {
     if (!s) return 0;
@@ -54,7 +97,7 @@ function totalStat(base: Stats | undefined, mut: Stats | undefined, key: Paramet
     return getStat(base, key) + getStat(mut, key) * 2;
 }
 
-export function computeBadges(base: Stats | undefined, mut: Stats | undefined): CreatureBadges {
+export function computeBadges(base: Stats | undefined, mut: Stats | undefined, species?: string): CreatureBadges {
     // Bloodline (base only)
     const minCore = Math.min(
         getStat(base, 'HP'),
@@ -88,24 +131,35 @@ export function computeBadges(base: Stats | undefined, mut: Stats | undefined): 
     if (tHP >= 125 && tWGT >= 125) roles.push('bruiser');
     if (tHP >= 100 && tSPD >= 150) roles.push('runner');
 
-    return { bloodline, bossReady, roles };
+    // Underdog (non-meta species only) — HP AND MEL both meet threshold
+    let underdog: UnderdogTier = null;
+    if (species && !UNDERDOG_META_EXCLUDE.has(species) && underdogCategoryFor(species)) {
+        const u = Math.min(tHP, tMEL);
+        if (u >= 160) underdog = 'titan';
+        else if (u >= 140) underdog = 'legend';
+        else if (u >= 115) underdog = 'hero';
+        else if (u >= 90)  underdog = 'champion';
+    }
+
+    return { bloodline, bossReady, roles, underdog };
 }
 
-/** Total badge count for a single creature (across all 3 systems). */
-export function badgeCountForCreature(base: Stats | undefined, mut: Stats | undefined): number {
-    const b = computeBadges(base, mut);
-    return (b.bloodline ? 1 : 0) + (b.bossReady ? 1 : 0) + b.roles.length;
+/** Total badge count for a single creature (across all systems). */
+export function badgeCountForCreature(base: Stats | undefined, mut: Stats | undefined, species?: string): number {
+    const b = computeBadges(base, mut, species);
+    return (b.bloodline ? 1 : 0) + (b.bossReady ? 1 : 0) + b.roles.length + (b.underdog ? 1 : 0);
 }
 
 /** Aggregate badge count across a Vault — counts UNIQUE badge x species combinations,
  * since the Badge Wall shows one entry per badge+species earned. */
 export function aggregateBadgesByCategory(creatures: Array<{ species: string; baseStats?: Stats; mutations?: Stats }>) {
-    const bloodline = new Map<string, BloodlineTier>(); // species -> highest tier
+    const bloodline = new Map<string, BloodlineTier>();
     const bossReady = new Map<string, BossTier>();
-    const roles = new Map<string, Set<RoleBadge>>();
+    const roles     = new Map<string, Set<RoleBadge>>();
+    const underdog  = new Map<string, UnderdogTier>();
 
     for (const c of creatures) {
-        const b = computeBadges(c.baseStats, c.mutations);
+        const b = computeBadges(c.baseStats, c.mutations, c.species);
         const sp = c.species || 'Unknown';
 
         if (b.bloodline) {
@@ -118,6 +172,11 @@ export function aggregateBadgesByCategory(creatures: Array<{ species: string; ba
             const cur = bossReady.get(sp);
             if (!cur || order[b.bossReady] > order[cur as keyof typeof order]) bossReady.set(sp, b.bossReady);
         }
+        if (b.underdog) {
+            const order = { champion: 1, hero: 2, legend: 3, titan: 4 } as const;
+            const cur = underdog.get(sp);
+            if (!cur || order[b.underdog] > order[cur as keyof typeof order]) underdog.set(sp, b.underdog);
+        }
         for (const role of b.roles) {
             if (!roles.has(sp)) roles.set(sp, new Set());
             roles.get(sp)!.add(role);
@@ -127,8 +186,18 @@ export function aggregateBadgesByCategory(creatures: Array<{ species: string; ba
     return {
         bloodline: Array.from(bloodline.entries()).map(([species, tier]) => ({ species, tier })),
         bossReady: Array.from(bossReady.entries()).map(([species, tier]) => ({ species, tier })),
+        underdog:  Array.from(underdog.entries()).map(([species, tier]) => ({ species, tier })),
         roles: Array.from(roles.entries()).flatMap(([species, set]) =>
             Array.from(set).map(role => ({ species, role }))
         )
     };
+}
+
+/** Per-creature badge count across a Vault (returns map of creature id-key -> count). */
+export function badgeCountByCreature(creatures: Array<{ id: number|string; species?: string; baseStats?: Stats; mutations?: Stats }>) {
+    const out = new Map<number|string, number>();
+    for (const c of creatures) {
+        out.set(c.id, badgeCountForCreature(c.baseStats, c.mutations, c.species));
+    }
+    return out;
 }

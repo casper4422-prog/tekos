@@ -10,8 +10,9 @@ export const load: PageServerLoad = async ({ locals }) => {
             stats: { specimens: 0, badges: 0, friends: 0, tradeRep: null as number | null },
             tribe: null,
             recentBoss: [],
-            badgeWall: { bloodline: [], bossReady: [], roles: [] },
-            pinnedIds: [] as number[]
+            badgeWall: { bloodline: [], bossReady: [], roles: [], underdog: [] },
+            pinnedIds: [] as number[],
+            pinnedProjects: [] as Array<{ creatureId: number; focusStat: string | null; targetMutations: number }>
         };
     }
     const userId = locals.user.id;
@@ -74,10 +75,24 @@ export const load: PageServerLoad = async ({ locals }) => {
         badgeWall.bossReady.length +
         badgeWall.roles.length;
 
-    // Pinned creature ids
-    const pinnedIds = Array.isArray(user?.pinnedCreatures)
-        ? (user!.pinnedCreatures as number[]).filter(n => typeof n === 'number')
-        : [];
+    // Pinned creature ids — supports both legacy number[] and new object[] formats
+    let pinnedIds: number[] = [];
+    let pinnedProjects: Array<{ creatureId: number; focusStat: string | null; targetMutations: number }> = [];
+    if (Array.isArray(user?.pinnedCreatures)) {
+        for (const entry of user!.pinnedCreatures as unknown[]) {
+            if (typeof entry === 'number') {
+                pinnedIds.push(entry);
+            } else if (entry && typeof entry === 'object' && 'creatureId' in entry) {
+                const p = entry as { creatureId: number; focusStat?: string | null; targetMutations?: number };
+                pinnedIds.push(p.creatureId);
+                pinnedProjects.push({
+                    creatureId: p.creatureId,
+                    focusStat: p.focusStat ?? null,
+                    targetMutations: Number(p.targetMutations ?? 0)
+                });
+            }
+        }
+    }
 
     return {
         profile: user,
@@ -91,6 +106,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         tribe: membership?.tribe ?? null,
         recentBoss: bossRecords,
         badgeWall,
-        pinnedIds
+        pinnedIds,
+        pinnedProjects
     };
 };

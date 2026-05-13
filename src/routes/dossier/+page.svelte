@@ -1,9 +1,23 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { computeBadges } from '$lib/badges';
+    import PinModal from '$lib/components/PinModal.svelte';
     import type { PageData } from './$types';
 
     let { data }: { data: PageData } = $props();
+
+    let pinModalOpen = $state(false);
+    let pinModalMode = $state<'project' | 'featured'>('project');
+
+    async function savePin(payload: { creatureId: number; focusStat: string | null; targetMutations: number } | { creatureIds: number[] }) {
+        if ('creatureIds' in payload) {
+            await fetch('/api/profile/pinned', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids: payload.creatureIds }) });
+        } else {
+            await fetch('/api/pinned-projects', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        }
+        pinModalOpen = false;
+        window.location.reload();
+    }
 
     const displayName = $derived(data.profile?.nickname ?? data.profile?.email ?? 'Survivor');
     const avatarInitial = $derived((displayName?.[0] ?? 'S').toUpperCase());
@@ -295,7 +309,7 @@
                 <span class="pip"></span>
                 Active Breeding Projects
                 <span class="rule"></span>
-                <a href="/specimens" class="action">+ Pin Project <span class="arrow">▸</span></a>
+                <button type="button" class="action" onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Project <span class="arrow">▸</span></button>
             </div>
             <div class="pinned-row">
                 {#each pinned as c}
@@ -403,6 +417,8 @@
 </div>
 
 <div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
+
+<PinModal bind:open={pinModalOpen} creatures={data.creatures} mode={pinModalMode} pinned={data.pinnedIds} onSave={savePin} />
 
 <style>
 :global(:root) {

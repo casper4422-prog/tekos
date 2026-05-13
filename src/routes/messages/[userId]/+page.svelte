@@ -34,14 +34,14 @@
         await tick();
         scrollToBottom();
         try {
-            const res = await fetch('/api/messages', {
+            const res = await fetch(`/api/dms/${partner!.id}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ toUserId: partner!.id, message: text })
+                body: JSON.stringify({ message: text })
             });
             if (res.ok) {
-                const body = await res.json();
-                messages = messages.map(m => m.id === tempId ? body.message : m);
+                const saved = await res.json();
+                messages = messages.map(m => m.id === tempId ? saved : m);
             }
         } catch {}
         sending = false;

@@ -3,6 +3,9 @@
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
     import { computeBadges } from '$lib/badges';
+    import type { PageData } from './$types';
+
+    let { data }: { data: PageData } = $props();
 
     type StatKey = 'HP' | 'STA' | 'OXY' | 'FOOD' | 'WGT' | 'MEL' | 'CRA';
     const STATS: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
@@ -21,6 +24,35 @@
     let fMuts    = $state<Record<StatKey, number>>({ HP:0, STA:0, OXY:0, FOOD:0, WGT:0, MEL:0, CRA:0 });
 
     let founderOn = $state(false);
+
+    // ── Lineage state ──────────────────────────────────────────────────────
+    let motherId = $state<number | null>(null);
+    let fatherId = $state<number | null>(null);
+    let motherQ = $state('');
+    let fatherQ = $state('');
+    let motherFocused = $state(false);
+    let fatherFocused = $state(false);
+    let founderSources = $state<Record<StatKey, number | null>>({ HP:null, STA:null, OXY:null, FOOD:null, WGT:null, MEL:null, CRA:null });
+
+    const motherOptions = $derived((data?.vault ?? []).filter(v =>
+        v.gender === 'Female' || v.gender === 'F'
+    ).filter(v =>
+        motherQ.trim() === '' || v.name.toLowerCase().includes(motherQ.toLowerCase()) || v.species.toLowerCase().includes(motherQ.toLowerCase())
+    ).slice(0, 8));
+
+    const fatherOptions = $derived((data?.vault ?? []).filter(v =>
+        v.gender === 'Male' || v.gender === 'M'
+    ).filter(v =>
+        fatherQ.trim() === '' || v.name.toLowerCase().includes(fatherQ.toLowerCase()) || v.species.toLowerCase().includes(fatherQ.toLowerCase())
+    ).slice(0, 8));
+
+    const motherEntry = $derived(motherId ? (data?.vault ?? []).find(v => v.id === motherId) : null);
+    const fatherEntry = $derived(fatherId ? (data?.vault ?? []).find(v => v.id === fatherId) : null);
+
+    function selectMother(id: number, name: string) { motherId = id; motherQ = name; motherFocused = false; }
+    function selectFather(id: number, name: string) { fatherId = id; fatherQ = name; fatherFocused = false; }
+    function clearMother() { motherId = null; motherQ = ''; }
+    function clearFather() { fatherId = null; fatherQ = ''; }
 
     let speciesList = $state<string[]>([]);
     let saving = $state(false);
@@ -123,7 +155,11 @@
             mutations: {
                 Health: fMuts.HP, Stamina: fMuts.STA, Oxygen: fMuts.OXY,
                 Food: fMuts.FOOD, Weight: fMuts.WGT, Melee: fMuts.MEL, Crafting: fMuts.CRA
-            }
+            },
+            maternalId: motherId,
+            paternalId: fatherId,
+            isFounder: founderOn,
+            founderSources: founderSources
         };
 
         const res = await fetch('/api/creatures', {
@@ -305,17 +341,47 @@
                         Pick parents from your existing Vault entries. Used for stat genealogy and family-tree views.
                     </div>
                     <div class="lineage-grid">
-                        <div class="parent-picker">
+                        <div class="parent-picker" style="position:relative">
                             <div class="parent-picker-label">
                                 <span class="parent-icon mother">♀ MOTHER</span>
+                                {#if motherEntry}<button type="button" class="optional-tag" style="border:none;background:transparent;cursor:pointer" onclick={clearMother}>× clear</button>{/if}
                             </div>
-                            <input class="parent-input" placeholder="Search your Vault…" />
+                            {#if motherEntry}
+                                <div class="parent-selected">⬢ <strong>{motherEntry.name}</strong> · {motherEntry.species}</div>
+                            {:else}
+                                <input class="parent-input" placeholder="Search your Vault…" bind:value={motherQ}
+                                    onfocus={() => motherFocused = true} onblur={() => setTimeout(() => motherFocused = false, 200)} />
+                                {#if motherFocused && motherOptions.length > 0}
+                                    <div class="parent-dropdown">
+                                        {#each motherOptions as opt (opt.id)}
+                                            <div class="parent-option" onclick={() => selectMother(opt.id, opt.name)} role="button" tabindex="0">
+                                                <span style="color:var(--tek-text)">{opt.name || '(unnamed)'}</span> · <span style="color:var(--tek-text-dim)">{opt.species}</span>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                {/if}
+                            {/if}
                         </div>
-                        <div class="parent-picker">
+                        <div class="parent-picker" style="position:relative">
                             <div class="parent-picker-label">
                                 <span class="parent-icon father">♂ FATHER</span>
+                                {#if fatherEntry}<button type="button" class="optional-tag" style="border:none;background:transparent;cursor:pointer" onclick={clearFather}>× clear</button>{/if}
                             </div>
-                            <input class="parent-input" placeholder="Search your Vault…" />
+                            {#if fatherEntry}
+                                <div class="parent-selected">⬢ <strong>{fatherEntry.name}</strong> · {fatherEntry.species}</div>
+                            {:else}
+                                <input class="parent-input" placeholder="Search your Vault…" bind:value={fatherQ}
+                                    onfocus={() => fatherFocused = true} onblur={() => setTimeout(() => fatherFocused = false, 200)} />
+                                {#if fatherFocused && fatherOptions.length > 0}
+                                    <div class="parent-dropdown">
+                                        {#each fatherOptions as opt (opt.id)}
+                                            <div class="parent-option" onclick={() => selectFather(opt.id, opt.name)} role="button" tabindex="0">
+                                                <span style="color:var(--tek-text)">{opt.name || '(unnamed)'}</span> · <span style="color:var(--tek-text-dim)">{opt.species}</span>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                {/if}
+                            {/if}
                         </div>
                     </div>
                 </div>
@@ -332,8 +398,11 @@
                     <div class="genealogy-grid">
                         {#each STATS as s}
                             <div class="gen-stat-label">{s}</div>
-                            <select class="gen-select">
-                                <option>— No founder —</option>
+                            <select class="gen-select" bind:value={founderSources[s]}>
+                                <option value={null}>— No founder —</option>
+                                {#each (data?.founders ?? []) as f (f.id)}
+                                    <option value={f.id}>{f.name || '(unnamed)'} · {f.species}</option>
+                                {/each}
                             </select>
                         {/each}
                     </div>

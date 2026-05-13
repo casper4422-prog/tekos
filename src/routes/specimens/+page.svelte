@@ -2,8 +2,25 @@
     import { onMount } from 'svelte';
     import type { PageData } from './$types';
     import { computeBadges, getStat } from '$lib/badges';
+    import PinModal from '$lib/components/PinModal.svelte';
 
     let { data }: { data: PageData } = $props();
+
+    let pinModalOpen = $state(false);
+    let pinModalPreselectId = $state<number | null>(null);
+
+    function openPinModal(id: number) {
+        pinModalPreselectId = id;
+        pinModalOpen = true;
+    }
+
+    async function savePin(payload: { creatureId: number; focusStat: string | null; targetMutations: number } | { creatureIds: number[] }) {
+        if ('creatureIds' in payload) return;
+        await fetch('/api/pinned-projects', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        pinModalOpen = false;
+        pinModalPreselectId = null;
+        window.location.reload();
+    }
 
     const STAT_KEYS = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'] as const;
 
@@ -319,11 +336,8 @@
                         <div class="list-level-lbl">Total Lvl</div>
                     </div>
                     <div class="list-actions">
-                        <button class="row-btn" title="Pin Project" onclick={(ev) => ev.preventDefault()}>
+                        <button class="row-btn" title="Pin Project" onclick={(ev) => { ev.preventDefault(); ev.stopPropagation(); openPinModal(e.ref.id); }}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                        </button>
-                        <button class="row-btn" title="More" onclick={(ev) => ev.preventDefault()}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
                         </button>
                     </div>
                 </div>
@@ -388,6 +402,8 @@
 </div>
 
 <div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
+
+<PinModal bind:open={pinModalOpen} creatures={data.creatures} mode="project" existingProjectId={pinModalPreselectId} onSave={savePin} />
 
 <style>
 :root {

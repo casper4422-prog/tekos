@@ -18,6 +18,8 @@ model User {
   bannerImage     String?  @map("banner_image")
   lookingFor      String?  @map("looking_for")
   pinnedCreatures Json     @default("[]") @map("pinned_creatures")
+  settings        Json     @default("{}")
+  avatarImage     String?  @map("avatar_image")
   lastSeen        DateTime @default(now()) @map("last_seen")
   createdAt       DateTime @default(now()) @map("created_at")
 
@@ -92,6 +94,8 @@ model Trade {
   userId       Int      @map("user_id")
   creatureId   Int?     @map("creature_id")
   creatureData Json?    @map("creature_data")
+  listingType  String   @default("specimen") @map("listing_type")
+  metadata     Json     @default("{}")
   wanted       String?
   price        String?
   status       String   @default("open")

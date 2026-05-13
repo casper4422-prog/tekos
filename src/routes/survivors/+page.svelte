@@ -7,18 +7,22 @@
         email: string;
         bio: string | null;
         online: boolean;
+        lastSeen?: string | Date | null;
         specimens: number;
         tribe: { name: string } | null;
     };
 
     let survivors = $state<Survivor[]>([]);
-    let total     = $state(0);
+    let total       = $state(0);
     let onlineCount = $state(0);
+    let tribeCount     = $state(0);
+    let bloodlineCount = $state(0);
     let page      = $state(1);
     let pages     = $state(1);
     let loading   = $state(false);
     let q         = $state('');
-    let activeFilter = $state<'all' | 'online' | 'tribe' | 'featured'>('all');
+    let activeFilter = $state<'all' | 'online' | 'tribe'>('all');
+    let sortMode = $state<'active' | 'specimens' | 'joined'>('active');
 
     let tekHexCanvas: HTMLCanvasElement | null = $state(null);
 
@@ -28,15 +32,41 @@
         const params = new URLSearchParams({ page: String(page) });
         if (q.trim()) params.set('q', q.trim());
         if (activeFilter === 'online') params.set('online', 'true');
+        if (activeFilter === 'tribe')  params.set('inTribe', 'true');
+        params.set('sort', sortMode);
         const res = await fetch(`/api/survivors?${params}`);
         if (res.ok) {
             const data = await res.json();
             survivors = reset ? data.users : [...survivors, ...data.users];
             total = data.total;
             pages = data.pages;
+            tribeCount = data.tribeCount ?? 0;
+            bloodlineCount = data.bloodlineCount ?? 0;
             if (activeFilter === 'online') onlineCount = data.total;
         }
         loading = false;
+    }
+
+    // Periodically refresh online count by querying with online=true
+    async function refreshOnlineCount() {
+        try {
+            const r = await fetch('/api/survivors?online=true&page=1');
+            if (r.ok) { const d = await r.json(); onlineCount = d.total; }
+        } catch {}
+    }
+
+    function statusLabel(s: Survivor): string {
+        if (s.online) return 'ACTIVE NOW';
+        if (!s.lastSeen) return 'OFFLINE';
+        const dt = new Date(s.lastSeen).getTime();
+        const diff = Date.now() - dt;
+        const m = Math.floor(diff / 60000);
+        if (m < 60) return `OFFLINE · ${m}M AGO`;
+        const h = Math.floor(m / 60);
+        if (h < 24) return `OFFLINE · ${h}H AGO`;
+        const d = Math.floor(h / 24);
+        if (d < 7) return `OFFLINE · ${d}D AGO`;
+        return `OFFLINE · ${Math.floor(d/7)}W AGO`;
     }
 
     function displayName(s: Survivor) {
@@ -51,18 +81,24 @@
         return s.email.split('@')[0];
     }
 
-    function setFilter(f: 'all' | 'online' | 'tribe' | 'featured') {
+    function setFilter(f: 'all' | 'online' | 'tribe') {
         activeFilter = f;
         load(true);
     }
 
     function onSearchInput() {
-        // live search: trigger reload
+        load(true);
+    }
+
+    function onSortChange(e: Event) {
+        const v = (e.target as HTMLSelectElement).value as 'active' | 'specimens' | 'joined';
+        sortMode = v;
         load(true);
     }
 
     onMount(() => {
         load();
+        refreshOnlineCount();
 
         /* Hex canvas background */
         const canvas = tekHexCanvas;
@@ -146,12 +182,12 @@
         </div>
         <div class="tel-cell purple">
             <div class="tel-label">Active Tribes</div>
-            <div class="tel-value purple">—</div>
+            <div class="tel-value purple">{tribeCount.toLocaleString()}</div>
             <div class="tel-sub">FORMED ACROSS NETWORK</div>
         </div>
         <div class="tel-cell amber">
             <div class="tel-label">Bloodlines Logged</div>
-            <div class="tel-value amber">—</div>
+            <div class="tel-value amber">{bloodlineCount.toLocaleString()}</div>
             <div class="tel-sub">VAULT ENTRIES TOTAL</div>
         </div>
     </div>
@@ -164,14 +200,11 @@
             placeholder="Search by name, handle, tribe, or bio…" />
         <button type="button" class="filter-chip" class:on={activeFilter === 'all'} onclick={() => setFilter('all')}>All <span class="num">{total.toLocaleString()}</span></button>
         <button type="button" class="filter-chip" class:on={activeFilter === 'online'} onclick={() => setFilter('online')}><span class="dot"></span>Online <span class="num">{onlineCount.toLocaleString()}</span></button>
-        <button type="button" class="filter-chip" class:on={activeFilter === 'tribe'} onclick={() => setFilter('tribe')}>In a tribe <span class="num">—</span></button>
-        <button type="button" class="filter-chip" class:on={activeFilter === 'featured'} onclick={() => setFilter('featured')}>Featured <span class="num">—</span></button>
-        <select class="sort-select">
-            <option>Sort: Most active</option>
-            <option>Sort: Most specimens</option>
-            <option>Sort: Highest trade rep</option>
-            <option>Sort: Most badges</option>
-            <option>Sort: Recently joined</option>
+        <button type="button" class="filter-chip" class:on={activeFilter === 'tribe'} onclick={() => setFilter('tribe')}>In a tribe <span class="num">{tribeCount.toLocaleString()}</span></button>
+        <select class="sort-select" value={sortMode} onchange={onSortChange}>
+            <option value="active">Sort: Most active</option>
+            <option value="specimens">Sort: Most specimens</option>
+            <option value="joined">Sort: Recently joined</option>
         </select>
     </div>
 
@@ -195,11 +228,7 @@
                         <div class="dir-meta">
                             <div class="dir-name">{displayName(s)}</div>
                             <div class="dir-handle">@{handle(s)}</div>
-                            {#if s.online}
-                                <div class="dir-status online"><span class="pip"></span>ACTIVE NOW</div>
-                            {:else}
-                                <div class="dir-status offline"><span class="pip"></span>OFFLINE</div>
-                            {/if}
+                            <div class="dir-status" class:online={s.online} class:offline={!s.online}><span class="pip"></span>{statusLabel(s)}</div>
                         </div>
                     </div>
                     {#if s.tribe}

@@ -3,11 +3,13 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 
 export const GET: RequestHandler = async ({ url }) => {
-	const q       = url.searchParams.get('q')?.trim() ?? '';
-	const online  = url.searchParams.get('online') === 'true';
-	const page    = Math.max(1, parseInt(url.searchParams.get('page') ?? '1'));
-	const take    = 40;
-	const skip    = (page - 1) * take;
+	const q        = url.searchParams.get('q')?.trim() ?? '';
+	const online   = url.searchParams.get('online') === 'true';
+	const inTribe  = url.searchParams.get('inTribe') === 'true';
+	const sort     = url.searchParams.get('sort') ?? 'active';
+	const page     = Math.max(1, parseInt(url.searchParams.get('page') ?? '1'));
+	const take     = 40;
+	const skip     = (page - 1) * take;
 
 	const ONLINE_MS = 5 * 60 * 1000;
 	const onlineSince = new Date(Date.now() - ONLINE_MS);
@@ -20,11 +22,18 @@ export const GET: RequestHandler = async ({ url }) => {
 		];
 	}
 	if (online) where.lastSeen = { gte: onlineSince };
+	if (inTribe) where.tribeMemberships = { some: {} };
 
-	const [users, total] = await Promise.all([
+	const orderBy =
+		sort === 'specimens' ? { creatures: { _count: 'desc' as const } } :
+		sort === 'joined'    ? { createdAt: 'desc' as const } :
+		online               ? { lastSeen: 'desc' as const } :
+		                       { lastSeen: 'desc' as const };
+
+	const [users, total, tribeCount, bloodlineCount] = await Promise.all([
 		db.user.findMany({
 			where,
-			orderBy: online ? { lastSeen: 'desc' } : { createdAt: 'desc' },
+			orderBy,
 			skip,
 			take,
 			select: {
@@ -40,7 +49,9 @@ export const GET: RequestHandler = async ({ url }) => {
 				}
 			}
 		}),
-		db.user.count({ where })
+		db.user.count({ where }),
+		db.tribe.count(),
+		db.creature.count()
 	]);
 
 	const now = Date.now();
@@ -51,11 +62,14 @@ export const GET: RequestHandler = async ({ url }) => {
 			email: u.email,
 			bio: u.bio,
 			online: u.lastSeen ? (now - new Date(u.lastSeen).getTime()) < ONLINE_MS : false,
+			lastSeen: u.lastSeen,
 			specimens: u._count.creatures,
 			tribe: u.tribeMemberships[0]?.tribe ?? null
 		})),
 		total,
 		page,
-		pages: Math.ceil(total / take)
+		pages: Math.ceil(total / take),
+		tribeCount,
+		bloodlineCount
 	});
 };

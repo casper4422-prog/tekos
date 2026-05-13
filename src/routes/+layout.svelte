@@ -174,10 +174,22 @@
 :global(.tek-nav-group-items.alpha    .tek-nav-item) { background:rgba(239,68,68,0.04);   padding-left:22px; }
 :global(.tek-nav-group-items.settings .tek-nav-item) { background:rgba(139,92,246,0.04);  padding-left:22px; }
 
-:global(.tek-nav-group-items.beta     .tek-nav-item:hover), :global(.tek-nav-group-items.beta     .tek-nav-item.active) { background:rgba(59,130,246,0.13); color:#93c5fd; }
-:global(.tek-nav-group-items.gamma    .tek-nav-item:hover), :global(.tek-nav-group-items.gamma    .tek-nav-item.active) { background:rgba(34,197,94,0.13);  color:#86efac; }
-:global(.tek-nav-group-items.alpha    .tek-nav-item:hover), :global(.tek-nav-group-items.alpha    .tek-nav-item.active) { background:rgba(239,68,68,0.13);  color:#fca5a5; }
-:global(.tek-nav-group-items.settings .tek-nav-item:hover), :global(.tek-nav-group-items.settings .tek-nav-item.active) { background:rgba(139,92,246,0.13); color:#d8b4fe; }
+:global(.tek-nav-group-items.beta     .tek-nav-item:hover), :global(.tek-nav-group-items.beta     .tek-nav-item.active) { background:rgba(59,130,246,0.13) !important; color:#93c5fd; }
+:global(.tek-nav-group-items.gamma    .tek-nav-item:hover), :global(.tek-nav-group-items.gamma    .tek-nav-item.active) { background:rgba(34,197,94,0.13) !important;  color:#86efac; }
+:global(.tek-nav-group-items.alpha    .tek-nav-item:hover), :global(.tek-nav-group-items.alpha    .tek-nav-item.active) { background:rgba(239,68,68,0.13) !important;  color:#fca5a5; }
+:global(.tek-nav-group-items.settings .tek-nav-item:hover), :global(.tek-nav-group-items.settings .tek-nav-item.active) { background:rgba(139,92,246,0.13) !important; color:#d8b4fe; }
+
+/* Active-rail uses section color (was hardcoded to --tek-blue) */
+:global(.tek-nav-group-items.beta     .tek-nav-item.active::before) { background:#3b82f6 !important; box-shadow:0 0 8px rgba(59,130,246,0.6) !important; }
+:global(.tek-nav-group-items.gamma    .tek-nav-item.active::before) { background:#22c55e !important; box-shadow:0 0 8px rgba(34,197,94,0.6)  !important; }
+:global(.tek-nav-group-items.alpha    .tek-nav-item.active::before) { background:#ef4444 !important; box-shadow:0 0 8px rgba(239,68,68,0.6)  !important; }
+:global(.tek-nav-group-items.settings .tek-nav-item.active::before) { background:#8b5cf6 !important; box-shadow:0 0 8px rgba(139,92,246,0.6) !important; }
+
+/* Active icon color matches section */
+:global(.tek-nav-group-items.beta     .tek-nav-item.active .nav-icon-wrap) { color:#93c5fd; filter:drop-shadow(0 0 4px rgba(59,130,246,0.5)); }
+:global(.tek-nav-group-items.gamma    .tek-nav-item.active .nav-icon-wrap) { color:#86efac; filter:drop-shadow(0 0 4px rgba(34,197,94,0.5)); }
+:global(.tek-nav-group-items.alpha    .tek-nav-item.active .nav-icon-wrap) { color:#fca5a5; filter:drop-shadow(0 0 4px rgba(239,68,68,0.5)); }
+:global(.tek-nav-group-items.settings .tek-nav-item.active .nav-icon-wrap) { color:#d8b4fe; filter:drop-shadow(0 0 4px rgba(139,92,246,0.5)); }
 
 :global(.feedback-btn) { display:flex; align-items:center; gap:7px; margin:8px 10px 10px; padding:7px 12px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); color:#fbbf24; font-size:0.72rem; font-weight:600; letter-spacing:0.04em; text-decoration:none; clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%); transition:background 0.2s; }
 :global(.feedback-btn:hover) { background:rgba(245,158,11,0.15); }

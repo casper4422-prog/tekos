@@ -13,12 +13,55 @@
         createdAt: string | Date;
     };
 
+    type TabKey = 'all' | 'requests' | 'mentions' | 'boss' | 'trades' | 'badges';
+
     let notifs = $state<Notif[]>((data.notifs ?? []) as unknown as Notif[]);
+    let tab = $state<TabKey>('all');
+    let now = $state(Date.now());
+
+    const nextWarRoom = data.nextWarRoom ?? null;
+
+    // Tab membership predicates — keep in sync with the count derivations below.
+    function inTab(n: Notif, t: TabKey): boolean {
+        if (t === 'all') return true;
+        if (t === 'requests') return n.type.includes('friend_request') || n.type === 'tribe_invite' || n.type === 'tribe_join_request';
+        if (t === 'mentions') return n.type.includes('mention') || n.type === 'dm';
+        if (t === 'boss') return n.type.includes('boss') || n.type.includes('warroom');
+        if (t === 'trades') return n.type.includes('trade') || n.type.includes('offer');
+        if (t === 'badges') return n.type.includes('badge');
+        return true;
+    }
+
+    const filteredNotifs = $derived(notifs.filter(n => inTab(n, tab)));
 
     const unread = $derived(notifs.filter(n => !n.read).length);
     const totalCount = $derived(notifs.length);
 
-    let bossCountdownText = $state('5d 22h');
+    const counts = $derived.by(() => ({
+        all: unread,
+        requests: notifs.filter(n => inTab(n, 'requests')).length,
+        mentions: notifs.filter(n => inTab(n, 'mentions')).length,
+        boss: notifs.filter(n => inTab(n, 'boss')).length,
+        trades: notifs.filter(n => inTab(n, 'trades')).length,
+        badges: notifs.filter(n => inTab(n, 'badges')).length
+    }));
+
+    // Live boss countdown text derived from the nearest scheduled war room.
+    const bossCountdownText = $derived.by(() => {
+        if (!nextWarRoom) return '';
+        let diff = Math.max(0, new Date(nextWarRoom.scheduledAt).getTime() - now);
+        const d = Math.floor(diff / 86400000); diff -= d * 86400000;
+        const h = Math.floor(diff / 3600000);  diff -= h * 3600000;
+        const m = Math.floor(diff / 60000);
+        if (d > 0) return `${d}d ${h}h`;
+        return `${h}h ${m}m`;
+    });
+    const bossCountdownUrgent = $derived.by(() => {
+        if (!nextWarRoom) return false;
+        const diffH = (new Date(nextWarRoom.scheduledAt).getTime() - now) / 3600000;
+        return diffH > 0 && diffH < 24;
+    });
+
     let canvasEl: HTMLCanvasElement | null = $state(null);
 
     async function markRead(id: number) {
@@ -44,13 +87,112 @@
         );
     }
 
+    // ---- Action handlers ----
+    async function acceptFriend(n: Notif) {
+        const p = n.payload ?? {};
+        const fid = (p.friendshipId ?? p.requestId ?? p.id) as number | undefined;
+        if (fid != null) {
+            await fetch(`/api/friends/${fid}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'accept' })
+            }).catch(() => {});
+        }
+        markRead(n.id);
+    }
+    async function declineFriend(n: Notif) {
+        const p = n.payload ?? {};
+        const fid = (p.friendshipId ?? p.requestId ?? p.id) as number | undefined;
+        if (fid != null) {
+            await fetch(`/api/friends/${fid}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'decline' })
+            }).catch(() => {});
+        }
+        markRead(n.id);
+    }
+
+    async function acceptTribeJoin(n: Notif) {
+        const p = n.payload ?? {};
+        const tribeId = p.tribeId as number | undefined;
+        const requestId = (p.requestId ?? p.joinRequestId) as number | undefined;
+        if (tribeId != null && requestId != null) {
+            await fetch(`/api/tribes/${tribeId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'accept', requestId })
+            }).catch(() => {});
+        }
+        markRead(n.id);
+    }
+    async function declineTribeJoin(n: Notif) {
+        const p = n.payload ?? {};
+        const tribeId = p.tribeId as number | undefined;
+        const requestId = (p.requestId ?? p.joinRequestId) as number | undefined;
+        if (tribeId != null && requestId != null) {
+            await fetch(`/api/tribes/${tribeId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'reject', requestId })
+            }).catch(() => {});
+        }
+        markRead(n.id);
+    }
+
+    // ---- Link/href derivers for "go-to" actions ----
+    function linkFor(n: Notif): { label: string; href: string } | null {
+        const p = n.payload ?? {};
+        switch (n.type) {
+            case 'boss_invite':
+            case 'boss_warroom':
+            case 'warroom_scheduled':
+            case 'warroom_invite': {
+                const sessionId = (p.sessionId ?? p.warRoomId ?? p.roomId) as string | number | undefined;
+                if (sessionId != null) return { label: 'Open Room', href: `/overseer/${sessionId}` };
+                return { label: 'Open Tribe', href: '/tribe' };
+            }
+            case 'mention':
+            case 'dm': {
+                const userId = (p.fromUserId ?? p.userId ?? p.actorUserId) as string | number | undefined;
+                if (userId != null) return { label: 'Reply', href: `/messages/${userId}` };
+                return { label: 'Open Messages', href: '/messages' };
+            }
+            case 'trade_offer':
+            case 'trade_accepted':
+            case 'trade_completed': {
+                const listingId = (p.listingId ?? p.tradeId) as string | number | undefined;
+                if (listingId != null) return { label: 'View Trade', href: `/marketplace/${listingId}` };
+                return { label: 'View Trade', href: '/marketplace' };
+            }
+            case 'badge_earned': {
+                return { label: 'View Badge', href: '/badges' };
+            }
+            case 'tribe_accepted':
+            case 'tribe_promoted':
+            case 'tribe_demoted': {
+                return { label: 'Open Tribe', href: '/tribe' };
+            }
+            case 'friend_accepted': {
+                const userId = (p.actorUserId ?? p.fromUserId) as string | number | undefined;
+                if (userId != null) return { label: 'Open Profile', href: `/profile/${userId}` };
+                return null;
+            }
+        }
+        if (n.type.includes('breeding') || n.type.includes('mutation') || n.type.includes('hatch')) {
+            return { label: 'Open Project', href: '/breeding' };
+        }
+        return null;
+    }
+
     // Map notification type to a CSS class category (matches preview rail colors)
     function categoryFor(t: string): string {
         if (t.includes('friend')) return 'request';
-        if (t.includes('boss')) return 'boss';
+        if (t.includes('boss') || t.includes('warroom')) return 'boss';
         if (t.includes('trade') || t.includes('offer')) return 'trade';
+        if (t === 'tribe_invite' || t === 'tribe_join_request') return 'request';
         if (t.includes('tribe')) return 'tribe';
-        if (t.includes('mention')) return 'mention';
+        if (t.includes('mention') || t === 'dm') return 'mention';
         if (t.includes('badge')) return 'badge';
         if (t.includes('breeding') || t.includes('mutation') || t.includes('hatch')) return 'breeding';
         if (t.includes('system')) return 'system';
@@ -60,10 +202,10 @@
     // Map notification type to a lucide icon component (type-colored icons)
     function iconFor(t: string) {
         if (t.includes('friend')) return UserPlus;
-        if (t.includes('boss')) return Sword;
+        if (t.includes('boss') || t.includes('warroom')) return Sword;
         if (t.includes('trade') || t.includes('offer')) return Repeat2;
         if (t.includes('tribe')) return Shield;
-        if (t.includes('mention')) return AtSign;
+        if (t.includes('mention') || t === 'dm') return AtSign;
         if (t.includes('badge')) return Award;
         if (t.includes('breeding') || t.includes('mutation') || t.includes('hatch')) return Sparkles;
         if (t.includes('system')) return Box;
@@ -72,22 +214,60 @@
 
     function titleFor(n: Notif): string {
         const p = n.payload ?? {};
-        if (n.type === 'friend_request')  return `Friend request from ${p.fromName ?? 'a Survivor'}`;
-        if (n.type === 'friend_accept')   return `${p.fromName ?? 'A Survivor'} accepted your friend request`;
-        if (n.type === 'boss_invite')     return `Invited to fight ${p.bossName ?? 'a boss'}`;
-        if (n.type === 'trade_offer')     return `New offer on your trade · ${p.species ?? ''}`;
-        if (n.type === 'tribe_invite')    return `Invited to ${p.tribeName ?? 'a tribe'}`;
+        if (n.type === 'friend_request')   return `Friend request from ${p.fromName ?? 'a Survivor'}`;
+        if (n.type === 'friend_accepted')  return `${p.acceptedBy ?? p.fromName ?? 'A Survivor'} accepted your friend request`;
+        if (n.type === 'boss_invite')      return `Invited to fight ${p.bossName ?? 'a boss'}`;
+        if (n.type === 'boss_warroom')     return `${p.bossName ?? 'Boss'} war room starts`;
+        if (n.type === 'warroom_scheduled')return `${p.bossName ?? 'War room'} scheduled`;
+        if (n.type === 'trade_offer')      return `New offer on your trade · ${p.species ?? ''}`;
+        if (n.type === 'trade_accepted')   return `Your trade offer was accepted${p.species ? ' · ' + p.species : ''}`;
+        if (n.type === 'tribe_invite')     return `Invited to ${p.tribeName ?? 'a tribe'}`;
         if (n.type === 'tribe_join_request') return `Join request from ${p.fromName ?? 'a Survivor'}`;
-        if (n.type === 'badge_earned')    return `New badge earned · ${p.badge ?? 'Honor'}`;
+        if (n.type === 'tribe_accepted')   return `You joined ${p.tribeName ?? 'the tribe'}`;
+        if (n.type === 'tribe_rejected')   return `Your join request to ${p.tribeName ?? 'the tribe'} was declined`;
+        if (n.type === 'tribe_promoted')   return `Promoted to ${p.newRole ?? 'admin'} in ${p.tribeName ?? 'the tribe'}`;
+        if (n.type === 'tribe_demoted')    return `Demoted to ${p.newRole ?? 'member'} in ${p.tribeName ?? 'the tribe'}`;
+        if (n.type === 'tribe_kicked')     return `Removed from ${p.tribeName ?? 'the tribe'}`;
+        if (n.type === 'badge_earned')     return `New badge earned · ${p.badge ?? 'Honor'}`;
+        if (n.type === 'mention')          return `${p.fromName ?? 'Someone'} mentioned you${p.context ? ' in ' + p.context : ''}`;
+        if (n.type === 'dm')               return `New message from ${p.fromName ?? 'a Survivor'}`;
         return n.type.replace(/_/g, ' ');
     }
 
     function bodyFor(n: Notif): string | undefined {
         const p = n.payload ?? {};
-        if (n.type === 'friend_request')  return (p.message as string) || undefined;
-        if (n.type === 'trade_offer')     return p.offerSummary as string;
-        if (n.type === 'tribe_invite')    return `Tap to accept or decline.`;
+        if (n.type === 'friend_request')   return (p.message as string) || undefined;
+        if (n.type === 'trade_offer')      return p.offerSummary as string;
+        if (n.type === 'tribe_invite')     return `Tap to accept or decline.`;
         return p.message as string | undefined;
+    }
+
+    // Meta row data: { source, sourceClass, detail }
+    function metaFor(n: Notif): { source?: string; sourceClass?: string; detail?: string } | null {
+        const p = n.payload ?? {} as Record<string, unknown>;
+        const meta: { source?: string; sourceClass?: string; detail?: string } = {};
+        if (p.tribeName) {
+            meta.source = `⌬ ${p.tribeName as string}`;
+            meta.sourceClass = 'tribe';
+        } else if (p.allyTribeName) {
+            meta.source = `🤝 ${p.allyTribeName as string}`;
+            meta.sourceClass = 'ally';
+        } else if (p.source) {
+            meta.source = String(p.source);
+        }
+        if (p.committed != null && p.required != null) {
+            meta.detail = `${p.committed}/${p.required} committed`;
+        } else if (p.bossName && (n.type.includes('warroom') || n.type === 'boss_warroom')) {
+            meta.detail = String(p.bossName);
+        } else if (p.replies != null) {
+            meta.detail = `${p.replies} replies`;
+        } else if (p.context) {
+            meta.detail = String(p.context);
+        } else if (p.detail) {
+            meta.detail = String(p.detail);
+        }
+        if (!meta.source && !meta.detail) return null;
+        return meta;
     }
 
     function relTime(d: string | Date) {
@@ -113,9 +293,20 @@
     }
     const grouped = $derived.by(() => {
         const out: { Today: Notif[]; 'This Week': Notif[]; Older: Notif[] } = { Today: [], 'This Week': [], Older: [] };
-        for (const n of notifs) out[bucket(n.createdAt)].push(n);
+        for (const n of filteredNotifs) out[bucket(n.createdAt)].push(n);
         return out;
     });
+
+    // Which notifications should show the boss countdown chip?
+    function showsCountdown(n: Notif): boolean {
+        if (!nextWarRoom) return false;
+        if (n.type !== 'boss_invite' && n.type !== 'boss_warroom' && !n.type.includes('warroom')) return false;
+        const p = n.payload ?? {};
+        // Prefer matching by id, fall back to type-only.
+        const matchesId = p.warRoomId === nextWarRoom.id || p.sessionId === nextWarRoom.id;
+        const matchesBoss = typeof p.bossName === 'string' && p.bossName === nextWarRoom.bossName;
+        return matchesId || matchesBoss || true; // accept all for visibility on boss-tier notifs
+    }
 
     onMount(() => {
         // Hex canvas background
@@ -161,18 +352,8 @@
             window.addEventListener('resize', resize);
             resize(); draw();
 
-            // Boss countdown chip
-            const target = Date.now() + (5 * 86400 + 22 * 3600) * 1000;
-            function tick() {
-                let diff = Math.max(0, target - Date.now());
-                const d = Math.floor(diff / 86400000); diff -= d * 86400000;
-                const h = Math.floor(diff / 3600000);  diff -= h * 3600000;
-                const m = Math.floor(diff / 60000);
-                if (d > 0) bossCountdownText = `${d}d ${h}h`;
-                else       bossCountdownText = `${h}h ${m}m`;
-            }
-            tick();
-            intervalId = setInterval(tick, 30000);
+            // Tick `now` every 30s so the live war-room countdown re-derives.
+            intervalId = setInterval(() => { now = Date.now(); }, 30000);
 
             return () => {
                 cancelAnimationFrame(rafId);
@@ -203,12 +384,24 @@
     </div>
 
     <div class="notif-tabs">
-        <button class="notif-tab active">All <span class="count alert">{unread}</span></button>
-        <button class="notif-tab">Requests <span class="count">{notifs.filter(n => n.type.includes('friend') || n.type.includes('tribe_join') || n.type.includes('tribe_invite')).length}</span></button>
-        <button class="notif-tab">Mentions <span class="count">{notifs.filter(n => n.type.includes('mention')).length}</span></button>
-        <button class="notif-tab">Boss</button>
-        <button class="notif-tab">Trades <span class="count">{notifs.filter(n => n.type.includes('trade') || n.type.includes('offer')).length}</span></button>
-        <button class="notif-tab">Badges</button>
+        <button class="notif-tab" class:active={tab === 'all'} onclick={() => tab = 'all'}>
+            All {#if counts.all > 0}<span class="count alert">{counts.all}</span>{/if}
+        </button>
+        <button class="notif-tab" class:active={tab === 'requests'} onclick={() => tab = 'requests'}>
+            Requests {#if counts.requests > 0}<span class="count">{counts.requests}</span>{/if}
+        </button>
+        <button class="notif-tab" class:active={tab === 'mentions'} onclick={() => tab = 'mentions'}>
+            Mentions {#if counts.mentions > 0}<span class="count">{counts.mentions}</span>{/if}
+        </button>
+        <button class="notif-tab" class:active={tab === 'boss'} onclick={() => tab = 'boss'}>
+            Boss {#if counts.boss > 0}<span class="count">{counts.boss}</span>{/if}
+        </button>
+        <button class="notif-tab" class:active={tab === 'trades'} onclick={() => tab = 'trades'}>
+            Trades {#if counts.trades > 0}<span class="count">{counts.trades}</span>{/if}
+        </button>
+        <button class="notif-tab" class:active={tab === 'badges'} onclick={() => tab = 'badges'}>
+            Badges {#if counts.badges > 0}<span class="count">{counts.badges}</span>{/if}
+        </button>
     </div>
 
     {#each ['Today', 'This Week', 'Older'] as group}
@@ -223,6 +416,8 @@
                     {#each grouped[group as 'Today' | 'This Week' | 'Older'] as n (n.id)}
                         {@const Icon = iconFor(n.type)}
                         {@const cat = categoryFor(n.type)}
+                        {@const meta = metaFor(n)}
+                        {@const link = linkFor(n)}
                         <div
                             class="notif {cat}"
                             class:unread={!n.read}
@@ -230,7 +425,7 @@
                             tabindex="0"
                             onclick={(e) => {
                                 const tgt = e.target as HTMLElement;
-                                if (tgt.tagName === 'BUTTON') return;
+                                if (tgt.closest('button') || tgt.closest('a')) return;
                                 markRead(n.id);
                             }}
                             onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') markRead(n.id); }}
@@ -239,13 +434,35 @@
                                 <Icon size={16} strokeWidth={2.2} />
                             </div>
                             <div class="notif-body">
-                                <div class="notif-text">{titleFor(n)}{#if n.type === 'boss_invite'}<span class="countdown-chip">{bossCountdownText}</span>{/if}</div>
+                                <div class="notif-text">
+                                    {titleFor(n)}{#if showsCountdown(n) && bossCountdownText}<span class="countdown-chip" class:urgent={bossCountdownUrgent}>{bossCountdownText}</span>{/if}
+                                </div>
                                 {#if bodyFor(n)}
-                                    <div class="notif-meta"><span class="source">{bodyFor(n)}</span></div>
+                                    <div class="notif-sub">{bodyFor(n)}</div>
+                                {/if}
+                                {#if meta}
+                                    <div class="notif-meta">
+                                        {#if meta.source}<span class="source {meta.sourceClass ?? ''}">{meta.source}</span>{/if}
+                                        {#if meta.source && meta.detail}<span class="sep">·</span>{/if}
+                                        {#if meta.detail}<span>{meta.detail}</span>{/if}
+                                    </div>
                                 {/if}
                             </div>
                             <div class="notif-right">
                                 <div class="notif-time">{relTime(n.createdAt)}</div>
+                                <div class="notif-actions">
+                                    {#if n.type === 'friend_request'}
+                                        <button class="n-btn success" onclick={() => acceptFriend(n)}>Accept</button>
+                                        <button class="n-btn ghost" onclick={() => declineFriend(n)}>Decline</button>
+                                    {:else if n.type === 'tribe_join_request'}
+                                        <button class="n-btn success" onclick={() => acceptTribeJoin(n)}>Accept</button>
+                                        <button class="n-btn ghost" onclick={() => declineTribeJoin(n)}>Decline</button>
+                                    {:else if n.type === 'tribe_invite'}
+                                        <a class="n-btn primary" href="/tribe" onclick={() => markRead(n.id)}>Open Tribe ▸</a>
+                                    {:else if link}
+                                        <a class="n-btn primary" href={link.href} onclick={() => markRead(n.id)}>{link.label} ▸</a>
+                                    {/if}
+                                </div>
                             </div>
                         </div>
                     {/each}
@@ -253,6 +470,14 @@
             </div>
         {/if}
     {/each}
+
+    {#if filteredNotifs.length === 0}
+        <div class="empty-state">
+            <Bell size={36} strokeWidth={1.4} />
+            <div class="empty-title">No notifications</div>
+            <div class="empty-sub">Nothing in this view right now.</div>
+        </div>
+    {/if}
 
 </div>
 
@@ -527,6 +752,15 @@
 .notif-text :global(strong)  { color: var(--tek-blue); font-weight: 700; }
 .notif-text :global(.mention) { color: #7dd3fc; background: rgba(0,180,255,0.12); padding: 0 4px; border-radius: 3px; font-weight: 600; }
 
+.notif-sub {
+    margin-top: 3px;
+    font-size: 0.78rem;
+    color: var(--tek-text-dim);
+    font-style: italic;
+    line-height: 1.4;
+}
+.notif:not(.unread) .notif-sub { color: var(--tek-text-faint); }
+
 .notif-meta {
     display: flex;
     align-items: center;
@@ -575,6 +809,10 @@
     clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
     transition: filter 0.18s, background 0.18s;
     white-space: nowrap;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .n-btn.primary {
     background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
@@ -614,6 +852,29 @@
     font-variant-numeric: tabular-nums;
 }
 .countdown-chip.urgent { animation: amber-pulse 1.4s ease-in-out infinite; }
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 60px 20px;
+    color: var(--tek-text-faint);
+    text-align: center;
+}
+.empty-title {
+    font-family: var(--tek-display);
+    font-size: 0.95rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.empty-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+}
 
 .bottom-note {
     position: fixed;
