@@ -103,10 +103,13 @@
     // "Change" link if they want to pick a different one.
     let pickerLocked = $state(mode === 'project' && existingProjectId != null);
 
-    // Re-sync on (re)open
-    let lastOpen = $state(false);
+    // Re-sync on (re)open — `lastOpen` is a plain (non-reactive) closure variable.
+    // If it were $state, reading + writing it inside this effect would form a
+    // self-feeding update loop (Svelte 5 error: effect_update_depth_exceeded).
+    let lastOpen = false;
     $effect(() => {
-        if (open && !lastOpen) {
+        const isOpen = open;
+        if (isOpen && !lastOpen) {
             search = '';
             if (mode === 'featured') {
                 selectedIds = [...pinned];
@@ -117,7 +120,7 @@
                 pickerLocked = existingProjectId != null;
             }
         }
-        lastOpen = open;
+        lastOpen = isOpen;
     });
 
     // ────────────────────────── Helpers ──────────────────────────
