@@ -1,9 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { requireUser } from '$lib/auth';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	const uid = locals.user!.id;
+	const uid = requireUser(locals).id;
 	const q = url.searchParams.get('q')?.trim();
 	if (!q || q.length < 2) return json([]);
 
@@ -12,11 +13,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			id: { not: uid },
 			OR: [
 				{ nickname: { contains: q, mode: 'insensitive' } },
-				{ email:    { contains: q, mode: 'insensitive' } },
 				{ discordName: { contains: q, mode: 'insensitive' } },
 			]
 		},
-		select: { id:true, email:true, nickname:true, discordName:true },
+		select: { id:true, nickname:true, discordName:true },
 		take: 20
 	});
 

@@ -4,17 +4,17 @@ import { db } from '$lib/db';
 export const load: PageServerLoad = async ({ locals }) => {
 	const uid = locals.user!.id;
 	const [trades, myTrades, completed, offers, creatures, wishlist, networkWishlists] = await Promise.all([
-		db.trade.findMany({ where: { status:'open', userId:{ not:uid } }, orderBy:{ createdAt:'desc' }, include:{ user:{ select:{ id:true, nickname:true, email:true } } } }),
+		db.trade.findMany({ where: { status:'open', userId:{ not:uid } }, orderBy:{ createdAt:'desc' }, include:{ user:{ select:{ id:true, nickname:true } } } }),
 		db.trade.findMany({ where: { userId:uid }, orderBy:{ createdAt:'desc' }, include:{ _count:{ select:{ offers:true } } } }),
-		db.trade.findMany({ where: { status:'completed' }, orderBy:{ createdAt:'desc' }, take: 30, include:{ user:{ select:{ id:true, nickname:true, email:true } } } }),
-		db.offer.findMany({ where:{ toUserId:uid, status:'pending' }, include:{ fromUser:{ select:{ id:true, nickname:true, email:true } }, trade:true } }),
+		db.trade.findMany({ where: { status:'completed' }, orderBy:{ createdAt:'desc' }, take: 30, include:{ user:{ select:{ id:true, nickname:true } } } }),
+		db.offer.findMany({ where:{ toUserId:uid, status:'pending' }, include:{ fromUser:{ select:{ id:true, nickname:true } }, trade:true } }),
 		db.creature.findMany({ where:{ userId:uid }, select:{ id:true, data:true } }),
 		db.wishlist.findMany({ where:{ userId:uid }, orderBy:{ createdAt:'desc' } }),
 		db.wishlist.findMany({
 			where: { userId:{ not:uid } },
 			orderBy: { createdAt:'desc' },
 			take: 100,
-			include: { user: { select:{ id:true, nickname:true, email:true } } }
+			include: { user: { select:{ id:true, nickname:true } } }
 		})
 	]);
 

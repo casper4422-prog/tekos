@@ -1,6 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { requireUser } from '$lib/auth';
+import { intParam } from '$lib/params';
 
 // Blacklist stored in tribe.colors field as JSON with structure { colors:[], blacklist:[] }
 // We extend the existing JSON blob
@@ -12,16 +14,16 @@ async function getTribeData(id: number) {
 }
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-	const id = parseInt(params.id);
-	const membership = await db.tribeMembership.findFirst({ where: { tribeId: id, userId: locals.user!.id } });
+	const id = intParam(params.id);
+	const membership = await db.tribeMembership.findFirst({ where: { tribeId: id, userId: requireUser(locals).id } });
 	if (!membership) return json({ error: 'Not in tribe' }, { status: 403 });
 	const data = await getTribeData(id);
 	return json(data.blacklist);
 };
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const uid = locals.user!.id;
-	const id = parseInt(params.id);
+	const uid = requireUser(locals).id;
+	const id = intParam(params.id);
 	const membership = await db.tribeMembership.findFirst({ where: { tribeId: id, userId: uid, role: { in: ['owner','admin'] } } });
 	if (!membership) return json({ error: 'Unauthorized' }, { status: 403 });
 	const { name, reason, type } = await request.json();
@@ -34,8 +36,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ params, request, locals }) => {
-	const uid = locals.user!.id;
-	const id = parseInt(params.id);
+	const uid = requireUser(locals).id;
+	const id = intParam(params.id);
 	const membership = await db.tribeMembership.findFirst({ where: { tribeId: id, userId: uid, role: { in: ['owner','admin'] } } });
 	if (!membership) return json({ error: 'Unauthorized' }, { status: 403 });
 	const { entryId } = await request.json();

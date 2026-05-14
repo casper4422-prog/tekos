@@ -2,9 +2,10 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { notify } from '$lib/notify';
+import { requireUser } from '$lib/auth';
 
 export const GET: RequestHandler = async ({ locals }) => {
-	const uid = locals.user!.id;
+	const uid = requireUser(locals).id;
 	const membership = await db.tribeMembership.findFirst({ where: { userId: uid } });
 	if (!membership) return json([]);
 
@@ -13,7 +14,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		include: {
 			tribe1: { select: { id:true, name:true, mainMap:true } },
 			tribe2: { select: { id:true, name:true, mainMap:true } },
-			requestedBy: { select: { nickname:true, email:true } }
+			requestedBy: { select: { nickname:true } }
 		}
 	});
 
@@ -25,7 +26,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const uid = locals.user!.id;
+	const uid = requireUser(locals).id;
 	const { targetTribeId } = await request.json();
 	const membership = await db.tribeMembership.findFirst({ where: { userId: uid, role: { in: ['owner','admin'] } } });
 	if (!membership) return json({ error: 'You must be a tribe owner or admin' }, { status: 403 });

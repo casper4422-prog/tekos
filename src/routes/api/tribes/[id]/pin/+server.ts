@@ -1,12 +1,14 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { requireUser } from '$lib/auth';
+import { intParam } from '$lib/params';
 
 // Set the current user's pinned tribe creature. Pass { creatureId: number | null }.
 // creatureId must reference a TribeCreature in this tribe (or null to clear).
 export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const uid = locals.user!.id;
-	const tribeId = parseInt(params.id);
+	const uid = requireUser(locals).id;
+	const tribeId = intParam(params.id);
 
 	const member = await db.tribeMembership.findFirst({ where: { tribeId, userId: uid } });
 	if (!member) return json({ error: 'Not in tribe' }, { status: 403 });

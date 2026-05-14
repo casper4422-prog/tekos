@@ -1,11 +1,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { requireUser } from '$lib/auth';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const mineFlag = url.searchParams.get('mine') === 'true';
 	if (mineFlag && !locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
-	const where = mineFlag ? { userId: locals.user!.id, status: 'open' } : { status: 'open' };
+	const where = mineFlag ? { userId: requireUser(locals).id, status: 'open' } : { status: 'open' };
 	const trades = await db.trade.findMany({
 		where, orderBy: { createdAt: 'desc' },
 		include: { user: { select: { id: true, nickname: true, discordName: true } } }

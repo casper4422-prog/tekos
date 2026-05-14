@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { requireUser } from '$lib/auth';
 
 export const GET: RequestHandler = async () => {
 	const tribes = await db.tribe.findMany({
@@ -11,7 +12,7 @@ export const GET: RequestHandler = async () => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const uid = locals.user!.id;
+	const uid = requireUser(locals).id;
 	const { name, description, mainMap } = await request.json();
 	if (!name?.trim()) return json({ error: 'Name required' }, { status: 400 });
 	const existing = await db.tribe.findFirst({ where: { name } });

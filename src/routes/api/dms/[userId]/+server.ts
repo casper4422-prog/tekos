@@ -1,10 +1,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { requireUser } from '$lib/auth';
+import { intParam } from '$lib/params';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-	const uid = locals.user!.id;
-	const otherId = parseInt(params.userId);
+	const uid = requireUser(locals).id;
+	const otherId = intParam(params.userId, 'userId');
 	const msgs = await db.directMessage.findMany({
 		where: { OR: [{ fromUserId: uid, toUserId: otherId }, { fromUserId: otherId, toUserId: uid }] },
 		orderBy: { createdAt: 'asc' }
@@ -15,8 +17,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 };
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const uid = locals.user!.id;
-	const otherId = parseInt(params.userId);
+	const uid = requireUser(locals).id;
+	const otherId = intParam(params.userId, 'userId');
 	const { message } = await request.json();
 	if (!message?.trim()) return json({ error: 'Empty message' }, { status: 400 });
 	const msg = await db.directMessage.create({ data: { fromUserId: uid, toUserId: otherId, message: message.trim() } });

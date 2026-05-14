@@ -2,12 +2,14 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { notify } from '$lib/notify';
+import { requireUser } from '$lib/auth';
+import { intParam } from '$lib/params';
 
 // Promote / demote: POST { action: 'promote' | 'demote' }. Owner only.
 export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const uid = locals.user!.id;
-	const tribeId = parseInt(params.id);
-	const memberId = parseInt(params.memberId);
+	const uid = requireUser(locals).id;
+	const tribeId = intParam(params.id);
+	const memberId = intParam(params.memberId, 'memberId');
 
 	const tribe = await db.tribe.findUnique({ where: { id: tribeId }, select: { ownerUserId: true, name: true } });
 	if (!tribe) return json({ error: 'Not found' }, { status: 404 });
@@ -31,9 +33,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 // Kick a member. Owner/admin only. Cannot kick the owner. Admins cannot kick other admins.
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-	const uid = locals.user!.id;
-	const tribeId = parseInt(params.id);
-	const memberId = parseInt(params.memberId);
+	const uid = requireUser(locals).id;
+	const tribeId = intParam(params.id);
+	const memberId = intParam(params.memberId, 'memberId');
 
 	const me = await db.tribeMembership.findFirst({ where: { tribeId, userId: uid }, include: { tribe: { select: { name: true } } } });
 	if (!me || !['owner','admin'].includes(me.role)) return json({ error: 'Owner/admin only' }, { status: 403 });

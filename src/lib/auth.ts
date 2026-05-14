@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from 'jose';
+import { error } from '@sveltejs/kit';
 
 const COOKIE_NAME = 'tek_session';
 const EXPIRY_SECONDS = 60 * 60 * 24 * 7; // 7 days
@@ -35,3 +36,8 @@ export function clearCookie() {
 }
 
 export { COOKIE_NAME };
+
+export function requireUser(locals: App.Locals): NonNullable<App.Locals['user']> & { id: number } {
+	if (!locals.user) throw error(401, 'Unauthorized');
+	return locals.user as NonNullable<App.Locals['user']> & { id: number };
+}
