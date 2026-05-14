@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const [sessions, records, wins, creatureRows] = await Promise.all([
 		db.arenaSession.findMany({
 			where: { status:'open' }, orderBy: { createdAt:'desc' },
-			include: { creator: { select:{ nickname:true, email:true } }, _count:{ select:{ members:true, creatures:true } } }
+			include: { creator: { select:{ nickname:true, discordName:true } }, _count:{ select:{ members:true, creatures:true } } }
 		}),
 		db.bossRecord.findMany({ where: { userId: uid }, orderBy: { createdAt:'desc' }, take:10 }),
 		db.bossRecord.findMany({

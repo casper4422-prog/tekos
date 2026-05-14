@@ -88,9 +88,9 @@
 
 	const ONLINE_MS = 5 * 60 * 1000;
 	function isOnline(ls: string|null) { return !!ls && Date.now() - new Date(ls).getTime() < ONLINE_MS; }
-	function display(u: { nickname?:string|null; email?:string|null } | null | undefined) {
+	function display(u: { nickname?:string|null; discordName?:string|null } | null | undefined) {
 		if (!u) return 'Unknown';
-		return u.nickname ?? u.email ?? 'Unknown';
+		return u.nickname ?? u.discordName ?? 'Unknown';
 	}
 	function initial(name: string) { return (name.trim()[0] ?? '?').toUpperCase(); }
 	function relTime(iso: string) {

@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { requireUser } from '$lib/auth';
 
 // Feed sources stored in user pinnedCreatures JSON as { ..., feedSources: [{type,url,label}] }
 async function getSources(uid: number): Promise<Record<string,unknown>[]> {
@@ -17,12 +18,12 @@ async function saveSources(uid: number, sources: Record<string,unknown>[]) {
 }
 
 export const GET: RequestHandler = async ({ locals }) => {
-	const sources = await getSources(locals.user!.id);
+	const sources = await getSources(requireUser(locals).id);
 	return json(sources);
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const uid = locals.user!.id;
+	const uid = requireUser(locals).id;
 	const { type, url, label } = await request.json();
 	if (!url?.trim() || !type) return json({ error:'Missing fields' }, { status:400 });
 	const sources = await getSources(uid);
@@ -34,7 +35,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
-	const uid = locals.user!.id;
+	const uid = requireUser(locals).id;
 	const { id } = await request.json();
 	const sources = await getSources(uid);
 	const filtered = sources.filter((s:Record<string,unknown>) => s.id !== id);

@@ -1,6 +1,27 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { encrypt, decrypt, isEncrypted } from '$lib/crypto';
+
+function encryptRconPassword(settings: Record<string, unknown>): Record<string, unknown> {
+	const cluster = settings.cluster as Record<string, unknown> | null | undefined;
+	if (!cluster) return settings;
+	const rcon = cluster.rcon as Record<string, unknown> | null | undefined;
+	if (!rcon?.password || typeof rcon.password !== 'string' || rcon.password === '') return settings;
+	if (isEncrypted(rcon.password)) return settings;
+	return { ...settings, cluster: { ...cluster, rcon: { ...rcon, password: encrypt(rcon.password) } } };
+}
+
+function redactRconPassword(settings: Record<string, unknown>): Record<string, unknown> {
+	const cluster = settings.cluster as Record<string, unknown> | null | undefined;
+	if (!cluster) return settings;
+	const rcon = cluster.rcon as Record<string, unknown> | null | undefined;
+	if (!rcon?.password) return settings;
+	let decrypted: string | undefined;
+	try { decrypted = decrypt(rcon.password as string); } catch { /* not encrypted yet or key changed */ }
+	const placeholder = decrypted !== undefined ? '<saved>' : null;
+	return { ...settings, cluster: { ...cluster, rcon: { ...rcon, password: placeholder } } };
+}
 
 const ALLOWED_KEYS = new Set([
 	'mapPalette',
@@ -32,7 +53,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	if (merged.voiceId == null && !Array.isArray(legacy) && (legacy as any).voiceId) {
 		merged.voiceId = (legacy as any).voiceId;
 	}
-	return json(merged);
+	return json(redactRconPassword(merged));
 };
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
@@ -49,9 +70,31 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
 	for (const [key, value] of Object.entries(body)) {
 		if (!ALLOWED_KEYS.has(key)) continue;
+		if (key === 'theme') {
+			if (typeof value !== 'object' || value === null || Array.isArray(value)) continue;
+			const t = value as Record<string, unknown>;
+			const HEX = /^#[0-9a-fA-F]{6}$/;
+			const allowed = ['primary', 'accent', 'bg'];
+			if (!allowed.every(k => typeof t[k] === 'string' && HEX.test(t[k] as string))) continue;
+		}
+		if (key === 'cluster') {
+			// Preserve the stored encrypted RCON password if the incoming payload omits it.
+			// The UI deliberately sends no password field when the user hasn't re-typed it.
+			const existingCluster = (existing.cluster ?? {}) as Record<string, unknown>;
+			const existingRcon = (existingCluster.rcon ?? {}) as Record<string, unknown>;
+			const incomingCluster = (value ?? {}) as Record<string, unknown>;
+			const incomingRcon = (incomingCluster.rcon ?? {}) as Record<string, unknown>;
+			if (!incomingRcon.password && existingRcon.password) {
+				next[key] = { ...incomingCluster, rcon: { ...incomingRcon, password: existingRcon.password } };
+			} else {
+				next[key] = value;
+			}
+			continue;
+		}
 		next[key] = value;
 	}
 
-	await db.user.update({ where: { id: uid }, data: { settings: next } });
-	return json({ ok: true, settings: next });
+	const toSave = encryptRconPassword(next);
+	await db.user.update({ where: { id: uid }, data: { settings: toSave } });
+	return json({ ok: true, settings: redactRconPassword(next) });
 };

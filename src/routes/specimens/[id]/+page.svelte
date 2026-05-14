@@ -19,7 +19,7 @@
     const totalMuts = $derived(STATS.reduce((sum, s) => sum + getStat(c.mutations, s), 0));
     const grandTotal = $derived(STATS.reduce((sum, s) => sum + totalLevel(s), 0));
 
-    const ownerName = $derived(data.owner.nickname ?? data.owner.email);
+    const ownerName = $derived(data.owner.nickname ?? data.owner.discordName ?? 'Unknown survivor');
     const tribeLabel = $derived(data.userTribeName ?? 'INDEPENDENT');
 
     const loggedDate = $derived(new Date(c.createdAt).toLocaleDateString('en-US', { year: '2-digit', month: '2-digit', day: '2-digit' }).replace(/\//g, '·'));

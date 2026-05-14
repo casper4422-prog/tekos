@@ -10,13 +10,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 			tribe: {
 				include: {
 					members: {
-						include: { user: { select: { id:true, nickname:true, email:true, lastSeen:true } } },
+						include: { user: { select: { id:true, nickname:true, discordName:true, lastSeen:true } } },
 						orderBy: { role: 'asc' }
 					},
-					creatures: { include: { creator: { select: { id:true, nickname:true, email:true } } }, orderBy: { createdAt: 'desc' } },
+					creatures: { include: { creator: { select: { id:true, nickname:true, discordName:true } } }, orderBy: { createdAt: 'desc' } },
 					joinRequests: {
 						where: { status: 'pending' },
-						include: { user: { select: { id:true, nickname:true, email:true } } }
+						include: { user: { select: { id:true, nickname:true, discordName:true } } }
 					}
 				}
 			}
@@ -32,12 +32,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 				where: { tribeId },
 				orderBy: { createdAt: 'desc' },
 				take: 30,
-				include: { user: { select: { id:true, nickname:true, email:true } } }
+				include: { user: { select: { id:true, nickname:true, discordName:true } } }
 			}),
 			db.warRoom.findMany({
 				where: { tribeId, status: { in: ['scheduled','in_progress'] } },
 				orderBy: { scheduledAt: 'asc' },
-				include: { createdBy: { select: { id:true, nickname:true, email:true } } }
+				include: { createdBy: { select: { id:true, nickname:true, discordName:true } } }
 			})
 		]);
 	}

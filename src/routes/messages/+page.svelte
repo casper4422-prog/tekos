@@ -7,7 +7,7 @@
     type Convo = {
         userId: number;
         nickname: string | null;
-        email: string;
+        discordName: string | null;
         lastMessage: string;
         lastAt: string | Date;
         unread: number;
@@ -18,7 +18,7 @@
     let search = $state('');
     let hexCanvas: HTMLCanvasElement;
 
-    function displayName(c: Convo) { return c.nickname ?? c.email.split('@')[0]; }
+    function displayName(c: Convo) { return c.nickname ?? c.discordName ?? 'Survivor'; }
     function initialOf(c: Convo) { return (displayName(c).charAt(0) ?? '?').toUpperCase(); }
 
     function relTime(d: string | Date) {

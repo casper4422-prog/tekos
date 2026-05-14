@@ -1,16 +1,17 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { requireUser } from '$lib/auth';
 
 // GET /api/dms — inbox: one row per conversation, latest message
 export const GET: RequestHandler = async ({ locals }) => {
-	const uid = locals.user!.id;
+	const uid = requireUser(locals).id;
 	const msgs = await db.directMessage.findMany({
 		where: { OR: [{ fromUserId: uid }, { toUserId: uid }] },
 		orderBy: { createdAt: 'desc' },
 		include: {
-			fromUser: { select: { id:true, nickname:true, email:true } },
-			toUser:   { select: { id:true, nickname:true, email:true } },
+			fromUser: { select: { id:true, nickname:true } },
+			toUser:   { select: { id:true, nickname:true } },
 		}
 	});
 
@@ -22,7 +23,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		seen.add(otherId);
 		const other = m.fromUserId === uid ? m.toUser : m.fromUser;
 		const unread = msgs.filter(x => x.fromUserId === otherId && x.toUserId === uid && !x.read).length;
-		convos.push({ userId: otherId, nickname: other.nickname, email: other.email, lastMessage: m.message, lastAt: m.createdAt, unread });
+		convos.push({ userId: otherId, nickname: other.nickname, lastMessage: m.message, lastAt: m.createdAt, unread });
 	}
 	return json(convos);
 };

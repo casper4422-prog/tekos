@@ -128,7 +128,7 @@
 		logOpen = false; alert('Fight recorded!');
 	}
 
-	function display(u: Record<string,unknown>) { return (u.nickname ?? u.email ?? 'Unknown') as string; }
+	function display(u: Record<string,unknown>) { return (u.nickname ?? u.discordName ?? 'Unknown') as string; }
 	function ago(dt: string) {
 		const d = new Date(dt);
 		return d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
@@ -348,7 +348,7 @@
 					{#each friends as f}
 						<div class="cham-shell" style="--cut:5px">
 							<div style="background:linear-gradient(160deg,rgba(10,18,40,0.97),rgba(4,8,20,1));padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
-								<span style="font-size:0.88rem;color:#f1f5f9">{f.nickname ?? f.email}</span>
+								<span style="font-size:0.88rem;color:#f1f5f9">{f.nickname ?? f.discordName ?? 'Survivor'}</span>
 								<button class="btn btn-primary btn-sm" onclick={() => inviteFriend(f.friendId)} disabled={inviting === f.friendId}>
 									{inviting === f.friendId ? 'Sending...' : 'Invite'}
 								</button>

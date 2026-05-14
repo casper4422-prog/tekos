@@ -2,13 +2,15 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { notify } from '$lib/notify';
+import { requireUser } from '$lib/auth';
+import { intParam } from '$lib/params';
 
 export const GET: RequestHandler = async ({ params }) => {
-	const id = parseInt(params.id);
+	const id = intParam(params.id);
 	const tribe = await db.tribe.findUnique({
 		where: { id },
 		include: {
-			members: { include: { user: { select: { id:true, nickname:true, email:true, lastSeen:true } } }, orderBy: { role: 'asc' } },
+			members: { include: { user: { select: { id:true, nickname:true, lastSeen:true } } }, orderBy: { role: 'asc' } },
 			_count: { select: { members: true } }
 		}
 	});
@@ -18,9 +20,10 @@ export const GET: RequestHandler = async ({ params }) => {
 
 // Join request
 export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const uid = locals.user!.id;
-	const id = parseInt(params.id);
-	const { action, message } = await request.json().catch(() => ({}));
+	const uid = requireUser(locals).id;
+	const id = intParam(params.id);
+	const body = await request.json().catch(() => ({} as any));
+	const { action, message, requestId } = body;
 
 	if (action === 'join') {
 		const already = await db.tribeMembership.findFirst({ where: { userId: uid } });
@@ -31,16 +34,15 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		// Notify tribe owner + admins
 		const tribe = await db.tribe.findUnique({ where: { id }, select: { name:true, ownerUserId:true } });
 		const admins = await db.tribeMembership.findMany({ where: { tribeId: id, role: { in: ['owner','admin'] } } });
-		const me = await db.user.findUnique({ where: { id: uid }, select: { nickname:true, email:true } });
+		const me = await db.user.findUnique({ where: { id: uid }, select: { nickname:true, discordName:true } });
 		for (const a of admins) {
-			await notify(a.userId, uid, 'tribe_join_request', { tribeName: tribe?.name, fromName: me?.nickname ?? me?.email });
+			await notify(a.userId, uid, 'tribe_join_request', { tribeName: tribe?.name, fromName: me?.nickname ?? me?.discordName ?? 'Unknown survivor' });
 		}
 		return json(req, { status: 201 });
 	}
 
 	// accept/reject join request (owner/admin)
 	if (action === 'accept' || action === 'reject') {
-		const { requestId } = await request.json().catch(() => ({}));
 		const membership = await db.tribeMembership.findFirst({ where: { tribeId: id, userId: uid, role: { in: ['owner','admin'] } } });
 		if (!membership) return json({ error: 'Unauthorized' }, { status: 403 });
 		const req = await db.tribeJoinRequest.findFirst({ where: { id: requestId, tribeId: id } });
@@ -63,8 +65,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 // Edit tribe (owner-only): motto, banner, sigil, recruitment, looking-for, map, description, name.
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
-	const uid = locals.user!.id;
-	const id = parseInt(params.id);
+	const uid = requireUser(locals).id;
+	const id = intParam(params.id);
 	const tribe = await db.tribe.findUnique({ where: { id }, select: { ownerUserId: true } });
 	if (!tribe) return json({ error: 'Not found' }, { status: 404 });
 	if (tribe.ownerUserId !== uid) return json({ error: 'Owner only' }, { status: 403 });
@@ -83,11 +85,17 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-	const uid = locals.user!.id;
-	const id = parseInt(params.id);
+	const uid = requireUser(locals).id;
+	const id = intParam(params.id);
 	const membership = await db.tribeMembership.findFirst({ where: { tribeId: id, userId: uid } });
 	if (!membership) return json({ error: 'Not in tribe' }, { status: 404 });
-	if (membership.role === 'owner') return json({ error: 'Transfer ownership before leaving' }, { status: 400 });
+	if (membership.role === 'owner') {
+		// Owner can delete the tribe only if no other members remain
+		const memberCount = await db.tribeMembership.count({ where: { tribeId: id } });
+		if (memberCount > 1) return json({ error: 'Transfer ownership before leaving' }, { status: 400 });
+		await db.tribe.delete({ where: { id } });
+		return json({ ok: true });
+	}
 	await db.tribeMembership.delete({ where: { id: membership.id } });
 	return json({ ok: true });
 };

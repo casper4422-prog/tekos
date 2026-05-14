@@ -1,11 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { requireUser } from '$lib/auth';
+import { intParam } from '$lib/params';
 
 // List scheduled war rooms for this tribe. Members only.
 export const GET: RequestHandler = async ({ params, locals }) => {
-	const uid = locals.user!.id;
-	const tribeId = parseInt(params.id);
+	const uid = requireUser(locals).id;
+	const tribeId = intParam(params.id);
 
 	const member = await db.tribeMembership.findFirst({ where: { tribeId, userId: uid } });
 	if (!member) return json({ error: 'Not in tribe' }, { status: 403 });
@@ -13,15 +15,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const rooms = await db.warRoom.findMany({
 		where: { tribeId, status: { in: ['scheduled', 'in_progress'] } },
 		orderBy: { scheduledAt: 'asc' },
-		include: { createdBy: { select: { id: true, nickname: true, email: true } } }
+		include: { createdBy: { select: { id: true, nickname: true } } }
 	});
 	return json(rooms);
 };
 
 // Schedule a new war room. Owner/admin only.
 export const POST: RequestHandler = async ({ params, request, locals }) => {
-	const uid = locals.user!.id;
-	const tribeId = parseInt(params.id);
+	const uid = requireUser(locals).id;
+	const tribeId = intParam(params.id);
 
 	const me = await db.tribeMembership.findFirst({ where: { tribeId, userId: uid } });
 	if (!me || !['owner','admin'].includes(me.role)) return json({ error: 'Owner/admin only' }, { status: 403 });

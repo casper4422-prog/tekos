@@ -7,6 +7,11 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 	const code = url.searchParams.get('code');
 	if (!code) redirect(302, '/login?error=no_code');
 
+	const state = url.searchParams.get('state');
+	const storedState = cookies.get('discord_oauth_state');
+	cookies.delete('discord_oauth_state', { path: '/' });
+	if (!state || !storedState || state !== storedState) redirect(302, '/login?error=invalid_state');
+
 	const clientId = process.env.DISCORD_CLIENT_ID!;
 	const clientSecret = process.env.DISCORD_CLIENT_SECRET!;
 	const redirectUri = process.env.DISCORD_REDIRECT_URI ?? 'http://localhost:5173/api/auth/discord/callback';
@@ -30,9 +35,12 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 	const discordEmail = profile.email ?? `discord_${profile.id}@tekos.local`;
 	const discordName = profile.global_name ?? profile.username;
 
-	// Find or create user
-	let user = await db.user.findFirst({ where: { OR: [{ discordId: profile.id }, { email: discordEmail }] } });
+	// Find or create user — match by discordId only, never by email
+	let user = await db.user.findFirst({ where: { discordId: profile.id } });
 	if (!user) {
+		// Guard: if this email already belongs to a password account, don't auto-link
+		const existingByEmail = await db.user.findFirst({ where: { email: discordEmail } });
+		if (existingByEmail?.passwordHash) redirect(302, '/login?error=email_in_use');
 		user = await db.user.create({ data: { email: discordEmail, discordId: profile.id, discordName, nickname: null } });
 	} else {
 		await db.user.update({ where: { id: user.id }, data: { discordId: profile.id, discordName, lastSeen: new Date() } });

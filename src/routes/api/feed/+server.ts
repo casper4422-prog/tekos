@@ -1,9 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
+import { requireUser } from '$lib/auth';
 
 export const GET: RequestHandler = async ({ locals }) => {
-	const uid = locals.user!.id;
+	const uid = requireUser(locals).id;
 
 	// Get friend IDs
 	const friendships = await db.friendship.findMany({
@@ -16,14 +17,14 @@ export const GET: RequestHandler = async ({ locals }) => {
 		where: { userId: { in: networkIds } },
 		orderBy: { createdAt: 'desc' },
 		take: 60,
-		include: { user: { select: { id:true, nickname:true, email:true } } }
+		include: { user: { select: { id:true, nickname:true } } }
 	});
 
 	return json(events);
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const uid = locals.user!.id;
+	const uid = requireUser(locals).id;
 	const { type, data } = await request.json();
 	const event = await db.activityEvent.create({ data: { userId:uid, type, data: data ?? {} } });
 	return json(event, { status: 201 });

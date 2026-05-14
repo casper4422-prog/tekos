@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const [user, creatureRows, friendCount, membership, tradeRatings] = await Promise.all([
         db.user.findUnique({
             where: { id: targetId },
-            select: { id:true, nickname:true, email:true, discordName:true, bio:true, lookingFor:true, pinnedCreatures:true, createdAt:true, lastSeen:true }
+            select: { id:true, nickname:true, discordName:true, bio:true, lookingFor:true, pinnedCreatures:true, createdAt:true, lastSeen:true }
         }),
         db.creature.findMany({
             where: { userId: targetId },

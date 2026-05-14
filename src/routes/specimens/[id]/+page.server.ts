@@ -72,7 +72,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     const row = await db.creature.findUnique({
         where: { id },
-        include: { user: { select: { id: true, nickname: true, email: true, pinnedCreatures: true } } }
+        include: { user: { select: { id: true, nickname: true, discordName: true, pinnedCreatures: true } } }
     });
     if (!row) throw error(404, 'Specimen not found');
 
@@ -216,7 +216,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     return {
         creature,
         rawData: d, // full original data blob — used when PUT-updating to preserve unknown fields
-        owner: { id: row.user.id, nickname: row.user.nickname, email: row.user.email },
+        owner: { id: row.user.id, nickname: row.user.nickname, discordName: row.user.discordName },
         isOwner: locals.user?.id === row.userId,
         parents,
         offspring,

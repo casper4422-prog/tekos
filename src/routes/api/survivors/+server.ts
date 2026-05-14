@@ -17,8 +17,8 @@ export const GET: RequestHandler = async ({ url }) => {
 	const where: Record<string, unknown> = {};
 	if (q) {
 		where.OR = [
-			{ nickname: { contains: q, mode: 'insensitive' } },
-			{ email:    { contains: q, mode: 'insensitive' } }
+			{ nickname:    { contains: q, mode: 'insensitive' } },
+			{ discordName: { contains: q, mode: 'insensitive' } }
 		];
 	}
 	if (online) where.lastSeen = { gte: onlineSince };
@@ -39,7 +39,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			select: {
 				id: true,
 				nickname: true,
-				email: true,
+				discordName: true,
 				bio: true,
 				lastSeen: true,
 				_count: { select: { creatures: true } },
@@ -58,8 +58,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	return json({
 		users: users.map(u => ({
 			id: u.id,
-			nickname: u.nickname,
-			email: u.email,
+			nickname: u.nickname ?? u.discordName ?? 'Unknown survivor',
 			bio: u.bio,
 			online: u.lastSeen ? (now - new Date(u.lastSeen).getTime()) < ONLINE_MS : false,
 			lastSeen: u.lastSeen,

@@ -41,19 +41,19 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 			where: { userId: { in: networkIds } },
 			orderBy: { createdAt: 'desc' },
 			take: 60,
-			include: { user: { select: { id: true, nickname: true, email: true } } }
+			include: { user: { select: { id: true, nickname: true, discordName: true } } }
 		}),
 		db.bossRecord.findMany({
 			where: { userId: { in: networkIds } },
 			orderBy: { createdAt: 'desc' },
 			take: 20,
-			include: { user: { select: { id: true, nickname: true, email: true } } }
+			include: { user: { select: { id: true, nickname: true, discordName: true } } }
 		}),
 		db.trade.findMany({
 			where: { userId: { in: networkIds }, status: 'open' },
 			orderBy: { createdAt: 'desc' },
 			take: 15,
-			include: { user: { select: { id: true, nickname: true, email: true } } }
+			include: { user: { select: { id: true, nickname: true, discordName: true } } }
 		}),
 		db.activityEvent.count({ where: { createdAt: { gte: startOfToday } } }),
 		db.user.count({ where: { lastSeen: { gte: startOfToday } } })
