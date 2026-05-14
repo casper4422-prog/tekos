@@ -20,11 +20,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 	response.headers.set('Content-Security-Policy',
 		"default-src 'self'; " +
-		"img-src 'self' data: https:; " +
+		"img-src 'self' data: blob: https:; " +
 		"font-src 'self' https://fonts.gstatic.com; " +
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-		"script-src 'self' 'unsafe-inline'; " +
-		"connect-src 'self' https://discord.com;"
+		// 'wasm-unsafe-eval' lets the Tek-Binoculars OCR (Tesseract.js) run its WASM core.
+		// All Tesseract assets are served from /static/tesseract — no third-party CDN allowed.
+		"script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; " +
+		"worker-src 'self' blob:; " +
+		"connect-src 'self' blob: https://discord.com;"
 	);
 	return response;
 };

@@ -129,7 +129,13 @@
 
             shotPhase = 'recognizing';
             const Tesseract = await import('tesseract.js');
+            // All Tesseract assets are served from /static/tesseract so the strict CSP
+            // doesn't need to allow third-party CDNs.
             const worker = await Tesseract.createWorker('eng', 1, {
+                workerPath: '/tesseract/worker.min.js',
+                corePath:   '/tesseract',
+                langPath:   '/tesseract',
+                workerBlobURL: false,
                 logger: (m: { status: string; progress: number }) => {
                     if (m.status === 'recognizing text') shotProgress = Math.round(m.progress * 100);
                 }
