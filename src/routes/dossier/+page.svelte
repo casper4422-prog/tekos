@@ -303,14 +303,21 @@
     </section>
 
     <!-- ═══════════ ACTIVE BREEDING PROJECTS ═══════════ -->
-    {#if pinned.length}
-        <section class="section">
-            <div class="section-header">
-                <span class="pip"></span>
-                Active Breeding Projects
-                <span class="rule"></span>
-                <button type="button" class="action" onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Project <span class="arrow">▸</span></button>
+    <section class="section">
+        <div class="section-header">
+            <span class="pip"></span>
+            Active Breeding Projects
+            <span class="rule"></span>
+            <button type="button" class="action" onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Project <span class="arrow">▸</span></button>
+        </div>
+        {#if pinned.length === 0}
+            <div class="pinned-empty">
+                <div class="pinned-empty-icon">⬡</div>
+                <div class="pinned-empty-title">No pinned projects yet</div>
+                <div class="pinned-empty-flavor">"Pin a specimen here to track your active breeding focus — mutation counter, target stat, and quick access from your dossier."</div>
+                <button type="button" class="pinned-empty-cta" onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Your First Project</button>
             </div>
+        {:else}
             <div class="pinned-row">
                 {#each pinned as c}
                     {@const cat = categoryForSpecies(c.species)}
@@ -349,8 +356,8 @@
                     </div>
                 {/each}
             </div>
-        </section>
-    {/if}
+        {/if}
+    </section>
 
     <!-- ═══════════ STATS DASHBOARD ═══════════ -->
     <section class="section">
@@ -892,6 +899,64 @@
 /* ═════════════════════════════════════════════════════════════════════════
    PINNED BLOODLINES
    ═════════════════════════════════════════════════════════════════════════ */
+.pinned-empty {
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.98) 100%);
+    backdrop-filter: blur(14px);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 36px 22px 30px;
+    text-align: center;
+    position: relative;
+    filter: drop-shadow(0 0 1px rgba(0,180,255,0.25)) drop-shadow(0 8px 22px rgba(0,0,0,0.42));
+}
+.pinned-empty::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 6px var(--tek-blue-glow);
+}
+.pinned-empty-icon {
+    font-size: 2.4rem;
+    color: var(--tek-blue);
+    opacity: 0.4;
+    margin-bottom: 6px;
+    filter: drop-shadow(0 0 12px var(--tek-blue-glow));
+}
+.pinned-empty-title {
+    font-family: var(--tek-display);
+    font-size: 1rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+    margin-bottom: 6px;
+}
+.pinned-empty-flavor {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 0.92rem;
+    color: var(--tek-text-dim);
+    max-width: 440px;
+    margin: 0 auto 18px;
+    line-height: 1.5;
+}
+.pinned-empty-cta {
+    background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
+    color: #001a2e;
+    border: none;
+    font-family: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 11px 22px;
+    cursor: pointer;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    filter: drop-shadow(0 0 10px rgba(0,180,255,0.45));
+    transition: filter 0.2s, transform 0.2s;
+}
+.pinned-empty-cta:hover { filter: drop-shadow(0 0 18px rgba(0,180,255,0.85)); transform: translateY(-1px); }
+
 .pinned-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
