@@ -3,7 +3,7 @@ import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/db';
 
 // These routes are accessible without a full account (guest/offline mode)
-const GUEST_PATHS = ['/dex', '/login', '/api/auth', '/specimens', '/dossier'];
+const GUEST_PATHS = ['/dex', '/login', '/api/auth', '/dossier'];
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const isLanding = url.pathname === '/';

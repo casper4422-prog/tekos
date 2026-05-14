@@ -17,6 +17,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	const { nickname, bio, lookingFor, bannerImage, avatarImage, currentPassword, newPassword } = await request.json();
 
 	if (newPassword) {
+		if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 200) return json({ error: 'Password must be 8–200 characters' }, { status: 400 });
 		const user = await db.user.findUnique({ where: { id: locals.user.id } });
 		if (!user?.passwordHash) return json({ error: 'No password set' }, { status: 400 });
 		const ok = await bcrypt.compare(currentPassword ?? '', user.passwordHash);
@@ -39,8 +40,18 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	return json(updated);
 };
 
-export const DELETE: RequestHandler = async ({ locals }) => {
+export const DELETE: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
+	const { password } = await request.json().catch(() => ({}));
+	if (!password) return json({ error: 'Password required to delete account' }, { status: 400 });
+	const user = await db.user.findUnique({ where: { id: locals.user.id } });
+	// Discord-only users (no password) must confirm by sending their nickname as confirmation
+	if (!user?.passwordHash) {
+		if (password !== user?.nickname) return json({ error: 'Enter your survivor name to confirm deletion' }, { status: 403 });
+	} else {
+		const ok = await bcrypt.compare(password, user.passwordHash);
+		if (!ok) return json({ error: 'Incorrect password' }, { status: 403 });
+	}
 	await db.user.delete({ where: { id: locals.user.id } });
 	return json({ ok: true });
 };

@@ -12,6 +12,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	if (!trade || trade.status !== 'open') return json({ error: 'Trade not available' }, { status: 400 });
 	if (trade.userId === uid) return json({ error: 'Cannot offer on your own trade' }, { status: 400 });
 	const { offeredCreatureId, offeredCreatureData, offeredPrice, message } = await request.json();
+	if (offeredCreatureId) {
+		const owned = await db.creature.findFirst({ where: { id: offeredCreatureId, userId: uid } });
+		if (!owned) return json({ error: 'You do not own that creature' }, { status: 403 });
+	}
 	const offer = await db.offer.create({ data: { tradeId, fromUserId: uid, toUserId: trade.userId, offeredCreatureId: offeredCreatureId ?? null, offeredCreatureData: offeredCreatureData ?? null, offeredPrice: offeredPrice ?? null, message: message ?? null } });
 	const me = await db.user.findUnique({ where: { id: uid }, select: { nickname:true, discordName:true } });
 	const cd = (offeredCreatureData ?? {}) as Record<string,unknown>;
