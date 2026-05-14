@@ -76,6 +76,20 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			const allowed = ['primary', 'accent', 'bg'];
 			if (!allowed.every(k => typeof t[k] === 'string' && HEX.test(t[k] as string))) continue;
 		}
+		if (key === 'cluster') {
+			// Preserve the stored encrypted RCON password if the incoming payload omits it.
+			// The UI deliberately sends no password field when the user hasn't re-typed it.
+			const existingCluster = (existing.cluster ?? {}) as Record<string, unknown>;
+			const existingRcon = (existingCluster.rcon ?? {}) as Record<string, unknown>;
+			const incomingCluster = (value ?? {}) as Record<string, unknown>;
+			const incomingRcon = (incomingCluster.rcon ?? {}) as Record<string, unknown>;
+			if (!incomingRcon.password && existingRcon.password) {
+				next[key] = { ...incomingCluster, rcon: { ...incomingRcon, password: existingRcon.password } };
+			} else {
+				next[key] = value;
+			}
+			continue;
+		}
 		next[key] = value;
 	}
 
