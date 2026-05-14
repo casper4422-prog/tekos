@@ -57,7 +57,7 @@
     let shotRunning  = $state(false);
     let shotProgress = $state(0);
     let shotRawText  = $state('');
-    let shotParsed   = $state<Partial<Record<StatKey, number>> & { name?: string; level?: number }>({});
+    let shotParsed   = $state<Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number }>({});
     let shotError    = $state('');
 
     function pickScreenshot(e: Event) {
@@ -93,52 +93,100 @@
     }
 
     function parseTekBinocularsText(raw: string) {
-        // Tek Binoculars in ASA shows a creature panel like:
-        //   "Rex"  Lv 224 (Wild 150)
-        //   Health 18250.0 / 18250.0
-        //   Stamina 1200
-        //   Oxygen 150
-        //   Food 4500
-        //   Weight 832.0
-        //   Melee Damage 254.8%
-        //   Movement Speed 100%
+        // ASA Tek Binoculars stat panel — row order (icons, no text labels):
+        //   Header: "{Name|Species} - Lvl N"   then "Tamed" / "Wild"
+        //   Health    | total / max  (base | mut | dom)
+        //   Stamina   | total / max  (base | mut | dom)
+        //   Torpor    | total / max               (no triple)
+        //   Food      | total / max  (base | mut | dom)
+        //   Weight    | total / max  (base | mut | dom)
+        //   Oxygen    | N/A for aquatic            (no triple, "N/A")
+        //   Speed     | 120.0%       (X | X | X)   (placeholders)
+        //   Melee     | 469.2%       (base | mut | dom)
+        //   Imprint   | percentage                 (no triple)
         //
-        // OCR output is messy — Tesseract drops punctuation, misreads %, breaks lines.
-        // Strategy: lowercase, scan each line for a stat keyword + first number after it.
+        // We track HP, STA, FOOD, WGT, OXY, MEL (and CRA where present). Speed/Torpor/Imprint
+        // ignored. Tesseract can't see the icons, so we map by positional ordering of the
+        // (base | mut | dom) triples in document order.
         const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        const out: Partial<Record<StatKey, number>> & { name?: string; level?: number } = {};
+        const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
 
-        const patterns: Array<[RegExp, StatKey]> = [
-            [/health|^hp\b|\bhp[^a-z]/i, 'HP'],
-            [/stamina|^sta\b/i,          'STA'],
-            [/oxygen|^oxy\b/i,           'OXY'],
-            [/food|^fd\b/i,              'FOOD'],
-            [/weight|^wgt\b|^wt\b/i,     'WGT'],
-            [/melee|^mel\b|damage/i,     'MEL'],
-            [/crafting|craft/i,          'CRA']
-        ];
+        // ── Header parsing: first 3 lines ──
+        for (const line of lines.slice(0, 3)) {
+            // Level: "Lvl 239", "Lv 239", "Level 239"
+            const lvMatch = line.match(/\b(?:lv|lvl|level)\s*[:\-]?\s*(\d{1,4})\b/i);
+            if (lvMatch && !out.level) out.level = Math.min(9999, parseInt(lvMatch[1]));
 
-        for (const line of lines) {
-            // Level: "Lv 224" / "Level 224"
-            const lvMatch = line.match(/\b(?:lv|lvl|level)\s*[:\-]?\s*(\d{1,3})\b/i);
-            if (lvMatch && !out.level) out.level = Math.min(999, parseInt(lvMatch[1]));
-
-            // Pull all numbers from the line
-            const nums = Array.from(line.matchAll(/-?\d+(?:[\.,]\d+)?/g)).map(m => parseFloat(m[0].replace(',', '.')));
-            if (nums.length === 0) continue;
-
-            for (const [pat, key] of patterns) {
-                if (pat.test(line) && out[key] === undefined) {
-                    out[key] = Math.round(nums[0]);
-                    break;
+            // Species / specimen name: capitalized word(s) before "Lv" or hyphen
+            if (!out.species) {
+                const headerMatch = line.match(/^([A-Z][A-Za-z][A-Za-z\s'-]+?)(?:\s*[-–—]|\s+Lv|\s+Lvl|\s+Level)/i);
+                if (headerMatch) {
+                    const cand = headerMatch[1].trim();
+                    if (cand.length > 2 && !/^(?:Tamed|Wild|Sleeping|Awake|Sleeping|Aggressive|Passive)$/i.test(cand)) {
+                        out.species = cand;
+                    }
                 }
             }
         }
+
+        // ── Extract every parenthesized group in document order, capturing the FIRST number
+        // (base value) or marking as null if the group contains X placeholders. ──
+        const triplePat = /\(([^)]+)\)/g;
+        const triples: Array<{ base: number | null }> = [];
+        for (const m of raw.matchAll(triplePat)) {
+            const inner = m[1];
+            if (/[xX]/.test(inner) || !/\d/.test(inner)) {
+                triples.push({ base: null });
+            } else {
+                const numMatch = inner.match(/-?\d+/);
+                triples.push({ base: numMatch ? parseInt(numMatch[0]) : null });
+            }
+        }
+
+        const bases = triples.map(t => t.base);
+        const setStat = (k: StatKey, v: number | null) => { if (typeof v === 'number' && v >= 0) out[k] = v; };
+
+        // Positional mapping based on triple count.
+        //   8 triples: HP, STA, FOOD, WGT, OXY, Speed-skip, MEL, CRA
+        //   7 triples: HP, STA, FOOD, WGT, OXY, Speed-skip, MEL
+        //   6 triples: ambiguous — either OXY present + no Speed, or Speed present + OXY=N/A
+        //              Disambiguate via "N/A" substring check in OCR.
+        //   5 triples: HP, STA, FOOD, WGT, MEL (no OXY, no Speed)
+        const n = bases.length;
+        if (n >= 4) {
+            setStat('HP',   bases[0]);
+            setStat('STA',  bases[1]);
+            setStat('FOOD', bases[2]);
+            setStat('WGT',  bases[3]);
+        }
+        if (n === 5) {
+            setStat('MEL', bases[4]);
+        } else if (n === 6) {
+            const oxyIsNA = /\bn\s*\/\s*a\b/i.test(raw);
+            if (oxyIsNA) {
+                // bases[4] is Speed (skip), bases[5] is MEL
+                setStat('MEL', bases[5]);
+            } else {
+                setStat('OXY', bases[4]);
+                setStat('MEL', bases[5]);
+            }
+        } else if (n === 7) {
+            setStat('OXY', bases[4]);
+            // bases[5] = Speed → skip
+            setStat('MEL', bases[6]);
+        } else if (n >= 8) {
+            setStat('OXY', bases[4]);
+            // bases[5] = Speed → skip
+            setStat('MEL', bases[6]);
+            setStat('CRA', bases[7]);
+        }
+
         shotParsed = out;
     }
 
     function applyOcrToForm() {
-        if (shotParsed.level)  fLevel = shotParsed.level;
+        if (shotParsed.level)   fLevel = shotParsed.level;
+        if (shotParsed.species && !fSpecies) fSpecies = shotParsed.species;
         for (const k of STATS) {
             const v = shotParsed[k];
             if (typeof v === 'number') fStats[k] = v;
@@ -372,6 +420,7 @@
                             {/if}
                             {#if shotParsed && Object.keys(shotParsed).length > 0}
                                 <div class="stats-grid" style="grid-template-columns: 1fr 1fr; gap:6px; padding:0; background:transparent">
+                                    {#if shotParsed.species}<div class="stats-stat-label">Species</div><div class="stats-total"><span class="t" style="font-size:0.8rem">{shotParsed.species}</span></div>{/if}
                                     {#if shotParsed.level}<div class="stats-stat-label">Level</div><div class="stats-total"><span class="t">{shotParsed.level}</span></div>{/if}
                                     {#each STATS as s}
                                         {#if shotParsed[s] !== undefined}
