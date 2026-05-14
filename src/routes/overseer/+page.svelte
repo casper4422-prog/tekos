@@ -203,7 +203,7 @@
 		return Object.entries(r);
 	}
 
-	function display(u: Record<string,unknown>) { return (u.nickname ?? u.email ?? 'Unknown') as string; }
+	function display(u: Record<string,unknown>) { return (u.nickname ?? u.discordName ?? 'Unknown') as string; }
 
 	async function loadSession(id: number) {
 		const res = await fetch(`/api/arena/sessions/${id}`);
@@ -906,7 +906,7 @@
 					{#each friends as f}
 						{@const fd = f as Record<string,unknown>}
 						<div class="readiness-row" style="grid-template-columns:1fr auto;gap:14px;padding:9px 12px;background:rgba(0,0,0,0.30);">
-							<span class="name">{String(fd.nickname ?? fd.email)}</span>
+							<span class="name">{String(fd.nickname ?? fd.discordName ?? 'Survivor')}</span>
 							<button class="diff-btn active" onclick={() => inviteFriend(fd.friendId as number)}>Invite</button>
 						</div>
 					{/each}

@@ -5,18 +5,18 @@
     let { data }: { data: PageData } = $props();
 
     let searchQ = $state('');
-    let searchResults = $state<Array<{ id:number; nickname:string|null; email:string; discordName:string|null; friendStatus:string|null; friendId:number|null }>>([]);
+    let searchResults = $state<Array<{ id:number; nickname:string|null; discordName:string|null; friendStatus:string|null; friendId:number|null }>>([]);
     let searching = $state(false);
     let actionLoading = $state<number | null>(null);
     let expandedId = $state<number | null>(null);
     let inviteOpen = $state<number | null>(null);
     let inviteStatus = $state<{ id: number; msg: string } | null>(null);
 
-    function displayName(f: { nickname: string | null; email: string }) {
-        return f.nickname ?? f.email.split('@')[0];
+    function displayName(f: { nickname: string | null; discordName?: string | null }) {
+        return f.nickname ?? f.discordName ?? 'Unknown survivor';
     }
 
-    function initial(f: { nickname: string | null; email: string }) {
+    function initial(f: { nickname: string | null; discordName?: string | null }) {
         return displayName(f).charAt(0).toUpperCase();
     }
 
@@ -192,7 +192,7 @@
                             </div>
                             <div class="suggest-id">
                                 <div class="suggest-name">{displayName(u)}</div>
-                                <div class="suggest-reason">{u.discordName ? `⌬ ${u.discordName}` : u.email}</div>
+                                <div class="suggest-reason">{u.discordName ? `⌬ ${u.discordName}` : 'Survivor'}</div>
                             </div>
                             {#if u.friendStatus === 'accepted'}
                                 <a class="suggest-add-btn" href="/survivors/{u.id}" style="background:rgba(16,185,129,0.10);border-color:rgba(16,185,129,0.35);color:#86efac">✓ Linked</a>
@@ -258,7 +258,7 @@
                 </div>
                 <div class="pending-info">
                     <div class="pending-name">{displayName(r)}</div>
-                    <div class="pending-meta">{#if r.discordName}⌬ {r.discordName} · {/if}{r.email}</div>
+                    <div class="pending-meta">{#if r.discordName}⌬ {r.discordName}{:else}Survivor{/if}</div>
                 </div>
                 <div class="pending-actions">
                     <button class="pending-btn decline" onclick={() => reject(r.id)} disabled={actionLoading === r.id}>Decline</button>
@@ -339,7 +339,7 @@
                     </div>
                     <div class="friend-id">
                         <div class="friend-callsign">{displayName(f)}</div>
-                        <div class="friend-meta">{#if f.discordName}<span class="tribe">⌬ {f.discordName}</span><span class="sep">·</span>{/if}{f.email}</div>
+                        <div class="friend-meta">{#if f.discordName}<span class="tribe">⌬ {f.discordName}</span>{:else}Survivor{/if}</div>
                     </div>
                     <span class="friend-status" class:online={f.online}>{f.online ? '● Online' : 'Offline'}</span>
                     <span class="expand-chevron">▸</span>
@@ -407,7 +407,7 @@
                 </div>
                 <div class="pending-info">
                     <div class="pending-name">{displayName(r)}</div>
-                    <div class="pending-meta">{r.email} · Awaiting response</div>
+                    <div class="pending-meta">{#if r.discordName}⌬ {r.discordName} · {/if}Awaiting response</div>
                 </div>
                 <div class="pending-actions">
                     <button class="pending-btn decline" onclick={() => reject(r.id)} disabled={actionLoading === r.id}>Cancel</button>

@@ -7,10 +7,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const session = await db.arenaSession.findUnique({
 		where: { id },
 		include: {
-			creator: { select:{ id:true, nickname:true, email:true } },
-			members: { include:{ user:{ select:{ id:true, nickname:true, email:true } } } },
-			creatures: { include:{ user:{ select:{ nickname:true, email:true } } } },
-			chats: { include:{ user:{ select:{ nickname:true, email:true } } }, orderBy:{ createdAt:'asc' }, take:100 }
+			creator: { select:{ id:true, nickname:true, discordName:true } },
+			members: { include:{ user:{ select:{ id:true, nickname:true, discordName:true } } } },
+			creatures: { include:{ user:{ select:{ nickname:true, discordName:true } } } },
+			chats: { include:{ user:{ select:{ nickname:true, discordName:true } } }, orderBy:{ createdAt:'asc' }, take:100 }
 		}
 	});
 	if (!session) error(404, 'War Room not found');

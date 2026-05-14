@@ -7,8 +7,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		where: { OR: [{ fromUserId: uid }, { toUserId: uid }] },
 		orderBy: { createdAt: 'desc' },
 		include: {
-			fromUser: { select: { id:true, nickname:true, email:true } },
-			toUser:   { select: { id:true, nickname:true, email:true } },
+			fromUser: { select: { id:true, nickname:true, discordName:true } },
+			toUser:   { select: { id:true, nickname:true, discordName:true } },
 		}
 	});
 
@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		seen.add(otherId);
 		const other = m.fromUserId === uid ? m.toUser : m.fromUser;
 		const unread = msgs.filter(x => x.fromUserId === otherId && x.toUserId === uid && !x.read).length;
-		convos.push({ userId: otherId, nickname: other.nickname, email: other.email, lastMessage: m.message, lastAt: m.createdAt, unread });
+		convos.push({ userId: otherId, nickname: other.nickname, discordName: other.discordName, lastMessage: m.message, lastAt: m.createdAt, unread });
 	}
 	return { convos };
 };

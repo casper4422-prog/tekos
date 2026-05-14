@@ -10,17 +10,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 		db.friendship.findMany({
 			where: { OR: [{ userId: uid, status: 'accepted' }, { friendUserId: uid, status: 'accepted' }] },
 			include: {
-				user:   { select: { id:true, email:true, nickname:true, discordName:true, lastSeen:true } },
-				friend: { select: { id:true, email:true, nickname:true, discordName:true, lastSeen:true } },
+				user:   { select: { id:true, nickname:true, discordName:true, lastSeen:true } },
+				friend: { select: { id:true, nickname:true, discordName:true, lastSeen:true } },
 			}
 		}),
 		db.friendship.findMany({
 			where: { friendUserId: uid, status: 'pending' },
-			include: { user: { select: { id:true, email:true, nickname:true, discordName:true } } }
+			include: { user: { select: { id:true, nickname:true, discordName:true } } }
 		}),
 		db.friendship.findMany({
 			where: { userId: uid, status: 'pending' },
-			include: { friend: { select: { id:true, email:true, nickname:true } } }
+			include: { friend: { select: { id:true, nickname:true, discordName:true } } }
 		}),
 		db.tribeMembership.findFirst({
 			where: { userId: uid, role: { in: ['owner','officer','member'] } },
@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const online = other.lastSeen ? (now - new Date(other.lastSeen).getTime()) < ONLINE_MS : false;
 		return {
 			id: r.id, friendId: other.id, nickname: other.nickname,
-			email: other.email, discordName: other.discordName, online,
+			discordName: other.discordName, online,
 			specimenCount: countByUser.get(other.id) ?? 0
 		};
 	});
@@ -54,19 +54,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 	for (const r of sent) excludedIds.add(r.friendUserId);
 	const candidatesRaw = await db.user.findMany({
 		where: { id: { notIn: Array.from(excludedIds) } },
-		select: { id:true, email:true, nickname:true, discordName:true, lastSeen:true },
+		select: { id:true, nickname:true, discordName:true, lastSeen:true },
 		orderBy: { lastSeen: 'desc' },
 		take: 6
 	});
 	const suggested = candidatesRaw.map(u => ({
-		id: u.id, nickname: u.nickname, email: u.email, discordName: u.discordName,
+		id: u.id, nickname: u.nickname, discordName: u.discordName,
 		online: u.lastSeen ? (now - new Date(u.lastSeen).getTime()) < ONLINE_MS : false
 	}));
 
 	return {
 		friends,
-		incoming: incoming.map(r => ({ id: r.id, fromId: r.userId, nickname: r.user.nickname, email: r.user.email, discordName: r.user.discordName })),
-		sent: sent.map(r => ({ id: r.id, toId: r.friendUserId, nickname: r.friend.nickname, email: r.friend.email })),
+		incoming: incoming.map(r => ({ id: r.id, fromId: r.userId, nickname: r.user.nickname, discordName: r.user.discordName })),
+		sent: sent.map(r => ({ id: r.id, toId: r.friendUserId, nickname: r.friend.nickname, discordName: r.friend.discordName })),
 		suggested,
 		myTribe: myMembership?.tribe ?? null
 	};

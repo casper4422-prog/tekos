@@ -6,7 +6,7 @@
 
     let { data }: { data: PageData } = $props();
 
-    const displayName = $derived(data.profile.nickname ?? data.profile.email.split('@')[0]);
+    const displayName = $derived(data.profile.nickname ?? data.profile.discordName ?? 'Unknown survivor');
     const memberSince = $derived(
         new Date(data.profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
     );
