@@ -69,6 +69,13 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
 	for (const [key, value] of Object.entries(body)) {
 		if (!ALLOWED_KEYS.has(key)) continue;
+		if (key === 'theme') {
+			if (typeof value !== 'object' || value === null || Array.isArray(value)) continue;
+			const t = value as Record<string, unknown>;
+			const HEX = /^#[0-9a-fA-F]{6}$/;
+			const allowed = ['primary', 'accent', 'bg'];
+			if (!allowed.every(k => typeof t[k] === 'string' && HEX.test(t[k] as string))) continue;
+		}
 		next[key] = value;
 	}
 

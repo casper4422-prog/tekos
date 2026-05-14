@@ -15,7 +15,7 @@ export const GET: RequestHandler = async () => {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const uid = requireUser(locals).id;
 	const { bossId, bossName, difficulty } = await request.json();
-	const joinCode = randomBytes(3).toString('hex').toUpperCase();
+	const joinCode = randomBytes(4).toString('hex').toUpperCase();
 	const session = await db.arenaSession.create({ data: { bossId, bossName, creatorUserId: uid, joinCode, difficulty: difficulty ?? 'alpha' } });
 	await db.arenaSessionMember.create({ data: { sessionId: session.id, userId: uid } });
 	return json(session, { status: 201 });

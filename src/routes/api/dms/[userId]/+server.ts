@@ -23,6 +23,7 @@ export const POST: RequestHandler = async ({ params, request, locals, getClientA
 	const otherId = intParam(params.userId, 'userId');
 	const { message } = await request.json();
 	if (!message?.trim()) return json({ error: 'Empty message' }, { status: 400 });
+	if (message.trim().length > 2000) return json({ error: 'Message too long (max 2000 characters)' }, { status: 400 });
 	const msg = await db.directMessage.create({ data: { fromUserId: uid, toUserId: otherId, message: message.trim() } });
 	return json(msg, { status: 201 });
 };

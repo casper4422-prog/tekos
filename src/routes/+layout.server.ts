@@ -2,6 +2,8 @@ import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/db';
 
+const lastSeenCache = new Map<number, number>();
+
 // These routes are accessible without a full account (guest/offline mode)
 const GUEST_PATHS = ['/dex', '/login', '/api/auth', '/dossier'];
 
@@ -17,7 +19,12 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		: 0;
 
 	if (locals.user) {
-		await db.user.update({ where: { id: locals.user.id }, data: { lastSeen: new Date() } }).catch(() => {});
+		const now = Date.now();
+		const last = lastSeenCache.get(locals.user.id) ?? 0;
+		if (now - last > 60_000) {
+			lastSeenCache.set(locals.user.id, now);
+			db.user.update({ where: { id: locals.user.id }, data: { lastSeen: new Date() } }).catch(() => {});
+		}
 	}
 
 	return { user: locals.user, unreadCount };
