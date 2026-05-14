@@ -23,7 +23,8 @@ export const load: PageServerLoad = async ({ locals }) => {
             name:    String(d.name ?? ''),
             species: String(d.species ?? ''),
             gender:  String(d.gender ?? ''),
-            isFounder: Boolean(d.isFounder)
+            isFounder: Boolean(d.isFounder),
+            baseStats: (d.baseStats as Record<string, number>) ?? {}
         };
     });
     const founders = vault.filter(v => v.isFounder);

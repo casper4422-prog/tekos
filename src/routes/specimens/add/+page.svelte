@@ -28,6 +28,29 @@
     // ── Stat genealogy: per-stat founder attribution ────────────────────────
     let founderSources = $state<Record<StatKey, number | null>>({ HP:null, STA:null, OXY:null, FOOD:null, WGT:null, MEL:null, CRA:null });
 
+    // Stat key → the long-form key stored on a founder's baseStats JSON (matches POST shape)
+    const STAT_LONG: Record<StatKey, string> = {
+        HP: 'Health', STA: 'Stamina', OXY: 'Oxygen',
+        FOOD: 'Food', WGT: 'Weight', MEL: 'Melee', CRA: 'Crafting'
+    };
+
+    function onFounderPick(s: StatKey, e: Event) {
+        const sel = e.target as HTMLSelectElement;
+        const raw = sel.value;
+        const id = raw === '' || raw === 'null' ? null : Number(raw);
+        founderSources[s] = id;
+        if (id === null) return;
+        const founder = (data?.founders ?? []).find(f => f.id === id);
+        if (!founder) return;
+        const long = STAT_LONG[s];
+        // Try long key (Health) then short (HP) then lowercase
+        const bs = founder.baseStats ?? {};
+        const v = (bs as Record<string, number>)[long]
+            ?? (bs as Record<string, number>)[s]
+            ?? (bs as Record<string, number>)[long.toLowerCase()];
+        if (typeof v === 'number') fStats[s] = v;
+    }
+
     // ── Screenshot OCR state ───────────────────────────────────────────────
     let shotFile     = $state<File | null>(null);
     let shotPreview  = $state<string | null>(null);
@@ -286,12 +309,10 @@
         <button class="mode-tab" class:active={mode === 'save'} onclick={() => mode = 'save'} data-mode="save">
             <svg class="mt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             Import from ARK Save
-            <span class="soon">SOON</span>
         </button>
         <button class="mode-tab" class:active={mode === 'screenshot'} onclick={() => mode = 'screenshot'} data-mode="screenshot">
             <svg class="mt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
             Import from Screenshot
-            <span class="soon">SOON</span>
         </button>
     </div>
 
@@ -460,19 +481,24 @@
                         <div class="optional-tag">Optional</div>
                     </div>
                     <div class="form-section-hint">
-                        For consolidation breeding — track which <em>founder wild-tame</em> contributed each base stat. This populates the Founders Index on the specimen's detail page.
+                        For consolidation breeding — track which high stat came from which tame. This populates from the tames marked as Founders on the specimen's detail page.
                     </div>
                     <div class="genealogy-grid">
                         {#each STATS as s}
                             <div class="gen-stat-label">{s}</div>
-                            <select class="gen-select" bind:value={founderSources[s]}>
-                                <option value={null}>— No founder —</option>
+                            <select class="gen-select" value={founderSources[s] ?? ''} onchange={(e) => onFounderPick(s, e)}>
+                                <option value="">— No founder —</option>
                                 {#each (data?.founders ?? []) as f (f.id)}
                                     <option value={f.id}>{f.name || '(unnamed)'} · {f.species}</option>
                                 {/each}
                             </select>
                         {/each}
                     </div>
+                    {#if (data?.founders ?? []).length === 0}
+                        <div class="form-section-hint" style="margin-top:8px">
+                            No founders yet. Mark a tame as a founder via the toggle below or from any specimen's detail page.
+                        </div>
+                    {/if}
                     <div class="founder-toggle-row">
                         <div class="toggle" class:on={founderOn} id="founderToggle" onclick={() => founderOn = !founderOn} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { founderOn = !founderOn; } }}></div>
                         <div class="founder-toggle-label">
