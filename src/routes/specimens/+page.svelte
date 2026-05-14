@@ -319,50 +319,53 @@
     <!-- ═══════════ LIST VIEW ═══════════ -->
     <div class="vault-list" class:hidden={view !== 'list'}>
         {#each filtered as e (e.ref.id)}
-            <a class="list-row {e.cat}" data-cat={e.cat} href="/specimens/{e.ref.id}">
-                <div class="list-row-main">
-                    <span class="tier">⬢ {e.tier}</span>
-                    <span class="cat-pill">{catTitle(e.cat)}</span>
-                    <div class="list-info">
-                        <div class="list-species">{e.ref.species}</div>
-                        <div class="list-nick">"{e.ref.name}" · <span class="gender {genderClass(e.ref.gender)}">{genderGlyph(e.ref.gender)}</span></div>
-                    </div>
-                    <div class="list-stat">
-                        <div class="list-stat-val">{e.muts}</div>
-                        <div class="list-stat-lbl">Muts</div>
-                    </div>
-                    <div class="list-level">
-                        <div class="list-level-val">{e.lvl}</div>
-                        <div class="list-level-lbl">Total Lvl</div>
-                    </div>
-                    <div class="list-actions">
-                        <button class="row-btn" title="Pin Project" onclick={(ev) => { ev.preventDefault(); ev.stopPropagation(); openPinModal(e.ref.id); }}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                        </button>
-                    </div>
-                </div>
-                <div class="list-row-stats">
-                    {#each STAT_KEYS as k}
-                        {@const base = getStat(e.ref.baseStats, k)}
-                        {@const mut  = getStat(e.ref.mutations, k)}
-                        <div class="stat-mini">
-                            <div class="stat-mini-lbl">{k}</div>
-                            <div class="stat-mini-val">{base}</div>
-                            <div class="stat-mini-mut" class:has={mut > 0}>{mut > 0 ? `+${mut}` : '—'}</div>
+            <div class="list-row-wrap">
+                <a class="list-row {e.cat}" data-cat={e.cat} href="/specimens/{e.ref.id}">
+                    <div class="list-row-main">
+                        <span class="tier">⬢ {e.tier}</span>
+                        <span class="cat-pill">{catTitle(e.cat)}</span>
+                        <div class="list-info">
+                            <div class="list-species">{e.ref.species}</div>
+                            <div class="list-nick">"{e.ref.name}" · <span class="gender {genderClass(e.ref.gender)}">{genderGlyph(e.ref.gender)}</span></div>
                         </div>
-                    {/each}
-                </div>
-            </a>
+                        <div class="list-stat">
+                            <div class="list-stat-val">{e.muts}</div>
+                            <div class="list-stat-lbl">Muts</div>
+                        </div>
+                        <div class="list-level">
+                            <div class="list-level-val">{e.lvl}</div>
+                            <div class="list-level-lbl">Total Lvl</div>
+                        </div>
+                        <div class="list-actions" aria-hidden="true">
+                            <span class="row-btn row-btn-placeholder">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="list-row-stats">
+                        {#each STAT_KEYS as k}
+                            {@const base = getStat(e.ref.baseStats, k)}
+                            {@const mut  = getStat(e.ref.mutations, k)}
+                            <div class="stat-mini">
+                                <div class="stat-mini-lbl">{k}</div>
+                                <div class="stat-mini-val">{base}</div>
+                                <div class="stat-mini-mut" class:has={mut > 0}>{mut > 0 ? `+${mut}` : '—'}</div>
+                            </div>
+                        {/each}
+                    </div>
+                </a>
+                <button class="list-pin-overlay" title="Pin as Project" onclick={() => openPinModal(e.ref.id)}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                </button>
+            </div>
         {/each}
     </div>
 
     <!-- ═══════════ GRID VIEW ═══════════ -->
     <div class="vault-grid" class:hidden={view !== 'grid'}>
         {#each filtered as e (e.ref.id)}
-            <a class="grid-card {e.cat}" data-cat={e.cat} href="/specimens/{e.ref.id}">
-                <button class="grid-pin-btn" title="Pin as Project" onclick={(ev) => { ev.preventDefault(); ev.stopPropagation(); openPinModal(e.ref.id); }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                </button>
+            <div class="grid-card-wrap">
+                <a class="grid-card {e.cat}" data-cat={e.cat} href="/specimens/{e.ref.id}">
                 <div class="grid-top">
                     <span class="grid-tier">⬢ {e.tier}</span>
                     <span class="grid-cat-mini">{catTitle(e.cat)}</span>
@@ -392,7 +395,11 @@
                         <div class="grid-muts">{e.muts} muts</div>
                     </div>
                 </div>
-            </a>
+                </a>
+                <button class="grid-pin-overlay" title="Pin as Project" onclick={() => openPinModal(e.ref.id)}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                </button>
+            </div>
         {/each}
 
         <!-- "+ Log specimen" placeholder card -->
@@ -924,30 +931,38 @@
 @media (max-width: 920px) { .vault-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .vault-grid { grid-template-columns: 1fr; } }
 
-.grid-pin-btn {
+/* Pin overlay buttons — siblings of the card anchor to keep <a> spec-compliant
+   (button inside <a> is invalid HTML and breaks event handling). */
+.list-row-wrap, .grid-card-wrap { position: relative; }
+
+.list-pin-overlay,
+.grid-pin-overlay {
     position: absolute;
-    top: 10px;
-    right: 10px;
     z-index: 5;
-    width: 24px;
-    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 180, 255, 0.08);
-    border: 1px solid rgba(0, 180, 255, 0.30);
+    background: rgba(0, 180, 255, 0.10);
+    border: 1px solid rgba(0, 180, 255, 0.32);
     color: var(--tek-blue);
     cursor: pointer;
     clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
     transition: all 0.18s;
-    opacity: 0.6;
+    opacity: 0.65;
 }
-.grid-card:hover .grid-pin-btn { opacity: 1; }
-.grid-pin-btn:hover {
-    background: rgba(0, 180, 255, 0.22);
+.list-pin-overlay { top: 50%; right: 14px; width: 26px; height: 26px; transform: translateY(-50%); }
+.grid-pin-overlay { top: 10px; right: 10px; width: 24px; height: 24px; }
+.list-row-wrap:hover .list-pin-overlay,
+.grid-card-wrap:hover .grid-pin-overlay { opacity: 1; }
+.list-pin-overlay:hover,
+.grid-pin-overlay:hover {
+    background: rgba(0, 180, 255, 0.25);
     filter: drop-shadow(0 0 6px var(--tek-blue-glow));
-    transform: translateY(-1px);
 }
+.grid-pin-overlay:hover { transform: translateY(-1px); }
+
+/* Placeholder column inside the list-row to reserve space for the overlay button */
+.row-btn-placeholder { opacity: 0; pointer-events: none; }
 
 .grid-card {
     --cat-rgb: 0,180,255;
