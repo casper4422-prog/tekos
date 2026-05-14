@@ -712,14 +712,24 @@
                                 <div class="form-section-hint">Click <strong>Run OCR</strong> to scan this image.</div>
                             {/if}
                             {#if shotParsed && Object.keys(shotParsed).length > 0}
-                                <div class="stats-grid" style="grid-template-columns: 1fr 1fr; gap:6px; padding:0; background:transparent">
-                                    {#if shotParsed.name}<div class="stats-stat-label">Name</div><div class="stats-total"><span class="t" style="font-size:0.8rem">{shotParsed.name}</span></div>{/if}
-                                    {#if shotParsed.species}<div class="stats-stat-label">Species</div><div class="stats-total"><span class="t" style="font-size:0.8rem">{shotParsed.species}</span></div>{/if}
-                                    {#if shotParsed.level}<div class="stats-stat-label">Level</div><div class="stats-total"><span class="t">{shotParsed.level}</span></div>{/if}
+                                <div class="form-section-hint" style="margin-bottom:8px">Review and correct any values OCR got wrong, then Apply.</div>
+                                <div class="ocr-edit-grid">
+                                    {#if shotParsed.name !== undefined}
+                                        <div class="stats-stat-label">Name</div>
+                                        <input class="ocr-edit-input" type="text" bind:value={shotParsed.name} />
+                                    {/if}
+                                    {#if shotParsed.species !== undefined}
+                                        <div class="stats-stat-label">Species</div>
+                                        <input class="ocr-edit-input" type="text" bind:value={shotParsed.species} />
+                                    {/if}
+                                    {#if shotParsed.level !== undefined}
+                                        <div class="stats-stat-label">Level</div>
+                                        <input class="ocr-edit-input" type="number" min="1" max="9999" bind:value={shotParsed.level} />
+                                    {/if}
                                     {#each STATS as s}
                                         {#if shotParsed[s] !== undefined}
                                             <div class="stats-stat-label">{s}</div>
-                                            <div class="stats-total"><span class="t">{shotParsed[s]}</span></div>
+                                            <input class="ocr-edit-input" type="number" min="0" max="999" bind:value={shotParsed[s]} />
                                         {/if}
                                     {/each}
                                 </div>
@@ -1237,6 +1247,32 @@
     grid-template-columns: 70px 1fr 1fr 60px;
     gap: 8px 14px;
     align-items: center;
+}
+.ocr-edit-grid {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 6px 12px;
+    align-items: center;
+}
+.ocr-edit-input {
+    background: rgba(0, 180, 255, 0.06);
+    border: 1px solid rgba(0, 180, 255, 0.22);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.9rem;
+    padding: 6px 10px;
+    outline: none;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: border-color 0.18s, background 0.18s;
+    width: 100%;
+}
+.ocr-edit-input:focus {
+    background: rgba(0, 180, 255, 0.12);
+    border-color: rgba(0, 180, 255, 0.55);
+}
+.ocr-edit-input[type=number] {
+    font-weight: 700;
+    color: var(--tek-blue);
 }
 .stats-head {
     font-family: var(--tek-mono);
