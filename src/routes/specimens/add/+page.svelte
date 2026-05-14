@@ -179,8 +179,19 @@
         //         IMP%/ TotalLvl
         //         ♀mut/ ♂mut
         //
-        // Auto-detect via the marker words then dispatch.
-        const isInventory = /\b(?:Tribe\s*:|Can\s*Mate|Level\s*:)/i.test(raw);
+        // Auto-detect — markers OR layout fingerprint.
+        // Markers (clean OCR): "Tribe:", "Can Mate", "Level:"
+        // Layout fingerprint (mangled OCR): the Inventory grid puts TWO triples on one
+        // visible line; the Binoculars view never does.
+        function hasMultiTriplePerLine(text: string): boolean {
+            for (const line of text.split(/\r?\n/)) {
+                const tripleCount = (line.match(/\d{1,3}\s*[\/|]\s*\d{1,3}\s*[\/|]\s*\d{1,3}/g) ?? []).length;
+                if (tripleCount >= 2) return true;
+            }
+            return false;
+        }
+        const isInventory = /\b(?:Tribe\s*:|Can\s*Mate|Level\s*:)/i.test(raw)
+                          || hasMultiTriplePerLine(raw);
         if (isInventory) {
             parseInventoryUI(raw);
             return;
@@ -336,10 +347,17 @@
                 .replace(/[gq]/g, '9');
         }
 
+        // Base wild levels in ASA can't realistically exceed ~99. If we extract a 3-digit
+        // base, the leading digit is almost always an OCR artifact (e.g. "s77" was "57"
+        // with an extra noise pixel) — cap by taking the first 2 digits.
+        function cap99(s: string): number {
+            return s.length >= 3 ? parseInt(s.slice(0, 2)) : parseInt(s);
+        }
+
         function extractBase(tok: string): number | null {
             // Clean triple first (in case some OCRs are clean)
             const clean = tok.match(/^(\d{1,3})\/(\d{1,3})\/(\d{1,3})$/);
-            if (clean) return parseInt(clean[1]);
+            if (clean) return cap99(clean[1]);
 
             // Apply substitutions and strip everything except digits and /
             const norm = letterToDigit(tok).replace(/[^\d\/]/g, '');
@@ -347,16 +365,18 @@
 
             // Try clean triple again after substitution
             const cleanNorm = norm.match(/^(\d{1,3})\/(\d{1,3})\/(\d{1,3})$/);
-            if (cleanNorm) return parseInt(cleanNorm[1]);
+            if (cleanNorm) return cap99(cleanNorm[1]);
 
             // Partial slash survived ("28/070" pattern — first slash kept, rest merged)
             const partial = norm.match(/^(\d{1,3})\//);
-            if (partial) return parseInt(partial[1]);
+            if (partial) return cap99(partial[1]);
 
             // No slashes at all — split a digit blob into a probable base.
             const digits = norm.replace(/\//g, '');
             const len = digits.length;
-            if (len === 1) return parseInt(digits);
+            // Reject single-digit residues — these are usually fragments of a
+            // partially-recognized icon (e.g. "RN" reduces to "7"), not real stats.
+            if (len < 2) return null;
             if (len === 2) return parseInt(digits);
             if (len === 3) {
                 // If it starts with 0, the whole thing is probably "0/X/0" → base is 0
@@ -396,27 +416,36 @@
             // Pure-numeric / punctuation-only lines (HP-bar values, color regions)
             if (/^[\s\d:.,\-—|]+$/.test(line)) continue;
 
-            // Enter the stat grid: line has ≥2 icon chars, OR (icon + slash)
+            // Enter the stat grid: a line with ≥2 slashes (one or more clean triples)
+            // OR ≥2 icon chars (icon-prefixed stat row with mangled slashes).
+            // Single icon + single slash matches the stat-bar line at the top, so we
+            // require 2 of one kind, not a mix.
             if (!inStatGrid) {
-                const iconCount = (line.match(new RegExp(iconPat, 'g')) ?? []).length;
-                const hasSlash = /\//.test(line);
-                if (iconCount >= 2 || (iconCount >= 1 && hasSlash)) {
+                const iconCount  = (line.match(/[§®¥&+*#@]/g) ?? []).length;
+                const slashCount = (line.match(/\//g) ?? []).length;
+                if (slashCount >= 2 || iconCount >= 2) {
                     inStatGrid = true;
                 } else {
                     continue;
                 }
             }
 
-            // Tokenize and extract bases
+            // Tokenize and extract bases — cap at 2 per row since the Inventory grid
+            // is fixed 2-stats-per-row. This prevents spurious mid-line fragments
+            // (e.g. an icon misread between two real values) from sneaking in as a
+            // third base and displacing the next row.
             const tokens = line.split(/[\s|§®¥&+*#@{}()_—:,»«\[\]]+/)
                 .map(t => t.trim())
                 .filter(t => t.length >= 2 && t.length <= 8);
 
+            let basesThisRow = 0;
             for (const tok of tokens) {
+                if (basesThisRow >= 2) break;
                 if (!/[\d]/.test(tok) && !/[oOiIlLsSrRbBzZ]/.test(tok)) continue;
                 const base = extractBase(tok);
                 if (base !== null && base >= 0 && base <= 200) {
                     bases.push(base);
+                    basesThisRow++;
                     if (bases.length >= 8) break;
                 }
             }
