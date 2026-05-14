@@ -54,8 +54,10 @@
     // ── Screenshot OCR state ───────────────────────────────────────────────
     let shotFile     = $state<File | null>(null);
     let shotPreview  = $state<string | null>(null);
+    let shotProcUrl  = $state<string | null>(null);
     let shotRunning  = $state(false);
     let shotProgress = $state(0);
+    let shotPhase    = $state<'idle' | 'preprocessing' | 'recognizing'>('idle');
     let shotRawText  = $state('');
     let shotParsed   = $state<Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number }>({});
     let shotError    = $state('');
@@ -73,22 +75,77 @@
         reader.readAsDataURL(f);
     }
 
+    // Preprocess: upscale + threshold the Tek panel to black-on-white. Tesseract reads
+    // light-cyan-on-dark-blue UI text poorly at native resolution; this fixes that.
+    async function preprocessShot(file: File): Promise<Blob> {
+        const url = URL.createObjectURL(file);
+        try {
+            const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+                const i = new Image();
+                i.onload = () => resolve(i);
+                i.onerror = () => reject(new Error('Failed to load image'));
+                i.src = url;
+            });
+            // Scale so the longest dimension is at least 1600px (Tesseract loves resolution)
+            const targetMin = 1600;
+            const longest = Math.max(img.width, img.height);
+            const scale = Math.max(1, targetMin / longest);
+            const w = Math.round(img.width * scale);
+            const h = Math.round(img.height * scale);
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Canvas 2D unavailable');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, w, h);
+
+            // Threshold: light pixels (UI text) → black; dark pixels (background) → white.
+            const id = ctx.getImageData(0, 0, w, h);
+            const d = id.data;
+            const TH = 130;
+            for (let i = 0; i < d.length; i += 4) {
+                const lum = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+                const v = lum > TH ? 0 : 255;
+                d[i] = v; d[i+1] = v; d[i+2] = v;
+                // keep alpha
+            }
+            ctx.putImageData(id, 0, 0);
+            return await new Promise<Blob>((resolve, reject) => {
+                canvas.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
+            });
+        } finally {
+            URL.revokeObjectURL(url);
+        }
+    }
+
     async function runOcr() {
         if (!shotFile) { shotError = 'Drop a screenshot first.'; return; }
-        shotRunning = true; shotError = ''; shotProgress = 0;
+        shotRunning = true; shotError = ''; shotProgress = 0; shotPhase = 'preprocessing';
+        if (shotProcUrl) URL.revokeObjectURL(shotProcUrl);
         try {
-            const { default: Tesseract } = await import('tesseract.js');
-            const { data: ocr } = await Tesseract.recognize(shotFile, 'eng', {
+            const preprocessed = await preprocessShot(shotFile);
+            shotProcUrl = URL.createObjectURL(preprocessed);
+
+            shotPhase = 'recognizing';
+            const Tesseract = await import('tesseract.js');
+            const worker = await Tesseract.createWorker('eng', 1, {
                 logger: (m: { status: string; progress: number }) => {
                     if (m.status === 'recognizing text') shotProgress = Math.round(m.progress * 100);
                 }
             });
+            // PSM 6 = "single uniform block of text" — best fit for the panel layout.
+            await worker.setParameters({ tessedit_pageseg_mode: '6' as never });
+            const { data: ocr } = await worker.recognize(preprocessed);
+            await worker.terminate();
+
             shotRawText = ocr.text;
             parseTekBinocularsText(ocr.text);
         } catch (err) {
             shotError = (err as Error).message || 'OCR failed';
         } finally {
             shotRunning = false;
+            shotPhase = 'idle';
         }
     }
 
@@ -129,17 +186,49 @@
             }
         }
 
-        // ── Extract every parenthesized group in document order, capturing the FIRST number
-        // (base value) or marking as null if the group contains X placeholders. ──
-        const triplePat = /\(([^)]+)\)/g;
+        // ── Extract every triple in document order. The ASA Tek Binoculars layout puts
+        // exactly one stat triple per visible row. OCR variants we have to handle:
+        //   (43 | 0 | 0)     — clean
+        //   (45]0]0)         — pipes misread as ] or [
+        //   (45 1 0 1 0)     — pipes misread as 1 (collide with neighbors)
+        //   (451010)         — spaces lost + pipes→1, three values run together
+        //   ...4310]0)       — opening paren dropped, mangled
+        //   (X|X|0)          — placeholder row (skip)
+        //
+        // Strategy: scan line-by-line. For each line that contains a closing `)` somewhere
+        // after a number+separator pattern, try to extract three numbers via a series of
+        // increasingly forgiving regex patterns. Skip rows where any token is X/x.
         const triples: Array<{ base: number | null }> = [];
-        for (const m of raw.matchAll(triplePat)) {
-            const inner = m[1];
-            if (/[xX]/.test(inner) || !/\d/.test(inner)) {
+
+        for (const line of lines) {
+            // Skip lines without any digits in parens-ish neighborhood
+            if (!/\)/.test(line) && !/\d/.test(line)) continue;
+            // X-placeholder check: if the line has an X near the closing paren, treat as null
+            if (/[Xx]\s*[|I1l\]\/]\s*[Xx]/.test(line) || /\([^)]*[Xx][^)]*\)/.test(line)) {
                 triples.push({ base: null });
-            } else {
-                const numMatch = inner.match(/-?\d+/);
-                triples.push({ base: numMatch ? parseInt(numMatch[0]) : null });
+                continue;
+            }
+
+            // Try clean (a | b | c) with flexible separators including ]
+            let m = line.match(/\(\s*(\d{1,4})\s*[|I1l\]\[\/\\:]\s*(\d{1,4})\s*[|I1l\]\[\/\\:]\s*(\d{1,4})\s*\)/);
+            if (m) { triples.push({ base: parseInt(m[1]) }); continue; }
+
+            // Try opening-paren-dropped: number+separator+number+separator+number ending in )
+            m = line.match(/(\d{1,3})\s*[|I1l\]\[\/\\:]\s*(\d{1,3})\s*[|I1l\]\[\/\\:]\s*(\d{1,3})\s*\)/);
+            if (m) { triples.push({ base: parseInt(m[1]) }); continue; }
+
+            // Try parens with all digits run together (`(451010)` was originally `(45|0|0)`).
+            // Pipes were dropped AND read as 1s combining with adjacent 0s → "451010".
+            // Pattern guess: base (1-3 digits) + "10" + "10" or similar artifacts.
+            m = line.match(/\((\d{1,3})(?:10|0)(?:10|0)\)/);
+            if (m) { triples.push({ base: parseInt(m[1]) }); continue; }
+
+            // Last-ditch: ANY parenthesized group with at least one number, take first number
+            m = line.match(/\(([^)]*\d[^)]*)\)/);
+            if (m) {
+                const nm = m[1].match(/\d+/);
+                triples.push({ base: nm ? parseInt(nm[0]) : null });
+                continue;
             }
         }
 
@@ -399,14 +488,19 @@
                 {:else}
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; text-align:left">
                         <div>
-                            <img src={shotPreview} alt="Tek Binoculars screenshot" style="width:100%; max-height:360px; object-fit:contain; border:1px solid rgba(0,180,255,0.20); border-radius:4px; background:#000" />
+                            <div style="font-family:var(--tek-mono); font-size:0.62rem; letter-spacing:0.16em; color:var(--tek-text-faint); margin-bottom:6px; text-transform:uppercase">Original</div>
+                            <img src={shotPreview} alt="Tek Binoculars screenshot" style="width:100%; max-height:280px; object-fit:contain; border:1px solid rgba(0,180,255,0.20); border-radius:4px; background:#000" />
+                            {#if shotProcUrl}
+                                <div style="font-family:var(--tek-mono); font-size:0.62rem; letter-spacing:0.16em; color:var(--tek-text-faint); margin:10px 0 6px; text-transform:uppercase">Preprocessed (what Tesseract sees)</div>
+                                <img src={shotProcUrl} alt="Preprocessed" style="width:100%; max-height:280px; object-fit:contain; border:1px solid rgba(245,158,11,0.30); border-radius:4px; background:#fff" />
+                            {/if}
                             <div style="display:flex; gap:8px; margin-top:10px">
                                 <label class="btn" style="cursor:pointer; flex:1; text-align:center">
                                     REPLACE
                                     <input type="file" accept="image/*" onchange={pickScreenshot} style="display:none" />
                                 </label>
                                 <button class="btn" disabled={shotRunning} onclick={runOcr} style="flex:1">
-                                    {shotRunning ? `Reading… ${shotProgress}%` : 'Run OCR'}
+                                    {#if shotRunning && shotPhase === 'preprocessing'}Preparing…{:else if shotRunning}Reading… {shotProgress}%{:else}Run OCR{/if}
                                 </button>
                             </div>
                         </div>
@@ -434,9 +528,9 @@
                                 </button>
                             {/if}
                             {#if shotRawText}
-                                <details style="margin-top:14px">
+                                <details style="margin-top:14px" open>
                                     <summary style="font-family:var(--tek-mono); font-size:0.65rem; letter-spacing:0.16em; color:var(--tek-text-faint); cursor:pointer; text-transform:uppercase">Raw OCR text</summary>
-                                    <pre style="margin-top:6px; padding:10px; background:rgba(0,0,0,0.4); font-size:0.7rem; max-height:160px; overflow:auto; white-space:pre-wrap; color:var(--tek-text-dim)">{shotRawText}</pre>
+                                    <pre style="margin-top:6px; padding:10px; background:rgba(0,0,0,0.4); font-size:0.7rem; max-height:200px; overflow:auto; white-space:pre-wrap; color:var(--tek-text-dim)">{shotRawText}</pre>
                                 </details>
                             {/if}
                         </div>
