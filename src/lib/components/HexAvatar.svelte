@@ -24,10 +24,10 @@
     const initial = $derived((name?.charAt(0) ?? '?').toUpperCase());
     const gradientId = `hexavGrad-${Math.random().toString(36).slice(2, 9)}`;
 
-    // Hex height ratio
-    const w = size;
-    const h = Math.round(size * (100 / 88));
-    const pipSize = Math.max(8, Math.round(size * 0.13));
+    // Hex height ratio — derived so they react when `size` prop changes
+    const w       = $derived(size);
+    const h       = $derived(Math.round(size * (100 / 88)));
+    const pipSize = $derived(Math.max(8, Math.round(size * 0.13)));
 </script>
 
 <div class="hex-av" style="width: {w}px; height: {h}px;">
