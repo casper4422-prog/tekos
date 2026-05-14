@@ -7,6 +7,7 @@ const EXPIRY_SECONDS = 60 * 60 * 24 * 7; // 7 days
 function getSecret() {
 	const s = process.env.JWT_SECRET;
 	if (!s) throw new Error('JWT_SECRET env var is not set');
+	if (s.length < 32) throw new Error('JWT_SECRET must be at least 32 characters');
 	return new TextEncoder().encode(s);
 }
 
