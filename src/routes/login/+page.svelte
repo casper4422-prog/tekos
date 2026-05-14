@@ -51,7 +51,7 @@
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: signinId, password: signinKey })
+                body: JSON.stringify({ identifier: signinId, password: signinKey })
             });
             const body = await res.json().catch(() => ({}));
             if (res.ok) {
