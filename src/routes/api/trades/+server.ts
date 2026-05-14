@@ -2,18 +2,20 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 
-export const GET: RequestHandler = async ({ url }) => {
-	const mine = url.searchParams.get('mine');
-	const where = mine ? { userId: parseInt(mine), status: 'open' } : { status: 'open' };
+export const GET: RequestHandler = async ({ url, locals }) => {
+	const mineFlag = url.searchParams.get('mine') === 'true';
+	if (mineFlag && !locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
+	const where = mineFlag ? { userId: locals.user!.id, status: 'open' } : { status: 'open' };
 	const trades = await db.trade.findMany({
 		where, orderBy: { createdAt: 'desc' },
-		include: { user: { select: { id:true, nickname:true, email:true } } }
+		include: { user: { select: { id: true, nickname: true, discordName: true } } }
 	});
 	return json(trades);
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const uid = locals.user!.id;
+	if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
+	const uid = locals.user.id;
 	const { creatureId, creatureData, wanted, price, listingType, metadata } = await request.json();
 	const validType = ['specimen','egg','resource','service'].includes(listingType) ? listingType : 'specimen';
 	const trade = await db.trade.create({ data: {
