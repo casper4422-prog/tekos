@@ -156,21 +156,27 @@
     }
 
     function parseTekBinocularsText(raw: string) {
-        // ASA Tek Binoculars stat panel — row order (icons, no text labels):
-        //   Header: "{Name|Species} - Lvl N"   then "Tamed" / "Wild"
-        //   Health    | total / max  (base | mut | dom)
-        //   Stamina   | total / max  (base | mut | dom)
-        //   Torpor    | total / max               (no triple)
-        //   Food      | total / max  (base | mut | dom)
-        //   Weight    | total / max  (base | mut | dom)
-        //   Oxygen    | N/A for aquatic            (no triple, "N/A")
-        //   Speed     | 120.0%       (X | X | X)   (placeholders)
-        //   Melee     | 469.2%       (base | mut | dom)
-        //   Imprint   | percentage                 (no triple)
+        // Two source UIs are supported, auto-detected from text markers:
         //
-        // We track HP, STA, FOOD, WGT, OXY, MEL (and CRA where present). Speed/Torpor/Imprint
-        // ignored. Tesseract can't see the icons, so we map by positional ordering of the
-        // (base | mut | dom) triples in document order.
+        // 1) Tek Binoculars wild-scan view — "Lvl 239" / "Tamed" / "Wild"; stats are a
+        //    single column of "(base | mut | dom)" triples.
+        //
+        // 2) Creature Inventory view (press F on a tame) — "Tribe:" / "Level: N" / "Can
+        //    Mate"; stats are a 2-column grid of "base/mut/dom" triples laid out as:
+        //         HP  / WGT
+        //         STA / MEL
+        //         OXY / SPD (skip — Movement Speed is never wild-levelable on tames)
+        //         FOOD/ CRA
+        //         IMP%/ TotalLvl
+        //         ♀mut/ ♂mut
+        //
+        // Auto-detect via the marker words then dispatch.
+        const isInventory = /\b(?:Tribe\s*:|Can\s*Mate|Level\s*:)/i.test(raw);
+        if (isInventory) {
+            parseInventoryUI(raw);
+            return;
+        }
+        // Otherwise fall through to the binoculars parser below.
         const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
         const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
 
@@ -279,8 +285,57 @@
         shotParsed = out;
     }
 
+    function parseInventoryUI(raw: string) {
+        // Creature Inventory layout — 8-stat grid in document order (PSM 6 reads rows
+        // left-to-right):  HP WGT  STA MEL  OXY SPD  FOOD CRA
+        // SPD is at position 5 and always 0/0/0 (Movement Speed never wild-levels on
+        // tames); we skip it. Imprint% / Total Lvl / mutation counts are also in the
+        // image but excluded from the triple stream because they don't match base/mut/dom.
+        const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
+        const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+        // ── Header: nickname is the line just before "Level: N" ──
+        for (let i = 0; i < lines.length; i++) {
+            const lvMatch = lines[i].match(/\blevel\s*:\s*(\d{1,4})/i);
+            if (lvMatch) {
+                if (!out.level) out.level = Math.min(9999, parseInt(lvMatch[1]));
+                if (!out.name && i > 0) {
+                    const cand = lines[i - 1].trim();
+                    if (cand && cand.length >= 1 && !/^(?:tribe|level|tamed|wild|can\s*mate)/i.test(cand)) {
+                        out.name = cand;
+                    }
+                }
+                break;
+            }
+        }
+
+        // ── Extract base/mut/dom triples in document order ──
+        // Each part 1-3 digits to avoid matching the HP-bar value (e.g. "17410/17410").
+        const triplePat = /\b(\d{1,3})\s*\/\s*(\d{1,3})\s*\/\s*(\d{1,3})\b/g;
+        const bases: number[] = [];
+        for (const m of raw.matchAll(triplePat)) {
+            bases.push(parseInt(m[1]));
+        }
+
+        const setStat = (k: StatKey, v: number | undefined) => {
+            if (typeof v === 'number' && v >= 0 && v <= 999) out[k] = v;
+        };
+        // Row-major mapping — 8 expected positions
+        if (bases.length >= 1) setStat('HP',   bases[0]);
+        if (bases.length >= 2) setStat('WGT',  bases[1]);
+        if (bases.length >= 3) setStat('STA',  bases[2]);
+        if (bases.length >= 4) setStat('MEL',  bases[3]);
+        if (bases.length >= 5) setStat('OXY',  bases[4]);
+        // bases[5] = Movement Speed → skip
+        if (bases.length >= 7) setStat('FOOD', bases[6]);
+        if (bases.length >= 8) setStat('CRA',  bases[7]);
+
+        shotParsed = out;
+    }
+
     function applyOcrToForm() {
         if (shotParsed.level)   fLevel = shotParsed.level;
+        if (shotParsed.name && !fName) fName = shotParsed.name;
         if (shotParsed.species && !fSpecies) fSpecies = shotParsed.species;
         for (const k of STATS) {
             const v = shotParsed[k];
@@ -520,6 +575,7 @@
                             {/if}
                             {#if shotParsed && Object.keys(shotParsed).length > 0}
                                 <div class="stats-grid" style="grid-template-columns: 1fr 1fr; gap:6px; padding:0; background:transparent">
+                                    {#if shotParsed.name}<div class="stats-stat-label">Name</div><div class="stats-total"><span class="t" style="font-size:0.8rem">{shotParsed.name}</span></div>{/if}
                                     {#if shotParsed.species}<div class="stats-stat-label">Species</div><div class="stats-total"><span class="t" style="font-size:0.8rem">{shotParsed.species}</span></div>{/if}
                                     {#if shotParsed.level}<div class="stats-stat-label">Level</div><div class="stats-total"><span class="t">{shotParsed.level}</span></div>{/if}
                                     {#each STATS as s}
