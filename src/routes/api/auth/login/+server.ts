@@ -2,9 +2,11 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { signToken, sessionCookie } from '$lib/auth';
+import { rateLimit } from '$lib/rateLimit';
 import bcrypt from 'bcryptjs';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async ({ request, cookies, getClientAddress }) => {
+	if (rateLimit(`login:${getClientAddress()}`, 10, 15 * 60 * 1000)) return json({ error: 'Too many attempts, try again in 15 minutes' }, { status: 429 });
 	const { identifier, password } = await request.json();
 	if (!identifier || !password) return json({ error: 'Missing fields' }, { status: 400 });
 

@@ -2,9 +2,11 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { signToken } from '$lib/auth';
+import { rateLimit } from '$lib/rateLimit';
 import bcrypt from 'bcryptjs';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async ({ request, cookies, getClientAddress }) => {
+	if (rateLimit(`register:${getClientAddress()}`, 5, 60 * 60 * 1000)) return json({ error: 'Too many registrations from this IP, try again later' }, { status: 429 });
 	const { email, password, nickname } = await request.json();
 	if (!email || !password) return json({ error: 'Email and password required' }, { status: 400 });
 	if (typeof password !== 'string' || password.length < 8 || password.length > 200) return json({ error: 'Password must be 8–200 characters' }, { status: 400 });

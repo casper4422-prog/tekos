@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { notify } from '$lib/notify';
 import { requireUser } from '$lib/auth';
+import { rateLimit } from '$lib/rateLimit';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const uid = requireUser(locals).id;
@@ -43,6 +44,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const uid = requireUser(locals).id;
+	if (rateLimit(`friend:${uid}`, 30, 60 * 60 * 1000)) return json({ error: 'Too many friend requests, try again later' }, { status: 429 });
 	const { friendUserId } = await request.json();
 	if (!friendUserId || friendUserId === uid) return json({ error: 'Invalid user' }, { status: 400 });
 	const existing = await db.friendship.findFirst({ where: { OR: [{ userId: uid, friendUserId }, { userId: friendUserId, friendUserId: uid }] } });

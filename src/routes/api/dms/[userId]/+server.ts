@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { requireUser } from '$lib/auth';
 import { intParam } from '$lib/params';
+import { rateLimit } from '$lib/rateLimit';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const uid = requireUser(locals).id;
@@ -16,8 +17,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	return json(msgs);
 };
 
-export const POST: RequestHandler = async ({ params, request, locals }) => {
+export const POST: RequestHandler = async ({ params, request, locals, getClientAddress }) => {
 	const uid = requireUser(locals).id;
+	if (rateLimit(`dm:${uid}`, 60, 60 * 1000)) return json({ error: 'Sending too fast, slow down' }, { status: 429 });
 	const otherId = intParam(params.userId, 'userId');
 	const { message } = await request.json();
 	if (!message?.trim()) return json({ error: 'Empty message' }, { status: 400 });
