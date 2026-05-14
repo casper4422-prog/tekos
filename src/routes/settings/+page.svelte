@@ -227,7 +227,9 @@
     const initialRcon = (SERVER_SETTINGS.cluster?.rcon ?? {}) as { host?: string; port?: string | number; password?: string };
     let rconHost = $state(String(initialRcon.host ?? ''));
     let rconPort = $state(String(initialRcon.port ?? '27020'));
-    let rconPass = $state(String(initialRcon.password ?? ''));
+    // Password is redacted to '<saved>' by the server; keep empty so user re-enters only when changing.
+    let rconPass = $state(initialRcon.password === '<saved>' ? '' : String(initialRcon.password ?? ''));
+    let rconPasswordSaved = $state(initialRcon.password === '<saved>');
     let rconStatusMsg = $state('');
     let rconStatusOk  = $state(false);
 
@@ -270,7 +272,7 @@
             body: JSON.stringify({
                 cluster: {
                     servers,
-                    rcon: { host: rconHost, port: rconPort, password: rconPass },
+                    rcon: { host: rconHost, port: rconPort, ...(rconPass ? { password: rconPass } : {}) },
                     poll: { interval: pollInterval, pauseWhenIdle: pollPauseIdle }
                 },
                 servers
@@ -604,7 +606,13 @@
                     if (body.cluster?.rcon) {
                         rconHost = String(body.cluster.rcon.host ?? rconHost);
                         rconPort = String(body.cluster.rcon.port ?? rconPort);
-                        rconPass = String(body.cluster.rcon.password ?? rconPass);
+                        // Password is redacted server-side; keep the local value as-is so
+                        // the user doesn't need to re-enter it on every settings load.
+                        if (body.cluster.rcon.password === '<saved>') {
+                            // leave rconPass unchanged — backend has it stored
+                        } else {
+                            rconPass = String(body.cluster.rcon.password ?? rconPass);
+                        }
                     }
                     if (body.cluster?.poll) {
                         pollInterval  = String(body.cluster.poll.interval ?? pollInterval);
@@ -1176,7 +1184,7 @@
                         <div class="rcon-inputs">
                             <input class="input" bind:value={rconHost} oninput={markDirty} placeholder="Host or IP" />
                             <input class="input" bind:value={rconPort} oninput={markDirty} placeholder="Port" />
-                            <input class="input" bind:value={rconPass} oninput={markDirty} type="password" placeholder="Password" />
+                            <input class="input" bind:value={rconPass} oninput={() => { rconPasswordSaved = false; markDirty(); }} type="password" placeholder={rconPasswordSaved ? 'Password saved (re-enter to change)' : 'Password'} />
                         </div>
                         <div class="rcon-actions">
                             <button class="btn" onclick={testRcon}>TEST CONNECTION</button>
