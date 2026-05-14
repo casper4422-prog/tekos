@@ -58,6 +58,33 @@
         onSave
     }: Props = $props();
 
+    // Normalize incoming creatures so callers can pass either:
+    //   nested CreatureRow ({ id, data: { name, species, ... } }) — used by /specimens/[id]
+    //   flat VaultCreature ({ id, name, species, ... }) — used by /dossier and /specimens vault
+    // Without this normalization, accessing c.data.name on a flat row crashes at render.
+    const normCreatures = $derived(
+        (creatures ?? []).map((c) => {
+            const anyC = c as unknown as Record<string, unknown>;
+            const inner = (anyC.data && typeof anyC.data === 'object')
+                ? (anyC.data as Record<string, unknown>)
+                : anyC;
+            return {
+                id: Number(anyC.id),
+                userId: Number(anyC.userId ?? 0),
+                createdAt: (anyC.createdAt as Date) ?? new Date(),
+                data: {
+                    name:           String(inner.name ?? ''),
+                    species:        String(inner.species ?? ''),
+                    level:          inner.level as number,
+                    gender:         inner.gender as string,
+                    baseStats:      (inner.baseStats ?? {}) as Record<string, number>,
+                    mutations:      (inner.mutations ?? {}) as Record<string, number>,
+                    domesticLevels: (inner.domesticLevels ?? {}) as Record<string, number>
+                }
+            } as CreatureRow;
+        })
+    );
+
     // ────────────────────────── State ──────────────────────────
     let search = $state('');
     let closing = $state(false);
@@ -137,7 +164,7 @@
     };
 
     const filtered = $derived(
-        creatures.filter((c) => {
+        normCreatures.filter((c) => {
             if (!search.trim()) return true;
             const q = search.trim().toLowerCase();
             return (
@@ -149,7 +176,7 @@
 
     const selectedCreature = $derived(
         mode === 'project' && selectedCreatureId != null
-            ? creatures.find((c) => c.id === selectedCreatureId) ?? null
+            ? normCreatures.find((c) => c.id === selectedCreatureId) ?? null
             : null
     );
 
