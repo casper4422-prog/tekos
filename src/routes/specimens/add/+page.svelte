@@ -75,8 +75,10 @@
         reader.readAsDataURL(f);
     }
 
-    // Preprocess: upscale + threshold the Tek panel to black-on-white. Tesseract reads
-    // light-cyan-on-dark-blue UI text poorly at native resolution; this fixes that.
+    // Preprocess: upscale → slight blur (thickens thin lines like the / between values
+    // in stat triples so they survive thresholding) → high-contrast threshold to
+    // black-on-white. ARK UI is light-cyan-on-dark-blue at native res, which Tesseract
+    // reads very poorly; this pipeline makes it readable.
     async function preprocessShot(file: File): Promise<Blob> {
         const url = URL.createObjectURL(file);
         try {
@@ -86,8 +88,8 @@
                 i.onerror = () => reject(new Error('Failed to load image'));
                 i.src = url;
             });
-            // Scale so the longest dimension is at least 1600px (Tesseract loves resolution)
-            const targetMin = 1600;
+            // Scale so the longest dimension is at least 1800px
+            const targetMin = 1800;
             const longest = Math.max(img.width, img.height);
             const scale = Math.max(1, targetMin / longest);
             const w = Math.round(img.width * scale);
@@ -98,12 +100,19 @@
             if (!ctx) throw new Error('Canvas 2D unavailable');
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
+            // Small blur thickens 1-pixel diagonal strokes (slashes) so they don't
+            // disappear in the threshold step. 0.8px is enough to preserve "/", "1",
+            // and small punctuation without losing character separation.
+            ctx.filter = 'blur(0.8px)';
             ctx.drawImage(img, 0, 0, w, h);
+            ctx.filter = 'none';
 
             // Threshold: light pixels (UI text) → black; dark pixels (background) → white.
+            // Threshold raised slightly (140 from 130) to leave a wider tolerance after
+            // the blur step lightens edge pixels.
             const id = ctx.getImageData(0, 0, w, h);
             const d = id.data;
-            const TH = 130;
+            const TH = 120;
             for (let i = 0; i < d.length; i += 4) {
                 const lum = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
                 const v = lum > TH ? 0 : 255;
@@ -289,44 +298,141 @@
         // Creature Inventory layout — 8-stat grid in document order (PSM 6 reads rows
         // left-to-right):  HP WGT  STA MEL  OXY SPD  FOOD CRA
         // SPD is at position 5 and always 0/0/0 (Movement Speed never wild-levels on
-        // tames); we skip it. Imprint% / Total Lvl / mutation counts are also in the
-        // image but excluded from the triple stream because they don't match base/mut/dom.
+        // tames); we skip it.
+        //
+        // OCR of ARK's UI font frequently confuses digits with letters that have
+        // similar glyphs (5↔s, 7↔r, 0↔o, 1↔i, 8↔B). It also drops the thin "/"
+        // separator. The parser below applies aggressive letter→digit substitution
+        // before extracting base values from each row.
         const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
         const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
-        // ── Header: nickname is the line just before "Level: N" ──
+        // ── Header parsing FIRST on the raw text (substitution would mangle "Level") ──
         for (let i = 0; i < lines.length; i++) {
-            const lvMatch = lines[i].match(/\blevel\s*:\s*(\d{1,4})/i);
+            const lvMatch = lines[i].match(/\blevel\s*:?\s*(\d{1,4})/i);
             if (lvMatch) {
                 if (!out.level) out.level = Math.min(9999, parseInt(lvMatch[1]));
                 if (!out.name && i > 0) {
                     const cand = lines[i - 1].trim();
                     if (cand && cand.length >= 1 && !/^(?:tribe|level|tamed|wild|can\s*mate)/i.test(cand)) {
-                        out.name = cand;
+                        out.name = cand.replace(/[^\w\s'\-]/g, '').trim();
                     }
                 }
                 break;
             }
         }
 
-        // ── Extract base/mut/dom triples in document order ──
-        // Each part 1-3 digits to avoid matching the HP-bar value (e.g. "17410/17410").
-        const triplePat = /\b(\d{1,3})\s*\/\s*(\d{1,3})\s*\/\s*(\d{1,3})\b/g;
+        // ── Letter→digit substitution for stat-value tokens only ──
+        // (Header was already parsed; from here we treat the rest as numeric.)
+        function letterToDigit(s: string): string {
+            return s
+                .replace(/[oOQD]/g, '0')
+                .replace(/[iIlL!|]/g, '1')
+                .replace(/[zZ]/g, '2')
+                .replace(/[sS]/g, '5')
+                .replace(/[bG]/g, '6')
+                .replace(/[rRtT]/g, '7')  // ARK font's 7 has a serif that reads as r/t
+                .replace(/[B&]/g, '8')
+                .replace(/[gq]/g, '9');
+        }
+
+        function extractBase(tok: string): number | null {
+            // Clean triple first (in case some OCRs are clean)
+            const clean = tok.match(/^(\d{1,3})\/(\d{1,3})\/(\d{1,3})$/);
+            if (clean) return parseInt(clean[1]);
+
+            // Apply substitutions and strip everything except digits and /
+            const norm = letterToDigit(tok).replace(/[^\d\/]/g, '');
+            if (!norm) return null;
+
+            // Try clean triple again after substitution
+            const cleanNorm = norm.match(/^(\d{1,3})\/(\d{1,3})\/(\d{1,3})$/);
+            if (cleanNorm) return parseInt(cleanNorm[1]);
+
+            // Partial slash survived ("28/070" pattern — first slash kept, rest merged)
+            const partial = norm.match(/^(\d{1,3})\//);
+            if (partial) return parseInt(partial[1]);
+
+            // No slashes at all — split a digit blob into a probable base.
+            const digits = norm.replace(/\//g, '');
+            const len = digits.length;
+            if (len === 1) return parseInt(digits);
+            if (len === 2) return parseInt(digits);
+            if (len === 3) {
+                // If it starts with 0, the whole thing is probably "0/X/0" → base is 0
+                if (digits[0] === '0') return 0;
+                // Otherwise "AB0" → base AB, or "A00" → base A.
+                return parseInt(digits.slice(0, 2));
+            }
+            if (len === 4) {
+                // Most common: base is first 2 digits ("57/0/0" → "5700" → 57)
+                return parseInt(digits.slice(0, 2));
+            }
+            if (len >= 5 && len <= 6) {
+                return parseInt(digits.slice(0, 2));
+            }
+            return null;
+        }
+
+        // ── Identify stat-row lines and pull two values per row ──
+        // The Creature-Inventory stat grid in the OCR output is bracketed by:
+        //   TOP   — header (Level: N), HP/Stam bar values, tribe name, color regions
+        //   GRID  — 4 rows × 2 stat triples each, each row punctuated by icon chars
+        //           that Tesseract renders as §, ®, ¥, &, +, * etc.
+        //   BOTTOM — Imprint%, Total Lvl, mutation counts ♀ ♂
+        // Strategy: skip lines until we hit one that looks like a grid row (≥2 icon
+        // chars OR contains the / separator and an icon char), then extract bases
+        // until we either hit a "%" line (imprint) or have collected 8 bases.
         const bases: number[] = [];
-        for (const m of raw.matchAll(triplePat)) {
-            bases.push(parseInt(m[1]));
+        const headerPat = /level\s*:?|tribe\s*:?|can\s*mate|tamed|wild/i;
+        const postGridPat = /%|\blvl\b|tvt|mutation/i;
+        const iconPat = /[§®¥&+*#@]/;
+
+        let inStatGrid = false;
+        for (const line of lines) {
+            if (headerPat.test(line)) continue;
+            if (inStatGrid && postGridPat.test(line)) break;
+
+            // Pure-numeric / punctuation-only lines (HP-bar values, color regions)
+            if (/^[\s\d:.,\-—|]+$/.test(line)) continue;
+
+            // Enter the stat grid: line has ≥2 icon chars, OR (icon + slash)
+            if (!inStatGrid) {
+                const iconCount = (line.match(new RegExp(iconPat, 'g')) ?? []).length;
+                const hasSlash = /\//.test(line);
+                if (iconCount >= 2 || (iconCount >= 1 && hasSlash)) {
+                    inStatGrid = true;
+                } else {
+                    continue;
+                }
+            }
+
+            // Tokenize and extract bases
+            const tokens = line.split(/[\s|§®¥&+*#@{}()_—:,»«\[\]]+/)
+                .map(t => t.trim())
+                .filter(t => t.length >= 2 && t.length <= 8);
+
+            for (const tok of tokens) {
+                if (!/[\d]/.test(tok) && !/[oOiIlLsSrRbBzZ]/.test(tok)) continue;
+                const base = extractBase(tok);
+                if (base !== null && base >= 0 && base <= 200) {
+                    bases.push(base);
+                    if (bases.length >= 8) break;
+                }
+            }
+            if (bases.length >= 8) break;
         }
 
         const setStat = (k: StatKey, v: number | undefined) => {
             if (typeof v === 'number' && v >= 0 && v <= 999) out[k] = v;
         };
-        // Row-major mapping — 8 expected positions
+        // Row-major mapping: HP WGT  STA MEL  OXY SPD  FOOD CRA
         if (bases.length >= 1) setStat('HP',   bases[0]);
         if (bases.length >= 2) setStat('WGT',  bases[1]);
         if (bases.length >= 3) setStat('STA',  bases[2]);
         if (bases.length >= 4) setStat('MEL',  bases[3]);
         if (bases.length >= 5) setStat('OXY',  bases[4]);
-        // bases[5] = Movement Speed → skip
+        // bases[5] = Movement Speed → always 0/0/0 on tames, skip
         if (bases.length >= 7) setStat('FOOD', bases[6]);
         if (bases.length >= 8) setStat('CRA',  bases[7]);
 
