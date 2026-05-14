@@ -405,7 +405,10 @@
         // until we either hit a "%" line (imprint) or have collected 8 bases.
         const bases: number[] = [];
         const headerPat = /level\s*:?|tribe\s*:?|can\s*mate|tamed|wild/i;
-        const postGridPat = /%|\blvl\b|tvt|mutation/i;
+        // Post-grid signal: imprint shows as "100%" (digit + %). The Stamina icon
+        // (lightning bolt) often OCRs to a bare "%" at line start — don't break on
+        // that. Require a digit immediately preceding the % to identify imprint.
+        const postGridPat = /\d\s*%|\blvl\b|\bmutation/i;
         const iconPat = /[§®¥&+*#@]/;
 
         let inStatGrid = false;
