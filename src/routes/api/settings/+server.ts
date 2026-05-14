@@ -1,13 +1,14 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
-import { encrypt, decrypt } from '$lib/crypto';
+import { encrypt, decrypt, isEncrypted } from '$lib/crypto';
 
 function encryptRconPassword(settings: Record<string, unknown>): Record<string, unknown> {
 	const cluster = settings.cluster as Record<string, unknown> | null | undefined;
 	if (!cluster) return settings;
 	const rcon = cluster.rcon as Record<string, unknown> | null | undefined;
 	if (!rcon?.password || typeof rcon.password !== 'string' || rcon.password === '') return settings;
+	if (isEncrypted(rcon.password)) return settings;
 	return { ...settings, cluster: { ...cluster, rcon: { ...rcon, password: encrypt(rcon.password) } } };
 }
 
