@@ -15,7 +15,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Verify the rater was party to the trade
 	const isOwner = trade.userId === uid;
-	const acceptedOffer = await db.offer.findFirst({ where: { tradeId, fromUserId: uid, status: 'accepted' } });
+	// Owner: find the accepted offer to identify the buyer (don't filter by fromUserId — owner never makes offers)
+	// Buyer: verify you specifically made the accepted offer
+	const acceptedOffer = isOwner
+		? await db.offer.findFirst({ where: { tradeId, status: 'accepted' }, select: { fromUserId: true } })
+		: await db.offer.findFirst({ where: { tradeId, fromUserId: uid, status: 'accepted' }, select: { fromUserId: true } });
 	if (!isOwner && !acceptedOffer) return json({ error: 'You were not party to this trade' }, { status: 403 });
 
 	// Verify ratedUserId is the OTHER party, not the rater
