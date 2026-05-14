@@ -214,16 +214,26 @@
         if (res.ok) window.location.href = '/specimens';
     }
 
-    // ── Pin as project: add this creature to user's pinnedCreatures ─────
-    async function savePinSelection(ids: number[]) {
-        await fetch('/api/profile/pinned', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ids })
-        });
+    // ── Pin as project: save THIS specific creature as a breeding project ─────
+    type ProjectSavePayload = { creatureId: number; focusStat: string | null; targetMutations: number };
+    type FeaturedSavePayload = { creatureIds: number[] };
+    async function savePinSelection(payload: ProjectSavePayload | FeaturedSavePayload) {
+        if ('creatureIds' in payload) {
+            // Legacy featured path (not used from this page, but keep for safety)
+            await fetch('/api/profile/pinned', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: payload.creatureIds })
+            });
+        } else {
+            await fetch('/api/pinned-projects', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
         location.reload();
     }
-    // The PinModal expects a list of CreatureRow shape — adapt vault + this creature
+    // PinModal expects CreatureRow shape — adapt vault + this creature.
+    // Keep `c` first so it's available even before vault is needed.
     const allPinCandidates = $derived(
         [c, ...data.vault].map(v => ({
             id: v.id,
@@ -240,10 +250,17 @@
             createdAt: 'createdAt' in v ? (v as { createdAt: Date }).createdAt : new Date()
         }))
     );
-    // Pre-select this creature in PinModal so opening "Pin as Project" defaults it in,
-    // while preserving the user's existing pins.
-    const currentPins = $derived(
-        Array.from(new Set<number>([...(data.existingPinIds ?? []), c.id]))
+    // Existing project entry for this creature (if any) — so reopening the modal
+    // pre-fills focus stat / target mutations from what the user previously saved.
+    const existingProjectForThis = $derived(
+        data.pinnedProject && data.pinnedProject.creatureId === c.id
+            ? {
+                creatureId: c.id,
+                focusStat: (data.pinnedProject.focusStat ?? null) as
+                    'HP' | 'STA' | 'OXY' | 'FOOD' | 'WGT' | 'MEL' | 'CRA' | 'SPD' | null,
+                targetMutations: data.pinnedProject.targetMutations ?? 0
+            }
+            : null
     );
 
     let hexCanvas: HTMLCanvasElement;
@@ -705,7 +722,9 @@
     <PinModal
         bind:open={pinModalOpen}
         creatures={allPinCandidates}
-        pinned={currentPins}
+        mode="project"
+        existingProjectId={c.id}
+        existingProject={existingProjectForThis}
         onSave={savePinSelection}
     />
 {/if}

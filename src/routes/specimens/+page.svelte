@@ -360,6 +360,9 @@
     <div class="vault-grid" class:hidden={view !== 'grid'}>
         {#each filtered as e (e.ref.id)}
             <a class="grid-card {e.cat}" data-cat={e.cat} href="/specimens/{e.ref.id}">
+                <button class="grid-pin-btn" title="Pin as Project" onclick={(ev) => { ev.preventDefault(); ev.stopPropagation(); openPinModal(e.ref.id); }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                </button>
                 <div class="grid-top">
                     <span class="grid-tier">⬢ {e.tier}</span>
                     <span class="grid-cat-mini">{catTitle(e.cat)}</span>
@@ -920,6 +923,31 @@
 }
 @media (max-width: 920px) { .vault-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .vault-grid { grid-template-columns: 1fr; } }
+
+.grid-pin-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 5;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 180, 255, 0.08);
+    border: 1px solid rgba(0, 180, 255, 0.30);
+    color: var(--tek-blue);
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.18s;
+    opacity: 0.6;
+}
+.grid-card:hover .grid-pin-btn { opacity: 1; }
+.grid-pin-btn:hover {
+    background: rgba(0, 180, 255, 0.22);
+    filter: drop-shadow(0 0 6px var(--tek-blue-glow));
+    transform: translateY(-1px);
+}
 
 .grid-card {
     --cat-rgb: 0,180,255;

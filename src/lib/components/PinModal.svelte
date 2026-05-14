@@ -71,6 +71,11 @@
     let focusStat = $state<StatKey | null>(existingProject?.focusStat ?? null);
     let targetMutations = $state<number>(existingProject?.targetMutations ?? 0);
 
+    // When the caller pre-selects a creature (clicking "Pin Project" from a specific
+    // creature card), the picker is locked to that creature. User can unlock with the
+    // "Change" link if they want to pick a different one.
+    let pickerLocked = $state(mode === 'project' && existingProjectId != null);
+
     // Re-sync on (re)open
     let lastOpen = $state(false);
     $effect(() => {
@@ -82,6 +87,7 @@
                 selectedCreatureId = existingProjectId ?? null;
                 focusStat = existingProject?.focusStat ?? null;
                 targetMutations = existingProject?.targetMutations ?? 0;
+                pickerLocked = existingProjectId != null;
             }
         }
         lastOpen = open;
@@ -300,69 +306,91 @@
                 <!-- ── Body ──────────────────────────────────────────── -->
                 <div class="modal-body">
 
-                    <!-- Step 1: Specimen picker (both modes) -->
+                    <!-- Step 1: Specimen — locked single-creature view if pre-selected,
+                         otherwise the search/pick list. -->
                     <div class="pm-step modal-section">
                         <div class="modal-section-label">
                             <span class="num">1</span>Specimen
                             {#if mode === 'featured'}
                                 <span class="opt">{selectedIds.length} / {maxFeatured}</span>
+                            {:else if pickerLocked && selectedCreature}
+                                <button type="button" class="opt-link" onclick={() => pickerLocked = false}>Change</button>
                             {:else}
                                 <span class="opt">SELECT ONE</span>
                             {/if}
                         </div>
-                        <div class="specimen-search">
-                            <svg class="specimen-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                                <circle cx="11" cy="11" r="8" />
-                                <path d="M21 21l-4.35-4.35" />
-                            </svg>
-                            <input
-                                type="text"
-                                class="specimen-search-input"
-                                placeholder="Search your vault…"
-                                bind:value={search}
-                            />
-                        </div>
-                        <div class="specimen-picker">
-                            {#each filtered as c (c.id)}
-                                {@const isSel = mode === 'featured'
-                                    ? selectedIds.includes(c.id)
-                                    : selectedCreatureId === c.id}
-                                {@const atMax = mode === 'featured'
-                                    && !isSel
-                                    && selectedIds.length >= maxFeatured}
-                                <div
-                                    class="specimen-row {rowClass(c)}"
-                                    class:selected={isSel}
-                                    class:disabled={atMax}
-                                    role="button"
-                                    tabindex="0"
-                                    onclick={() => mode === 'featured' ? toggleFeatured(c.id) : pickProjectCreature(c.id)}
-                                    onkeydown={(e) => {
-                                        if (e.key === 'Enter' || e.key === ' ') {
-                                            e.preventDefault();
-                                            if (mode === 'featured') toggleFeatured(c.id);
-                                            else pickProjectCreature(c.id);
-                                        }
-                                    }}
-                                >
-                                    <HexAvatar name={c.data.name || c.data.species} size={36} showPip={false} />
-                                    <div class="spec-info">
-                                        <div class="spec-name">
-                                            {(c.data.species || '').toUpperCase()} — "{c.data.name || 'Unnamed'}"
-                                        </div>
-                                        <div class="spec-meta">
-                                            {sexGlyph(c.data.gender)} · Lvl {c.data.level ?? '—'} · {mutTotal(c)} muts
-                                        </div>
+
+                        {#if mode === 'project' && pickerLocked && selectedCreature}
+                            <!-- Locked: show only the selected creature, no picker -->
+                            <div class="specimen-row {rowClass(selectedCreature)} selected locked">
+                                <HexAvatar name={selectedCreature.data.name || selectedCreature.data.species} size={36} showPip={false} />
+                                <div class="spec-info">
+                                    <div class="spec-name">
+                                        {(selectedCreature.data.species || '').toUpperCase()} — "{selectedCreature.data.name || 'Unnamed'}"
                                     </div>
-                                    <svg class="spec-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <polyline points="20 6 9 17 4 12" />
-                                    </svg>
+                                    <div class="spec-meta">
+                                        {sexGlyph(selectedCreature.data.gender)} · Lvl {selectedCreature.data.level ?? '—'} · {mutTotal(selectedCreature)} muts
+                                    </div>
                                 </div>
-                            {/each}
-                            {#if filtered.length === 0}
-                                <div class="spec-empty">No specimens match your search.</div>
-                            {/if}
-                        </div>
+                                <svg class="spec-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </div>
+                        {:else}
+                            <div class="specimen-search">
+                                <svg class="specimen-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                    <circle cx="11" cy="11" r="8" />
+                                    <path d="M21 21l-4.35-4.35" />
+                                </svg>
+                                <input
+                                    type="text"
+                                    class="specimen-search-input"
+                                    placeholder="Search your vault…"
+                                    bind:value={search}
+                                />
+                            </div>
+                            <div class="specimen-picker">
+                                {#each filtered as c (c.id)}
+                                    {@const isSel = mode === 'featured'
+                                        ? selectedIds.includes(c.id)
+                                        : selectedCreatureId === c.id}
+                                    {@const atMax = mode === 'featured'
+                                        && !isSel
+                                        && selectedIds.length >= maxFeatured}
+                                    <div
+                                        class="specimen-row {rowClass(c)}"
+                                        class:selected={isSel}
+                                        class:disabled={atMax}
+                                        role="button"
+                                        tabindex="0"
+                                        onclick={() => mode === 'featured' ? toggleFeatured(c.id) : pickProjectCreature(c.id)}
+                                        onkeydown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                if (mode === 'featured') toggleFeatured(c.id);
+                                                else pickProjectCreature(c.id);
+                                            }
+                                        }}
+                                    >
+                                        <HexAvatar name={c.data.name || c.data.species} size={36} showPip={false} />
+                                        <div class="spec-info">
+                                            <div class="spec-name">
+                                                {(c.data.species || '').toUpperCase()} — "{c.data.name || 'Unnamed'}"
+                                            </div>
+                                            <div class="spec-meta">
+                                                {sexGlyph(c.data.gender)} · Lvl {c.data.level ?? '—'} · {mutTotal(c)} muts
+                                            </div>
+                                        </div>
+                                        <svg class="spec-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="20 6 9 17 4 12" />
+                                        </svg>
+                                    </div>
+                                {/each}
+                                {#if filtered.length === 0}
+                                    <div class="spec-empty">No specimens match your search.</div>
+                                {/if}
+                            </div>
+                        {/if}
                     </div>
 
                     {#if mode === 'project'}
@@ -670,6 +698,23 @@
     color: var(--tek-text-faint);
     letter-spacing: 0.18em;
 }
+.modal-section-label .opt-link {
+    margin-left: auto;
+    background: none;
+    border: none;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--tek-blue);
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 2px 6px;
+    transition: text-shadow 0.18s;
+}
+.modal-section-label .opt-link:hover { text-shadow: 0 0 6px var(--tek-blue-glow); }
+.specimen-row.locked { cursor: default; }
+.specimen-row.locked:hover { background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.96) 100%); }
 
 /* ── Specimen picker ──────────────────────────────────────────────────── */
 .specimen-search {
