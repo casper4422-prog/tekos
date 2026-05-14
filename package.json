@@ -26,6 +26,7 @@
     "bcryptjs": "^3.0.2",
     "jose": "^5.10.0",
     "lucide-svelte": "^1.0.1",
-    "prisma": "^6.8.2"
+    "prisma": "^6.8.2",
+    "tesseract.js": "^7.0.0"
   }
 }

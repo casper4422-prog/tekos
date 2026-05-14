@@ -25,34 +25,104 @@
 
     let founderOn = $state(false);
 
-    // ── Lineage state ──────────────────────────────────────────────────────
-    let motherId = $state<number | null>(null);
-    let fatherId = $state<number | null>(null);
-    let motherQ = $state('');
-    let fatherQ = $state('');
-    let motherFocused = $state(false);
-    let fatherFocused = $state(false);
+    // ── Stat genealogy: per-stat founder attribution ────────────────────────
     let founderSources = $state<Record<StatKey, number | null>>({ HP:null, STA:null, OXY:null, FOOD:null, WGT:null, MEL:null, CRA:null });
 
-    const motherOptions = $derived((data?.vault ?? []).filter(v =>
-        v.gender === 'Female' || v.gender === 'F'
-    ).filter(v =>
-        motherQ.trim() === '' || v.name.toLowerCase().includes(motherQ.toLowerCase()) || v.species.toLowerCase().includes(motherQ.toLowerCase())
-    ).slice(0, 8));
+    // ── Screenshot OCR state ───────────────────────────────────────────────
+    let shotFile     = $state<File | null>(null);
+    let shotPreview  = $state<string | null>(null);
+    let shotRunning  = $state(false);
+    let shotProgress = $state(0);
+    let shotRawText  = $state('');
+    let shotParsed   = $state<Partial<Record<StatKey, number>> & { name?: string; level?: number }>({});
+    let shotError    = $state('');
 
-    const fatherOptions = $derived((data?.vault ?? []).filter(v =>
-        v.gender === 'Male' || v.gender === 'M'
-    ).filter(v =>
-        fatherQ.trim() === '' || v.name.toLowerCase().includes(fatherQ.toLowerCase()) || v.species.toLowerCase().includes(fatherQ.toLowerCase())
-    ).slice(0, 8));
+    function pickScreenshot(e: Event) {
+        const inp = e.target as HTMLInputElement;
+        const f = inp.files?.[0];
+        if (!f) return;
+        shotFile = f;
+        shotError = '';
+        shotRawText = '';
+        shotParsed = {};
+        const reader = new FileReader();
+        reader.onload = () => { shotPreview = String(reader.result); };
+        reader.readAsDataURL(f);
+    }
 
-    const motherEntry = $derived(motherId ? (data?.vault ?? []).find(v => v.id === motherId) : null);
-    const fatherEntry = $derived(fatherId ? (data?.vault ?? []).find(v => v.id === fatherId) : null);
+    async function runOcr() {
+        if (!shotFile) { shotError = 'Drop a screenshot first.'; return; }
+        shotRunning = true; shotError = ''; shotProgress = 0;
+        try {
+            const { default: Tesseract } = await import('tesseract.js');
+            const { data: ocr } = await Tesseract.recognize(shotFile, 'eng', {
+                logger: (m: { status: string; progress: number }) => {
+                    if (m.status === 'recognizing text') shotProgress = Math.round(m.progress * 100);
+                }
+            });
+            shotRawText = ocr.text;
+            parseTekBinocularsText(ocr.text);
+        } catch (err) {
+            shotError = (err as Error).message || 'OCR failed';
+        } finally {
+            shotRunning = false;
+        }
+    }
 
-    function selectMother(id: number, name: string) { motherId = id; motherQ = name; motherFocused = false; }
-    function selectFather(id: number, name: string) { fatherId = id; fatherQ = name; fatherFocused = false; }
-    function clearMother() { motherId = null; motherQ = ''; }
-    function clearFather() { fatherId = null; fatherQ = ''; }
+    function parseTekBinocularsText(raw: string) {
+        // Tek Binoculars in ASA shows a creature panel like:
+        //   "Rex"  Lv 224 (Wild 150)
+        //   Health 18250.0 / 18250.0
+        //   Stamina 1200
+        //   Oxygen 150
+        //   Food 4500
+        //   Weight 832.0
+        //   Melee Damage 254.8%
+        //   Movement Speed 100%
+        //
+        // OCR output is messy — Tesseract drops punctuation, misreads %, breaks lines.
+        // Strategy: lowercase, scan each line for a stat keyword + first number after it.
+        const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const out: Partial<Record<StatKey, number>> & { name?: string; level?: number } = {};
+
+        const patterns: Array<[RegExp, StatKey]> = [
+            [/health|^hp\b|\bhp[^a-z]/i, 'HP'],
+            [/stamina|^sta\b/i,          'STA'],
+            [/oxygen|^oxy\b/i,           'OXY'],
+            [/food|^fd\b/i,              'FOOD'],
+            [/weight|^wgt\b|^wt\b/i,     'WGT'],
+            [/melee|^mel\b|damage/i,     'MEL'],
+            [/crafting|craft/i,          'CRA']
+        ];
+
+        for (const line of lines) {
+            // Level: "Lv 224" / "Level 224"
+            const lvMatch = line.match(/\b(?:lv|lvl|level)\s*[:\-]?\s*(\d{1,3})\b/i);
+            if (lvMatch && !out.level) out.level = Math.min(999, parseInt(lvMatch[1]));
+
+            // Pull all numbers from the line
+            const nums = Array.from(line.matchAll(/-?\d+(?:[\.,]\d+)?/g)).map(m => parseFloat(m[0].replace(',', '.')));
+            if (nums.length === 0) continue;
+
+            for (const [pat, key] of patterns) {
+                if (pat.test(line) && out[key] === undefined) {
+                    out[key] = Math.round(nums[0]);
+                    break;
+                }
+            }
+        }
+        shotParsed = out;
+    }
+
+    function applyOcrToForm() {
+        if (shotParsed.level)  fLevel = shotParsed.level;
+        for (const k of STATS) {
+            const v = shotParsed[k];
+            if (typeof v === 'number') fStats[k] = v;
+        }
+        // Switch back to manual so the user can review/correct before saving
+        mode = 'manual';
+    }
 
     let speciesList = $state<string[]>([]);
     let saving = $state(false);
@@ -156,10 +226,8 @@
                 Health: fMuts.HP, Stamina: fMuts.STA, Oxygen: fMuts.OXY,
                 Food: fMuts.FOOD, Weight: fMuts.WGT, Melee: fMuts.MEL, Crafting: fMuts.CRA
             },
-            maternalId: motherId,
-            paternalId: fatherId,
             isFounder: founderOn,
-            founderSources: founderSources
+            statGenealogy: founderSources
         };
 
         const res = await fetch('/api/creatures', {
@@ -233,25 +301,77 @@
         <!-- ═══════════════ FORM COLUMN ═══════════════ -->
         <div class="form-col">
 
-            <!-- Dropzone (visible only when import mode tab active) -->
+            <!-- Save-file dropzone (still TODO — single-player only when built) -->
             <div class="dropzone" class:visible={mode === 'save'} id="dropzoneSave">
                 <div class="dropzone-icon">⬡</div>
                 <div class="dropzone-title">Drop your ARK save file</div>
                 <div class="dropzone-desc">
-                    We'll extract every tame in your save and stage them as Vault entries. Stats only — you can fill in mutation lineage and parents manually after import. Supports <code style="font-family:var(--tek-mono); color:var(--tek-blue);">.ark</code> files up to 200MB.
+                    <strong style="color: var(--tek-amber)">Single-player only.</strong>
+                    Dedicated / Nitrado / Wildcard servers don't expose their save files to clients, so this importer is for local single-player worlds only.
+                    We'll extract every tame from your save and stage them as Vault entries — stats only. Supports <code style="font-family:var(--tek-mono); color:var(--tek-blue);">.ark</code> files up to 200MB.
                 </div>
                 <button class="btn">CHOOSE FILE</button>
                 <div class="dropzone-coming-soon">⏳ FEATURE COMING SOON</div>
             </div>
 
-            <div class="dropzone" class:visible={mode === 'screenshot'} id="dropzoneShot">
-                <div class="dropzone-icon">⊡</div>
-                <div class="dropzone-title">Drop a screenshot of your tame's stats</div>
-                <div class="dropzone-desc">
-                    Snap your tame's stat menu in ARK and drop it here. TekOS reads the values via OCR — you confirm, then save to your Vault. Works best with the default ARK UI scale and no overlays.
-                </div>
-                <button class="btn">CHOOSE IMAGE</button>
-                <div class="dropzone-coming-soon">⏳ FEATURE COMING SOON</div>
+            <!-- Screenshot OCR dropzone — Tek Binoculars UI -->
+            <div class="dropzone" class:visible={mode === 'screenshot'} id="dropzoneShot" style={mode === 'screenshot' ? 'min-height:auto; padding:24px' : ''}>
+                {#if !shotPreview}
+                    <div class="dropzone-icon">⊡</div>
+                    <div class="dropzone-title">Screenshot the Tek Binoculars stat panel</div>
+                    <div class="dropzone-desc">
+                        Aim your <strong>Tek Binoculars</strong> at the tame and hold the zoom button until the stats panel appears, then take a screenshot.
+                        TekOS reads the values via on-device OCR (no upload). You confirm before saving. Works best with the default ARK UI scale and no overlays.
+                    </div>
+                    <label class="btn" style="cursor:pointer; display:inline-block">
+                        CHOOSE IMAGE
+                        <input type="file" accept="image/*" onchange={pickScreenshot} style="display:none" />
+                    </label>
+                {:else}
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; text-align:left">
+                        <div>
+                            <img src={shotPreview} alt="Tek Binoculars screenshot" style="width:100%; max-height:360px; object-fit:contain; border:1px solid rgba(0,180,255,0.20); border-radius:4px; background:#000" />
+                            <div style="display:flex; gap:8px; margin-top:10px">
+                                <label class="btn" style="cursor:pointer; flex:1; text-align:center">
+                                    REPLACE
+                                    <input type="file" accept="image/*" onchange={pickScreenshot} style="display:none" />
+                                </label>
+                                <button class="btn" disabled={shotRunning} onclick={runOcr} style="flex:1">
+                                    {shotRunning ? `Reading… ${shotProgress}%` : 'Run OCR'}
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="form-section-title" style="margin-bottom:8px">Detected values</div>
+                            {#if shotError}
+                                <div class="form-error" style="margin-bottom:8px">{shotError}</div>
+                            {/if}
+                            {#if !shotRawText && !shotRunning}
+                                <div class="form-section-hint">Click <strong>Run OCR</strong> to scan this image.</div>
+                            {/if}
+                            {#if shotParsed && Object.keys(shotParsed).length > 0}
+                                <div class="stats-grid" style="grid-template-columns: 1fr 1fr; gap:6px; padding:0; background:transparent">
+                                    {#if shotParsed.level}<div class="stats-stat-label">Level</div><div class="stats-total"><span class="t">{shotParsed.level}</span></div>{/if}
+                                    {#each STATS as s}
+                                        {#if shotParsed[s] !== undefined}
+                                            <div class="stats-stat-label">{s}</div>
+                                            <div class="stats-total"><span class="t">{shotParsed[s]}</span></div>
+                                        {/if}
+                                    {/each}
+                                </div>
+                                <button class="btn" onclick={applyOcrToForm} style="margin-top:12px; width:100%">
+                                    ✓ Apply to form
+                                </button>
+                            {/if}
+                            {#if shotRawText}
+                                <details style="margin-top:14px">
+                                    <summary style="font-family:var(--tek-mono); font-size:0.65rem; letter-spacing:0.16em; color:var(--tek-text-faint); cursor:pointer; text-transform:uppercase">Raw OCR text</summary>
+                                    <pre style="margin-top:6px; padding:10px; background:rgba(0,0,0,0.4); font-size:0.7rem; max-height:160px; overflow:auto; white-space:pre-wrap; color:var(--tek-text-dim)">{shotRawText}</pre>
+                                </details>
+                            {/if}
+                        </div>
+                    </div>
+                {/if}
             </div>
 
             <!-- Manual form -->
@@ -271,7 +391,7 @@
                             </datalist>
                         </div>
                         <div class="field">
-                            <div class="field-label">Survivor name <span class="req">*</span></div>
+                            <div class="field-label">Specimen name <span class="req">*</span></div>
                             <input class="field-input" id="fName" placeholder="e.g. Roar" bind:value={fName} />
                         </div>
                         <div class="field">
@@ -292,13 +412,15 @@
                             <div class="field-label">Home server</div>
                             <select class="field-select" id="fServer" bind:value={fServer}>
                                 <option value="">— Not assigned —</option>
-                                <option>Ragnarok·07</option>
-                                <option>The Island·12</option>
-                                <option>Aberration·03</option>
-                                <option>Extinction·05</option>
-                                <option>Scorched·09</option>
-                                <option>Genesis·06</option>
+                                {#each (data?.servers ?? []) as srv}
+                                    <option value={srv.name}>{srv.map ? `${srv.name} · ${srv.map}` : srv.name}</option>
+                                {/each}
                             </select>
+                            {#if (data?.servers ?? []).length === 0}
+                                <div class="form-section-hint" style="margin-top:4px">
+                                    No servers linked. Add servers in <a href="/settings#cluster" style="color:var(--tek-blue)">Settings → Cluster</a>.
+                                </div>
+                            {/if}
                         </div>
                     </div>
                 </div>
@@ -328,61 +450,6 @@
                     </div>
                     <div class="stats-help">
                         ⓘ As you type, watch the right panel — TekOS auto-calculates which Bloodline tier and Boss Ready badges this specimen will unlock.
-                    </div>
-                </div>
-
-                <!-- LINEAGE (optional) -->
-                <div class="form-section optional">
-                    <div class="form-section-head">
-                        <div class="form-section-title">Lineage</div>
-                        <div class="optional-tag">Optional</div>
-                    </div>
-                    <div class="form-section-hint">
-                        Pick parents from your existing Vault entries. Used for stat genealogy and family-tree views.
-                    </div>
-                    <div class="lineage-grid">
-                        <div class="parent-picker" style="position:relative">
-                            <div class="parent-picker-label">
-                                <span class="parent-icon mother">♀ MOTHER</span>
-                                {#if motherEntry}<button type="button" class="optional-tag" style="border:none;background:transparent;cursor:pointer" onclick={clearMother}>× clear</button>{/if}
-                            </div>
-                            {#if motherEntry}
-                                <div class="parent-selected">⬢ <strong>{motherEntry.name}</strong> · {motherEntry.species}</div>
-                            {:else}
-                                <input class="parent-input" placeholder="Search your Vault…" bind:value={motherQ}
-                                    onfocus={() => motherFocused = true} onblur={() => setTimeout(() => motherFocused = false, 200)} />
-                                {#if motherFocused && motherOptions.length > 0}
-                                    <div class="parent-dropdown">
-                                        {#each motherOptions as opt (opt.id)}
-                                            <div class="parent-option" onclick={() => selectMother(opt.id, opt.name)} role="button" tabindex="0">
-                                                <span style="color:var(--tek-text)">{opt.name || '(unnamed)'}</span> · <span style="color:var(--tek-text-dim)">{opt.species}</span>
-                                            </div>
-                                        {/each}
-                                    </div>
-                                {/if}
-                            {/if}
-                        </div>
-                        <div class="parent-picker" style="position:relative">
-                            <div class="parent-picker-label">
-                                <span class="parent-icon father">♂ FATHER</span>
-                                {#if fatherEntry}<button type="button" class="optional-tag" style="border:none;background:transparent;cursor:pointer" onclick={clearFather}>× clear</button>{/if}
-                            </div>
-                            {#if fatherEntry}
-                                <div class="parent-selected">⬢ <strong>{fatherEntry.name}</strong> · {fatherEntry.species}</div>
-                            {:else}
-                                <input class="parent-input" placeholder="Search your Vault…" bind:value={fatherQ}
-                                    onfocus={() => fatherFocused = true} onblur={() => setTimeout(() => fatherFocused = false, 200)} />
-                                {#if fatherFocused && fatherOptions.length > 0}
-                                    <div class="parent-dropdown">
-                                        {#each fatherOptions as opt (opt.id)}
-                                            <div class="parent-option" onclick={() => selectFather(opt.id, opt.name)} role="button" tabindex="0">
-                                                <span style="color:var(--tek-text)">{opt.name || '(unnamed)'}</span> · <span style="color:var(--tek-text-dim)">{opt.species}</span>
-                                            </div>
-                                        {/each}
-                                    </div>
-                                {/if}
-                            {/if}
-                        </div>
                     </div>
                 </div>
 
