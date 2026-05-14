@@ -106,7 +106,7 @@
 		};
 	});
 
-	function display(u: Record<string,unknown>) { return (u.nickname ?? u.email ?? 'Unknown') as string; }
+	function display(u: Record<string,unknown>) { return (u.nickname ?? u.discordName ?? 'Unknown') as string; }
 	function creatureName(c: Creature) { return `${String((c as Record<string,unknown>).species ?? '?')} — ${String((c as Record<string,unknown>).name ?? 'Unnamed')} (Lvl ${Number((c as Record<string,unknown>).level ?? 1)})`; }
 
 	function mutCount(cd: Record<string,unknown>) {

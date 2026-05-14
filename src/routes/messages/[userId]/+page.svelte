@@ -13,7 +13,7 @@
     let hexCanvas: HTMLCanvasElement;
 
     const partner = $derived(data.other);
-    const partnerName = $derived(partner?.nickname ?? partner?.email?.split('@')[0] ?? 'Survivor');
+    const partnerName = $derived(partner?.nickname ?? partner?.discordName ?? 'Survivor');
     const partnerInitial = $derived((partnerName.charAt(0) ?? '?').toUpperCase());
     const myInitial = 'C';
 

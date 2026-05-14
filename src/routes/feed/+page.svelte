@@ -24,10 +24,10 @@
         activeSources[key] = !activeSources[key];
     }
 
-    type Friend = { nickname: string | null; email: string; id?: number };
+    type Friend = { nickname: string | null; discordName?: string | null; id?: number };
 
     function displayName(u: Friend) {
-        return u.nickname ?? u.email.split('@')[0];
+        return u.nickname ?? u.discordName ?? 'Unknown survivor';
     }
 
     function relTime(d: Date | string) {

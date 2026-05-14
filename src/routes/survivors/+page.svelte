@@ -4,7 +4,6 @@
     type Survivor = {
         id: number;
         nickname: string | null;
-        email: string;
         bio: string | null;
         online: boolean;
         lastSeen?: string | Date | null;
@@ -70,7 +69,7 @@
     }
 
     function displayName(s: Survivor) {
-        return s.nickname ?? s.email.split('@')[0];
+        return s.nickname ?? 'Unknown survivor';
     }
 
     function initial(s: Survivor) {
@@ -78,7 +77,7 @@
     }
 
     function handle(s: Survivor) {
-        return s.email.split('@')[0];
+        return displayName(s);
     }
 
     function setFilter(f: 'all' | 'online' | 'tribe') {
