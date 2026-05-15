@@ -32,6 +32,9 @@
 		{ key: 'mount',    label: 'Mount' },
 		{ key: 'water',    label: 'Water' },
 		{ key: 'resource', label: 'Resource' },
+		{ key: 'pet',      label: 'Pet' },
+		{ key: 'titan',    label: 'Titan' },
+		{ key: 'event',    label: 'Event' },
 		{ key: 'boss',     label: 'Boss' }
 	];
 
@@ -45,18 +48,19 @@
 		return 0;
 	}
 
-	// Map DB category → preview category CSS class
+	// Map DB category → preview category CSS class (direct, no habitat-string heuristics).
 	function previewCat(s: SpeciesEntry): string {
 		const c = (s.category ?? '').toLowerCase();
 		if (c === 'combat')     return 'combat';
-		if (c === 'utility')    return 'utility';
+		if (c === 'flyer')      return 'flyer';
+		if (c === 'aquatic')    return 'water';
 		if (c === 'transport')  return 'mount';
 		if (c === 'harvesting') return 'resource';
 		if (c === 'boss')       return 'boss';
-		// Heuristics for flyer / water from habitat
-		const habitat = (s.habitat ?? '').toLowerCase();
-		if (/(sky|aer|flying|cliff|mountain peak)/.test(habitat)) return 'flyer';
-		if (/(ocean|sea|water|river|lake|aquatic)/.test(habitat)) return 'water';
+		if (c === 'titan')      return 'titan';
+		if (c === 'pet')        return 'pet';
+		if (c === 'event')      return 'event';
+		if (c === 'utility')    return 'utility';
 		return 'utility';
 	}
 
@@ -447,6 +451,9 @@
 .dex-card.boss     { --cat-rgb: 245,158,11;  }
 .dex-card.mount    { --cat-rgb: 249,115,22;  }
 .dex-card.resource { --cat-rgb: 167,139,250; }
+.dex-card.pet      { --cat-rgb: 244,114,182; }
+.dex-card.titan    { --cat-rgb: 168,85,247;  }
+.dex-card.event    { --cat-rgb: 20,184,166;  }
 
 /* Corner brackets */
 .bracket {
