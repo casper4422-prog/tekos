@@ -35,14 +35,19 @@
             .slice(0, 3)
     );
 
-    // Mutations counter state, keyed by creature id
+    // Mutations counter state, keyed by creature id.
+    // Effect must NOT read mutationCounts (it writes it). Reading + writing the
+    // same $state inside an effect feeds itself → Svelte 5
+    // effect_update_depth_exceeded. Initialize from each pinned creature's
+    // mutation total whenever `pinned` changes; manual bumps via bump() persist
+    // until pinned changes again (which happens only on page reload).
     let mutationCounts = $state<Record<number, number>>({});
 
     $effect(() => {
         const next: Record<number, number> = {};
         for (const c of pinned) {
             const total = Object.values(c.mutations ?? {}).reduce((s, n) => s + (n || 0), 0);
-            next[c.id] = mutationCounts[c.id] ?? total;
+            next[c.id] = total;
         }
         mutationCounts = next;
     });
