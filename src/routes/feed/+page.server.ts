@@ -26,9 +26,20 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 		: [];
 	const tribeMateIds = [...new Set(tribeMates.map(m => m.userId))];
 
-	// User's joined servers (stored under pinnedCreatures.servers as { id, name, map, cluster? })
-	const me = await db.user.findUnique({ where: { id: uid }, select: { pinnedCreatures: true } });
-	const joinedServers = pickServers(me?.pinnedCreatures);
+	// User's joined servers — Settings stores them under settings.cluster.servers.
+	// Fall back to legacy pinnedCreatures.servers for accounts that pre-date the move.
+	const me = await db.user.findUnique({
+		where: { id: uid },
+		select: { settings: true, pinnedCreatures: true }
+	});
+	const settingsObj = (me?.settings && typeof me.settings === 'object' && !Array.isArray(me.settings))
+		? (me.settings as Record<string, unknown>)
+		: {};
+	const clusterObj = (settingsObj.cluster && typeof settingsObj.cluster === 'object' && !Array.isArray(settingsObj.cluster))
+		? (settingsObj.cluster as Record<string, unknown>)
+		: {};
+	const clusterServers = Array.isArray(clusterObj.servers) ? (clusterObj.servers as Json[]) : [];
+	const joinedServers = clusterServers.length > 0 ? clusterServers : pickServers(me?.pinnedCreatures);
 	// derive a primary serverCode (first server) for scope=server filtering
 	const myServerCode = (joinedServers[0]?.code ?? joinedServers[0]?.name ?? null) as string | null;
 

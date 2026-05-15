@@ -533,6 +533,13 @@
     let hexCanvas: HTMLCanvasElement;
 
     onMount(() => {
+        // Allow deep-linking to a specific section via ?tab=cluster (etc.)
+        const paramTab = new URLSearchParams(window.location.search).get('tab');
+        const TAB_IDS: SectionId[] = ['account','privacy','notifications','themes','cluster','data','integrations'];
+        if (paramTab && (TAB_IDS as string[]).includes(paramTab)) {
+            activeSection = paramTab as SectionId;
+        }
+
         // Hex canvas background
         const canvas = hexCanvas;
         if (canvas) {

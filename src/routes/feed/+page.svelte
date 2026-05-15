@@ -187,7 +187,7 @@
     const clusters = $derived.by<ClusterGroup[]>(() => {
         const groups = new Map<string, ClusterGroup>();
         for (const s of (data.joinedServers ?? [])) {
-            const cl = (s.cluster ?? 'Default Cluster') as string;
+            const cl = (s.cluster ?? 'Your Cluster') as string;
             if (!groups.has(cl)) groups.set(cl, { name: cl, servers: [] });
             groups.get(cl)!.servers.push(s);
         }
@@ -324,14 +324,14 @@
                 <span class="pip cyan"></span>
                 Your Servers
                 <span class="rule"></span>
-                <a class="action" href="/settings">Manage <span class="arrow">▸</span></a>
+                <a class="action" href="/settings?tab=cluster">Manage <span class="arrow">▸</span></a>
             </div>
 
             {#if clusters.length === 0}
-                <div class="add-cluster-card">
+                <a class="add-cluster-card" href="/settings?tab=cluster">
                     <span class="glyph">+</span>
                     <span class="lbl">No clusters connected — link a server in /settings</span>
-                </div>
+                </a>
             {:else}
                 {#each clusters as cluster (cluster.name)}
                     <div class="cluster-card">
@@ -344,7 +344,7 @@
                                 </div>
                             </div>
                             <div class="cluster-actions">
-                                <a class="cluster-btn" href="/settings">+ Add Server</a>
+                                <a class="cluster-btn" href="/settings?tab=cluster">+ Add Server</a>
                             </div>
                         </div>
                         <div class="server-grid">
@@ -363,7 +363,7 @@
                         </div>
                     </div>
                 {/each}
-                <a class="add-cluster-card" href="/settings">
+                <a class="add-cluster-card" href="/settings?tab=cluster">
                     <span class="glyph">+</span>
                     <span class="lbl">Add another Cluster</span>
                 </a>
