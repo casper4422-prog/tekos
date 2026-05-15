@@ -1,0 +1,533 @@
+<script lang="ts">
+    type Friend = {
+        id: number; friendId: number; nickname: string | null;
+        discordName: string | null; online: boolean; specimenCount: number;
+    };
+    type Pending = { id: number; nickname: string | null; discordName: string | null };
+    type Tribe = { id: number; name: string } | null;
+    type NetworkData = {
+        friends: Friend[];
+        incoming: Pending[];
+        sent: Pending[];
+        suggested: { id: number; nickname: string | null; discordName: string | null; online: boolean }[];
+        myTribe: Tribe;
+    };
+
+    let { data }: { data: NetworkData } = $props();
+
+    let searchQ = $state('');
+    let searchResults = $state<Array<{ id:number; nickname:string|null; discordName:string|null; friendStatus:string|null; friendId:number|null }>>([]);
+    let searching = $state(false);
+    let actionLoading = $state<number | null>(null);
+    let expandedId = $state<number | null>(null);
+    let inviteStatus = $state<{ id: number; msg: string } | null>(null);
+
+    function displayName(f: { nickname: string | null; discordName?: string | null }) {
+        return f.nickname ?? f.discordName ?? 'Unknown survivor';
+    }
+    function initial(f: { nickname: string | null; discordName?: string | null }) {
+        return displayName(f).charAt(0).toUpperCase();
+    }
+
+    async function accept(id: number) {
+        actionLoading = id;
+        await fetch(`/api/friends/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'accept' })
+        });
+        window.location.reload();
+    }
+    async function reject(id: number) {
+        actionLoading = id;
+        await fetch(`/api/friends/${id}`, { method: 'DELETE' });
+        window.location.reload();
+    }
+    async function remove(id: number) {
+        if (!confirm('Remove from your network?')) return;
+        actionLoading = id;
+        await fetch(`/api/friends/${id}`, { method: 'DELETE' });
+        window.location.reload();
+    }
+    async function sendRequest(toUserId: number) {
+        actionLoading = toUserId;
+        await fetch('/api/friends', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ toUserId })
+        });
+        window.location.reload();
+    }
+
+    let searchTimer: ReturnType<typeof setTimeout> | null = null;
+    $effect(() => {
+        const q = searchQ.trim();
+        if (searchTimer) clearTimeout(searchTimer);
+        if (q.length < 2) { searchResults = []; return; }
+        searching = true;
+        searchTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+                if (res.ok) searchResults = await res.json();
+            } catch {}
+            searching = false;
+        }, 250);
+    });
+
+    async function inviteToTribe(friendId: number) {
+        if (!data.myTribe) { alert('You need to be in a tribe first.'); return; }
+        inviteStatus = { id: friendId, msg: 'Sending…' };
+        try {
+            const res = await fetch(`/api/tribes/${data.myTribe.id}/invite`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: friendId })
+            });
+            inviteStatus = { id: friendId, msg: res.ok ? '✓ Invite sent' : 'Failed' };
+        } catch { inviteStatus = { id: friendId, msg: 'Failed' }; }
+        setTimeout(() => { if (inviteStatus?.id === friendId) inviteStatus = null; }, 2000);
+    }
+
+    function toggleExpand(id: number) {
+        expandedId = expandedId === id ? null : id;
+    }
+
+    const onlineFriends = $derived(data.friends.filter(f => f.online));
+    const suggestColors = ['#10b981','#06b6d4','#a78bfa','#f59e0b','#ef4444','#3b82f6'];
+    function suggestColor(i: number) { return suggestColors[i % suggestColors.length]; }
+</script>
+
+<!-- ═══════════ DISCOVERY ═══════════ -->
+<section class="section">
+    <div class="section-header">
+        <span class="pip"></span>
+        Discover Survivors
+        <span class="rule"></span>
+    </div>
+    <div class="discover-panel">
+        <div class="discover-search">
+            <svg class="discover-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" class="discover-search-input" bind:value={searchQ} placeholder="Search by callsign — e.g. Specter, Hera, Crimson…" />
+        </div>
+        {#if searchQ.trim().length >= 2}
+            <div class="suggest-label">Search results{searching ? ' · searching…' : ''}</div>
+            <div class="suggest-grid">
+                {#each searchResults as u, i (u.id)}
+                    {@const c = suggestColor(i)}
+                    {@const init = (displayName(u) ?? '?').charAt(0).toUpperCase()}
+                    <div class="suggest-card">
+                        <div class="suggest-avatar">
+                            <svg viewBox="0 0 100 110">
+                                <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke={c} stroke-width="2"/>
+                                <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill={c}>{init}</text>
+                            </svg>
+                        </div>
+                        <div class="suggest-id">
+                            <div class="suggest-name">{displayName(u)}</div>
+                            <div class="suggest-reason">{u.discordName ? `⌬ ${u.discordName}` : 'Survivor'}</div>
+                        </div>
+                        {#if u.friendStatus === 'accepted'}
+                            <a class="suggest-add-btn" href="/survivors/{u.id}" style="background:rgba(16,185,129,0.10);border-color:rgba(16,185,129,0.35);color:#86efac">✓ Linked</a>
+                        {:else if u.friendStatus === 'pending'}
+                            <span class="suggest-add-btn" style="background:rgba(245,158,11,0.10);border-color:rgba(245,158,11,0.35);color:#fcd34d">⟳ Pending</span>
+                        {:else}
+                            <button class="suggest-add-btn" onclick={() => sendRequest(u.id)} disabled={actionLoading === u.id}>+ Add</button>
+                        {/if}
+                    </div>
+                {:else}
+                    <div class="suggest-empty">No survivors match "{searchQ}".</div>
+                {/each}
+            </div>
+        {:else if data.suggested && data.suggested.length > 0}
+            <div class="suggest-label">Recently active survivors</div>
+            <div class="suggest-grid">
+                {#each data.suggested as u, i (u.id)}
+                    {@const c = suggestColor(i)}
+                    {@const init = (displayName(u) ?? '?').charAt(0).toUpperCase()}
+                    <div class="suggest-card">
+                        <div class="suggest-avatar">
+                            <svg viewBox="0 0 100 110">
+                                <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke={c} stroke-width="2"/>
+                                <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill={c}>{init}</text>
+                            </svg>
+                        </div>
+                        <div class="suggest-id">
+                            <div class="suggest-name">{displayName(u)}</div>
+                            <div class="suggest-reason">{u.online ? '● Active now' : (u.discordName ? `⌬ ${u.discordName}` : 'Survivor')}</div>
+                        </div>
+                        <button class="suggest-add-btn" onclick={() => sendRequest(u.id)} disabled={actionLoading === u.id}>+ Add</button>
+                    </div>
+                {/each}
+            </div>
+        {:else}
+            <div class="suggest-empty">Start typing a callsign to find other survivors.</div>
+        {/if}
+    </div>
+</section>
+
+<!-- ═══════════ PENDING REQUESTS ═══════════ -->
+{#if data.incoming.length > 0}
+<section class="section">
+    <div class="section-header">
+        <span class="pip amber"></span>
+        Pending Requests
+        <span class="count amber">{data.incoming.length}</span>
+        <span class="rule"></span>
+    </div>
+    <div class="pending-panel">
+        <div class="pending-head">
+            <span class="amber-pip"></span>
+            <span>{data.incoming.length} Survivor{data.incoming.length === 1 ? '' : 's'} want to connect</span>
+        </div>
+
+        {#each data.incoming as r (r.id)}
+        <div class="pending-row">
+            <div class="pending-avatar">
+                <svg viewBox="0 0 100 110">
+                    <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#fcd34d">{initial(r)}</text>
+                </svg>
+            </div>
+            <div class="pending-info">
+                <div class="pending-name">{displayName(r)}</div>
+                <div class="pending-meta">{#if r.discordName}⌬ {r.discordName}{:else}Survivor{/if}</div>
+            </div>
+            <div class="pending-actions">
+                <button class="pending-btn decline" onclick={() => reject(r.id)} disabled={actionLoading === r.id}>Decline</button>
+                <button class="pending-btn accept" onclick={() => accept(r.id)} disabled={actionLoading === r.id}>Accept</button>
+            </div>
+        </div>
+        {/each}
+    </div>
+</section>
+{/if}
+
+<!-- ═══════════ ONLINE NOW ═══════════ -->
+{#if onlineFriends.length > 0}
+<section class="section">
+    <div class="section-header">
+        <span class="pip green"></span>
+        Online Now
+        <span class="count green">{onlineFriends.length}</span>
+        <span class="rule"></span>
+    </div>
+    <div class="online-grid">
+
+        {#each onlineFriends as f (f.id)}
+        <div class="online-card">
+            <div class="online-top">
+                <div class="online-avatar">
+                    <svg viewBox="0 0 100 110">
+                        <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke="#00b4ff" stroke-width="2"/>
+                        <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#7dd3fc">{initial(f)}</text>
+                    </svg>
+                    <div class="pip"></div>
+                </div>
+                <div class="online-id">
+                    <div class="online-name">{displayName(f)}</div>
+                    <div class="online-tribe">{#if f.discordName}⌬ {f.discordName}{:else}⌬ Survivor{/if}</div>
+                </div>
+            </div>
+            <div class="online-activity">
+                <span class="action">Online</span> · Active now
+            </div>
+            <div class="online-quick-actions">
+                <a class="qa-btn" href="/messages/{f.friendId}">✉ DM</a>
+                <a class="qa-btn" href="/survivors/{f.friendId}">⬡ View</a>
+            </div>
+        </div>
+        {/each}
+
+    </div>
+</section>
+{/if}
+
+<!-- ═══════════ ALL FRIENDS ═══════════ -->
+<section class="section">
+    <div class="section-header">
+        <span class="pip"></span>
+        All Friends
+        <span class="count">{data.friends.length}</span>
+        <span class="rule"></span>
+    </div>
+
+    {#if data.friends.length === 0}
+        <div class="discover-panel" style="text-align:center; padding: 36px 24px;">
+            <div style="font-family: var(--tek-display); font-size: 1rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tek-text); margin-bottom: 8px;">Your network is empty</div>
+            <div style="font-family: var(--tek-mono); font-size: 0.72rem; color: var(--tek-text-dim);">"No Survivor walks alone for long. Use Discovery above to find others."</div>
+        </div>
+    {:else}
+    <div class="friends-list">
+
+        {#each data.friends as f (f.id)}
+        <div class="friend-row" class:online={f.online} class:expanded={expandedId === f.id} data-name={displayName(f).toLowerCase()}>
+            <div class="friend-main" onclick={() => toggleExpand(f.id)} role="button" tabindex="0" onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpand(f.id)}>
+                <div class="friend-avatar">
+                    <svg viewBox="0 0 100 110">
+                        <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke="#00b4ff" stroke-width="2"/>
+                        <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#7dd3fc">{initial(f)}</text>
+                    </svg>
+                    <div class="pip" class:online={f.online}></div>
+                </div>
+                <div class="friend-id">
+                    <div class="friend-callsign">{displayName(f)}</div>
+                    <div class="friend-meta">{#if f.discordName}<span class="tribe">⌬ {f.discordName}</span>{:else}Survivor{/if}</div>
+                </div>
+                <span class="friend-status" class:online={f.online}>{f.online ? '● Online' : 'Offline'}</span>
+                <span class="expand-chevron">▸</span>
+            </div>
+            <div class="friend-detail">
+                <div class="friend-detail-inner">
+                    <div>
+                        <div class="detail-block-label">Top Specimens</div>
+                        <div class="top-specimens">
+                            <div class="top-spec-row" style="color: var(--tek-text-dim); font-style: italic;">No specimens shared yet</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="detail-block-label">Stats</div>
+                        <div class="detail-stats">
+                            <div class="dstat"><div class="dstat-val gradient">{f.specimenCount}</div><div class="dstat-lbl">Specimens</div></div>
+                            <div class="dstat"><div class="dstat-val">{f.online ? '●' : '○'}</div><div class="dstat-lbl">{f.online ? 'Online' : 'Offline'}</div></div>
+                            <div class="dstat"><div class="dstat-val amber">⌬</div><div class="dstat-lbl">Survivor</div></div>
+                        </div>
+                        <div class="detail-recent">
+                            <span class="action">Linked to your network</span><span class="time">· Friend since recently</span>
+                        </div>
+                    </div>
+                    <div class="action-row">
+                        <a class="act-btn primary" href="/survivors/{f.friendId}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>View Dossier</a>
+                        <a class="act-btn secondary" href="/messages/{f.friendId}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Send DM</a>
+                        {#if data.myTribe}
+                            <button class="act-btn secondary" onclick={(e) => { e.stopPropagation(); inviteToTribe(f.friendId); }} disabled={inviteStatus?.id === f.friendId}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>{inviteStatus?.id === f.friendId ? inviteStatus.msg : 'Invite to Tribe'}</button>
+                        {/if}
+                        <a class="act-btn ghost" href="/overseer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>War Room</a>
+                        <a class="act-btn ghost" href="/marketplace?to={f.friendId}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>Trade</a>
+                        <button class="act-btn danger" onclick={(e) => { e.stopPropagation(); remove(f.id); }} disabled={actionLoading === f.id}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/></svg>Remove</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {/each}
+
+    </div>
+    {/if}
+</section>
+
+<!-- ═══════════ SENT REQUESTS ═══════════ -->
+{#if data.sent.length > 0}
+<section class="section">
+    <div class="section-header">
+        <span class="pip amber"></span>
+        Sent Requests
+        <span class="count amber">{data.sent.length}</span>
+        <span class="rule"></span>
+    </div>
+    <div class="pending-panel">
+        <div class="pending-head">
+            <span class="amber-pip"></span>
+            <span>Awaiting response</span>
+        </div>
+
+        {#each data.sent as r (r.id)}
+        <div class="pending-row">
+            <div class="pending-avatar">
+                <svg viewBox="0 0 100 110">
+                    <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="2"/>
+                    <text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#fcd34d">{initial(r)}</text>
+                </svg>
+            </div>
+            <div class="pending-info">
+                <div class="pending-name">{displayName(r)}</div>
+                <div class="pending-meta">{#if r.discordName}⌬ {r.discordName} · {/if}Awaiting response</div>
+            </div>
+            <div class="pending-actions">
+                <button class="pending-btn decline" onclick={() => reject(r.id)} disabled={actionLoading === r.id}>Cancel</button>
+            </div>
+        </div>
+        {/each}
+    </div>
+</section>
+{/if}
+
+<style>
+.section { margin-bottom: 36px; }
+.section-header {
+    display: flex; align-items: center; gap: 14px; margin: 0 0 18px;
+    font-family: var(--tek-mono); font-size: 0.7rem; font-weight: 700;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--tek-text-dim);
+}
+.section-header .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--tek-blue); box-shadow: 0 0 8px var(--tek-blue-glow); }
+.section-header .pip.green { background: var(--tek-green); box-shadow: 0 0 8px rgba(16,185,129,0.7); }
+.section-header .pip.amber { background: var(--tek-amber); box-shadow: 0 0 8px rgba(245,158,11,0.7); }
+.section-header .rule { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(0,180,255,0.18), transparent); }
+.section-header .count { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); margin-left: 6px; }
+.section-header .count.green { color: var(--tek-green); text-shadow: 0 0 5px rgba(16,185,129,0.5); }
+.section-header .count.amber { color: var(--tek-amber); text-shadow: 0 0 5px rgba(245,158,11,0.5); }
+
+.discover-panel {
+    background: linear-gradient(160deg, rgba(10,18,44,0.88) 0%, rgba(4,8,20,0.96) 100%);
+    backdrop-filter: blur(14px);
+    clip-path: polygon(14px 0%, 100% 0%, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0% 100%, 0% 14px);
+    padding: 18px 22px 16px 24px;
+    position: relative;
+}
+.discover-panel::before {
+    content: ''; position: absolute; left: 0; top: 14px; bottom: 0; width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 7px var(--tek-blue-glow);
+}
+.discover-search { position: relative; margin-bottom: 16px; }
+.discover-search-input {
+    width: 100%; background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    color: var(--tek-text); padding: 11px 14px 11px 40px;
+    font-family: inherit; font-size: 0.88rem; outline: none;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    transition: border-color 0.2s, background 0.2s;
+}
+.discover-search-input::placeholder { color: var(--tek-text-faint); }
+.discover-search-input:focus {
+    border-color: rgba(0,180,255,0.40);
+    border-bottom-color: var(--tek-blue);
+    background: rgba(0,15,35,0.92);
+}
+.discover-search-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--tek-text-faint); pointer-events: none;
+}
+
+.suggest-label { font-family: var(--tek-mono); font-size: 0.58rem; letter-spacing: 0.22em; color: var(--tek-text-faint); text-transform: uppercase; margin-bottom: 10px; }
+.suggest-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 720px) { .suggest-grid { grid-template-columns: 1fr; } }
+.suggest-card {
+    display: grid; grid-template-columns: 36px 1fr auto; gap: 12px;
+    align-items: center; background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.04); padding: 10px 12px 10px 10px;
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    transition: all 0.18s; cursor: pointer;
+}
+.suggest-card:hover { background: rgba(0,180,255,0.05); border-color: rgba(0,180,255,0.25); }
+.suggest-avatar { width: 36px; height: 40px; flex-shrink: 0; }
+.suggest-avatar svg { width: 100%; height: 100%; filter: drop-shadow(0 0 5px rgba(0,180,255,0.30)); }
+.suggest-id { min-width: 0; line-height: 1.3; }
+.suggest-name { font-family: var(--tek-display); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.04em; color: var(--tek-text); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.suggest-reason { font-family: var(--tek-mono); font-size: 0.56rem; letter-spacing: 0.10em; color: var(--tek-text-faint); text-transform: uppercase; margin-top: 2px; }
+.suggest-add-btn {
+    background: rgba(0,180,255,0.10); border: 1px solid rgba(0,180,255,0.35);
+    color: #7dd3fc; font-family: inherit; font-size: 0.6rem; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase; padding: 5px 9px; cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.18s; white-space: nowrap;
+}
+.suggest-add-btn:hover { background: rgba(0,180,255,0.25); filter: drop-shadow(0 0 6px var(--tek-blue-glow)); }
+.suggest-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.suggest-empty { font-family: var(--tek-mono); font-size: 0.72rem; color: var(--tek-text-dim); letter-spacing: 0.08em; text-align: center; padding: 20px 8px; font-style: italic; }
+
+.pending-panel {
+    background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(245,158,11,0.02) 100%);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 12px 22px 12px 24px; position: relative;
+    filter: drop-shadow(-3px 0 14px rgba(245,158,11,0.16));
+}
+.pending-panel::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 0; width: 2px; background: var(--tek-amber); box-shadow: 0 0 6px rgba(245,158,11,0.55); }
+.pending-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-family: var(--tek-mono); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.20em; color: var(--tek-amber); text-transform: uppercase; }
+.pending-head .amber-pip { width: 7px; height: 7px; border-radius: 50%; background: var(--tek-amber); box-shadow: 0 0 7px rgba(245,158,11,0.7); animation: amber-pulse 1.8s ease-in-out infinite; }
+@keyframes amber-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.pending-row { display: grid; grid-template-columns: 32px 1fr auto auto; gap: 12px; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(245,158,11,0.10); }
+.pending-row:last-child { border-bottom: none; }
+.pending-avatar { width: 32px; height: 36px; }
+.pending-avatar svg { width: 100%; height: 100%; }
+.pending-info { min-width: 0; line-height: 1.3; }
+.pending-name { font-family: var(--tek-display); font-size: 0.84rem; font-weight: 800; letter-spacing: 0.04em; color: var(--tek-text); text-transform: uppercase; }
+.pending-meta { font-family: var(--tek-mono); font-size: 0.6rem; color: var(--tek-text-dim); letter-spacing: 0.06em; margin-top: 2px; }
+.pending-actions { display: flex; gap: 5px; }
+.pending-btn { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); color: var(--tek-text-dim); font-family: inherit; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 5px 11px; cursor: pointer; clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%); transition: all 0.18s; }
+.pending-btn.accept { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.40); color: #86efac; }
+.pending-btn.accept:hover { background: rgba(16,185,129,0.30); filter: drop-shadow(0 0 6px rgba(16,185,129,0.45)); }
+.pending-btn.decline:hover { color: #fca5a5; border-color: rgba(239,68,68,0.40); }
+.pending-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.online-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+@media (max-width: 980px) { .online-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 540px) { .online-grid { grid-template-columns: 1fr; } }
+
+.online-card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.98) 100%);
+    backdrop-filter: blur(12px);
+    clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+    padding: 14px 16px 14px 18px; cursor: pointer;
+    transition: transform 0.2s ease, filter 0.22s ease;
+    filter: drop-shadow(0 0 1px rgba(16,185,129,0.35)) drop-shadow(0 8px 22px rgba(0,0,0,0.42));
+}
+.online-card:hover { transform: translateY(-2px); filter: drop-shadow(0 0 2px rgba(16,185,129,0.75)) drop-shadow(0 12px 30px rgba(0,0,0,0.55)); }
+.online-card::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 0; width: 2px; background: var(--tek-green); box-shadow: 0 0 6px rgba(16,185,129,0.7); }
+.online-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.online-avatar { width: 36px; height: 40px; flex-shrink: 0; position: relative; }
+.online-avatar svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgba(0,180,255,0.40)); }
+.online-avatar .pip { position: absolute; bottom: 2px; right: -1px; width: 9px; height: 9px; border-radius: 50%; background: var(--tek-green); border: 2px solid #050812; box-shadow: 0 0 5px rgba(16,185,129,0.7); }
+.online-id { min-width: 0; line-height: 1.3; }
+.online-name { font-family: var(--tek-display); font-size: 0.86rem; font-weight: 800; letter-spacing: 0.04em; color: var(--tek-text); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.online-tribe { font-family: var(--tek-mono); font-size: 0.58rem; color: var(--tek-amber); letter-spacing: 0.10em; text-transform: uppercase; font-weight: 600; margin-top: 1px; }
+.online-activity { font-family: var(--tek-mono); font-size: 0.66rem; color: var(--tek-text-dim); line-height: 1.45; padding: 8px 10px; background: rgba(0,0,0,0.25); border-left: 2px solid rgba(16,185,129,0.40); clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%); margin-bottom: 10px; }
+.online-activity .action { color: var(--tek-green); font-weight: 700; }
+.online-quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.qa-btn { background: rgba(0,180,255,0.06); border: 1px solid rgba(0,180,255,0.22); color: #7dd3fc; font-family: inherit; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 5px; cursor: pointer; clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%); transition: all 0.18s; display: flex; align-items: center; justify-content: center; gap: 4px; text-decoration: none; }
+.qa-btn:hover { background: rgba(0,180,255,0.18); filter: drop-shadow(0 0 5px var(--tek-blue-glow)); }
+
+.friends-list { display: flex; flex-direction: column; gap: 5px; }
+.friend-row { background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%); clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px); position: relative; transition: all 0.22s; filter: drop-shadow(0 0 1px rgba(0,180,255,0.18)) drop-shadow(0 6px 16px rgba(0,0,0,0.35)); }
+.friend-row::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 0; width: 2px; background: rgba(0,180,255,0.30); box-shadow: 0 0 4px rgba(0,180,255,0.40); }
+.friend-row.online::before { background: var(--tek-green); box-shadow: 0 0 5px rgba(16,185,129,0.55); }
+.friend-row.expanded { filter: drop-shadow(0 0 2px rgba(0,180,255,0.50)) drop-shadow(0 12px 28px rgba(0,0,0,0.55)); }
+.friend-main { display: grid; grid-template-columns: 32px 1fr auto auto; gap: 14px; align-items: center; padding: 11px 18px 11px 20px; cursor: pointer; transition: background 0.18s; }
+.friend-main:hover { background: rgba(0,180,255,0.04); }
+.friend-avatar { width: 30px; height: 34px; position: relative; flex-shrink: 0; }
+.friend-avatar svg { width: 100%; height: 100%; filter: drop-shadow(0 0 4px rgba(0,180,255,0.30)); }
+.friend-avatar .pip { position: absolute; bottom: 2px; right: -1px; width: 8px; height: 8px; border-radius: 50%; background: var(--tek-text-faint); border: 2px solid #050812; }
+.friend-avatar .pip.online { background: var(--tek-green); box-shadow: 0 0 4px rgba(16,185,129,0.6); }
+.friend-id { min-width: 0; line-height: 1.3; }
+.friend-callsign { font-family: var(--tek-display); font-size: 0.86rem; font-weight: 800; letter-spacing: 0.04em; color: var(--tek-text); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.friend-meta { font-family: var(--tek-mono); font-size: 0.62rem; color: var(--tek-text-dim); letter-spacing: 0.06em; margin-top: 2px; }
+.friend-meta .tribe { color: var(--tek-amber); font-weight: 600; }
+.friend-status { font-family: var(--tek-mono); font-size: 0.6rem; letter-spacing: 0.14em; color: var(--tek-text-faint); text-transform: uppercase; white-space: nowrap; }
+.friend-status.online { color: var(--tek-green); }
+.expand-chevron { color: var(--tek-text-faint); font-family: var(--tek-display); font-size: 0.7rem; transition: transform 0.25s; }
+.friend-row.expanded .expand-chevron { transform: rotate(90deg); color: var(--tek-blue); }
+.friend-detail { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; border-top: 1px solid rgba(255,255,255,0.04); }
+.friend-row.expanded .friend-detail { max-height: 600px; }
+.friend-detail-inner { padding: 18px 22px 18px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+@media (max-width: 720px) { .friend-detail-inner { grid-template-columns: 1fr; } }
+.detail-block-label { font-family: var(--tek-mono); font-size: 0.55rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--tek-text-faint); margin-bottom: 8px; }
+.top-specimens { display: flex; flex-direction: column; gap: 5px; }
+.top-spec-row { display: grid; grid-template-columns: auto 1fr auto; gap: 9px; align-items: center; padding: 6px 10px 6px 8px; background: rgba(0,0,0,0.20); border-left: 2px solid rgba(239,68,68,0.30); clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px); font-family: var(--tek-mono); font-size: 0.7rem; }
+.detail-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+.dstat { text-align: center; background: rgba(0,0,0,0.25); padding: 6px 4px; clip-path: polygon(3px 0%, 100% 0%, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0% 100%, 0% 3px); }
+.dstat-val { font-family: var(--tek-display); font-size: 1rem; font-weight: 900; color: var(--tek-blue); text-shadow: 0 0 5px var(--tek-blue-glow); line-height: 1; }
+.dstat-val.gradient { background: linear-gradient(135deg, #00d4ff, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 4px rgba(0,180,255,0.30)); }
+.dstat-val.amber { color: #fcd34d; text-shadow: 0 0 5px rgba(251,191,36,0.45); }
+.dstat-lbl { font-family: var(--tek-mono); font-size: 0.52rem; letter-spacing: 0.18em; color: var(--tek-text-faint); text-transform: uppercase; margin-top: 3px; }
+.detail-recent { font-family: var(--tek-mono); font-size: 0.7rem; color: var(--tek-text-dim); line-height: 1.4; padding: 8px 10px; background: rgba(0,0,0,0.20); clip-path: polygon(3px 0%, 100% 0%, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0% 100%, 0% 3px); margin-bottom: 12px; }
+.detail-recent .action { color: #c4b5fd; }
+.detail-recent .time { color: var(--tek-text-faint); margin-left: 4px; }
+
+.action-row { display: flex; flex-wrap: wrap; gap: 5px; padding-top: 4px; grid-column: 1 / -1; }
+.act-btn { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 7px 12px; border: none; cursor: pointer; clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%); transition: filter 0.18s, transform 0.18s, background 0.18s; text-decoration: none; }
+.act-btn :global(svg) { width: 11px; height: 11px; }
+.act-btn.primary { background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%); color: #001a2e; filter: drop-shadow(0 0 6px rgba(0,180,255,0.40)); }
+.act-btn.primary:hover { filter: drop-shadow(0 0 12px rgba(0,180,255,0.75)); transform: translateY(-1px); }
+.act-btn.secondary { background: rgba(0,180,255,0.06); color: #7dd3fc; border: 1px solid rgba(0,180,255,0.22); }
+.act-btn.secondary:hover { background: rgba(0,180,255,0.18); border-color: rgba(0,180,255,0.45); }
+.act-btn.ghost { background: transparent; color: var(--tek-text-dim); border: 1px solid rgba(255,255,255,0.08); }
+.act-btn.ghost:hover { color: var(--tek-text); border-color: rgba(255,255,255,0.20); }
+.act-btn.danger { background: rgba(239,68,68,0.08); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); margin-left: auto; }
+.act-btn.danger:hover { background: rgba(239,68,68,0.18); filter: drop-shadow(0 0 6px rgba(239,68,68,0.45)); }
+.act-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 720px) {
+    .friend-main { grid-template-columns: 32px 1fr auto; gap: 10px; padding: 10px 14px; }
+    .friend-status { display: none; }
+    .pending-row { grid-template-columns: 32px 1fr auto; }
+    .pending-actions .pending-btn.decline { display: none; }
+}
+</style>
