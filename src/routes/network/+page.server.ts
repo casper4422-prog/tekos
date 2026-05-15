@@ -61,11 +61,32 @@ export const load: PageServerLoad = async ({ locals }) => {
 		online: u.lastSeen ? (now - new Date(u.lastSeen).getTime()) < ONLINE_MS : false
 	}));
 
+	// Direct-message conversation list (most recent message per partner)
+	const msgs = await db.directMessage.findMany({
+		where: { OR: [{ fromUserId: uid }, { toUserId: uid }] },
+		orderBy: { createdAt: 'desc' },
+		include: {
+			fromUser: { select: { id:true, nickname:true, discordName:true } },
+			toUser:   { select: { id:true, nickname:true, discordName:true } },
+		}
+	});
+	const seen = new Set<number>();
+	const convos: Array<{ userId: number; nickname: string | null; discordName: string | null; lastMessage: string; lastAt: Date; unread: number }> = [];
+	for (const m of msgs) {
+		const otherId = m.fromUserId === uid ? m.toUserId : m.fromUserId;
+		if (seen.has(otherId)) continue;
+		seen.add(otherId);
+		const other = m.fromUserId === uid ? m.toUser : m.fromUser;
+		const unread = msgs.filter(x => x.fromUserId === otherId && x.toUserId === uid && !x.read).length;
+		convos.push({ userId: otherId, nickname: other.nickname, discordName: other.discordName, lastMessage: m.message, lastAt: m.createdAt, unread });
+	}
+
 	return {
 		friends,
 		incoming: incoming.map(r => ({ id: r.id, fromId: r.userId, nickname: r.user.nickname, discordName: r.user.discordName })),
 		sent: sent.map(r => ({ id: r.id, toId: r.friendUserId, nickname: r.friend.nickname, discordName: r.friend.discordName })),
 		suggested,
-		myTribe: myMembership?.tribe ?? null
+		myTribe: myMembership?.tribe ?? null,
+		convos
 	};
 };

@@ -4,16 +4,18 @@
     import type { PageData } from './$types';
     import NetworkPanel from '$lib/components/NetworkPanel.svelte';
     import SurvivorsPanel from '$lib/components/SurvivorsPanel.svelte';
+    import MessagesPanel from '$lib/components/MessagesPanel.svelte';
 
     let { data }: { data: PageData } = $props();
 
-    type TabId = 'network' | 'survivors';
+    type TabId = 'network' | 'messages' | 'survivors';
     let activeTab = $state<TabId>('network');
 
     // Sync activeTab with ?tab= so back/forward and deep-links work.
     $effect(() => {
         const t = $page.url.searchParams.get('tab');
-        activeTab = t === 'survivors' ? 'survivors' : 'network';
+        if (t === 'messages' || t === 'survivors') activeTab = t;
+        else activeTab = 'network';
     });
 
     function setTab(t: TabId) {
@@ -28,6 +30,7 @@
     const totalCount   = $derived(data.friends.length);
     const onlineCount  = $derived(onlineFriends.length);
     const pendingCount = $derived(data.incoming.length);
+    const unreadTotal  = $derived((data.convos ?? []).reduce((s, c) => s + c.unread, 0));
 
     let canvasEl: HTMLCanvasElement | null = $state(null);
 
@@ -99,6 +102,8 @@
                 <span class="prefix">›</span>
                 {#if activeTab === 'network'}
                     <span class="stat-num">{totalCount}</span> SURVIVORS LINKED · <span class="stat-num green">{onlineCount}</span> ONLINE NOW · <span class="stat-num">{pendingCount}</span> PENDING
+                {:else if activeTab === 'messages'}
+                    <span class="stat-num">{(data.convos ?? []).length}</span> CONVERSATIONS · <span class="stat-num green">{unreadTotal}</span> UNREAD
                 {:else}
                     BROWSE EVERY SURVIVOR ON THE NETWORK
                 {/if}
@@ -112,6 +117,11 @@
             <span>Network</span>
             {#if pendingCount > 0}<span class="tab-badge amber">{pendingCount}</span>{/if}
         </button>
+        <button class="tab" class:active={activeTab === 'messages'} onclick={() => setTab('messages')}>
+            <span class="tab-glyph">✉</span>
+            <span>Messages</span>
+            {#if unreadTotal > 0}<span class="tab-badge blue">{unreadTotal}</span>{/if}
+        </button>
         <button class="tab" class:active={activeTab === 'survivors'} onclick={() => setTab('survivors')}>
             <span class="tab-glyph">⬡</span>
             <span>Survivors</span>
@@ -120,6 +130,8 @@
 
     {#if activeTab === 'network'}
         <NetworkPanel {data} />
+    {:else if activeTab === 'messages'}
+        <MessagesPanel convos={data.convos ?? []} />
     {:else}
         <SurvivorsPanel />
     {/if}
@@ -257,6 +269,7 @@
     color: #fcd34d;
     border: 1px solid rgba(245,158,11,0.40);
 }
+.tab-badge.blue { background: rgba(0,180,255,0.18); color: #7dd3fc; border-color: rgba(0,180,255,0.40); }
 
 .bottom-note {
     position: fixed;

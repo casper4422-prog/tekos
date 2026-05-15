@@ -3,8 +3,7 @@
 		User, Dna, BookOpen,
 		Users, Shield, Rss,
 		Repeat2, Sword, Bell, Hexagon,
-		Power, Award, Settings, Flag,
-		MessageSquare
+		Power, Award, Settings, Flag
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { LayoutData } from './$types';
@@ -19,10 +18,9 @@
 			{ page:'dex',       Icon:BookOpen, label:'Dex'       },
 		]},
 		{ section:'Social', color:'gamma', items:[
-			{ page:'feed',     Icon:Rss,           label:'Feed'     },
-			{ page:'network',  Icon:Users,         label:'Network'  },
-			{ page:'messages', Icon:MessageSquare, label:'Messages' },
-			{ page:'tribe',    Icon:Shield,        label:'Tribe'    },
+			{ page:'feed',    Icon:Rss,    label:'Feed'    },
+			{ page:'network', Icon:Users,  label:'Network' },
+			{ page:'tribe',   Icon:Shield, label:'Tribe'   },
 		]},
 		{ section:'Operations', color:'alpha', items:[
 			{ page:'marketplace',   Icon:Repeat2, label:'Marketplace'   },
@@ -58,7 +56,7 @@
 		if (theme.bg)     root.style.setProperty('--tek-bg', theme.bg);
 	});
 
-	const SOCIAL_OPS = ['feed','network','tribe','settings','marketplace','overseer','notifications','badges','messages'];
+	const SOCIAL_OPS = ['feed','network','tribe','settings','marketplace','overseer','notifications','badges'];
 	function isLocked(p: string) { return !data.user && SOCIAL_OPS.includes(p); }
 	function exitGuest() { localStorage.removeItem('tekos_guest'); window.location.href = '/login'; }
 </script>
