@@ -48,12 +48,16 @@
 	let wlSpecies = $state('');
 	let wlNotes   = $state('');
 	let speciesList = $state<string[]>([]);
+	let speciesDB = $state<Record<string, Record<string, unknown>>>({});
 
 	let hexCanvas: HTMLCanvasElement | null = $state(null);
 
 	onMount(() => {
 		const db = window.EXPANDED_SPECIES_DATABASE;
-		if (db) speciesList = Object.keys(db).sort();
+		if (db) {
+			speciesDB = db as Record<string, Record<string, unknown>>;
+			speciesList = Object.keys(db).sort();
+		}
 
 		// Hex canvas animation (verbatim from preview)
 		const canvas = hexCanvas;
@@ -108,6 +112,45 @@
 
 	function display(u: Record<string,unknown>) { return (u.nickname ?? u.discordName ?? 'Unknown') as string; }
 	function creatureName(c: Creature) { return `${String((c as Record<string,unknown>).species ?? '?')} — ${String((c as Record<string,unknown>).name ?? 'Unnamed')} (Lvl ${Number((c as Record<string,unknown>).level ?? 1)})`; }
+
+	function speciesIcon(species: string | undefined): string {
+		if (!species) return '⬡';
+		const entry = speciesDB[species];
+		const icon = entry?.icon as string | undefined;
+		return icon ?? '⬡';
+	}
+	function dexCategory(species: string | undefined): string {
+		if (!species) return 'utility';
+		const entry = speciesDB[species];
+		const cat = String(entry?.category ?? '').toLowerCase();
+		if (cat === 'aquatic')  return 'water';
+		if (cat === 'transport') return 'mount';
+		if (cat === 'harvesting') return 'resource';
+		if (cat === 'titan')    return 'boss';
+		return cat || 'utility';
+	}
+
+	// Stat keys vary in saved creatures — fall back across short/long/upper forms.
+	const STAT_KEYS = ['health','stamina','melee','weight','oxygen','food','speed','crafting'];
+	const STAT_LABELS: Record<string,string> = {
+		health: 'HP', stamina: 'STA', melee: 'MEL', weight: 'WGT',
+		oxygen: 'OXY', food: 'FOOD', speed: 'SPD', crafting: 'CRA'
+	};
+	function statValue(stats: Record<string,unknown> | undefined, key: string): number {
+		if (!stats) return 0;
+		const candidates = [key, key.toLowerCase(), key.toUpperCase(), key.charAt(0).toUpperCase() + key.slice(1)];
+		for (const k of candidates) {
+			const v = stats[k];
+			if (v != null && Number.isFinite(Number(v))) return Number(v);
+		}
+		return 0;
+	}
+	function topStats(cd: Record<string,unknown>): Array<{ key: string; label: string; val: number }> {
+		const base = (cd.baseStats ?? {}) as Record<string,unknown>;
+		return ['health','stamina','melee','weight'].map(k => ({
+			key: k, label: STAT_LABELS[k], val: statValue(base, k)
+		}));
+	}
 
 	function mutCount(cd: Record<string,unknown>) {
 		const m = (cd.mutations ?? {}) as Record<string,number>;
@@ -240,6 +283,50 @@
 
 <canvas id="tekHexCanvas" bind:this={hexCanvas}></canvas>
 
+{#snippet specimenContent(cd: Record<string, unknown>)}
+	{@const species = String(cd.species ?? '?')}
+	{@const icon = speciesIcon(species)}
+	{@const cat = dexCategory(species)}
+	{@const gender = String(cd.gender ?? '').toLowerCase()}
+	{@const tier = tierFor(cd)}
+	{@const stats = topStats(cd)}
+	<div class="listing-content specimen-content">
+		<div class="spec-head">
+			<div class="spec-icon-wrap {cat}">
+				<span class="spec-icon">{icon}</span>
+			</div>
+			<div class="spec-meta">
+				<div class="item-name">{species}</div>
+				<div class="item-nick">"{String(cd.name ?? 'Unnamed')}"</div>
+				<div class="spec-badges">
+					{#if gender === 'female'}<span class="gender-pill female">♀ Female</span>
+					{:else if gender === 'male'}<span class="gender-pill male">♂ Male</span>
+					{:else}<span class="gender-pill unknown">? Unknown</span>{/if}
+					{#if tier}<span class="tier-pill {tier}">{tier}</span>{/if}
+				</div>
+			</div>
+		</div>
+		<div class="spec-stats">
+			{#each stats as s (s.key)}
+				<div class="stat-cell">
+					<span class="lbl">{s.label}</span>
+					<span class="val">{s.val || '—'}</span>
+				</div>
+			{/each}
+		</div>
+		<div class="spec-totals">
+			<div class="spec-lvl-block">
+				<div class="lvl-val">{Number(cd.level ?? 1)}</div>
+				<div class="lvl-lbl">Total Lvl</div>
+			</div>
+			<div class="spec-muts-block">
+				<div class="muts-val">{mutCount(cd)}</div>
+				<div class="muts-lbl">Mutations</div>
+			</div>
+		</div>
+	</div>
+{/snippet}
+
 <div class="stage">
 
 	<!-- ═══════════ HEADER ═══════════ -->
@@ -302,10 +389,7 @@
 				{@const meta = (td.metadata ?? {}) as Record<string,unknown>}
 				{@const ltype = String(td.listingType ?? 'specimen')}
 				{@const seller = td.user as Record<string,unknown>}
-				{@const tier = tierFor(cd)}
-				{@const muts = mutCount(cd)}
 				{@const rating = sellerRatings[seller.id as number]}
-				{@const gender = String(cd.gender ?? '').toLowerCase()}
 				{@const typeIcon = ltype === 'egg' ? '◇' : ltype === 'resource' ? '◊' : ltype === 'service' ? '◎' : '⬡'}
 				{@const typeLabel = ltype.charAt(0).toUpperCase() + ltype.slice(1)}
 				<a class="listing {ltype}" data-cat={ltype} onclick={() => { offerOpen = t; oCreatureId = null; oMessage = ''; }}>
@@ -314,22 +398,13 @@
 						<span class="posted">{relTime(td.createdAt)}</span>
 					</div>
 					{#if ltype === 'specimen'}
-						<div class="listing-content specimen-content">
-							<div class="item-name">{String(cd.species ?? '?')}</div>
-							<div class="item-nick">"{String(cd.name ?? 'Unnamed')}" · <span class="gender {gender}">{gender === 'female' ? '♀' : gender === 'male' ? '♂' : '?'}</span>{#if tier} · <span class="tier-pill {tier}">{tier}</span>{/if}</div>
-							<div class="item-stats">
-								<div class="item-lvl">{Number(cd.level ?? 1)}</div>
-								<div class="item-side">
-									<div class="item-lbl">Total Lvl</div>
-									<div class="item-muts">{muts} muts</div>
-								</div>
-							</div>
-						</div>
+						{@render specimenContent(cd)}
 					{:else}
-						<div class="listing-content">
+						<div class="listing-content {ltype}-content">
+							<div class="item-glyph">{typeIcon}</div>
 							<div class="item-name">{String(meta.item ?? 'Untitled')}</div>
-							{#if meta.qty}<div class="item-nick">{String(meta.qty)}</div>{/if}
-							{#if meta.desc}<p class="wanted-text" style="margin-top:8px;font-style:italic;color:var(--tek-text-dim)">{String(meta.desc)}</p>{/if}
+							{#if meta.qty}<div class="item-qty">{String(meta.qty)}</div>{/if}
+							{#if meta.desc}<p class="item-desc">{String(meta.desc)}</p>{/if}
 						</div>
 					{/if}
 					{#if td.wanted}
@@ -363,25 +438,12 @@
 				{#each myTrades as t}
 					{@const td = t as Record<string,unknown>}
 					{@const cd = (td.creatureData ?? {}) as Record<string,unknown>}
-					{@const tier = tierFor(cd)}
-					{@const muts = mutCount(cd)}
-					{@const gender = String(cd.gender ?? '').toLowerCase()}
-					<a class="listing specimen" data-cat="specimen">
+					<div class="listing specimen" data-cat="specimen">
 						<div class="listing-top">
 							<span class="type-chip">⬡ Specimen</span>
 							<span class="posted">{relTime(td.createdAt)}</span>
 						</div>
-						<div class="listing-content specimen-content">
-							<div class="item-name">{String(cd.species ?? '?')}</div>
-							<div class="item-nick">"{String(cd.name ?? 'Unnamed')}" · <span class="gender {gender}">{gender === 'female' ? '♀' : gender === 'male' ? '♂' : '?'}</span>{#if tier} · <span class="tier-pill {tier}">{tier}</span>{/if}</div>
-							<div class="item-stats">
-								<div class="item-lvl">{Number(cd.level ?? 1)}</div>
-								<div class="item-side">
-									<div class="item-lbl">Total Lvl</div>
-									<div class="item-muts">{muts} muts</div>
-								</div>
-							</div>
-						</div>
+						{@render specimenContent(cd)}
 						{#if td.wanted}
 							<div class="listing-wanted">
 								<span class="wanted-label">Wanted</span>
@@ -392,7 +454,7 @@
 							<span class="seller-block"><span class="name">{String(td.status)} · {td.offerCount ?? 0} offer{(td.offerCount as number) !== 1 ? 's' : ''}</span></span>
 							<button class="offer-btn" onclick={() => removeTrade(td.id as number)}>Remove ✕</button>
 						</div>
-					</a>
+					</div>
 				{/each}
 			</div>
 		{/if}
@@ -406,25 +468,12 @@
 					{@const od = o as Record<string,unknown>}
 					{@const offerCd = (od.offeredCreatureData ?? {}) as Record<string,unknown>}
 					{@const fromU = od.fromUser as Record<string,unknown>}
-					{@const tier = tierFor(offerCd)}
-					{@const muts = mutCount(offerCd)}
-					{@const gender = String(offerCd.gender ?? '').toLowerCase()}
 					<div class="listing specimen" data-cat="specimen">
 						<div class="listing-top">
 							<span class="type-chip">⬡ Offer</span>
 							<span class="posted">FROM {display(fromU)}</span>
 						</div>
-						<div class="listing-content specimen-content">
-							<div class="item-name">{String(offerCd.species ?? '?')}</div>
-							<div class="item-nick">"{String(offerCd.name ?? 'No specimen')}" · <span class="gender {gender}">{gender === 'female' ? '♀' : gender === 'male' ? '♂' : '?'}</span>{#if tier} · <span class="tier-pill {tier}">{tier}</span>{/if}</div>
-							<div class="item-stats">
-								<div class="item-lvl">{Number(offerCd.level ?? 0)}</div>
-								<div class="item-side">
-									<div class="item-lbl">Total Lvl</div>
-									<div class="item-muts">{muts} muts</div>
-								</div>
-							</div>
-						</div>
+						{@render specimenContent(offerCd)}
 						{#if od.message}
 							<div class="listing-wanted">
 								<span class="wanted-label">Message</span>
@@ -449,25 +498,12 @@
 					{@const td = t as Record<string,unknown>}
 					{@const cd = (td.creatureData ?? {}) as Record<string,unknown>}
 					{@const seller = td.user as Record<string,unknown>}
-					{@const tier = tierFor(cd)}
-					{@const muts = mutCount(cd)}
-					{@const gender = String(cd.gender ?? '').toLowerCase()}
 					<div class="listing specimen" data-cat="specimen">
 						<div class="listing-top">
 							<span class="type-chip">⬡ Traded</span>
 							<span class="posted">{relTime(td.createdAt)}</span>
 						</div>
-						<div class="listing-content specimen-content">
-							<div class="item-name">{String(cd.species ?? '?')}</div>
-							<div class="item-nick">"{String(cd.name ?? 'Unnamed')}" · <span class="gender {gender}">{gender === 'female' ? '♀' : gender === 'male' ? '♂' : '?'}</span>{#if tier} · <span class="tier-pill {tier}">{tier}</span>{/if}</div>
-							<div class="item-stats">
-								<div class="item-lvl">{Number(cd.level ?? 1)}</div>
-								<div class="item-side">
-									<div class="item-lbl">Total Lvl</div>
-									<div class="item-muts">{muts} muts</div>
-								</div>
-							</div>
-						</div>
+						{@render specimenContent(cd)}
 						{#if td.wanted}
 							<div class="listing-wanted">
 								<span class="wanted-label">Wanted</span>
@@ -1000,6 +1036,194 @@
 	font-weight: 700;
 	color: var(--tek-blue);
 	text-shadow: 0 0 5px var(--tek-blue-glow);
+}
+
+/* ── New specimen card layout: icon + meta + stat block + totals ──────── */
+.spec-head {
+	display: grid;
+	grid-template-columns: 56px 1fr;
+	gap: 12px;
+	align-items: center;
+	margin-bottom: 12px;
+}
+.spec-icon-wrap {
+	--ic-rgb: 0,180,255;
+	width: 56px;
+	height: 56px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(var(--ic-rgb), 0.10);
+	border: 1px solid rgba(var(--ic-rgb), 0.32);
+	clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+	filter: drop-shadow(0 0 6px rgba(var(--ic-rgb), 0.30));
+}
+.spec-icon-wrap.combat   { --ic-rgb: 239,68,68;   }
+.spec-icon-wrap.flyer    { --ic-rgb: 6,182,212;   }
+.spec-icon-wrap.utility  { --ic-rgb: 34,197,94;   }
+.spec-icon-wrap.water    { --ic-rgb: 59,130,246;  }
+.spec-icon-wrap.boss     { --ic-rgb: 245,158,11;  }
+.spec-icon-wrap.mount    { --ic-rgb: 249,115,22;  }
+.spec-icon-wrap.resource { --ic-rgb: 167,139,250; }
+.spec-icon-wrap.pet      { --ic-rgb: 244,114,182; }
+.spec-icon-wrap.event    { --ic-rgb: 20,184,166;  }
+.spec-icon { font-size: 1.8rem; line-height: 1; }
+
+.spec-meta { min-width: 0; }
+.listing-content.specimen-content .item-name {
+	font-family: var(--tek-display);
+	font-size: 1rem;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	color: var(--tek-text);
+	text-transform: uppercase;
+	line-height: 1.1;
+	margin-bottom: 2px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.listing-content.specimen-content .item-nick {
+	font-family: var(--tek-mono);
+	font-size: 0.68rem;
+	color: var(--tek-text-dim);
+	font-style: italic;
+	margin-bottom: 6px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.spec-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+
+.gender-pill {
+	display: inline-flex;
+	align-items: center;
+	font-family: var(--tek-mono);
+	font-size: 0.56rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	padding: 2px 7px;
+	clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+.gender-pill.female  { background: rgba(244,114,182,0.14); border: 1px solid rgba(244,114,182,0.40); color: var(--tek-pink); }
+.gender-pill.male    { background: rgba(96,165,250,0.14);  border: 1px solid rgba(96,165,250,0.40);  color: #60a5fa; }
+.gender-pill.unknown { background: rgba(100,116,139,0.14); border: 1px solid rgba(100,116,139,0.30); color: var(--tek-text-faint); }
+
+/* 4-column stat block */
+.spec-stats {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 5px;
+	margin-bottom: 12px;
+	padding: 8px 4px;
+	background: rgba(0,0,0,0.20);
+	border-top: 1px solid rgba(255,255,255,0.03);
+	border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.stat-cell {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+}
+.stat-cell .lbl {
+	font-family: var(--tek-mono);
+	font-size: 0.52rem;
+	letter-spacing: 0.16em;
+	color: var(--tek-text-faint);
+	text-transform: uppercase;
+}
+.stat-cell .val {
+	font-family: var(--tek-display);
+	font-size: 0.92rem;
+	font-weight: 700;
+	color: var(--tek-text);
+}
+
+/* Totals row: level + mutations */
+.spec-totals {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 12px;
+}
+.spec-lvl-block, .spec-muts-block {
+	display: flex;
+	flex-direction: column;
+	line-height: 1;
+}
+.spec-lvl-block .lvl-val {
+	font-family: var(--tek-display);
+	font-size: 1.7rem;
+	font-weight: 900;
+	background: linear-gradient(135deg, #00d4ff 0%, #c084fc 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	filter: drop-shadow(0 0 6px rgba(0,180,255,0.30));
+}
+.spec-lvl-block .lvl-lbl,
+.spec-muts-block .muts-lbl {
+	font-family: var(--tek-mono);
+	font-size: 0.5rem;
+	letter-spacing: 0.20em;
+	color: var(--tek-text-faint);
+	text-transform: uppercase;
+	margin-top: 3px;
+}
+.spec-muts-block { align-items: flex-end; }
+.spec-muts-block .muts-val {
+	font-family: var(--tek-display);
+	font-size: 1.4rem;
+	font-weight: 800;
+	color: var(--tek-blue);
+	text-shadow: 0 0 6px var(--tek-blue-glow);
+}
+
+/* Non-specimen content (egg / resource / service) */
+.listing-content.egg-content,
+.listing-content.resource-content,
+.listing-content.service-content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 14px 8px;
+	text-align: center;
+}
+.listing-content .item-glyph {
+	font-family: var(--tek-display);
+	font-size: 2.8rem;
+	line-height: 1;
+	color: rgb(var(--type-rgb));
+	filter: drop-shadow(0 0 8px rgba(var(--type-rgb), 0.45));
+	margin-bottom: 4px;
+}
+.listing-content.egg-content .item-name,
+.listing-content.resource-content .item-name,
+.listing-content.service-content .item-name {
+	font-family: var(--tek-display);
+	font-size: 1rem;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	color: var(--tek-text);
+	text-transform: uppercase;
+}
+.listing-content .item-qty {
+	font-family: var(--tek-mono);
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+	color: rgb(var(--type-rgb));
+	font-weight: 700;
+}
+.listing-content .item-desc {
+	font-family: var(--tek-serif);
+	font-style: italic;
+	font-size: 0.86rem;
+	line-height: 1.4;
+	color: #94a3b8;
+	margin-top: 4px;
 }
 
 /* Bloodline tier pill (auto-computed) */
