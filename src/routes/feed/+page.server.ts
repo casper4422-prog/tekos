@@ -47,9 +47,16 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 	const startOfToday = new Date();
 	startOfToday.setHours(0, 0, 0, 0);
 
-	const [events, bossRecords, recentTrades, eventsTodayCount, survivorsActive] = await Promise.all([
+	// Load network events (for All/Following/Tribe/Server) AND a wider global pool
+	// (for the Global tab). Merge & dedup client-side via id.
+	const [networkEvents, globalEvents, networkBossRecords, globalBossRecords, networkTrades, globalTrades, eventsTodayCount, survivorsActive] = await Promise.all([
 		db.activityEvent.findMany({
 			where: { userId: { in: networkIds } },
+			orderBy: { createdAt: 'desc' },
+			take: 60,
+			include: { user: { select: { id: true, nickname: true, discordName: true } } }
+		}),
+		db.activityEvent.findMany({
 			orderBy: { createdAt: 'desc' },
 			take: 60,
 			include: { user: { select: { id: true, nickname: true, discordName: true } } }
@@ -60,8 +67,19 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 			take: 20,
 			include: { user: { select: { id: true, nickname: true, discordName: true } } }
 		}),
+		db.bossRecord.findMany({
+			orderBy: { createdAt: 'desc' },
+			take: 20,
+			include: { user: { select: { id: true, nickname: true, discordName: true } } }
+		}),
 		db.trade.findMany({
 			where: { userId: { in: networkIds }, status: 'open' },
+			orderBy: { createdAt: 'desc' },
+			take: 15,
+			include: { user: { select: { id: true, nickname: true, discordName: true } } }
+		}),
+		db.trade.findMany({
+			where: { status: 'open' },
 			orderBy: { createdAt: 'desc' },
 			take: 15,
 			include: { user: { select: { id: true, nickname: true, discordName: true } } }
@@ -69,6 +87,22 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 		db.activityEvent.count({ where: { createdAt: { gte: startOfToday } } }),
 		db.user.count({ where: { lastSeen: { gte: startOfToday } } })
 	]);
+
+	// Merge & dedup by id, keep network rows first (they may have richer fields in future)
+	const eventById = new Map<number, typeof networkEvents[number]>();
+	for (const e of networkEvents) eventById.set(e.id, e);
+	for (const e of globalEvents)  if (!eventById.has(e.id)) eventById.set(e.id, e);
+	const events = [...eventById.values()];
+
+	const bossById = new Map<number, typeof networkBossRecords[number]>();
+	for (const b of networkBossRecords) bossById.set(b.id, b);
+	for (const b of globalBossRecords)  if (!bossById.has(b.id)) bossById.set(b.id, b);
+	const bossRecords = [...bossById.values()];
+
+	const tradeById = new Map<number, typeof networkTrades[number]>();
+	for (const t of networkTrades) tradeById.set(t.id, t);
+	for (const t of globalTrades)  if (!tradeById.has(t.id)) tradeById.set(t.id, t);
+	const recentTrades = [...tradeById.values()];
 
 	// News items (ark-news endpoint returns []-shaped JSON; tolerate failure)
 	let newsItems: Json[] = [];
@@ -106,6 +140,8 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 		tribeMateIds,
 		joinedServers,
 		myServerCode,
+		myUserId: uid,
+		feedSources,
 		eventsToday: eventsTodayCount,
 		survivorsActive,
 		newsItems,

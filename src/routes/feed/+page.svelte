@@ -7,7 +7,7 @@
     let canvas = $state<HTMLCanvasElement | null>(null);
 
     // Single-dimension filter
-    let scope = $state<'all' | 'following' | 'tribe' | 'server' | 'news'>('all');
+    let scope = $state<'all' | 'following' | 'tribe' | 'server' | 'global' | 'news'>('all');
 
     // News tab platform toggles (Twitter / YouTube / Reddit / etc.)
     let activeSources = $state<Record<string, boolean>>({
@@ -131,16 +131,19 @@
 
     const friendIdSet = $derived(new Set(data.friendIds ?? []));
     const tribeMateIdSet = $derived(new Set(data.tribeMateIds ?? []));
+    const networkIdSet = $derived(new Set([...(data.friendIds ?? []), ...(data.myUserId != null ? [data.myUserId] : [])]));
 
     function inScope(it: FeedItem): boolean {
-        if (scope === 'all' || scope === 'news') return true;
+        if (scope === 'news') return true;
         const uid = (it.user as { id?: number }).id;
+        if (scope === 'all') return uid != null && networkIdSet.has(uid);
         if (scope === 'following') return uid != null && friendIdSet.has(uid);
         if (scope === 'tribe') return uid != null && tribeMateIdSet.has(uid);
         if (scope === 'server') {
             const code = (it.metadata.serverCode ?? '') as string;
             return !!data.myServerCode && code === data.myServerCode;
         }
+        if (scope === 'global') return true; // every event from every user
         return true;
     }
 
@@ -240,6 +243,50 @@
         return out.filter(n => activeSources[n.platform]);
     });
 
+    // ── Feed source management (YouTube / Twitter / Reddit / etc.) ────────
+    type FeedSource = { id: number; type: string; url: string; label: string };
+    let mySources = $state<FeedSource[]>((data.feedSources ?? []) as FeedSource[]);
+    let newSourceType  = $state<'youtube' | 'twitter' | 'reddit' | 'twitch'>('youtube');
+    let newSourceUrl   = $state('');
+    let newSourceLabel = $state('');
+    let addingSource   = $state(false);
+    let addSourceMsg   = $state('');
+
+    async function addSource() {
+        const url = newSourceUrl.trim();
+        if (!url) { addSourceMsg = 'URL required'; return; }
+        addingSource = true; addSourceMsg = '';
+        try {
+            const res = await fetch('/api/feed-sources', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: newSourceType, url, label: newSourceLabel.trim() })
+            });
+            if (res.ok) {
+                const entry = await res.json();
+                mySources = [...mySources, entry];
+                newSourceUrl = ''; newSourceLabel = '';
+                addSourceMsg = '✓ Added — refresh feed to pull new items';
+                setTimeout(() => addSourceMsg = '', 3000);
+            } else {
+                const err = await res.json().catch(() => ({}));
+                addSourceMsg = err.error ?? 'Failed to add';
+            }
+        } catch {
+            addSourceMsg = 'Network error';
+        }
+        addingSource = false;
+    }
+    async function removeSource(id: number) {
+        if (!confirm('Remove this source?')) return;
+        const res = await fetch('/api/feed-sources', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        if (res.ok) mySources = mySources.filter(s => s.id !== id);
+    }
+
     onMount(() => {
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -310,11 +357,12 @@
     </div>
 
     <div class="scope-tabs">
-        <button class="scope-tab" class:active={scope === 'all'} onclick={() => scope = 'all'}>All</button>
-        <button class="scope-tab" class:active={scope === 'following'} onclick={() => scope = 'following'}>Following</button>
-        <button class="scope-tab" class:active={scope === 'tribe'} onclick={() => scope = 'tribe'}>Tribe</button>
-        <button class="scope-tab" class:active={scope === 'server'} onclick={() => scope = 'server'}>Server</button>
-        <button class="scope-tab" class:active={scope === 'news'} onclick={() => scope = 'news'}>News</button>
+        <button class="scope-tab all"       class:active={scope === 'all'}       onclick={() => scope = 'all'}><span class="tab-dot"></span>All</button>
+        <button class="scope-tab following" class:active={scope === 'following'} onclick={() => scope = 'following'}><span class="tab-dot"></span>Following</button>
+        <button class="scope-tab tribe"     class:active={scope === 'tribe'}     onclick={() => scope = 'tribe'}><span class="tab-dot"></span>Tribe</button>
+        <button class="scope-tab server"    class:active={scope === 'server'}    onclick={() => scope = 'server'}><span class="tab-dot"></span>Server</button>
+        <button class="scope-tab global"    class:active={scope === 'global'}    onclick={() => scope = 'global'}><span class="tab-dot"></span>Global</button>
+        <button class="scope-tab news"      class:active={scope === 'news'}      onclick={() => scope = 'news'}><span class="tab-dot"></span>News</button>
     </div>
 
     {#if scope !== 'news'}
@@ -425,7 +473,59 @@
             <button class="source-chip sta" class:active={activeSources.sta} onclick={() => toggleSource('sta')}><span class="platform-dot"></span>Survive The Ark</button>
             <button class="source-chip wildcard" class:active={activeSources.wildcard} onclick={() => toggleSource('wildcard')}><span class="platform-dot"></span>Wildcard</button>
             <button class="source-chip twitch" class:active={activeSources.twitch} onclick={() => toggleSource('twitch')}><span class="platform-dot"></span>Twitch</button>
-            <a class="source-chip add" href="/settings">+ Add Source</a>
+        </div>
+
+        <!-- Your sources management -->
+        <div class="section-head" style="margin-top:24px">
+            <span class="pip cyan"></span>
+            Your Sources
+            <span class="rule"></span>
+            <span class="count">{mySources.length} / 20</span>
+        </div>
+
+        <div class="sources-panel">
+            {#if mySources.length === 0}
+                <div class="sources-empty">No sources added yet. Add a YouTube channel, Twitter handle, or Reddit subreddit below.</div>
+            {:else}
+                <div class="sources-list">
+                    {#each mySources as src (src.id)}
+                        <div class="source-row-item {src.type}">
+                            <span class="platform-dot"></span>
+                            <span class="src-type">{src.type}</span>
+                            <span class="src-label">{src.label || src.url}</span>
+                            <a class="src-url" href={src.url} target="_blank" rel="noopener noreferrer" title={src.url}>↗</a>
+                            <button class="src-remove" onclick={() => removeSource(src.id)} title="Remove">✕</button>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+
+            <div class="add-source-form">
+                <select class="add-src-type" bind:value={newSourceType}>
+                    <option value="youtube">YouTube</option>
+                    <option value="twitter">Twitter / X</option>
+                    <option value="reddit">Reddit</option>
+                    <option value="twitch">Twitch</option>
+                </select>
+                <input
+                    type="text"
+                    class="add-src-input"
+                    bind:value={newSourceUrl}
+                    placeholder={newSourceType === 'youtube' ? 'YouTube channel URL or @handle' : newSourceType === 'twitter' ? 'Twitter / X profile URL' : newSourceType === 'reddit' ? 'Subreddit URL (e.g. reddit.com/r/playark)' : 'Twitch channel URL'}
+                />
+                <input
+                    type="text"
+                    class="add-src-label"
+                    bind:value={newSourceLabel}
+                    placeholder="Label (optional)"
+                />
+                <button class="add-src-btn" onclick={addSource} disabled={addingSource || !newSourceUrl.trim()}>
+                    {addingSource ? '…' : '+ Add'}
+                </button>
+            </div>
+            {#if addSourceMsg}
+                <div class="add-src-msg" class:err={addSourceMsg.startsWith('✓') === false}>{addSourceMsg}</div>
+            {/if}
         </div>
 
         <div class="section-head" style="margin-top:24px">
@@ -538,26 +638,51 @@
 .page-sub .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
 .page-sub .num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
 
-/* Scope tabs */
+/* Scope tabs — prominent chip style matching the News platform chips */
 .scope-tabs {
-    display: flex; gap: 0; margin-bottom: 18px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; gap: 8px; margin-bottom: 22px;
     flex-wrap: wrap;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(0,180,255,0.10);
 }
 .scope-tab {
-    background: none; border: none; color: var(--tek-text-faint);
-    font-family: var(--tek-mono); font-size: 0.74rem; font-weight: 700;
-    letter-spacing: 0.18em; padding: 11px 22px; cursor: pointer;
-    border-bottom: 2px solid transparent; margin-bottom: -1px;
-    transition: color 0.18s, border-color 0.18s;
-    display: flex; align-items: center; gap: 7px;
-    text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.74rem; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    padding: 9px 16px; cursor: pointer;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: all 0.18s;
 }
-.scope-tab:hover { color: var(--tek-text-dim); }
+.scope-tab .tab-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: currentColor; opacity: 0.55;
+    box-shadow: 0 0 5px currentColor;
+}
+.scope-tab:hover {
+    color: var(--tek-text);
+    border-color: rgba(0,180,255,0.30);
+    background: rgba(0,180,255,0.06);
+}
 .scope-tab.active {
-    color: var(--tek-blue); border-bottom-color: var(--tek-blue);
-    text-shadow: 0 0 8px var(--tek-blue-glow);
+    background: rgba(0,180,255,0.14);
+    border-color: var(--tek-blue);
+    color: var(--tek-blue);
+    text-shadow: 0 0 6px var(--tek-blue-glow);
+    box-shadow: 0 0 10px rgba(0,180,255,0.25);
 }
+.scope-tab.active .tab-dot { opacity: 1; }
+
+/* Per-tab dot colors so the strip echoes the news platform chips */
+.scope-tab.all       .tab-dot { color: var(--tek-blue); }
+.scope-tab.following .tab-dot { color: #c084fc; }
+.scope-tab.tribe     .tab-dot { color: var(--tek-amber); }
+.scope-tab.server    .tab-dot { color: var(--tek-green); }
+.scope-tab.global    .tab-dot { color: #06b6d4; }
+.scope-tab.news      .tab-dot { color: #ff4500; }
 
 /* Tab content switching */
 .tab-content { display: none; }
@@ -814,6 +939,120 @@
     border-style: dashed; border-color: rgba(0,180,255,0.30); color: var(--tek-text-faint);
 }
 .source-chip.add:hover { color: var(--tek-blue); border-color: rgba(0,180,255,0.60); }
+
+/* ── Source management (Your Sources panel) ────────────────────────── */
+.sources-panel {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0,180,255,0.12);
+    padding: 14px 16px;
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    margin-bottom: 16px;
+}
+.sources-empty {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text-faint);
+    letter-spacing: 0.08em;
+    font-style: italic;
+    text-align: center;
+    padding: 12px 0;
+}
+.sources-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.source-row-item {
+    display: grid;
+    grid-template-columns: 14px auto 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.05);
+    padding: 8px 12px;
+    clip-path: polygon(5px 0%, 100% 0%, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0% 100%, 0% 5px);
+}
+.source-row-item .platform-dot { width: 8px; height: 8px; border-radius: 50%; }
+.source-row-item.youtube .platform-dot { background: #ff0000; box-shadow: 0 0 5px rgba(255,0,0,0.5); }
+.source-row-item.twitter .platform-dot { background: #1da1f2; box-shadow: 0 0 5px rgba(29,161,242,0.5); }
+.source-row-item.reddit  .platform-dot { background: #ff4500; box-shadow: 0 0 5px rgba(255,69,0,0.5); }
+.source-row-item.twitch  .platform-dot { background: #9146ff; box-shadow: 0 0 5px rgba(145,70,255,0.5); }
+.source-row-item .src-type {
+    font-family: var(--tek-mono); font-size: 0.6rem; letter-spacing: 0.16em;
+    color: var(--tek-text-faint); text-transform: uppercase;
+}
+.source-row-item .src-label {
+    font-family: var(--tek-mono); font-size: 0.78rem;
+    color: var(--tek-text); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+}
+.source-row-item .src-url {
+    color: var(--tek-text-dim); text-decoration: none;
+    font-size: 0.9rem; padding: 0 6px;
+}
+.source-row-item .src-url:hover { color: var(--tek-blue); }
+.source-row-item .src-remove {
+    background: none; border: 1px solid rgba(239,68,68,0.20);
+    color: #fca5a5; font-family: inherit; font-size: 0.7rem;
+    padding: 3px 8px; cursor: pointer;
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+    transition: all 0.18s;
+}
+.source-row-item .src-remove:hover {
+    background: rgba(239,68,68,0.18);
+    border-color: rgba(239,68,68,0.50);
+}
+
+.add-source-form {
+    display: grid;
+    grid-template-columns: 110px 1fr 130px auto;
+    gap: 6px;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+@media (max-width: 720px) {
+    .add-source-form { grid-template-columns: 1fr; }
+}
+.add-src-type, .add-src-input, .add-src-label {
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(0,180,255,0.18);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    padding: 7px 10px;
+    outline: none;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+}
+.add-src-type { text-transform: uppercase; letter-spacing: 0.12em; }
+.add-src-input::placeholder, .add-src-label::placeholder { color: var(--tek-text-faint); }
+.add-src-input:focus, .add-src-label:focus, .add-src-type:focus {
+    border-color: rgba(0,180,255,0.40);
+    border-bottom-color: var(--tek-blue);
+}
+.add-src-btn {
+    background: rgba(0,180,255,0.18);
+    border: 1px solid rgba(0,180,255,0.45);
+    color: #7dd3fc;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    cursor: pointer;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: all 0.18s;
+}
+.add-src-btn:hover:not(:disabled) {
+    background: rgba(0,180,255,0.35);
+    filter: drop-shadow(0 0 6px var(--tek-blue-glow));
+}
+.add-src-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.add-src-msg {
+    margin-top: 8px;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: var(--tek-green);
+}
+.add-src-msg.err { color: #fca5a5; }
 
 /* News items */
 .news-feed { display: flex; flex-direction: column; gap: 10px; }
