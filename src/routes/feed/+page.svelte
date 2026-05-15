@@ -243,36 +243,76 @@
         return out.filter(n => activeSources[n.platform]);
     });
 
-    // ── Feed source management (YouTube / Twitter / Reddit / etc.) ────────
+    // ── Feed source management (paste-link with auto-detect) ────────────
     type FeedSource = { id: number; type: string; url: string; label: string };
     let mySources = $state<FeedSource[]>((data.feedSources ?? []) as FeedSource[]);
-    let newSourceType  = $state<'youtube' | 'twitter' | 'reddit' | 'twitch'>('youtube');
-    let newSourceUrl   = $state('');
-    let newSourceLabel = $state('');
-    let addingSource   = $state(false);
-    let addSourceMsg   = $state('');
+    let newSourceUrl = $state('');
+    let addingSource = $state(false);
+    let addSourceMsg = $state('');
+    let addSourceErr = $state(false);
+
+    function detectPlatform(raw: string): { type: 'youtube'|'twitter'|'reddit'|'twitch'|null; label: string } {
+        const url = raw.trim();
+        if (!url) return { type: null, label: '' };
+        const lower = url.toLowerCase();
+
+        // YouTube: @handle, youtube.com/@..., youtube.com/c/..., youtu.be
+        if (lower.startsWith('@'))                                return { type: 'youtube', label: url.replace(/^@/, '') };
+        if (/(^|\/\/)(www\.)?(youtube\.com|youtu\.be)/.test(lower)) {
+            const m = url.match(/(?:youtube\.com\/(?:@|c\/|channel\/|user\/)?|youtu\.be\/)([^/?&\s]+)/i);
+            return { type: 'youtube', label: m?.[1] ?? '' };
+        }
+
+        // Twitter / X
+        if (/(^|\/\/)(www\.)?(twitter\.com|x\.com)/.test(lower)) {
+            const m = url.match(/(?:twitter\.com|x\.com)\/(@?[\w.-]+)/i);
+            return { type: 'twitter', label: '@' + (m?.[1] ?? '').replace(/^@/, '') };
+        }
+
+        // Reddit
+        if (/(^|\/\/)(www\.)?reddit\.com/.test(lower)) {
+            const m = url.match(/reddit\.com\/r\/([\w-]+)/i);
+            return { type: 'reddit', label: 'r/' + (m?.[1] ?? '') };
+        }
+        if (lower.startsWith('r/'))                               return { type: 'reddit', label: url };
+
+        // Twitch
+        if (/(^|\/\/)(www\.)?twitch\.tv/.test(lower)) {
+            const m = url.match(/twitch\.tv\/([\w-]+)/i);
+            return { type: 'twitch', label: m?.[1] ?? '' };
+        }
+
+        return { type: null, label: '' };
+    }
+
+    const detected = $derived(detectPlatform(newSourceUrl));
 
     async function addSource() {
         const url = newSourceUrl.trim();
-        if (!url) { addSourceMsg = 'URL required'; return; }
-        addingSource = true; addSourceMsg = '';
+        if (!url) { addSourceErr = true; addSourceMsg = 'Paste a link to add'; return; }
+        const { type, label } = detectPlatform(url);
+        if (!type) { addSourceErr = true; addSourceMsg = "Couldn't detect platform — try a YouTube, Twitter, Reddit, or Twitch link"; return; }
+        addingSource = true; addSourceMsg = ''; addSourceErr = false;
         try {
             const res = await fetch('/api/feed-sources', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: newSourceType, url, label: newSourceLabel.trim() })
+                body: JSON.stringify({ type, url, label })
             });
             if (res.ok) {
                 const entry = await res.json();
                 mySources = [...mySources, entry];
-                newSourceUrl = ''; newSourceLabel = '';
-                addSourceMsg = '✓ Added — refresh feed to pull new items';
+                newSourceUrl = '';
+                addSourceErr = false;
+                addSourceMsg = '✓ Added — refresh to pull new items';
                 setTimeout(() => addSourceMsg = '', 3000);
             } else {
                 const err = await res.json().catch(() => ({}));
+                addSourceErr = true;
                 addSourceMsg = err.error ?? 'Failed to add';
             }
         } catch {
+            addSourceErr = true;
             addSourceMsg = 'Network error';
         }
         addingSource = false;
@@ -285,6 +325,14 @@
             body: JSON.stringify({ id })
         });
         if (res.ok) mySources = mySources.filter(s => s.id !== id);
+    }
+
+    function platformLabel(type: string): string {
+        if (type === 'youtube') return 'YouTube';
+        if (type === 'twitter') return 'Twitter / X';
+        if (type === 'reddit')  return 'Reddit';
+        if (type === 'twitch')  return 'Twitch';
+        return type.toUpperCase();
     }
 
     onMount(() => {
@@ -484,47 +532,71 @@
         </div>
 
         <div class="sources-panel">
+            <!-- Add-a-source form -->
+            <div class="add-source-block">
+                <div class="add-source-title">Add a source</div>
+                <div class="add-source-hint">Paste any link from these platforms and we'll detect the rest:</div>
+                <div class="add-source-examples">
+                    <span class="ex-chip youtube"><span class="dot"></span>youtube.com/@channel</span>
+                    <span class="ex-chip twitter"><span class="dot"></span>twitter.com/handle</span>
+                    <span class="ex-chip reddit"><span class="dot"></span>reddit.com/r/playark</span>
+                    <span class="ex-chip twitch"><span class="dot"></span>twitch.tv/channel</span>
+                </div>
+                <div class="add-source-row">
+                    <div class="add-input-wrap">
+                        <input
+                            type="text"
+                            class="add-src-input"
+                            bind:value={newSourceUrl}
+                            placeholder="Paste a link…"
+                            onkeydown={(e) => { if (e.key === 'Enter') addSource(); }}
+                        />
+                        {#if detected.type}
+                            <span class="detected-pill {detected.type}">
+                                <span class="dot"></span>
+                                {platformLabel(detected.type)}
+                                {#if detected.label}<span class="detected-label">· {detected.label}</span>{/if}
+                            </span>
+                        {/if}
+                    </div>
+                    <button class="add-src-btn" onclick={addSource} disabled={addingSource || !newSourceUrl.trim() || !detected.type}>
+                        {addingSource ? 'Adding…' : '+ Add Source'}
+                    </button>
+                </div>
+                {#if addSourceMsg}
+                    <div class="add-src-msg" class:err={addSourceErr}>{addSourceMsg}</div>
+                {/if}
+            </div>
+
+            <!-- Your sources cards -->
             {#if mySources.length === 0}
-                <div class="sources-empty">No sources added yet. Add a YouTube channel, Twitter handle, or Reddit subreddit below.</div>
+                <div class="sources-empty">No sources yet — add your first one above.</div>
             {:else}
-                <div class="sources-list">
+                <div class="sources-grid">
                     {#each mySources as src (src.id)}
-                        <div class="source-row-item {src.type}">
-                            <span class="platform-dot"></span>
-                            <span class="src-type">{src.type}</span>
-                            <span class="src-label">{src.label || src.url}</span>
-                            <a class="src-url" href={src.url} target="_blank" rel="noopener noreferrer" title={src.url}>↗</a>
-                            <button class="src-remove" onclick={() => removeSource(src.id)} title="Remove">✕</button>
+                        <div class="source-card {src.type}">
+                            <div class="src-card-icon">
+                                {#if src.type === 'youtube'}
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>
+                                {:else if src.type === 'twitter'}
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                {:else if src.type === 'reddit'}
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0A12 12 0 1 0 12 24 12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12.0c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg>
+                                {:else if src.type === 'twitch'}
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></svg>
+                                {/if}
+                            </div>
+                            <div class="src-card-body">
+                                <div class="src-card-platform">{platformLabel(src.type)}</div>
+                                <div class="src-card-label">{src.label || src.url}</div>
+                            </div>
+                            <div class="src-card-actions">
+                                <a class="src-card-open" href={src.url} target="_blank" rel="noopener noreferrer" title="Open in new tab">↗</a>
+                                <button class="src-card-remove" onclick={() => removeSource(src.id)} title="Remove">✕</button>
+                            </div>
                         </div>
                     {/each}
                 </div>
-            {/if}
-
-            <div class="add-source-form">
-                <select class="add-src-type" bind:value={newSourceType}>
-                    <option value="youtube">YouTube</option>
-                    <option value="twitter">Twitter / X</option>
-                    <option value="reddit">Reddit</option>
-                    <option value="twitch">Twitch</option>
-                </select>
-                <input
-                    type="text"
-                    class="add-src-input"
-                    bind:value={newSourceUrl}
-                    placeholder={newSourceType === 'youtube' ? 'YouTube channel URL or @handle' : newSourceType === 'twitter' ? 'Twitter / X profile URL' : newSourceType === 'reddit' ? 'Subreddit URL (e.g. reddit.com/r/playark)' : 'Twitch channel URL'}
-                />
-                <input
-                    type="text"
-                    class="add-src-label"
-                    bind:value={newSourceLabel}
-                    placeholder="Label (optional)"
-                />
-                <button class="add-src-btn" onclick={addSource} disabled={addingSource || !newSourceUrl.trim()}>
-                    {addingSource ? '…' : '+ Add'}
-                </button>
-            </div>
-            {#if addSourceMsg}
-                <div class="add-src-msg" class:err={addSourceMsg.startsWith('✓') === false}>{addSourceMsg}</div>
             {/if}
         </div>
 
@@ -945,114 +1017,242 @@
     background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(0,180,255,0.12);
-    padding: 14px 16px;
+    padding: 18px;
     clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
     margin-bottom: 16px;
 }
-.sources-empty {
+
+/* Add-source block */
+.add-source-block {
+    padding-bottom: 18px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid rgba(0,180,255,0.10);
+}
+.add-source-title {
+    font-family: var(--tek-display);
+    font-size: 0.86rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.add-source-hint {
     font-family: var(--tek-mono);
     font-size: 0.72rem;
+    color: var(--tek-text-dim);
+    margin-bottom: 10px;
+}
+.add-source-examples {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.ex-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px dashed rgba(255,255,255,0.10);
     color: var(--tek-text-faint);
-    letter-spacing: 0.08em;
-    font-style: italic;
-    text-align: center;
-    padding: 12px 0;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    padding: 4px 9px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
 }
-.sources-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
-.source-row-item {
-    display: grid;
-    grid-template-columns: 14px auto 1fr auto auto;
-    gap: 10px;
-    align-items: center;
-    background: rgba(0,0,0,0.30);
-    border: 1px solid rgba(255,255,255,0.05);
-    padding: 8px 12px;
-    clip-path: polygon(5px 0%, 100% 0%, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0% 100%, 0% 5px);
-}
-.source-row-item .platform-dot { width: 8px; height: 8px; border-radius: 50%; }
-.source-row-item.youtube .platform-dot { background: #ff0000; box-shadow: 0 0 5px rgba(255,0,0,0.5); }
-.source-row-item.twitter .platform-dot { background: #1da1f2; box-shadow: 0 0 5px rgba(29,161,242,0.5); }
-.source-row-item.reddit  .platform-dot { background: #ff4500; box-shadow: 0 0 5px rgba(255,69,0,0.5); }
-.source-row-item.twitch  .platform-dot { background: #9146ff; box-shadow: 0 0 5px rgba(145,70,255,0.5); }
-.source-row-item .src-type {
-    font-family: var(--tek-mono); font-size: 0.6rem; letter-spacing: 0.16em;
-    color: var(--tek-text-faint); text-transform: uppercase;
-}
-.source-row-item .src-label {
-    font-family: var(--tek-mono); font-size: 0.78rem;
-    color: var(--tek-text); white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
-}
-.source-row-item .src-url {
-    color: var(--tek-text-dim); text-decoration: none;
-    font-size: 0.9rem; padding: 0 6px;
-}
-.source-row-item .src-url:hover { color: var(--tek-blue); }
-.source-row-item .src-remove {
-    background: none; border: 1px solid rgba(239,68,68,0.20);
-    color: #fca5a5; font-family: inherit; font-size: 0.7rem;
-    padding: 3px 8px; cursor: pointer;
-    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
-    transition: all 0.18s;
-}
-.source-row-item .src-remove:hover {
-    background: rgba(239,68,68,0.18);
-    border-color: rgba(239,68,68,0.50);
-}
+.ex-chip .dot { width: 6px; height: 6px; border-radius: 50%; }
+.ex-chip.youtube .dot { background: #ff0000; box-shadow: 0 0 4px rgba(255,0,0,0.5); }
+.ex-chip.twitter .dot { background: #1da1f2; box-shadow: 0 0 4px rgba(29,161,242,0.5); }
+.ex-chip.reddit  .dot { background: #ff4500; box-shadow: 0 0 4px rgba(255,69,0,0.5); }
+.ex-chip.twitch  .dot { background: #9146ff; box-shadow: 0 0 4px rgba(145,70,255,0.5); }
 
-.add-source-form {
+.add-source-row {
     display: grid;
-    grid-template-columns: 110px 1fr 130px auto;
-    gap: 6px;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: stretch;
+}
+@media (max-width: 720px) { .add-source-row { grid-template-columns: 1fr; } }
+
+.add-input-wrap {
+    position: relative;
+    display: flex;
     align-items: center;
-    padding-top: 10px;
-    border-top: 1px solid rgba(255,255,255,0.05);
 }
-@media (max-width: 720px) {
-    .add-source-form { grid-template-columns: 1fr; }
-}
-.add-src-type, .add-src-input, .add-src-label {
+.add-src-input {
+    width: 100%;
     background: rgba(4,8,20,0.85);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-bottom: 1px solid rgba(0,180,255,0.18);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-bottom: 1px solid rgba(0,180,255,0.30);
     color: var(--tek-text);
     font-family: var(--tek-mono);
-    font-size: 0.74rem;
-    padding: 7px 10px;
+    font-size: 0.86rem;
+    padding: 10px 12px 10px 14px;
     outline: none;
-    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: border-color 0.2s;
 }
-.add-src-type { text-transform: uppercase; letter-spacing: 0.12em; }
-.add-src-input::placeholder, .add-src-label::placeholder { color: var(--tek-text-faint); }
-.add-src-input:focus, .add-src-label:focus, .add-src-type:focus {
-    border-color: rgba(0,180,255,0.40);
-    border-bottom-color: var(--tek-blue);
+.add-src-input::placeholder { color: var(--tek-text-faint); }
+.add-src-input:focus { border-color: rgba(0,180,255,0.50); border-bottom-color: var(--tek-blue); }
+
+.detected-pill {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(0,180,255,0.10);
+    border: 1px solid rgba(0,180,255,0.30);
+    color: #7dd3fc;
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    pointer-events: none;
 }
+.detected-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+.detected-pill.youtube .dot { background: #ff0000; box-shadow: 0 0 4px rgba(255,0,0,0.6); }
+.detected-pill.twitter .dot { background: #1da1f2; box-shadow: 0 0 4px rgba(29,161,242,0.6); }
+.detected-pill.reddit  .dot { background: #ff4500; box-shadow: 0 0 4px rgba(255,69,0,0.6); }
+.detected-pill.twitch  .dot { background: #9146ff; box-shadow: 0 0 4px rgba(145,70,255,0.6); }
+.detected-label { color: var(--tek-text-dim); margin-left: 2px; font-weight: 500; letter-spacing: 0.04em; text-transform: none; }
+
 .add-src-btn {
     background: rgba(0,180,255,0.18);
     border: 1px solid rgba(0,180,255,0.45);
     color: #7dd3fc;
     font-family: var(--tek-mono);
-    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    padding: 7px 14px;
+    padding: 10px 18px;
     cursor: pointer;
-    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
     transition: all 0.18s;
+    white-space: nowrap;
 }
 .add-src-btn:hover:not(:disabled) {
     background: rgba(0,180,255,0.35);
     filter: drop-shadow(0 0 6px var(--tek-blue-glow));
 }
 .add-src-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
 .add-src-msg {
-    margin-top: 8px;
+    margin-top: 10px;
     font-family: var(--tek-mono);
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     letter-spacing: 0.06em;
     color: var(--tek-green);
 }
 .add-src-msg.err { color: #fca5a5; }
+
+/* Empty state */
+.sources-empty {
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    color: var(--tek-text-faint);
+    letter-spacing: 0.08em;
+    font-style: italic;
+    text-align: center;
+    padding: 16px 0 6px;
+}
+
+/* Source cards grid */
+.sources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+}
+.source-card {
+    --src-rgb: 0,180,255;
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.96) 100%);
+    border: 1px solid rgba(var(--src-rgb), 0.25);
+    padding: 12px 14px 12px 16px;
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    position: relative;
+    transition: transform 0.2s ease, border-color 0.2s;
+}
+.source-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px; bottom: 0;
+    width: 2px;
+    background: rgb(var(--src-rgb));
+    box-shadow: 0 0 5px rgba(var(--src-rgb), 0.55);
+}
+.source-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(var(--src-rgb), 0.50);
+}
+.source-card.youtube { --src-rgb: 255,0,0; }
+.source-card.twitter { --src-rgb: 29,161,242; }
+.source-card.reddit  { --src-rgb: 255,69,0; }
+.source-card.twitch  { --src-rgb: 145,70,255; }
+
+.src-card-icon {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(var(--src-rgb), 0.14);
+    border: 1px solid rgba(var(--src-rgb), 0.30);
+    color: rgb(var(--src-rgb));
+    clip-path: polygon(5px 0%, 100% 0%, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0% 100%, 0% 5px);
+    filter: drop-shadow(0 0 5px rgba(var(--src-rgb), 0.30));
+}
+.src-card-icon svg { width: 20px; height: 20px; }
+
+.src-card-body { min-width: 0; line-height: 1.3; }
+.src-card-platform {
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.18em;
+    color: rgb(var(--src-rgb));
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+.src-card-label {
+    font-family: var(--tek-display);
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.src-card-actions {
+    display: flex; align-items: center; gap: 6px;
+}
+.src-card-open, .src-card-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--tek-text-dim);
+    text-decoration: none;
+    font-family: var(--tek-mono);
+    font-size: 0.9rem;
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.18s;
+}
+.src-card-open:hover { color: var(--tek-blue); border-color: rgba(0,180,255,0.50); }
+.src-card-remove:hover {
+    color: #fca5a5;
+    border-color: rgba(239,68,68,0.50);
+    background: rgba(239,68,68,0.12);
+}
 
 /* News items */
 .news-feed { display: flex; flex-direction: column; gap: 10px; }
