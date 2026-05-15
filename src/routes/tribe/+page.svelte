@@ -68,13 +68,6 @@
 	let inviteOpen  = $state(false);
 	let iHandle     = $state('');
 
-	// War Room scheduling modal
-	let warOpen     = $state(false);
-	let wBoss       = $state('');
-	let wDifficulty = $state('alpha');
-	let wScheduled  = $state('');
-	let wNotes      = $state('');
-
 	// Announce modal
 	let announceOpen = $state(false);
 	let announceMsg  = $state('');
@@ -281,18 +274,6 @@
 		else alert((await res.json()).error ?? 'Failed');
 	}
 
-	async function scheduleWarRoom() {
-		if (!wBoss.trim() || !wScheduled || !membership) return;
-		saving = true;
-		const res = await fetch(`/api/tribes/${membership.tribe.id}/warroom`, {
-			method:'POST', headers:{'Content-Type':'application/json'},
-			body:JSON.stringify({ bossName:wBoss.trim(), difficulty:wDifficulty, scheduledAt:new Date(wScheduled).toISOString(), notes:wNotes||null })
-		});
-		saving = false;
-		if (res.ok) { warOpen = false; wBoss=''; wNotes=''; wScheduled=''; location.reload(); }
-		else alert((await res.json()).error ?? 'Failed');
-	}
-
 	async function memberAction(memberId: number, action: 'promote'|'demote'|'kick') {
 		if (!membership) return;
 		const verb = action === 'kick' ? 'remove' : action;
@@ -382,7 +363,7 @@
 			<div class="tribe-actions">
 				{#if isOwner}<button class="btn btn-primary" onclick={openEdit}>Edit Tribe</button>{/if}
 				{#if isAdmin}<button class="btn btn-ghost" onclick={() => inviteOpen = true}>⬡ Invite Survivor</button>{/if}
-				{#if isAdmin}<button class="btn btn-ghost" onclick={() => warOpen = true}>⚔ Schedule</button>{/if}
+				{#if isAdmin}<a class="btn btn-ghost" href="/overseer">⚔ Schedule</a>{/if}
 				{#if isAdmin}<button class="btn btn-ghost" onclick={() => announceOpen = true}>◆ Announce</button>{/if}
 				{#if !isOwner}<button class="btn btn-ghost" onclick={leaveTribe}>↩ Leave</button>{/if}
 			</div>
@@ -552,7 +533,7 @@
 			<span class="pip"></span>
 			Tribe Vault · <span class="count">{tribe.creatures.length} SPECIMENS</span>
 			<span class="rule"></span>
-			<a class="action" href="/vault">View Full Vault <span class="arrow">▸</span></a>
+			<a class="action" href="/specimens">View Full Vault <span class="arrow">▸</span></a>
 		</div>
 		<div class="vault-row">
 			{#each tribe.creatures.slice(0, 3) as c}
@@ -867,31 +848,6 @@
 		<div class="modal-footer">
 			<button class="btn btn-ghost" onclick={() => inviteOpen=false}>Cancel</button>
 			<button class="btn btn-primary" onclick={sendInvite} disabled={saving || !iHandle.trim()}>{saving ? 'Sending…' : 'Send invite'}</button>
-		</div>
-	</div>
-</div>
-{/if}
-
-<!-- War Room modal -->
-{#if warOpen}
-<div class="modal active" role="dialog" aria-modal="true">
-	<div class="modal-content" style="max-width:460px">
-		<div class="modal-header"><h2 class="modal-title">Schedule War Room</h2><button class="close-btn" onclick={() => warOpen=false}>&times;</button></div>
-		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
-			<div class="plan-field"><label class="form-label" for="w-b">Boss</label><input id="w-b" class="form-control" bind:value={wBoss} placeholder="e.g. Dragon, King Titan…" /></div>
-			<div class="plan-field"><label class="form-label" for="w-d">Difficulty</label>
-				<select id="w-d" class="form-control" bind:value={wDifficulty}>
-					<option value="gamma">Gamma</option>
-					<option value="beta">Beta</option>
-					<option value="alpha">Alpha</option>
-				</select>
-			</div>
-			<div class="plan-field"><label class="form-label" for="w-s">When</label><input id="w-s" class="form-control" type="datetime-local" bind:value={wScheduled} /></div>
-			<div class="plan-field"><label class="form-label" for="w-n">Notes</label><textarea id="w-n" class="form-control" rows="2" bind:value={wNotes} placeholder="Saddle requirements, who's bringing what…"></textarea></div>
-		</div>
-		<div class="modal-footer">
-			<button class="btn btn-ghost" onclick={() => warOpen=false}>Cancel</button>
-			<button class="btn btn-primary" onclick={scheduleWarRoom} disabled={saving || !wBoss.trim() || !wScheduled}>{saving ? 'Scheduling…' : 'Schedule'}</button>
 		</div>
 	</div>
 </div>
