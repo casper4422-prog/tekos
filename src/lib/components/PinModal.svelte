@@ -239,7 +239,9 @@
     }
 
     const canSave = $derived(
-        mode === 'featured' ? selectedIds.length > 0 : selectedCreatureId != null
+        mode === 'featured'
+            ? selectedIds.length > 0
+            : (selectedCreatureId != null && focusStat != null)
     );
 
     // ────────────────────────── Hex canvas backdrop ──────────────────────────
@@ -428,7 +430,9 @@
                         <div class="pm-step modal-section">
                             <div class="modal-section-label">
                                 <span class="num">2</span>Focus Stat
-                                <span class="opt">PICK ONE</span>
+                                <span class="opt" class:opt-required={selectedCreatureId != null && focusStat == null}>
+                                    {selectedCreatureId != null && focusStat == null ? 'REQUIRED' : 'PICK ONE'}
+                                </span>
                             </div>
                             <div class="stat-pick stat-picker">
                                 {#each STATS as s}
@@ -727,6 +731,10 @@
     font-size: 0.55rem;
     color: var(--tek-text-faint);
     letter-spacing: 0.18em;
+}
+.modal-section-label .opt.opt-required {
+    color: var(--tek-amber);
+    text-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
 }
 .modal-section-label .opt-link {
     margin-left: auto;

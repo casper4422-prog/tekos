@@ -27,27 +27,52 @@
             : '—'
     );
 
-    // Pinned creatures shown as "Active Breeding Projects"
-    const pinned = $derived(
+    // Map each pinned creature to its breeding project info (focus stat + target).
+    // Project info comes from data.pinnedProjects (server-side joined from
+    // user.pinnedCreatures); new pins always have focusStat, legacy pins may not.
+    type Pinned = (typeof data.creatures)[number] & {
+        focusStat: 'HP'|'STA'|'OXY'|'FOOD'|'WGT'|'MEL'|'CRA'|'SPD'|null;
+        targetMutations: number;
+    };
+    const pinned = $derived<Pinned[]>(
         data.pinnedIds
-            .map(id => data.creatures.find(c => c.id === id))
-            .filter((c): c is NonNullable<typeof c> => !!c)
+            .map(id => {
+                const creature = data.creatures.find(c => c.id === id);
+                if (!creature) return null;
+                const project = (data.pinnedProjects ?? []).find(p => p.creatureId === id);
+                return {
+                    ...creature,
+                    focusStat: (project?.focusStat ?? null) as Pinned['focusStat'],
+                    targetMutations: project?.targetMutations ?? 0
+                };
+            })
+            .filter((x): x is Pinned => !!x)
             .slice(0, 3)
     );
 
-    // Mutations counter state, keyed by creature id.
-    // Effect must NOT read mutationCounts (it writes it). Reading + writing the
-    // same $state inside an effect feeds itself → Svelte 5
-    // effect_update_depth_exceeded. Initialize from each pinned creature's
-    // mutation total whenever `pinned` changes; manual bumps via bump() persist
-    // until pinned changes again (which happens only on page reload).
+    // Short stat key ↔ full key as stored on creature.baseStats/mutations
+    const STAT_LONG = {
+        HP: 'Health', STA: 'Stamina', OXY: 'Oxygen',
+        FOOD: 'Food', WGT: 'Weight', MEL: 'Melee', CRA: 'Crafting', SPD: 'Speed'
+    } as const;
+
+    function getStatValue(stats: Record<string, number> | undefined, key: Pinned['focusStat']): number {
+        if (!stats || !key) return 0;
+        const long = STAT_LONG[key];
+        return Number(stats[key] ?? stats[key.toLowerCase()] ?? stats[long] ?? stats[long.toLowerCase()] ?? 0);
+    }
+
+    // Mutations counter state, keyed by creature id — tracks ONLY the focus stat's
+    // mutation count. Effect must not read mutationCounts inside the same write
+    // (Svelte 5 effect_update_depth_exceeded). Initialize from creature's stored
+    // focus-stat mutations on each pinned-change; manual bumps persist client-side
+    // until next reload.
     let mutationCounts = $state<Record<number, number>>({});
 
     $effect(() => {
         const next: Record<number, number> = {};
         for (const c of pinned) {
-            const total = Object.values(c.mutations ?? {}).reduce((s, n) => s + (n || 0), 0);
-            next[c.id] = total;
+            next[c.id] = getStatValue(c.mutations, c.focusStat);
         }
         mutationCounts = next;
     });
@@ -328,6 +353,10 @@
                     {@const cat = categoryForSpecies(c.species)}
                     {@const badges = computeBadges(c.baseStats, c.mutations)}
                     {@const tierLabel = badges.bossReady ? `Boss · ${badges.bossReady}` : badges.bloodline ? `${badges.bloodline.charAt(0).toUpperCase() + badges.bloodline.slice(1)} Bloodline` : 'Standard'}
+                    {@const focusBase = c.focusStat ? getStatValue(c.baseStats, c.focusStat) : 0}
+                    {@const focusLabel = c.focusStat ?? '—'}
+                    {@const currentMut = mutationCounts[c.id] ?? 0}
+                    {@const targetMut = c.targetMutations ?? 0}
                     <div class="pin-card {cat}">
                         <div class="pin-top">
                             <span class="pin-tier">⬢ {tierLabel}</span>
@@ -341,16 +370,16 @@
                             <span class="cat">{categoryLabel(cat)}</span>
                         </div>
                         <div class="project-focus">
-                            <div class="project-focus-label">Level</div>
-                            <div class="project-focus-stat">{c.level}</div>
+                            <div class="project-focus-label">{focusLabel === '—' ? 'No Focus' : focusLabel} Base</div>
+                            <div class="project-focus-stat">{focusBase}</div>
                         </div>
                         <div class="project-counter">
-                            <button class="project-btn minus" title="Decrement" onclick={() => bump(c.id, -1)}>−</button>
+                            <button class="project-btn minus" title="Decrement {focusLabel} mutations" onclick={() => bump(c.id, -1)} disabled={!c.focusStat}>−</button>
                             <div class="project-counter-center">
-                                <div class="project-counter-num">{mutationCounts[c.id] ?? 0}</div>
-                                <div class="project-counter-lbl">Mutations</div>
+                                <div class="project-counter-num">{currentMut}{targetMut > 0 ? ` / ${targetMut}` : ''}</div>
+                                <div class="project-counter-lbl">{focusLabel === '—' ? 'Mutations' : `${focusLabel} Mutations`}</div>
                             </div>
-                            <button class="project-btn plus" title="Increment — new baby with +1 mutation" onclick={() => bump(c.id, 1)}>+</button>
+                            <button class="project-btn plus" title="Increment {focusLabel} mutations — new baby with +1" onclick={() => bump(c.id, 1)} disabled={!c.focusStat}>+</button>
                         </div>
                         <div class="project-meta">
                             <div class="project-meta-row"><span class="key">Last bred</span><span class="val">{relativeTime(c.createdAt)}</span></div>
