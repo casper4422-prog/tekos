@@ -32,8 +32,12 @@
 		boss: 'boss',
 		mount: 'mount',
 		resource: 'resource',
-		transport: 'utility',
-		harvesting: 'resource'
+		transport: 'mount',
+		harvesting: 'resource',
+		aquatic: 'water',
+		pet: 'pet',
+		titan: 'titan',
+		event: 'event'
 	};
 	const CAT_LABEL: Record<string,string> = {
 		combat: 'COMBAT',
@@ -43,9 +47,25 @@
 		boss: 'BOSS',
 		mount: 'MOUNT',
 		resource: 'RESOURCE',
-		transport: 'TRANSPORT',
-		harvesting: 'HARVEST'
+		transport: 'MOUNT',
+		harvesting: 'RESOURCE',
+		aquatic: 'WATER',
+		pet: 'PET',
+		titan: 'TITAN',
+		event: 'EVENT'
 	};
+
+	function dietShort(d: unknown): string {
+		if (typeof d !== 'string') return '';
+		const parenIdx = d.indexOf('(');
+		return (parenIdx >= 0 ? d.slice(0, parenIdx) : d).trim().toUpperCase();
+	}
+	function nameLengthClass(n: string): '' | 'long' | 'xlong' {
+		const len = n?.length ?? 0;
+		if (len > 15) return 'xlong';
+		if (len > 9)  return 'long';
+		return '';
+	}
 
 	onMount(() => {
 		const db = (window as unknown as { EXPANDED_SPECIES_DATABASE?: Record<string, SpeciesData> }).EXPANDED_SPECIES_DATABASE;
@@ -164,7 +184,7 @@
 		{@const cat = String(s.category ?? '')}
 		{@const catClass = CAT_CLASS[cat] ?? 'combat'}
 		{@const catLabel = CAT_LABEL[cat] ?? cat.toUpperCase()}
-		{@const isLong = (name?.length ?? 0) > 9}
+		{@const sizeClass = nameLengthClass(name)}
 		{@const stats = (s.baseStats && typeof s.baseStats === 'object') ? Object.entries(s.baseStats as Record<string, number>) : []}
 		{@const roles = Array.isArray(s.roles) ? (s.roles as unknown[]) : []}
 		{@const maps = Array.isArray(s.spawnMaps) ? (s.spawnMaps as unknown[]) : []}
@@ -181,7 +201,7 @@
 
 						<div class="artifact-frame">
 							<!-- Ghost background text -->
-							<div class="artifact-ghost"><div class="artifact-ghost-text {isLong ? 'long' : ''}">{name}</div></div>
+							<div class="artifact-ghost"><div class="artifact-ghost-text {sizeClass}">{name}</div></div>
 
 							<!-- Scanner sweep -->
 							<div class="scanner"></div>
@@ -204,10 +224,10 @@
 
 								<!-- IDENTITY -->
 								<div class="artifact-identity">
-									<div class="identity-species {isLong ? 'long' : ''}">{name}</div>
+									<div class="identity-species {sizeClass}">{name}</div>
 									{#if s.temperament}<div class="identity-nickname">"{String(s.temperament)}"</div>{/if}
 									<div class="identity-meta">
-										{#if s.diet}<span class="lvl">{String(s.diet).toUpperCase()}</span><span class="sep">·</span>{/if}
+										{#if s.diet}<span class="lvl">{dietShort(s.diet)}</span><span class="sep">·</span>{/if}
 										<span class="cat">{catLabel}</span>
 									</div>
 								</div>
@@ -262,6 +282,16 @@
 				<div class="section-label"><span class="pip"></span>Profile · Details</div>
 
 				<div class="compact-list">
+
+					{#if s.diet}
+						<div class="compact {catClass}">
+							<span class="cmp-tier">Diet</span>
+							<div class="cmp-identity">
+								<div class="cmp-species">{String(s.diet)}</div>
+								<div class="cmp-nick">Food preferences</div>
+							</div>
+						</div>
+					{/if}
 
 					{#if s.habitat}
 						<div class="compact {catClass}">
@@ -555,7 +585,8 @@
 	text-transform: uppercase;
 	white-space: nowrap;
 }
-.artifact-ghost-text.long { font-size: clamp(2.8rem, 13vw, 5rem); letter-spacing: 0.06em; }
+.artifact-ghost-text.long  { font-size: clamp(2.8rem, 13vw, 5rem); letter-spacing: 0.06em; }
+.artifact-ghost-text.xlong { font-size: clamp(2rem,  9vw,  3.4rem); letter-spacing: 0.04em; }
 
 .artifact-content {
 	position: relative;
@@ -620,8 +651,10 @@
 	text-transform: uppercase;
 	white-space: nowrap;
 	overflow: hidden;
+	text-overflow: ellipsis;
 }
-.identity-species.long { font-size: clamp(1.2rem, 5.4vw, 2.05rem); letter-spacing: 0.04em; }
+.identity-species.long  { font-size: clamp(1.2rem,  5.4vw, 2.05rem); letter-spacing: 0.04em; }
+.identity-species.xlong { font-size: clamp(0.85rem, 3.8vw, 1.35rem); letter-spacing: 0.03em; }
 .identity-nickname {
 	font-family: var(--tek-mono);
 	font-size: 0.82rem;
@@ -825,6 +858,21 @@
 .compact.boss     { --cat-rgb: 245,158,11;  }
 .compact.mount    { --cat-rgb: 249,115,22;  }
 .compact.resource { --cat-rgb: 167,139,250; }
+.compact.pet      { --cat-rgb: 244,114,182; }
+.compact.titan    { --cat-rgb: 168,85,247;  }
+.compact.event    { --cat-rgb: 20,184,166;  }
+
+/* Artifact card category colors */
+.artifact.combat   { --cat-rgb: 239,68,68;   }
+.artifact.flyer    { --cat-rgb: 6,182,212;   }
+.artifact.utility  { --cat-rgb: 34,197,94;   }
+.artifact.water    { --cat-rgb: 59,130,246;  }
+.artifact.boss     { --cat-rgb: 245,158,11;  }
+.artifact.mount    { --cat-rgb: 249,115,22;  }
+.artifact.resource { --cat-rgb: 167,139,250; }
+.artifact.pet      { --cat-rgb: 244,114,182; }
+.artifact.titan    { --cat-rgb: 168,85,247;  }
+.artifact.event    { --cat-rgb: 20,184,166;  }
 
 .cmp-tier {
 	font-family: var(--tek-mono);
