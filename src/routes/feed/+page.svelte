@@ -6,11 +6,10 @@
 
     let canvas = $state<HTMLCanvasElement | null>(null);
 
-    // Scope + source filter state
-    let scope = $state<'all' | 'following' | 'tribe' | 'server' | 'global'>('all');
-    let source = $state<'all' | 'personal' | 'tribe' | 'server' | 'news'>('all');
+    // Single-dimension filter
+    let scope = $state<'all' | 'following' | 'tribe' | 'server' | 'news'>('all');
 
-    // Global tab source chips (toggles)
+    // News tab platform toggles (Twitter / YouTube / Reddit / etc.)
     let activeSources = $state<Record<string, boolean>>({
         twitter: true,
         youtube: true,
@@ -134,7 +133,7 @@
     const tribeMateIdSet = $derived(new Set(data.tribeMateIds ?? []));
 
     function inScope(it: FeedItem): boolean {
-        if (scope === 'all' || scope === 'global') return true;
+        if (scope === 'all' || scope === 'news') return true;
         const uid = (it.user as { id?: number }).id;
         if (scope === 'following') return uid != null && friendIdSet.has(uid);
         if (scope === 'tribe') return uid != null && tribeMateIdSet.has(uid);
@@ -145,20 +144,8 @@
         return true;
     }
 
-    function inSource(it: FeedItem): boolean {
-        if (source === 'all') return true;
-        if (source === 'personal') return it.kind === 'activity' && (it.type === 'creature_add' || it.type === 'badge_earned');
-        if (source === 'tribe') {
-            const uid = (it.user as { id?: number }).id;
-            return uid != null && tribeMateIdSet.has(uid);
-        }
-        if (source === 'server') return it.kind === 'boss' || (it.metadata.serverCode != null && it.metadata.serverCode !== '');
-        if (source === 'news') return false; // news is in Global tab
-        return true;
-    }
-
     const visibleItems = $derived.by<FeedItem[]>(() =>
-        mergedItems.filter(it => inScope(it) && inSource(it))
+        mergedItems.filter(inScope)
     );
 
     // Group visible items by day with divider rows
@@ -207,7 +194,7 @@
         return [...groups.values()];
     });
 
-    // News items (Global tab) — combine ark-news (Wildcard-tagged) + youtube videos, filter by chip state
+    // News items — combine ark-news (Wildcard-tagged) + youtube videos, filter by platform-toggle state
     type NewsItem = {
         id: string;
         platform: 'twitter' | 'youtube' | 'instagram' | 'reddit' | 'sta' | 'wildcard' | 'twitch';
@@ -327,19 +314,10 @@
         <button class="scope-tab" class:active={scope === 'following'} onclick={() => scope = 'following'}>Following</button>
         <button class="scope-tab" class:active={scope === 'tribe'} onclick={() => scope = 'tribe'}>Tribe</button>
         <button class="scope-tab" class:active={scope === 'server'} onclick={() => scope = 'server'}>Server</button>
-        <button class="scope-tab" class:active={scope === 'global'} onclick={() => scope = 'global'}>Global</button>
+        <button class="scope-tab" class:active={scope === 'news'} onclick={() => scope = 'news'}>News</button>
     </div>
 
-    {#if scope !== 'global'}
-        <!-- Filter chips: scope + source AND -->
-        <div class="filter-row">
-            <button class="chip" class:active={source === 'all'} onclick={() => source = 'all'}>All Sources</button>
-            <button class="chip" class:active={source === 'personal'} onclick={() => source = 'personal'}><span class="glyph">⬡</span>Personal</button>
-            <button class="chip" class:active={source === 'tribe'} onclick={() => source = 'tribe'}><span class="glyph">⌬</span>Tribe</button>
-            <button class="chip" class:active={source === 'server'} onclick={() => source = 'server'}><span class="glyph">🌐</span>Server</button>
-            <button class="chip" class:active={source === 'news'} onclick={() => source = 'news'}><span class="glyph">📡</span>News</button>
-        </div>
-
+    {#if scope !== 'news'}
         {#if scope === 'server'}
             <!-- Server cluster card + sub-cards -->
             <div class="section-head">
@@ -430,7 +408,7 @@
             </div>
         </div>
     {:else}
-        <!-- Global tab: source chips + news cards -->
+        <!-- News tab: platform toggles + news cards -->
         <div class="section-head">
             <span class="pip"></span>
             News Sources
@@ -585,21 +563,6 @@
 .tab-content { display: none; }
 .tab-content.active { display: block; animation: tab-fade-in 0.3s ease; }
 @keyframes tab-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-
-/* Filter chips (used in multiple places) */
-.filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; }
-.chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
-    color: var(--tek-text-dim); font-family: var(--tek-mono);
-    font-size: 0.64rem; font-weight: 600; letter-spacing: 0.14em;
-    text-transform: uppercase; padding: 5px 10px; cursor: pointer;
-    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
-    transition: all 0.18s; font-family: inherit;
-}
-.chip:hover { color: var(--tek-blue); border-color: rgba(0,180,255,0.40); }
-.chip.active { background: var(--tek-blue); color: #001a2e; border-color: var(--tek-blue); }
-.chip .glyph { font-size: 0.7rem; }
 
 /* Feed event */
 .feed { display: flex; flex-direction: column; gap: 8px; }
@@ -813,7 +776,7 @@
 }
 .add-cluster-card:hover .lbl { color: #67e8f9; }
 
-/* Global tab — news sources */
+/* News tab — platform toggles */
 .source-row {
     display: flex; gap: 6px; flex-wrap: wrap;
     margin-bottom: 22px;
