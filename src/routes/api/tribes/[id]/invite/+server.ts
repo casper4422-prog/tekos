@@ -14,13 +14,21 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	if (!me || !['owner','admin'].includes(me.role)) return json({ error: 'Owner/admin only' }, { status: 403 });
 
 	const body = await request.json().catch(() => ({}));
+	const rawUserId = Number(body.userId);
 	const handle = String(body.handle ?? '').trim();
-	if (!handle) return json({ error: 'handle is required' }, { status: 400 });
+	if (!Number.isFinite(rawUserId) && !handle) {
+		return json({ error: 'userId or handle is required' }, { status: 400 });
+	}
 
-	const target = await db.user.findFirst({
-		where: { OR: [{ nickname: handle }, { email: handle }] },
-		select: { id: true, nickname: true, discordName: true }
-	});
+	const target = Number.isFinite(rawUserId)
+		? await db.user.findUnique({
+			where: { id: rawUserId },
+			select: { id: true, nickname: true, discordName: true }
+		})
+		: await db.user.findFirst({
+			where: { OR: [{ nickname: handle }, { email: handle }] },
+			select: { id: true, nickname: true, discordName: true }
+		});
 	if (!target) return json({ error: 'Survivor not found' }, { status: 404 });
 
 	const already = await db.tribeMembership.findFirst({ where: { userId: target.id } });
