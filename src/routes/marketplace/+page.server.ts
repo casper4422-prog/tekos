@@ -3,11 +3,20 @@ import { db } from '$lib/db';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const uid = locals.user!.id;
-	const [trades, myTrades, completed, offers, creatures, wishlist, networkWishlists] = await Promise.all([
+	const [trades, myTrades, completed, offers, sentOffers, creatures, wishlist, networkWishlists] = await Promise.all([
 		db.trade.findMany({ where: { status:'open', userId:{ not:uid } }, orderBy:{ createdAt:'desc' }, include:{ user:{ select:{ id:true, nickname:true, discordName:true } } } }),
 		db.trade.findMany({ where: { userId:uid }, orderBy:{ createdAt:'desc' }, include:{ _count:{ select:{ offers:true } } } }),
 		db.trade.findMany({ where: { status:'completed' }, orderBy:{ createdAt:'desc' }, take: 30, include:{ user:{ select:{ id:true, nickname:true, discordName:true } } } }),
 		db.offer.findMany({ where:{ toUserId:uid, status:'pending' }, include:{ fromUser:{ select:{ id:true, nickname:true, discordName:true } }, trade:true } }),
+		db.offer.findMany({
+			where: { fromUserId: uid },
+			orderBy: { createdAt: 'desc' },
+			take: 50,
+			include: {
+				toUser: { select: { id:true, nickname:true, discordName:true } },
+				trade:  { include: { user: { select: { id:true, nickname:true, discordName:true } } } }
+			}
+		}),
 		db.creature.findMany({ where:{ userId:uid }, select:{ id:true, data:true } }),
 		db.wishlist.findMany({ where:{ userId:uid }, orderBy:{ createdAt:'desc' } }),
 		db.wishlist.findMany({
@@ -38,6 +47,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		myTrades: myTrades.map(t => ({ ...t, offerCount: t._count.offers })),
 		completed,
 		offers,
+		sentOffers,
 		myCreatures: creatures.map(c => ({ ...c.data as object, id: c.id })),
 		wishlist,
 		networkWishlists: networkWishlists.map(w => ({ ...w, iHaveIt: mySpecies.has(w.species) })),

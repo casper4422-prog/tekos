@@ -8,10 +8,11 @@
 	type Creature = Record<string,unknown> & { id:number };
 	type Wishlist = Record<string,unknown>;
 
-	let tab        = $state<'browse'|'mine'|'offers'|'completed'|'wishlist'>('browse');
+	let tab        = $state<'browse'|'mine'|'offers'|'sentOffers'|'completed'|'wishlist'>('browse');
 	let trades     = $state<Trade[]>(data.trades as Trade[]);
 	let myTrades   = $state<Trade[]>(data.myTrades as Trade[]);
 	let offers     = $state<Trade[]>(data.offers as Trade[]);
+	let sentOffers = $state<Trade[]>(data.sentOffers as Trade[]);
 	let completed  = $state<Trade[]>(data.completed as Trade[]);
 	let myCreatures = data.myCreatures as Creature[];
 	let wishlist   = $state<Wishlist[]>(data.wishlist as Wishlist[]);
@@ -113,12 +114,6 @@
 	function display(u: Record<string,unknown>) { return (u.nickname ?? u.discordName ?? 'Unknown') as string; }
 	function creatureName(c: Creature) { return `${String((c as Record<string,unknown>).species ?? '?')} — ${String((c as Record<string,unknown>).name ?? 'Unnamed')} (Lvl ${Number((c as Record<string,unknown>).level ?? 1)})`; }
 
-	function speciesIcon(species: string | undefined): string {
-		if (!species) return '⬡';
-		const entry = speciesDB[species];
-		const icon = entry?.icon as string | undefined;
-		return icon ?? '⬡';
-	}
 	function dexCategory(species: string | undefined): string {
 		if (!species) return 'utility';
 		const entry = speciesDB[species];
@@ -285,7 +280,7 @@
 
 {#snippet specimenContent(cd: Record<string, unknown>)}
 	{@const species = String(cd.species ?? '?')}
-	{@const icon = speciesIcon(species)}
+	{@const initial = (species.charAt(0) || '?').toUpperCase()}
 	{@const cat = dexCategory(species)}
 	{@const gender = String(cd.gender ?? '').toLowerCase()}
 	{@const tier = tierFor(cd)}
@@ -293,7 +288,7 @@
 	<div class="listing-content specimen-content">
 		<div class="spec-head">
 			<div class="spec-icon-wrap {cat}">
-				<span class="spec-icon">{icon}</span>
+				<span class="spec-icon">{initial}</span>
 			</div>
 			<div class="spec-meta">
 				<div class="item-name">{species}</div>
@@ -346,6 +341,7 @@
 		<button class="tab" class:active={tab === 'browse'} onclick={() => tab = 'browse'}>Browse <span class="tab-count">{trades.length}</span></button>
 		<button class="tab" class:active={tab === 'mine'} onclick={() => tab = 'mine'}>My Listings <span class="tab-count">{myTrades.length}</span></button>
 		<button class="tab" class:active={tab === 'offers'} onclick={() => tab = 'offers'}>Incoming Offers <span class="tab-count" class:alert={offers.length > 0}>{offers.length}</span></button>
+		<button class="tab" class:active={tab === 'sentOffers'} onclick={() => tab = 'sentOffers'}>Sent Offers <span class="tab-count">{sentOffers.length}</span></button>
 		<button class="tab" class:active={tab === 'wishlist'} onclick={() => tab = 'wishlist'}>Wishlist <span class="tab-count">{wishlist.length}</span></button>
 		<button class="tab" class:active={tab === 'completed'} onclick={() => tab = 'completed'}>Completed <span class="tab-count">{completed.length}</span></button>
 	</div>
@@ -483,6 +479,63 @@
 						<div class="listing-footer">
 							<button class="offer-btn" onclick={() => respondOffer(od.id as number, od.tradeId as number, fromU.id as number, display(fromU), 'accept')}>Accept ✓</button>
 							<button class="offer-btn" onclick={() => respondOffer(od.id as number, od.tradeId as number, fromU.id as number, display(fromU), 'reject')}>Reject ✕</button>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+	{:else if tab === 'sentOffers'}
+		{#if sentOffers.length === 0}
+			<div class="mkt-empty">No sent offers yet. Make an offer on a listing in Browse.</div>
+		{:else}
+			<div class="listing-grid">
+				{#each sentOffers as o}
+					{@const od = o as Record<string,unknown>}
+					{@const offerCd = (od.offeredCreatureData ?? {}) as Record<string,unknown>}
+					{@const toU = od.toUser as Record<string,unknown>}
+					{@const tradeRec = od.trade as Record<string,unknown>}
+					{@const tradeCd = ((tradeRec?.creatureData ?? {}) as Record<string,unknown>)}
+					{@const tradeMeta = ((tradeRec?.metadata ?? {}) as Record<string,unknown>)}
+					{@const status = String(od.status ?? 'pending')}
+					{@const statusClass = status === 'accepted' ? 'ok' : status === 'rejected' ? 'no' : 'wait'}
+					<div class="listing specimen" data-cat="specimen">
+						<div class="listing-top">
+							<span class="type-chip">⬡ Offer Sent</span>
+							<span class="posted">{relTime(od.createdAt)}</span>
+						</div>
+
+						<div class="sent-target">
+							<span class="sent-target-label">For listing</span>
+							<div class="sent-target-line">
+								<span class="sent-target-species">{String(tradeCd.species ?? tradeMeta.item ?? 'a listing')}</span>
+								<span class="sent-target-sep">·</span>
+								<span class="sent-target-to">to <strong>{display(toU)}</strong></span>
+							</div>
+						</div>
+
+						{#if offerCd.species}
+							{@render specimenContent(offerCd)}
+						{:else}
+							<div class="listing-content">
+								<div class="item-name">Text offer</div>
+								<div class="item-nick" style="color:var(--tek-text-faint);font-style:italic">No specimen attached</div>
+							</div>
+						{/if}
+
+						{#if od.message}
+							<div class="listing-wanted">
+								<span class="wanted-label">Your message</span>
+								<p class="wanted-text">"{String(od.message)}"</p>
+							</div>
+						{/if}
+
+						<div class="listing-footer">
+							<span class="status-pill {statusClass}">
+								{#if status === 'accepted'}✓ Accepted
+								{:else if status === 'rejected'}✕ Rejected
+								{:else}⟳ Pending{/if}
+							</span>
 						</div>
 					</div>
 				{/each}
@@ -1067,7 +1120,76 @@
 .spec-icon-wrap.resource { --ic-rgb: 167,139,250; }
 .spec-icon-wrap.pet      { --ic-rgb: 244,114,182; }
 .spec-icon-wrap.event    { --ic-rgb: 20,184,166;  }
-.spec-icon { font-size: 1.8rem; line-height: 1; }
+.spec-icon {
+	font-family: var(--tek-display);
+	font-size: 1.5rem;
+	font-weight: 900;
+	letter-spacing: 0.02em;
+	line-height: 1;
+	color: rgb(var(--ic-rgb));
+	text-shadow: 0 0 8px rgba(var(--ic-rgb), 0.55);
+}
+
+/* Sent-offer target block (what listing the offer is for) */
+.sent-target {
+	background: rgba(0,0,0,0.20);
+	border-left: 2px solid rgba(0,180,255,0.30);
+	padding: 8px 12px;
+	margin-bottom: 12px;
+	clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+}
+.sent-target-label {
+	display: block;
+	font-family: var(--tek-mono);
+	font-size: 0.54rem;
+	letter-spacing: 0.22em;
+	color: var(--tek-text-faint);
+	text-transform: uppercase;
+	margin-bottom: 3px;
+}
+.sent-target-line {
+	font-family: var(--tek-mono);
+	font-size: 0.78rem;
+	color: var(--tek-text-dim);
+}
+.sent-target-species {
+	font-family: var(--tek-display);
+	font-weight: 700;
+	color: var(--tek-text);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+.sent-target-sep { color: var(--tek-text-faint); margin: 0 5px; }
+.sent-target-to strong { color: #7dd3fc; font-weight: 700; }
+
+/* Status pill for sent offers */
+.status-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-family: var(--tek-mono);
+	font-size: 0.66rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	padding: 5px 11px;
+	clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.status-pill.wait {
+	background: rgba(245,158,11,0.12);
+	border: 1px solid rgba(245,158,11,0.40);
+	color: #fcd34d;
+}
+.status-pill.ok {
+	background: rgba(16,185,129,0.14);
+	border: 1px solid rgba(16,185,129,0.45);
+	color: #86efac;
+}
+.status-pill.no {
+	background: rgba(239,68,68,0.12);
+	border: 1px solid rgba(239,68,68,0.35);
+	color: #fca5a5;
+}
 
 .spec-meta { min-width: 0; }
 .listing-content.specimen-content .item-name {
