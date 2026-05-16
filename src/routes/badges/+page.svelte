@@ -103,18 +103,18 @@
     ];
 
     const bloodlineTiers = [
-        { tier: 'bronze',  label: 'Bronze Bloodline',  tagShort: 'Bronze',  thresh: 45, bonus: '+25% trade value' },
-        { tier: 'silver',  label: 'Silver Bloodline',  tagShort: 'Silver',  thresh: 50, bonus: '+50% trade value' },
-        { tier: 'gold',    label: 'Gold Bloodline',    tagShort: 'Gold',    thresh: 55, bonus: '+100% trade value' },
-        { tier: 'diamond', label: 'Diamond Bloodline', tagShort: 'Diamond', thresh: 60, bonus: 'Priceless · Auction-only' }
+        { tier: 'bronze',  label: 'Bronze Bloodline',  tagShort: 'Bronze',  thresh: 45, bonus: 'Solid genetics across the board' },
+        { tier: 'silver',  label: 'Silver Bloodline',  tagShort: 'Silver',  thresh: 50, bonus: 'Impressive stat consistency' },
+        { tier: 'gold',    label: 'Gold Bloodline',    tagShort: 'Gold',    thresh: 55, bonus: 'Absolute breeding perfection' },
+        { tier: 'diamond', label: 'Diamond Bloodline', tagShort: 'Diamond', thresh: 60, bonus: 'Genetic perfection beyond compare' }
     ] as const;
 
     // Underdog tier ladder (stricter than Boss Ready, requires HP AND MEL both)
     const underdogTiers = [
-        { tier: 'champion', label: 'Underdog Champion', tagShort: 'Bronze',   thresh: 90,  tierClass: 'tier-champion', rarity: '42% OF SURVIVORS' },
-        { tier: 'hero',     label: 'Underdog Hero',     tagShort: 'Silver',   thresh: 115, tierClass: 'tier-hero',     rarity: '12% OF SURVIVORS' },
-        { tier: 'legend',   label: 'Underdog Legend',   tagShort: 'Gold',     thresh: 140, tierClass: 'tier-legend',   rarity: '4% OF SURVIVORS'  },
-        { tier: 'titan',    label: 'Underdog Titan',    tagShort: 'Diamond',  thresh: 160, tierClass: 'tier-titand',   rarity: '<1% OF SURVIVORS' }
+        { tier: 'champion', label: 'Underdog Champion', tagShort: 'Bronze',  thresh: 90,  tierClass: 'tier-champion' },
+        { tier: 'hero',     label: 'Underdog Hero',     tagShort: 'Silver',  thresh: 115, tierClass: 'tier-hero'     },
+        { tier: 'legend',   label: 'Underdog Legend',   tagShort: 'Gold',    thresh: 140, tierClass: 'tier-legend'   },
+        { tier: 'titan',    label: 'Underdog Titan',    tagShort: 'Diamond', thresh: 160, tierClass: 'tier-titand'   }
     ] as const;
 
     type MapBoss = typeof MAP_BOSSES[number];
@@ -678,7 +678,7 @@
                 </div>
                 <div class="special-info">
                     <div class="special-name">Underdog Master</div>
-                    <div class="special-desc">Profile title for Survivors with 5+ Underdog badges across multiple species. Worn on your Dossier and in trades.</div>
+                    <div class="special-desc">Milestone for Survivors who earn 5+ Underdog badges across non-meta species. A nod to the unconventional.</div>
                 </div>
                 <div class="special-status" class:earned-status={underdogEarnedCount >= 5}>
                     <span class="pip"></span>{underdogMasterProgress} / 5 underdog badges
@@ -719,7 +719,7 @@
                 <div>
                     <div class="diamond-feature-title">Diamond Bloodline</div>
                     <div class="diamond-feature-flavor">"Genetic perfection beyond compare. The bloodline ends here, or begins again."</div>
-                    <div class="diamond-feature-req">ALL 5 stats ≥ <span class="key">60 base</span> · Priceless · Auction-only · Server-wide announcement on earning</div>
+                    <div class="diamond-feature-req">ALL 5 stats ≥ <span class="key">60 base</span> — the rarest Bloodline badge on TekOS</div>
                 </div>
                 <div class="diamond-feature-stat">
                     <div class="diamond-feature-stat-val">{data.badgeWall.bloodline.filter(b => b.tier === 'diamond').length}</div>
@@ -807,31 +807,6 @@
                     </div>
                 </div>
             {/each}
-        </div>
-
-        <!-- Community recognition strip -->
-        <div class="subsection">
-            <div class="subsection-head">
-                <div class="subsection-title">Community Recognition <span class="subsection-desc">— Worn perks per tier earned</span></div>
-            </div>
-            <div class="community-grid">
-                <div class="community-pill community-bronze">
-                    <div class="community-tier">BRONZE</div>
-                    <div class="community-perk">"Dedicated Breeder" chat tag</div>
-                </div>
-                <div class="community-pill community-silver">
-                    <div class="community-tier">SILVER</div>
-                    <div class="community-perk">"Expert Breeder" + Hall of Fame</div>
-                </div>
-                <div class="community-pill community-gold">
-                    <div class="community-tier">GOLD</div>
-                    <div class="community-perk">"Master Breeder" + Discord role</div>
-                </div>
-                <div class="community-pill community-diamond">
-                    <div class="community-tier">DIAMOND</div>
-                    <div class="community-perk">"Legendary Breeder" + permanent server monument</div>
-                </div>
-            </div>
         </div>
 
     </div>
@@ -1782,32 +1757,6 @@
     text-transform: uppercase;
     margin-top: 6px;
 }
-
-/* Community recognition — inline grid */
-.community-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 10px;
-    font-family: var(--tek-mono);
-    font-size: 0.76rem;
-}
-.community-pill {
-    padding: 10px 14px;
-}
-.community-tier {
-    font-weight: 700;
-    letter-spacing: 0.10em;
-    margin-bottom: 3px;
-}
-.community-perk { color: var(--tek-text-dim); }
-.community-bronze  { background: rgba(205,127,50,0.06);  border-left: 2px solid var(--tier-bronze); }
-.community-bronze  .community-tier { color: var(--tier-bronze); }
-.community-silver  { background: rgba(200,200,210,0.06); border-left: 2px solid var(--tier-silver); }
-.community-silver  .community-tier { color: var(--tier-silver); }
-.community-gold    { background: rgba(255,215,0,0.06);   border-left: 2px solid var(--tier-gold); }
-.community-gold    .community-tier { color: var(--tier-gold); }
-.community-diamond { background: rgba(0,180,255,0.06);   border-left: 2px solid var(--tier-diamond); }
-.community-diamond .community-tier { color: var(--tier-diamond); }
 
 /* ═════════════════════════════════════════════════════════════════════════
    ADDITIONAL TIER COLORS — Map / Ultimate / Underdog
