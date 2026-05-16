@@ -3,40 +3,117 @@
 	import type { PageData } from './$types';
 	let { data }: { data: PageData } = $props();
 
-	type Boss    = { id:string; name:string; map:string; difficulties:string[]; description:string; tribute?:string };
+	type BossKind = 'killable' | 'tame' | 'world' | 'soon';
+	type Boss    = { id:string; name:string; map:string; difficulties:string[]; kind:BossKind; description:string; tribute?:string };
 	type Session = Record<string,unknown>;
 	type ChatMsg = { id:number; content:string; createdAt:string; user:{ nickname:string|null; email:string } };
 
-	// Full ASA boss list — preserved from prior port
+	// ASA boss roster verified against ark.wiki.gg (May 2026).
+	// kind: 'killable' = standard tier kill, 'tame' = field-tame titan, 'world' = roaming/dungeon boss without tier summon, 'soon' = unreleased map teaser
 	const BOSSES: Boss[] = [
-		{ id:'broodmother',       name:'Broodmother Lysrix',         map:'The Island',      difficulties:['gamma','beta','alpha'], description:'Summons Araneo swarms. Megatherium is META here — gets a massive damage buff vs insects.', tribute:'Sarcosuchus Skin, Sauropod Vertebra, Argentavis Talon, Megalodon Fin, Thylacoleo Hook-Claw' },
-		{ id:'megapithecus',      name:'Megapithecus',               map:'The Island',      difficulties:['gamma','beta','alpha'], description:'Hurls boulders with AoE damage. Spread your dinos to avoid rock wipes.', tribute:'Argentavis Talon, Megalodon Fin, Sauropod Vertebra, Tyrannosaurus Arm, Woolly Rhino Horn' },
-		{ id:'dragon',            name:'Dragon',                     map:'The Island',      difficulties:['gamma','beta','alpha'], description:'Immune to fire. Therizinosaur is META — fire resistant and high damage.', tribute:'Argentavis Talon, Sarcosuchus Skin, Megalania Toxin, Titanoboa Venom' },
-		{ id:'overseer',          name:'Overseer',                   map:'The Island',      difficulties:['gamma','beta','alpha'], description:'Final Island boss. AI that shifts between Broodmother, Megapithecus, and Dragon drone forms.', tribute:'Defeat all three Island guardians, then traverse the Tek Cave' },
-		{ id:'manticore',         name:'Manticore',                  map:'Scorched Earth',  difficulties:['gamma','beta','alpha'], description:'Flying phase is immune. Alternates with a landing phase — burst damage during landings.', tribute:'Argentavis Talon, Sauropod Vertebra, Tusoteuthis Tentacle, Deathworm Horn' },
-		{ id:'rockwell',          name:'Rockwell',                   map:'Aberration',      difficulties:['gamma','beta','alpha'], description:'No flyers allowed. Target the glowing Element tentacle nodes. Reaper Kings excel here.', tribute:'Karkinos Claw, Basilisk Scale, Reaper Queen Pheromone Gland, Nameless Venom' },
-		{ id:'forest_titan',      name:'Forest Titan',               map:'Extinction',      difficulties:['gamma'],               description:'Open-world titan. Cannot be killed — must be tamed by destroying corruption nodes.', tribute:'No tribute — locate in the field' },
-		{ id:'ice_titan',         name:'Ice Titan',                  map:'Extinction',      difficulties:['gamma'],               description:'Found in the snow biome. Strike weak points on its back during stagger windows.', tribute:'No tribute — locate in the field' },
-		{ id:'desert_titan',      name:'Desert Titan',               map:'Extinction',      difficulties:['gamma'],               description:'Flying titan raining lightning. Can be tamed as a massive flying platform.', tribute:'No tribute — locate in the field' },
-		{ id:'king_titan',        name:'King Titan',                 map:'Extinction',      difficulties:['gamma','beta','alpha'], description:'Alpha requires all three field Titans tamed first. Target corruption nodes on its body.', tribute:'Corrupt Heart — obtained by defeating/taming the three field Titans' },
-		{ id:'center_broodmother',name:'Broodmother Lysrix',         map:'The Center',      difficulties:['gamma','beta','alpha'], description:'Same as Island variant. Megatherium is still META.', tribute:'Same as Island Broodmother' },
-		{ id:'center_megapithecus',name:'Megapithecus',              map:'The Center',      difficulties:['gamma','beta','alpha'], description:'Same as Island variant.', tribute:'Same as Island Megapithecus' },
-		{ id:'center_dragon',     name:'Dragon',                     map:'The Center',      difficulties:['gamma','beta','alpha'], description:'Same fire-immune mechanics as Island variant.', tribute:'Same as Island Dragon' },
-		{ id:'ragnarok_boss',     name:'Dragon & Manticore',         map:'Ragnarok',        difficulties:['gamma','beta','alpha'], description:'Combined encounter — both bosses fight simultaneously. Split your tribe between two threat types.', tribute:'Argentavis Talon, Sauropod Vertebra, Wyvern Milk, Deathworm Horn' },
-		{ id:'val_broodmother',   name:'Broodmother Lysrix',         map:'Valguero',        difficulties:['gamma','beta','alpha'], description:'Valguero variant via underground zones. Identical mechanics.', tribute:'Same as Island Broodmother' },
-		{ id:'val_megapithecus',  name:'Megapithecus',               map:'Valguero',        difficulties:['gamma','beta','alpha'], description:'Valguero variant. Identical mechanics.', tribute:'Same as Island Megapithecus' },
-		{ id:'val_dragon',        name:'Dragon',                     map:'Valguero',        difficulties:['gamma','beta','alpha'], description:'Valguero variant. Identical fire mechanics.', tribute:'Same as Island Dragon' },
-		{ id:'moeder',            name:'Moeder, Master of the Ocean',map:'Genesis: Part 1', difficulties:['gamma','beta','alpha'], description:'Fought underwater. Spawns Electrophorus to drain oxygen. Keep your oxygen stat high.', tribute:'Complete HLN-A Ocean biome missions' },
-		{ id:'master_controller', name:'Corrupted Master Controller',map:'Genesis: Part 1', difficulties:['gamma','beta','alpha'], description:'Multi-phase AI boss. Final encounter of Genesis Part 1.', tribute:'Complete all HLN-A mission biome sets' },
-		{ id:'rockwell_prime',    name:'Rockwell Prime',             map:'Genesis: Part 2', difficulties:['gamma','beta','alpha'], description:'Rockwell merged with the Genesis Ship. Multi-phase interior fight.', tribute:'Complete Rockwell Prime mission set' },
-		{ id:'hydraskos',         name:'Hydraskos the Unbroken',     map:'Astraeos',        difficulties:['gamma','beta','alpha'], description:'Multi-headed Hydra. Each head targets independently — coordinate target priority.', tribute:'Astraeos tribute altar' },
-		{ id:'natrix',            name:'Natrix the Gorgon',          map:'Astraeos',        difficulties:['gamma','beta','alpha'], description:'Petrification mechanics — looking at it directly can freeze survivors mid-fight.', tribute:'Astraeos tribute altar' },
-		{ id:'thodes',            name:'Thodes the Cyclops',         map:'Astraeos',        difficulties:['gamma','beta','alpha'], description:'Strike the eye during vulnerability windows. The eye is both weapon and weak point.', tribute:'Astraeos tribute altar' },
-		{ id:'thanatos',          name:'Thanatos the Destroyer',     map:'Astraeos',        difficulties:['gamma','beta','alpha'], description:'Pinnacle Astraeos boss. Requires defeating all three guardians first.', tribute:'Defeat Hydraskos, Natrix, and Thodes first' },
-		{ id:'pulmonoscorpius_monarch',name:'Pulmonoscorpius Monarch',map:'Astraeos',       difficulties:['gamma'],               description:'Scorpion miniboss found in Astraeos cave systems. A stepping-stone before major bosses.', tribute:'No tribute — found in caves' },
-		{ id:'lost_king',         name:'Lost King',                  map:'Lost Colony',     difficulties:['gamma','beta','alpha'], description:'Rides a Gigadesmodus. Multi-phase dungeon inside the Red Palace. Thrall waves between phases.', tribute:'Altar outside the Red Palace dungeon entrance' },
-		{ id:'lost_queen',        name:'Lost Queen',                 map:'Lost Colony',     difficulties:['gamma','beta','alpha'], description:'Must break her healing beam or she regenerates to full. Assign dedicated beam-breakers.', tribute:'Automatically triggered after defeating the Lost King' },
-		{ id:'svartalfheim_dinopithecus',name:'Dinopithecus King',   map:'Svartalfheim · Mod', difficulties:['alpha'],           description:'Custom boss of Nekatus\'s Svartalfheim mod. No-fly, no-Tek-armour ruleset.', tribute:'Svartalfheim tribute — check mod documentation' },
+		// ─── The Island (Oct 2023) ───
+		{ id:'broodmother', name:'Broodmother Lysrix', map:'The Island', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Spawns Araneo swarms. Megatherium is META — gains a massive damage buff vs insects.',
+		  tribute:'Artifacts of Clever, Hunter, Massive · Trophies: Sarcosuchus Skin, Sauropod Vertebra, Argentavis Talon, Megalodon Fin, Thylacoleo Hook-Claw (1×/5×/10× per tier)' },
+		{ id:'megapithecus', name:'Megapithecus', map:'The Island', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Hurls boulders with AoE damage. Spread out to avoid rock wipes.',
+		  tribute:'Artifacts of Brute, Hunter, Pack · Trophies: Argentavis Talon, Megalodon Fin, Sauropod Vertebra, Tyrannosaurus Arm, Woolly Rhino Horn' },
+		{ id:'dragon', name:'Dragon', map:'The Island', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Immune to fire. Therizinosaur is META — fire-resistant and high damage.',
+		  tribute:'Artifacts of Massive, Strong, Skylord · Trophies: Argentavis Talon, Sarcosuchus Skin, Megalania Toxin, Titanoboa Venom, Allosaurus Brain' },
+		{ id:'overseer', name:'Overseer', map:'The Island', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Final Island boss. Shifts between Broodmother, Megapithecus, and Dragon drone forms.',
+		  tribute:'Defeat all three Island guardians, then traverse the Tek Cave to the Ascension chamber.' },
+
+		// ─── Scorched Earth (Apr 2024) ───
+		{ id:'manticore', name:'Manticore', map:'Scorched Earth', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Flying phase is immune. Alternates with landing phase — burst damage during landings.',
+		  tribute:'Artifacts of Crag, Destroyer, Gatekeeper · Trophies: Argentavis Talon, Sauropod Vertebra, Tusoteuthis Tentacle, Deathworm Horn' },
+
+		// ─── The Center (Jun 2024) — single combined arena, NOT 3 separate bosses ───
+		{ id:'center_combo', name:'Broodmother & Megapithecus', map:'The Center', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Combined Floating Island arena. Both bosses fight you on a 25-minute timer. Araneo swarms + boulder throws + Gigantopithecus minions.',
+		  tribute:'Center artifact set · Trophies: Allosaurus Brain, Argentavis Talon, Sarco Skin, Sauropod Vertebra, Tusoteuthis Tentacle, Tyrannosaurus Arm, Yutyrannus Lungs' },
+
+		// ─── Aberration (Sep 2024) ───
+		{ id:'rockwell', name:'Rockwell', map:'Aberration', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'No flyers allowed. Target the glowing Element tentacle nodes. Reaper Kings excel here.',
+		  tribute:'Aberration artifact set · Trophies: Karkinos Claw, Basilisk Scale, Reaper Queen Pheromone Gland, Nameless Venom' },
+
+		// ─── Extinction (Dec 2024) ───
+		{ id:'forest_titan', name:'Forest Titan', map:'Extinction', kind:'tame', difficulties:[],
+		  description:'Open-world titan. Cannot be killed — destroy corruption nodes around the body to tame. 24-hour duration tame.',
+		  tribute:'No tribute — locate in the wild (Forest cave region).' },
+		{ id:'ice_titan', name:'Ice Titan', map:'Extinction', kind:'tame', difficulties:[],
+		  description:'Snow biome titan. Strike weak points on its back during stagger windows. Tame, not kill.',
+		  tribute:'No tribute — locate in the wild (Snow Dome region).' },
+		{ id:'desert_titan', name:'Desert Titan', map:'Extinction', kind:'tame', difficulties:[],
+		  description:'Flying titan raining lightning. Tame as a massive flying platform.',
+		  tribute:'No tribute — locate in the wild (Desert biome).' },
+		{ id:'king_titan', name:'King Titan', map:'Extinction', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Alpha requires all three field Titans tamed first. Target corruption nodes on its body.',
+		  tribute:'Corrupt Heart — obtained by defeating/taming the three field Titans.' },
+
+		// ─── Astraeos (Feb 2025, premium partner) ───
+		{ id:'hydraskos', name:'Hydraskos, The Unbroken', map:'Astraeos', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Five-headed serpent with elemental breath (Fire/Ice/Dark/Lightning/Poison). Attack from behind. META: Stego tanks + Deinonychus bleed.',
+		  tribute:'Astraeos tribute altar — artifacts + apex drops.' },
+		{ id:'natrix', name:'Natrix, the Devious', map:'Astraeos', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Medusa-style boss. Summons Araneo, Titanoboa, Onyc with torpor/disease debuffs. Swamp arena.',
+		  tribute:'Artifacts of Clever, Hunter, Massive · Trophies: Argentavis Talon, Sarco Skin, Sauropod Vertebra, Titanoboa Venom (5×/10× per tier)' },
+		{ id:'thodes', name:'Thodes, the Widowmaker', map:'Astraeos', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Damage-resistant until eye glows — shoot the eye to open damage windows. Club melee, close quarters.',
+		  tribute:'Artifacts of Brute, Pack, Devourer · Alpha adds 10× Megalodon Teeth, Therizino Claws, Megalania Toxin, Spino Sail, Thylacoleo Hook-Claw' },
+		{ id:'thanatos', name:'Thanatos', map:'Astraeos', kind:'world', difficulties:[],
+		  description:'World boss. Spawns naturally in Therokis region on a periodic timer — no summon ritual. 15-minute fight with lava-river positioning. META: Giga, Carcha, Dreadnoughtus, Wyverns.',
+		  tribute:'No tribute — wait for natural spawn in Therokis.' },
+		{ id:'pulmonoscorpius_monarch', name:'Pulmonoscorpius Monarch', map:'Astraeos', kind:'killable', difficulties:['gamma'],
+		  description:'Astraeos cave system miniboss — a stepping stone before major bosses.',
+		  tribute:'No tribute — encounter inside Astraeos caves.' },
+		{ id:'minotarchos', name:'Minotarchos', map:'Astraeos', kind:'killable', difficulties:['gamma'],
+		  description:'Minotaur-themed miniboss.',
+		  tribute:'No tribute — encounter in cave.' },
+		{ id:'erymanthian_kalydonios', name:'Erymanthian & Kalydonios', map:'Astraeos', kind:'killable', difficulties:['gamma'],
+		  description:'Dual-boar miniboss encounter.',
+		  tribute:'No tribute — encounter in cave.' },
+
+		// ─── Ragnarok (ASA, Jun 2025) — Nunatak replaces ASE Dragon/Manticore combo ───
+		{ id:'nunatak', name:'Nunatak', map:'Ragnarok', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Colossal Ice Wyvern. Flyers banned in arena. Summons Ice Worm adds. Alpha ~1.25M HP, drops ~550 Element on kill. Player lvl 70/80/90.',
+		  tribute:'Full 10-artifact set (Gamma) · Beta/Alpha add apex drops + Argentavis Talons.' },
+		{ id:'iceworm_queen', name:'Iceworm Queen', map:'Ragnarok', kind:'world', difficulties:[],
+		  description:'Dungeon-style boss beneath Blizzard Peak. No tier system — single high-difficulty encounter with loot crate rewards.',
+		  tribute:'No tribute — enter the Frozen Dungeon.' },
+
+		// ─── Valguero (ASA, Oct 2025) — Grendel replaces ASE Forsaken Oasis triple ───
+		{ id:'grendel', name:'Grendel', map:'Valguero', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Massive Megaraptor-type. Bleed damage is the main threat. Fog phase requires lighting the arena. META: armored tanks + bleed-resistant healers.',
+		  tribute:'Gamma: Artifacts of Devourer, Pack, Skylord · 5× ea Allosaurus Brain, Argentavis Talon, Sarco Skin, Sauropod Vertebra, Titanoboa Venom. Beta+: Artifacts of Cunning, Immune, Strong + Rex Arms.' },
+
+		// ─── Lost Colony (Dec 2025) — chained encounter, single Red-Handed mission ───
+		{ id:'lost_king', name:'Lost King', map:'Lost Colony', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Rides Gigadesmodus — flying = immune. Destroy 4 power poles around arena while fighting thrall waves until he lands. Phase 1 of the Red-Handed mission.',
+		  tribute:'Alpha Ossidon Skull, Alpha Zombie Brains, Neophyte Horns (counts scale per tier). Sigils required at Alpha. Player lvl 55/70/95.' },
+		{ id:'lost_queen', name:'Lost Queen', map:'Lost Colony', kind:'killable', difficulties:['gamma','beta','alpha'],
+		  description:'Auto-triggered by cutscene after Lost King falls. Foot-based duel. Healing tether spawns at 50% HP — destroy it or she regenerates to full.',
+		  tribute:'Chained with Lost King — same Red-Handed mission entry.' },
+
+		// ─── COMING SOON — confirmed in ASA pipeline but not yet released ───
+		{ id:'soon_genesis1', name:'Genesis: Part 1 (Ascended)', map:'Genesis: Part 1', kind:'soon', difficulties:[],
+		  description:'Expected June 2026 — free release. Will include Moeder (Ocean biome) and the Corrupted Master Controller (final).',
+		  tribute:'Release pending.' },
+		{ id:'soon_genesis2', name:'Genesis: Part 2 (Ascended)', map:'Genesis: Part 2', kind:'soon', difficulties:[],
+		  description:'Expected Q2 2027 — free release. Will include Rockwell Prime as the multi-phase finale.',
+		  tribute:'Release pending.' },
+		{ id:'soon_lost_island', name:'Dinopithecus King', map:'Lost Island', kind:'soon', difficulties:[],
+		  description:'Lost Island Ascended port not yet released. ASE roster: Dinopithecus King at gamma/beta/alpha.',
+		  tribute:'Release pending.' },
+		{ id:'soon_crystal', name:'Crystal Wyvern Queen', map:'Crystal Isles', kind:'soon', difficulties:[],
+		  description:'Crystal Isles Ascended port not yet released. ASE roster: Crystal Wyvern Queen at gamma/beta/alpha.',
+		  tribute:'Release pending.' },
+		{ id:'soon_fjordur', name:'Fenrisúlfr', map:'Fjordur', kind:'soon', difficulties:[],
+		  description:'Fjordur Ascended port deprioritized. ASE roster: Beyla, Hati & Skoll, Steinbjörn, plus final boss Fenrisúlfr.',
+		  tribute:'Release pending.' }
 	];
 
 	const sessions = data.sessions as Session[];
@@ -45,32 +122,36 @@
 
 	// Per-boss visual mapping (color class + hex-glyph letter) — preview-aligned
 	const BOSS_COLOR: Record<string,string> = {
-		broodmother:'brood', center_broodmother:'brood', val_broodmother:'brood',
-		megapithecus:'mega', center_megapithecus:'mega', val_megapithecus:'mega',
-		dragon:'dragon', center_dragon:'dragon', val_dragon:'dragon',
+		broodmother:'brood',
+		megapithecus:'mega',
+		dragon:'dragon',
 		overseer:'overseer',
-		manticore:'manticore', ragnarok_boss:'manticore',
-		rockwell:'rockwell', rockwell_prime:'rockwell',
+		manticore:'manticore',
+		rockwell:'rockwell',
 		forest_titan:'forest', desert_titan:'desert', ice_titan:'ice', king_titan:'king',
-		moeder:'ice', master_controller:'overseer',
-		hydraskos:'rockwell', natrix:'forest', thodes:'desert', thanatos:'dragon',
-		pulmonoscorpius_monarch:'manticore',
+		center_combo:'mega',
+		nunatak:'ice', iceworm_queen:'ice',
+		grendel:'dragon',
+		hydraskos:'rockwell', natrix:'brood', thodes:'desert', thanatos:'king',
+		pulmonoscorpius_monarch:'manticore', minotarchos:'king', erymanthian_kalydonios:'forest',
 		lost_king:'king', lost_queen:'rockwell',
-		svartalfheim_dinopithecus:'mega'
+		soon_genesis1:'soon', soon_genesis2:'soon', soon_lost_island:'soon', soon_crystal:'soon', soon_fjordur:'soon'
 	};
 	const BOSS_LETTER: Record<string,string> = {
-		broodmother:'B', center_broodmother:'B', val_broodmother:'B',
-		megapithecus:'Mp', center_megapithecus:'Mp', val_megapithecus:'Mp',
-		dragon:'D', center_dragon:'D', val_dragon:'D',
+		broodmother:'B',
+		megapithecus:'Mp',
+		dragon:'D',
 		overseer:'O',
-		manticore:'M', ragnarok_boss:'D&M',
-		rockwell:'R', rockwell_prime:'Rp',
+		manticore:'M',
+		rockwell:'R',
 		forest_titan:'FT', desert_titan:'DT', ice_titan:'IT', king_titan:'KT',
-		moeder:'Mo', master_controller:'CM',
-		hydraskos:'H', natrix:'N', thodes:'T', thanatos:'Th',
-		pulmonoscorpius_monarch:'PM',
+		center_combo:'B+M',
+		nunatak:'Nu', iceworm_queen:'IW',
+		grendel:'G',
+		hydraskos:'H', natrix:'Nx', thodes:'Td', thanatos:'Th',
+		pulmonoscorpius_monarch:'PM', minotarchos:'Mt', erymanthian_kalydonios:'EK',
 		lost_king:'LK', lost_queen:'LQ',
-		svartalfheim_dinopithecus:'DK'
+		soon_genesis1:'G1', soon_genesis2:'G2', soon_lost_island:'LI', soon_crystal:'CW', soon_fjordur:'Fn'
 	};
 	// Per-boss fill / stroke / text colors matching preview SVGs
 	const BOSS_SVG: Record<string,{ fill:string; stroke:string; text:string }> = {
@@ -84,7 +165,8 @@
 		desert:   { fill:'rgba(245,158,11,0.15)', stroke:'#f59e0b', text:'#fcd34d' },
 		ice:      { fill:'rgba(6,182,212,0.15)',  stroke:'#06b6d4', text:'#67e8f9' },
 		king:     { fill:'rgba(239,68,68,0.15)',  stroke:'#ef4444', text:'#fca5a5' },
-		lava:     { fill:'rgba(249,115,22,0.15)', stroke:'#f97316', text:'#fdba74' }
+		lava:     { fill:'rgba(249,115,22,0.15)', stroke:'#f97316', text:'#fdba74' },
+		soon:     { fill:'rgba(100,116,139,0.10)', stroke:'#475569', text:'#64748b' }
 	};
 	const MAP_THEME: Record<string,string> = {
 		'The Island':'island',
@@ -94,11 +176,13 @@
 		'Extinction':'extinction',
 		'Ragnarok':'ragnarok',
 		'Valguero':'island',
-		'Genesis: Part 1':'aberration',
-		'Genesis: Part 2':'aberration',
 		'Astraeos':'aberration',
 		'Lost Colony':'ragnarok',
-		'Svartalfheim · Mod':'extinction'
+		'Genesis: Part 1':'aberration',
+		'Genesis: Part 2':'aberration',
+		'Lost Island':'island',
+		'Crystal Isles':'aberration',
+		'Fjordur':'extinction'
 	};
 
 	function bossColor(id: string) { return BOSS_COLOR[id] ?? 'overseer'; }
@@ -108,6 +192,9 @@
 	function wonOn(b: Boss, d: string) { return (wins[b.name] ?? []).includes(d); }
 	function diffOrder(d: string) { return d==='gamma'?0 : d==='beta'?1 : 2; }
 	function statusFor(b: Boss) {
+		if (b.kind === 'soon')  return { cls:'soon',    label:'Coming Soon', hint:'Not yet on ASA' };
+		if (b.kind === 'tame')  return { cls:'tame',    label:'Tameable',    hint:'Field encounter' };
+		if (b.kind === 'world') return { cls:'world',   label:'Roaming',     hint:'No summon required' };
 		const won = b.difficulties.filter(d => wonOn(b, d));
 		if (won.length === 0) return { cls:'notready', label:'Not Ready', hint:'Untouched' };
 		if (won.length === b.difficulties.length) return { cls:'complete', label:'Complete', hint:`${won.length} cleared` };
@@ -294,9 +381,22 @@
 	const TIPS: Record<string, { creatures:string[]; consumables:string[]; tips:string[]; avoid:string[] }> = {
 		default: { creatures:['Rex','Yutyrannus (courage buff)','Daeodon (passive healing)'], consumables:['Focal Chili','Lazarus Chowder','Battle Tartare'], tips:['Yutyrannus gives +25% courage buff','Daeodon auto-heals on passive','Saddle armor matters more than level','Quality over quantity'], avoid:['Flyers (arenas are closed)','Low saddle armor','Too many creatures'] },
 		broodmother: { creatures:['Megatherium (BEST — gets insect kill buff)','Rex','Yutyrannus','Daeodon'], consumables:['Bug Repellant (reduces Araneo aggro)','Focal Chili','Medical Brew'], tips:['Megatherium gets massive damage buff from Araneo kills','Kill swarms fast to reset buff cooldown','Stay grouped — Daeodon heals through venom DoT'], avoid:['No saddles (venom DoT is brutal)','Spreading out','Ignoring Araneo swarms'] },
-		dragon: { creatures:['Therizinosaur (fire immune — META)','Allosaurus'], consumables:['Battle Tartare','Medical Brew'], tips:['Dragon is IMMUNE to fire — Therizino takes reduced fire damage','Focus Dragon — wyverns are a distraction','Keep moving, fire breath is a sweep'], avoid:['Rex (takes full fire damage)','Standing still'] },
+		megapithecus: { creatures:['Rex (high HP)','Yutyrannus','Daeodon'], consumables:['Battle Tartare','Focal Chili','Medical Brew'], tips:['Spread out — boulders deal AoE damage','Heavy mounts stun-resist his slam','Bring melee DPS — ranged gets less value'], avoid:['Tight formations','Squishy mounts','Ignoring Gigantopithecus minions'] },
+		dragon: { creatures:['Therizinosaur (META — fire-resistant + bleed)','Allosaurus','Yutyrannus'], consumables:['Battle Tartare','Medical Brew'], tips:['Dragon is fire-immune — Theri takes reduced fire damage','Focus Dragon — wyverns are a distraction','Keep moving, fire breath is a sweep'], avoid:['Rex (takes full fire damage)','Standing still','Squishy mounts'] },
+		overseer: { creatures:['Rex','Daeodon','Yutyrannus','Therizinosaur'], consumables:['Battle Tartare','Medical Brew','Focal Chili'], tips:['Three phases — Broodmother, Megapithecus, Dragon drone forms','Adapt comp per phase','Drone forms are weaker than the real bosses'], avoid:['Single-strategy comps','Flyers (won\'t fit)'] },
+		manticore: { creatures:['Rex','Yutyrannus','Theri','Allosaurus'], consumables:['Battle Tartare','Focal Chili','Medical Brew'], tips:['Flying phase = immune — wait for landings','Burst DPS during landing windows','Bring melee + tanks'], avoid:['Wasting damage during flight','Squishy mounts','Lightning AoE'] },
+		center_combo: { creatures:['Megatherium (Broodmother buff)','Rex/Theri','Daeodon','Yutyrannus'], consumables:['Bug Repellant','Battle Tartare','Medical Brew'], tips:['Megatherium gets insect buff from Broodmother spiders','Spread to avoid Megapithecus boulders','25-min timer is tight — efficient kills only'], avoid:['Spider DoT cluster','Tight formations','Ignoring Gigantopithecus minions'] },
 		rockwell: { creatures:['Ravager (no flyers in Aberration)','Rock Drake','Reaper King'], consumables:['Hazard Suit charge','Nameless Venom','Lesser Antidote'], tips:['No flyers — use Ravagers or Drakes','Target glowing Element tentacle nodes','Dodge Element spikes (one-shot)'], avoid:['Flyers','Standing in element surge zones','Ignoring tentacle nodes'] },
-		lost_queen: { creatures:['Your best DPS from Lost King fight'], consumables:['Medical Brew','Battle Tartare'], tips:['Break her healing beam or she regens to 100%','Assign 2-3 people to beam duty only','Two phases — second is more aggressive'], avoid:['Letting the beam complete'] },
+		king_titan: { creatures:['All 3 field Titans (Alpha unlock)','Giga','Carcha','Voidwyrm'], consumables:['Battle Tartare','Mega Mindwipe','Medical Brew'], tips:['Tame all 3 field Titans first for Alpha','Field Titans deal massive damage to King','Target corruption nodes on its body'], avoid:['Solo attempts','Untamed field Titans (Alpha)'] },
+		hydraskos: { creatures:['Stego (tank)','Deinonychus (bleed)','Allosaurus','Yutyrannus'], consumables:['Battle Tartare','Medical Brew'], tips:['Attack from behind — heads breathe elemental damage','5 elemental types — bring varied resists','Coordinate target priority by head'], avoid:['Frontal assault','Single damage type comp'] },
+		natrix: { creatures:['Theri','Rex','Yutyrannus','Daeodon'], consumables:['Lesser Antidote','Battle Tartare','Medical Brew'], tips:['Don\'t look directly — petrification','Kill Araneo/Titanoboa/Onyc adds fast','Disease cure crucial'], avoid:['Looking at her face','Ignoring debuff stacks'] },
+		thodes: { creatures:['Rex','Theri (burst DPS)','Yuty','Allosaurus'], consumables:['Battle Tartare','Focal Chili','Medical Brew'], tips:['Damage-resistant until eye glows','Shoot eye with gun to open damage window','Club melee — close quarters'], avoid:['Wasting DPS when armored','Tight formations during club sweeps'] },
+		thanatos: { creatures:['Giga','Carcha','Dreadnoughtus','Wyverns'], consumables:['Battle Tartare','Lazarus Chowder','Mega Mindwipe'], tips:['World boss — wait for natural spawn in Therokis','15-min timer','Lava rivers — positioning is everything'], avoid:['Solo attempts','Slow mounts','Standing in lava'] },
+		nunatak: { creatures:['Wyverns (cold resist)','Rex','Theri','Daeodon','Yutyrannus'], consumables:['Fria Curry (cold resist)','Battle Tartare','Medical Brew'], tips:['Flyers banned in arena','Ice Worm adds — burst them down','Cold mitigation crucial','META: Yutyrannus + Theri'], avoid:['No cold protection','Ignoring adds'] },
+		iceworm_queen: { creatures:['Rex','Daeodon','Carno'], consumables:['Fria Curry','Battle Tartare','Medical Brew'], tips:['Dungeon-style — narrow corridors','Burst DPS during emergence windows','Pack multiple drops of meds'], avoid:['Flyers','Slow mounts','Splitting up'] },
+		grendel: { creatures:['Theri','Rex','Daeodon (bleed mitigation)','Yutyrannus'], consumables:['Lazarus Chowder','Medical Brew','Cactus Broth'], tips:['Bleed damage is primary — bring healers','Fog phase: light arena fires for visibility','Megaraptor-type — fast and aggressive'], avoid:['Bleed stacking','Low-HP mounts','Dark phase without lights'] },
+		lost_king: { creatures:['Ground DPS — Rex, Theri, Carcha','Wyverns for ranged during fly phase'], consumables:['Battle Tartare','Medical Brew','Focal Chili'], tips:['Destroy 4 power poles to make him land','Thrall waves between phases','Flying Gigadesmodus = immune'], avoid:['Skipping power poles','Ignoring thralls'] },
+		lost_queen: { creatures:['Your surviving Lost King DPS'], consumables:['Medical Brew','Battle Tartare'], tips:['Break her healing tether at 50% HP or she full-heals','Assign 2-3 to tether duty','Phase 2 is more aggressive'], avoid:['Letting tether complete','Phase 2 cluster wipes'] }
 	};
 
 	const tips = $derived.by(() => {
@@ -396,8 +496,11 @@
 						{@const letter = bossLetter(b.id, b.name)}
 						{@const sv = svgFor(b.id)}
 						{@const st = statusFor(b)}
-						<button class="boss-card {bossColor(b.id)}" onclick={() => { detailBoss = b; difficulty = 'alpha'; }}>
-							{#if activeWarRoom(b.name)}<span class="boss-warroom-flag">● War Room Active</span>{/if}
+						<button class="boss-card {bossColor(b.id)}" class:locked={b.kind === 'soon'} onclick={() => { if (b.kind === 'soon') return; detailBoss = b; difficulty = b.kind === 'killable' ? 'alpha' : (b.difficulties[0] ?? 'alpha'); }}>
+							{#if b.kind === 'soon'}<span class="boss-warroom-flag soon">⏳ Coming Soon</span>
+							{:else if b.kind === 'tame'}<span class="boss-warroom-flag tame">⊡ Tame</span>
+							{:else if b.kind === 'world'}<span class="boss-warroom-flag world">◈ World Boss</span>
+							{:else if activeWarRoom(b.name)}<span class="boss-warroom-flag">● War Room Active</span>{/if}
 							<div class="boss-top">
 								<div class="boss-glyph">
 									<svg viewBox="0 0 100 110">
@@ -411,9 +514,17 @@
 								</div>
 							</div>
 							<div class="boss-diff">
-								{#each b.difficulties as d}
-									<div class="boss-pip {pipClass(b, d)}">{d.charAt(0).toUpperCase()+d.slice(1)}{wonOn(b, d) ? ' ✓' : ''}</div>
-								{/each}
+								{#if b.kind === 'killable'}
+									{#each b.difficulties as d}
+										<div class="boss-pip {pipClass(b, d)}">{d.charAt(0).toUpperCase()+d.slice(1)}{wonOn(b, d) ? ' ✓' : ''}</div>
+									{/each}
+								{:else if b.kind === 'tame'}
+									<div class="boss-pip tame-pip">TAME</div>
+								{:else if b.kind === 'world'}
+									<div class="boss-pip world-pip">WORLD</div>
+								{:else}
+									<div class="boss-pip soon-pip">PENDING</div>
+								{/if}
 							</div>
 							<div class="boss-status">
 								<span class="status-badge {st.cls}"><span class="status-pip"></span>{st.label}</span>
@@ -729,12 +840,24 @@
 					<p class="boss-hero-quote">{b.description}</p>
 				</div>
 
-				<div class="diff-select">
-					<div class="diff-select-label">Difficulty</div>
-					{#each b.difficulties as d}
-						<button class="diff-btn" class:active={difficulty === d} class:won={wonOn(b, d)} onclick={() => difficulty = d}>{d.charAt(0).toUpperCase()+d.slice(1)}</button>
-					{/each}
-				</div>
+				{#if b.kind === 'killable' && b.difficulties.length > 0}
+					<div class="diff-select">
+						<div class="diff-select-label">Difficulty</div>
+						{#each b.difficulties as d}
+							<button class="diff-btn" class:active={difficulty === d} class:won={wonOn(b, d)} onclick={() => difficulty = d}>{d.charAt(0).toUpperCase()+d.slice(1)}</button>
+						{/each}
+					</div>
+				{:else if b.kind === 'tame'}
+					<div class="diff-select">
+						<div class="diff-select-label">Encounter</div>
+						<button class="diff-btn active" disabled>⊡ Field Tame</button>
+					</div>
+				{:else if b.kind === 'world'}
+					<div class="diff-select">
+						<div class="diff-select-label">Encounter</div>
+						<button class="diff-btn active" disabled>◈ World Boss</button>
+					</div>
+				{/if}
 			</div>
 		</div>
 
@@ -829,7 +952,11 @@
 
 		<div class="modal-actions">
 			<button class="diff-btn" onclick={() => detailBoss = null}>Close</button>
-			<button class="btn-create" onclick={createAndEnter}>⚔ Launch War Room</button>
+			<button class="btn-create" onclick={createAndEnter}>
+				{#if b.kind === 'tame'}⊡ Plan Tame Run
+				{:else if b.kind === 'world'}◈ Plan Hunt
+				{:else}⚔ Launch War Room{/if}
+			</button>
 		</div>
 	</div>
 </div>
@@ -1312,6 +1439,59 @@
     box-shadow: 0 0 6px rgba(239,68,68,0.45);
     animation: amber-pulse 1.6s ease-in-out infinite;
 }
+/* Variant flags for tame / world / coming soon */
+.boss-warroom-flag.tame {
+    background: rgba(34,197,94,0.18);
+    border-color: rgba(34,197,94,0.55);
+    color: #86efac;
+    box-shadow: 0 0 6px rgba(34,197,94,0.40);
+    animation: none;
+}
+.boss-warroom-flag.world {
+    background: rgba(168,85,247,0.18);
+    border-color: rgba(168,85,247,0.55);
+    color: #d8b4fe;
+    box-shadow: 0 0 6px rgba(168,85,247,0.45);
+    animation: none;
+}
+.boss-warroom-flag.soon {
+    background: rgba(100,116,139,0.18);
+    border-color: rgba(100,116,139,0.45);
+    color: #94a3b8;
+    box-shadow: none;
+    animation: none;
+}
+
+/* Boss-pip variants for non-tier bosses */
+.boss-pip.tame-pip {
+    background: rgba(34,197,94,0.14);
+    border-color: rgba(34,197,94,0.40);
+    color: #86efac;
+}
+.boss-pip.world-pip {
+    background: rgba(168,85,247,0.14);
+    border-color: rgba(168,85,247,0.40);
+    color: #d8b4fe;
+}
+.boss-pip.soon-pip {
+    background: rgba(100,116,139,0.12);
+    border-color: rgba(100,116,139,0.30);
+    color: var(--tek-text-faint);
+    border-style: dashed;
+}
+
+/* Coming-soon card state — desaturated, locked */
+.boss-card.locked {
+    opacity: 0.55;
+    cursor: not-allowed;
+    filter: grayscale(0.55) saturate(0.85);
+}
+.boss-card.locked:hover { transform: none; opacity: 0.7; }
+
+/* Additional status-badge variants */
+.status-badge.tame  { background: rgba(34,197,94,0.12);  border: 1px solid rgba(34,197,94,0.38);  color: #86efac; }
+.status-badge.world { background: rgba(168,85,247,0.14); border: 1px solid rgba(168,85,247,0.40); color: #d8b4fe; }
+.status-badge.soon  { background: rgba(100,116,139,0.12);border: 1px solid rgba(100,116,139,0.30); color: var(--tek-text-faint); }
 
 /* ═════════════════════════════════════════════════════════════════════════
    BREADCRUMB (boss detail preview)

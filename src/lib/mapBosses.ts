@@ -1,87 +1,145 @@
 /**
  * Static map-boss data for the Boss Ready badge system.
- * Sourced from achievements_system.md + badges-preview.html.
+ * Verified against ark.wiki.gg for ASA (May 2026).
  *
  * Each boss carries:
  *   - The map it belongs to
- *   - The tier requirement (gamma/beta/alpha/titan) — earned at that tier or higher
+ *   - The tier requirement (gamma/beta/alpha/titan/tame/world) — earned at that tier or higher
  *   - A short specialty hint shown in the badge requirement line
+ *
+ * 'tame' = field-tame titan (Forest / Ice / Desert)
+ * 'world' = roaming/dungeon boss with no tier ladder (Thanatos, Iceworm Queen)
  */
 
 export type MapId =
-    | 'island' | 'scorched' | 'aberration' | 'extinction' | 'genesis'
-    | 'ragnarok' | 'crystal' | 'lost' | 'valguero' | 'fjordur' | 'astraeos';
+    | 'island' | 'scorched' | 'center' | 'aberration' | 'extinction'
+    | 'astraeos' | 'ragnarok' | 'valguero' | 'lost_colony'
+    | 'genesis' | 'lost_island' | 'crystal' | 'fjordur';
+
+export type BossTier = 'gamma' | 'beta' | 'alpha' | 'titan' | 'tame' | 'world';
 
 export type MapBoss = {
     id: string;
     map: MapId;
     name: string;
-    tier: 'gamma' | 'beta' | 'alpha' | 'titan';
+    tier: BossTier;
     specialty: string;
     description: string;
-    iconColor: string; // hex pair, lighter -> darker
+    iconColor: string; // hex
+    comingSoon?: boolean;
 };
 
 export const MAP_NAMES: Record<MapId, string> = {
-    island:     'The Island',
-    scorched:   'Scorched Earth',
-    aberration: 'Aberration',
-    extinction: 'Extinction',
-    genesis:    'Genesis',
-    ragnarok:   'Ragnarok (ASA)',
-    crystal:    'Crystal Isles',
-    lost:       'Lost Island',
-    valguero:   'Valguero',
-    fjordur:    'Fjordur',
-    astraeos:   'Astraeos'
+    island:      'The Island',
+    scorched:    'Scorched Earth',
+    center:      'The Center',
+    aberration:  'Aberration',
+    extinction:  'Extinction',
+    astraeos:    'Astraeos',
+    ragnarok:    'Ragnarok',
+    valguero:    'Valguero',
+    lost_colony: 'Lost Colony',
+    genesis:     'Genesis',
+    lost_island: 'Lost Island',
+    crystal:     'Crystal Isles',
+    fjordur:     'Fjordur'
 };
 
 export const MAP_BOSSES: MapBoss[] = [
     // ─── The Island ───
-    { id:'broodmother',  map:'island',     name:'Broodmother Specialist',  tier:'alpha',  specialty:'Megatherium bonus',
-      description:'Alpha Ready + Megatherium bonus', iconColor:'#fbbf24' },
-    { id:'megapithecus', map:'island',     name:'Megapithecus Specialist', tier:'alpha',  specialty:'High DPS',
-      description:'Alpha Ready + High DPS',          iconColor:'#fbbf24' },
-    { id:'dragon',       map:'island',     name:'Dragon Specialist',       tier:'alpha',  specialty:'Herbivore advantage',
-      description:'Alpha Ready + Herbivore advantage', iconColor:'#fbbf24' },
+    { id:'broodmother',  map:'island', name:'Broodmother Specialist',  tier:'alpha',
+      specialty:'Megatherium bonus', description:'Alpha Ready + Megatherium bonus', iconColor:'#22c55e' },
+    { id:'megapithecus', map:'island', name:'Megapithecus Specialist', tier:'alpha',
+      specialty:'High DPS', description:'Alpha Ready + High DPS',                 iconColor:'#8b5cf6' },
+    { id:'dragon',       map:'island', name:'Dragon Specialist',       tier:'alpha',
+      specialty:'Fire-resistant META', description:'Alpha Ready + Fire-resistant comp', iconColor:'#ef4444' },
+    { id:'overseer',     map:'island', name:'Overseer Slayer',         tier:'alpha',
+      specialty:'Tek Cave traversal', description:'Defeat Overseer after all three guardians', iconColor:'#94a3b8' },
+
     // ─── Scorched Earth ───
-    { id:'manticore',    map:'scorched',   name:'Manticore Specialist',    tier:'alpha',  specialty:'Stamina ≥ 100',
-      description:'Alpha Ready + Stamina ≥ 100',      iconColor:'#fbbf24' },
+    { id:'manticore', map:'scorched', name:'Manticore Specialist', tier:'alpha',
+      specialty:'Stamina ≥ 100', description:'Alpha Ready + Stamina ≥ 100', iconColor:'#fbbf24' },
+
+    // ─── The Center (combined arena) ───
+    { id:'center_combo', map:'center', name:'Floating Island Champion', tier:'alpha',
+      specialty:'25-min combined arena', description:'Alpha Ready + clear Broodmother & Megapithecus combo', iconColor:'#8b5cf6' },
+
     // ─── Aberration ───
-    { id:'rockwell',     map:'aberration', name:'Rockwell Slayer',         tier:'alpha',  specialty:'Radiation resistance',
-      description:'Alpha Ready + Radiation resistance', iconColor:'#a855f7' },
+    { id:'rockwell', map:'aberration', name:'Rockwell Slayer', tier:'alpha',
+      specialty:'Radiation resistance', description:'Alpha Ready + Radiation resistance', iconColor:'#a855f7' },
+
     // ─── Extinction ───
-    { id:'desert',       map:'extinction', name:'Desert Titan Tamer',      tier:'titan',  specialty:'Aerial superiority',
-      description:'Titan Ready + Aerial superiority', iconColor:'#fbbf24' },
-    { id:'forest',       map:'extinction', name:'Forest Titan Tamer',      tier:'titan',  specialty:'Element shards',
-      description:'Titan Ready + Element shards',     iconColor:'#22c55e' },
-    { id:'ice',          map:'extinction', name:'Ice Titan Tamer',         tier:'titan',  specialty:'Cold resistance',
-      description:'Titan Ready + Cold resistance',    iconColor:'#60a5fa' },
-    { id:'king',         map:'extinction', name:'King Titan Slayer',       tier:'titan',  specialty:'Endgame, all titans',
-      description:'Defeat King Titan after 3 titans', iconColor:'#ef4444' },
-    // ─── Genesis ───
-    { id:'corrupted',    map:'genesis',    name:'Corrupted Master',        tier:'alpha',  specialty:'Element corruption',
-      description:'Alpha Ready + Element corruption', iconColor:'#a855f7' },
-    // ─── Ragnarok (ASA) ───
-    { id:'nunatak',      map:'ragnarok',   name:'Nunatak Slayer',          tier:'alpha',  specialty:'Cold resistance',
-      description:'Alpha Ready + Cold resistance',    iconColor:'#60a5fa' },
+    { id:'forest_titan', map:'extinction', name:'Forest Titan Tamer', tier:'tame',
+      specialty:'Element shards', description:'Field-tame Forest Titan via corruption nodes', iconColor:'#22c55e' },
+    { id:'ice_titan',    map:'extinction', name:'Ice Titan Tamer',    tier:'tame',
+      specialty:'Cold resistance', description:'Field-tame Ice Titan in the Snow Dome',     iconColor:'#06b6d4' },
+    { id:'desert_titan', map:'extinction', name:'Desert Titan Tamer', tier:'tame',
+      specialty:'Aerial superiority', description:'Field-tame Desert Titan (flying platform)', iconColor:'#fbbf24' },
+    { id:'king_titan',   map:'extinction', name:'King Titan Slayer',  tier:'titan',
+      specialty:'All field Titans required', description:'Defeat King Titan after taming the 3 field Titans', iconColor:'#ef4444' },
+
+    // ─── Astraeos (Feb 2025) ───
+    { id:'hydraskos', map:'astraeos', name:'Hydraskos Specialist',     tier:'alpha',
+      specialty:'Behind-attack META', description:'Alpha Ready + flank discipline', iconColor:'#d946ef' },
+    { id:'natrix',    map:'astraeos', name:'Natrix Specialist',        tier:'alpha',
+      specialty:'Disease resistance', description:'Alpha Ready + cure stack',       iconColor:'#22c55e' },
+    { id:'thodes',    map:'astraeos', name:'Thodes Specialist',        tier:'alpha',
+      specialty:'Eye-window DPS', description:'Alpha Ready + burst windows',         iconColor:'#fbbf24' },
+    { id:'thanatos',  map:'astraeos', name:'Thanatos Hunter',          tier:'world',
+      specialty:'World boss kill', description:'Defeat Thanatos in Therokis',        iconColor:'#ef4444' },
+
+    // ─── Ragnarok (Jun 2025) ───
+    { id:'nunatak',         map:'ragnarok', name:'Nunatak Slayer',     tier:'alpha',
+      specialty:'Cold resistance', description:'Alpha Ready + Cold resistance',     iconColor:'#06b6d4' },
+    { id:'iceworm_queen',   map:'ragnarok', name:'Iceworm Queen',      tier:'world',
+      specialty:'Frozen Dungeon clear', description:'Clear the Frozen Dungeon beneath Blizzard Peak', iconColor:'#67e8f9' },
+
+    // ─── Valguero (Oct 2025) ───
+    { id:'grendel', map:'valguero', name:'Grendel Slayer', tier:'alpha',
+      specialty:'Bleed-resistance', description:'Alpha Ready + bleed mitigation',   iconColor:'#ef4444' },
+
+    // ─── Lost Colony (Dec 2025) — chained ───
+    { id:'lost_king',  map:'lost_colony', name:'Lost King Slayer',  tier:'alpha',
+      specialty:'Power-pole rotation', description:'Alpha Ready + multi-phase coordination', iconColor:'#ef4444' },
+    { id:'lost_queen', map:'lost_colony', name:'Lost Queen Slayer', tier:'alpha',
+      specialty:'Tether-break duty', description:'Alpha Ready + tether-control role', iconColor:'#d946ef' },
+
+    // ─── Coming soon ───
+    { id:'soon_genesis1',    map:'genesis',     name:'Master Controller (TBD)', tier:'alpha',
+      specialty:'Genesis Pt 1 (Jun 2026)', description:'Coming with Genesis Part 1 Ascended',
+      iconColor:'#64748b', comingSoon:true },
+    { id:'soon_lost_island', map:'lost_island', name:'Dinopithecus King (TBD)', tier:'alpha',
+      specialty:'Lost Island port pending', description:'Coming when Lost Island ports to ASA',
+      iconColor:'#64748b', comingSoon:true },
+    { id:'soon_crystal',     map:'crystal',     name:'Crystal Wyvern Queen (TBD)', tier:'alpha',
+      specialty:'Crystal Isles port pending', description:'Coming when Crystal Isles ports to ASA',
+      iconColor:'#64748b', comingSoon:true },
+    { id:'soon_fjordur',     map:'fjordur',     name:'Fenrisúlfr (TBD)', tier:'alpha',
+      specialty:'Fjordur port deprioritized', description:'Coming when Fjordur ports to ASA',
+      iconColor:'#64748b', comingSoon:true }
 ];
 
 export const ULTIMATE_BADGES = [
-    { id:'overseer',     map:'island',     name:'Overseer Challenger',     description:'Titan Slayer + All Island bosses defeated', iconColor:'#ffd700' },
-    { id:'ascension',    map:null as MapId|null, name:'Ascension Master',  description:'All story map bosses cleared (Island, Scorched, Aberration, Extinction, Genesis)', iconColor:'#ffd700' },
-    { id:'world',        map:null,         name:'World Conqueror',         description:'All map bosses across every map cleared', iconColor:'#ffd700' },
-    { id:'perfect',      map:null,         name:'Perfect Breeder',         description:'Titan Slayer tier on 10+ different species', iconColor:'#ffd700' },
-    { id:'frostbite',    map:'ragnarok',   name:'Frostbite Champion',      description:'Titan Slayer for Nunatak', iconColor:'#00b4ff' },
-    { id:'ragnarok',     map:'ragnarok',   name:'Ragnarok Ascended',       description:'Defeat Nunatak with non-cold-resistant creatures', iconColor:'#ffd700' }
+    { id:'overseer',  map:'island'  as MapId|null, name:'Overseer Challenger',
+      description:'Beat the Overseer at Alpha after all three Island guardians', iconColor:'#ffd700' },
+    { id:'ascension', map:null as MapId|null, name:'Ascension Master',
+      description:'All released story-map bosses cleared (Island, Scorched, Aberration, Extinction)', iconColor:'#ffd700' },
+    { id:'world',     map:null, name:'World Conqueror',
+      description:'All released map bosses across every map cleared', iconColor:'#ffd700' },
+    { id:'perfect',   map:null, name:'Perfect Breeder',
+      description:'Alpha tier kills on 10+ different species', iconColor:'#ffd700' },
+    { id:'frostbite', map:'ragnarok' as MapId|null, name:'Frostbite Champion',
+      description:'Alpha-tier Nunatak kill', iconColor:'#00b4ff' },
+    { id:'ragnarok',  map:'ragnarok' as MapId|null, name:'Ragnarok Ascended',
+      description:'Defeat Nunatak using cold-vulnerable creatures only', iconColor:'#ffd700' }
 ];
 
 export const SPECIAL_ACHIEVEMENTS = [
-    { id:'diversity',    name:'Diversity Master',  description:'Earn Boss Ready badges across 10+ different species', target:10 },
-    { id:'speedrun',     name:'Speedrun Champion', description:'Clear any map\'s Alpha boss within 30 days of account creation', target:1 },
-    { id:'collection',   name:'Perfect Collection',description:'Diamond Bloodline on 5+ species', target:5 },
-    { id:'underdog',     name:'Underdog Victory',  description:'Defeat any Alpha boss using only Underdog-eligible species', target:1 },
-    { id:'community',    name:'Community Hero',    description:'Help 10+ other Survivors earn their first Boss Ready badge', target:10 }
+    { id:'diversity',  name:'Diversity Master',   description:'Earn Boss Ready badges across 10+ different species', target:10 },
+    { id:'speedrun',   name:'Speedrun Champion',  description:'Clear any map\'s Alpha boss within 30 days of account creation', target:1 },
+    { id:'collection', name:'Perfect Collection', description:'Diamond Bloodline on 5+ species', target:5 },
+    { id:'underdog',   name:'Underdog Victory',   description:'Defeat any Alpha boss using only Underdog-eligible species', target:1 },
+    { id:'community',  name:'Community Hero',     description:'Help 10+ other Survivors earn their first Boss Ready badge', target:10 }
 ];
 
 /** Computes which map-boss badges a survivor has earned, based on their BossRecord wins
@@ -95,8 +153,14 @@ export function computeMapBossBadges(
     const wins = new Set(bossRecords.filter(r => r.outcome === 'success').map(r => r.bossName.toLowerCase()));
 
     for (const boss of MAP_BOSSES) {
+        if (boss.comingSoon || boss.tier === 'tame' || boss.tier === 'world') {
+            // Field tames + world bosses + unreleased — earned by completion alone, no tier gate.
+            const won = Array.from(wins).some(w => w.includes(boss.id) || w.includes(boss.name.toLowerCase().split(' ')[0]));
+            out.set(boss.id, { earned: won });
+            continue;
+        }
         const won = Array.from(wins).some(w => w.includes(boss.id) || w.includes(boss.name.toLowerCase().split(' ')[0]));
-        const required = tierOrder[boss.tier];
+        const required = tierOrder[boss.tier as 'gamma'|'beta'|'alpha'|'titan'];
         const anyAtTier = Array.from(highestBossTierBySpecies.values()).some(t => tierOrder[t] >= required);
         out.set(boss.id, { earned: won && anyAtTier });
     }
