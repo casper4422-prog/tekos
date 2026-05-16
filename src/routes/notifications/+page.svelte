@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { invalidateAll } from '$app/navigation';
     import { UserPlus, Sword, Repeat2, Shield, AtSign, Award, Sparkles, Box, Bell } from 'lucide-svelte';
     import type { PageData } from './$types';
 
@@ -68,23 +69,15 @@
         const target = notifs.find(n => n.id === id);
         if (!target || target.read) return;
         notifs = notifs.map(n => n.id === id ? { ...n, read: true } : n);
-        await fetch(`/api/notifications/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ read: true })
-        }).catch(() => {});
+        const res = await fetch(`/api/notifications/${id}/read`, { method: 'PUT' }).catch(() => null);
+        if (res?.ok) await invalidateAll();
     }
 
     async function markAllRead() {
-        const targets = notifs.filter(n => !n.read);
+        if (!notifs.some(n => !n.read)) return;
         notifs = notifs.map(n => ({ ...n, read: true }));
-        await Promise.all(
-            targets.map(n => fetch(`/api/notifications/${n.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ read: true })
-            }).catch(() => {}))
-        );
+        const res = await fetch('/api/notifications/read-all', { method: 'PUT' }).catch(() => null);
+        if (res?.ok) await invalidateAll();
     }
 
     // ---- Action handlers ----
