@@ -24,9 +24,14 @@
 	let ratingOpen = $state<{tradeId:number; userId:number; name:string}|null>(null);
 	let saving     = $state(false);
 
-	let browseSearch = $state('');
-	let browseFilter = $state<string>('all');
-	let sortBy       = $state<'newest'|'level'|'muts'|'rated'>('newest');
+	let browseSearch  = $state('');
+	let browseFilter  = $state<string>('all');
+	let sortBy        = $state<'newest'|'level'|'muts'|'rated'|'wishlist'>('newest');
+	let filterGender  = $state<'any'|'female'|'male'>('any');
+	let filterTier    = $state<'any'|'bronze'|'silver'|'gold'|'diamond'>('any');
+	let minLevel      = $state('');
+	let minMuts       = $state('');
+	let advancedOpen  = $state(false);
 
 	// List form
 	let lListingType = $state<'specimen'|'egg'|'resource'|'service'>('specimen');
@@ -165,6 +170,8 @@
 		return `${Math.floor(s/86400)}D AGO`;
 	}
 
+	const wishlistSpeciesSet = $derived(new Set(wishlist.map((w: Wishlist) => String(w.species ?? '').toLowerCase())));
+
 	function getFiltered() {
 		let list = trades;
 		if (browseSearch) {
@@ -180,6 +187,43 @@
 		if (browseFilter !== 'all') {
 			list = list.filter(t => (String((t as Record<string,unknown>).listingType ?? 'specimen')) === browseFilter);
 		}
+		// Gender / tier / level / mutations only apply to specimen listings.
+		// Non-specimen listings always pass these filters.
+		if (filterGender !== 'any') {
+			list = list.filter(t => {
+				const ltype = String((t as Record<string,unknown>).listingType ?? 'specimen');
+				if (ltype !== 'specimen') return true;
+				const cd = ((t as Record<string,unknown>).creatureData ?? {}) as Record<string,unknown>;
+				return String(cd.gender ?? '').toLowerCase() === filterGender;
+			});
+		}
+		if (filterTier !== 'any') {
+			list = list.filter(t => {
+				const ltype = String((t as Record<string,unknown>).listingType ?? 'specimen');
+				if (ltype !== 'specimen') return true;
+				const cd = ((t as Record<string,unknown>).creatureData ?? {}) as Record<string,unknown>;
+				return tierFor(cd) === filterTier;
+			});
+		}
+		const minL = parseInt(minLevel) || 0;
+		if (minL > 0) {
+			list = list.filter(t => {
+				const ltype = String((t as Record<string,unknown>).listingType ?? 'specimen');
+				if (ltype !== 'specimen') return true;
+				const cd = ((t as Record<string,unknown>).creatureData ?? {}) as Record<string,unknown>;
+				return Number(cd.level ?? 0) >= minL;
+			});
+		}
+		const minM = parseInt(minMuts) || 0;
+		if (minM > 0) {
+			list = list.filter(t => {
+				const ltype = String((t as Record<string,unknown>).listingType ?? 'specimen');
+				if (ltype !== 'specimen') return true;
+				const cd = ((t as Record<string,unknown>).creatureData ?? {}) as Record<string,unknown>;
+				return mutCount(cd) >= minM;
+			});
+		}
+
 		const sorted = [...list];
 		if (sortBy === 'level') {
 			sorted.sort((a, b) => {
@@ -199,8 +243,32 @@
 				const br = sellerRatings[(b as Record<string,unknown>).userId as number]?.avg ?? 0;
 				return br - ar;
 			});
+		} else if (sortBy === 'wishlist') {
+			sorted.sort((a, b) => {
+				const aSpec = String((((a as Record<string,unknown>).creatureData ?? {}) as Record<string,unknown>).species ?? '').toLowerCase();
+				const bSpec = String((((b as Record<string,unknown>).creatureData ?? {}) as Record<string,unknown>).species ?? '').toLowerCase();
+				const aMatch = wishlistSpeciesSet.has(aSpec) ? 1 : 0;
+				const bMatch = wishlistSpeciesSet.has(bSpec) ? 1 : 0;
+				if (aMatch !== bMatch) return bMatch - aMatch;
+				return new Date(String((b as Record<string,unknown>).createdAt)).getTime()
+					 - new Date(String((a as Record<string,unknown>).createdAt)).getTime();
+			});
 		}
 		return sorted;
+	}
+
+	const activeFilterCount = $derived(
+		(filterGender !== 'any' ? 1 : 0) +
+		(filterTier !== 'any' ? 1 : 0) +
+		(parseInt(minLevel) > 0 ? 1 : 0) +
+		(parseInt(minMuts) > 0 ? 1 : 0)
+	);
+
+	function clearAdvanced() {
+		filterGender = 'any';
+		filterTier = 'any';
+		minLevel = '';
+		minMuts = '';
 	}
 
 	async function listCreature() {
@@ -356,6 +424,7 @@
 				</div>
 				<select class="sort-select" bind:value={sortBy}>
 					<option value="newest">Newest first</option>
+					<option value="wishlist">Match my wishlist</option>
 					<option value="rated">Highest rated</option>
 					<option value="muts">Most muts</option>
 					<option value="level">Highest level</option>
@@ -368,8 +437,40 @@
 					<button class="chip" class:active={browseFilter === 'egg'} onclick={() => browseFilter = 'egg'}>◇ Eggs <span class="count">{countByType.egg}</span></button>
 					<button class="chip" class:active={browseFilter === 'resource'} onclick={() => browseFilter = 'resource'}>◊ Resources <span class="count">{countByType.resource}</span></button>
 					<button class="chip" class:active={browseFilter === 'service'} onclick={() => browseFilter = 'service'}>◎ Services <span class="count">{countByType.service}</span></button>
+					<button class="chip advanced-toggle" class:active={advancedOpen || activeFilterCount > 0} onclick={() => advancedOpen = !advancedOpen}>
+						⚙ Advanced{#if activeFilterCount > 0} <span class="count">{activeFilterCount}</span>{/if}
+					</button>
 				</div>
 			</div>
+			{#if advancedOpen}
+				<div class="toolbar-row advanced-panel">
+					<div class="adv-group">
+						<span class="adv-label">Gender</span>
+						<button class="adv-chip" class:active={filterGender === 'any'} onclick={() => filterGender = 'any'}>Any</button>
+						<button class="adv-chip pink" class:active={filterGender === 'female'} onclick={() => filterGender = 'female'}>♀ Female</button>
+						<button class="adv-chip blue" class:active={filterGender === 'male'} onclick={() => filterGender = 'male'}>♂ Male</button>
+					</div>
+					<div class="adv-group">
+						<span class="adv-label">Tier</span>
+						<button class="adv-chip" class:active={filterTier === 'any'} onclick={() => filterTier = 'any'}>Any</button>
+						<button class="adv-chip bronze"  class:active={filterTier === 'bronze'}  onclick={() => filterTier = 'bronze'}>Bronze</button>
+						<button class="adv-chip silver"  class:active={filterTier === 'silver'}  onclick={() => filterTier = 'silver'}>Silver</button>
+						<button class="adv-chip gold"    class:active={filterTier === 'gold'}    onclick={() => filterTier = 'gold'}>Gold</button>
+						<button class="adv-chip diamond" class:active={filterTier === 'diamond'} onclick={() => filterTier = 'diamond'}>Diamond</button>
+					</div>
+					<div class="adv-group">
+						<span class="adv-label">Min lvl</span>
+						<input type="number" class="adv-num" bind:value={minLevel} placeholder="0" min="0" />
+					</div>
+					<div class="adv-group">
+						<span class="adv-label">Min muts</span>
+						<input type="number" class="adv-num" bind:value={minMuts} placeholder="0" min="0" />
+					</div>
+					{#if activeFilterCount > 0}
+						<button class="adv-clear" onclick={clearAdvanced}>✕ Clear filters</button>
+					{/if}
+				</div>
+			{/if}
 		</div>
 
 		<!-- Results -->
@@ -941,6 +1042,93 @@
 .chip.active { background: var(--tek-blue); color: #001a2e; border-color: var(--tek-blue); }
 .chip .count { font-family: var(--tek-mono); font-size: 0.58rem; opacity: 0.65; background: rgba(0,0,0,0.30); padding: 1px 6px; border-radius: 6px; }
 .chip.active .count { background: rgba(0,0,0,0.25); opacity: 0.85; }
+.chip.advanced-toggle { border-style: dashed; }
+
+/* Advanced filter panel */
+.advanced-panel {
+	padding-top: 10px;
+	border-top: 1px solid rgba(0,180,255,0.10);
+	gap: 14px;
+	row-gap: 10px;
+}
+.adv-group {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	flex-wrap: wrap;
+}
+.adv-label {
+	font-family: var(--tek-mono);
+	font-size: 0.58rem;
+	font-weight: 700;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--tek-text-faint);
+	margin-right: 4px;
+}
+.adv-chip {
+	background: rgba(255,255,255,0.04);
+	border: 1px solid rgba(255,255,255,0.06);
+	color: var(--tek-text-dim);
+	font-family: inherit;
+	font-size: 0.64rem;
+	font-weight: 600;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	padding: 5px 10px;
+	cursor: pointer;
+	clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+	transition: all 0.18s;
+}
+.adv-chip:hover { color: var(--tek-text); border-color: rgba(0,180,255,0.35); }
+.adv-chip.active {
+	background: rgba(0,180,255,0.18);
+	border-color: var(--tek-blue);
+	color: #7dd3fc;
+}
+.adv-chip.pink.active    { background: rgba(244,114,182,0.18); border-color: var(--tek-pink); color: var(--tek-pink); }
+.adv-chip.blue.active    { background: rgba(96,165,250,0.18);  border-color: #60a5fa;          color: #60a5fa; }
+.adv-chip.bronze.active  { background: rgba(205,127,50,0.20);  border-color: #cd7f32;          color: #fbbf24; }
+.adv-chip.silver.active  { background: rgba(200,200,210,0.18); border-color: #c8c8d2;          color: #f3f4f6; }
+.adv-chip.gold.active    { background: rgba(255,215,0,0.18);   border-color: #ffd700;          color: #fde047; }
+.adv-chip.diamond.active { background: rgba(0,180,255,0.20);   border-color: var(--tek-blue);  color: #7dd3fc; text-shadow: 0 0 6px var(--tek-blue-glow); }
+
+.adv-num {
+	background: rgba(4,8,20,0.85);
+	border: 1px solid rgba(255,255,255,0.08);
+	border-bottom: 1px solid rgba(0,180,255,0.22);
+	color: var(--tek-text);
+	font-family: var(--tek-mono);
+	font-size: 0.74rem;
+	width: 60px;
+	padding: 5px 8px;
+	outline: none;
+	clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+	transition: border-color 0.2s;
+}
+.adv-num:focus { border-color: rgba(0,180,255,0.45); border-bottom-color: var(--tek-blue); }
+.adv-num::-webkit-outer-spin-button,
+.adv-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.adv-clear {
+	background: rgba(239,68,68,0.10);
+	border: 1px solid rgba(239,68,68,0.30);
+	color: #fca5a5;
+	font-family: inherit;
+	font-size: 0.64rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	padding: 5px 11px;
+	margin-left: auto;
+	cursor: pointer;
+	clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+	transition: all 0.18s;
+}
+.adv-clear:hover {
+	background: rgba(239,68,68,0.22);
+	filter: drop-shadow(0 0 5px rgba(239,68,68,0.45));
+}
 
 .results-count {
 	margin-bottom: 14px;
