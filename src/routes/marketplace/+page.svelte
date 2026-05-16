@@ -26,6 +26,7 @@
 
 	let browseSearch  = $state('');
 	let browseFilter  = $state<string>('all');
+	let directionFilter = $state<'all'|'sell'|'buy'>('all');
 	let sortBy        = $state<'newest'|'level'|'muts'|'rated'|'wishlist'>('newest');
 	let filterGender  = $state<'any'|'female'|'male'>('any');
 	let filterTier    = $state<'any'|'bronze'|'silver'|'gold'|'diamond'>('any');
@@ -33,7 +34,13 @@
 	let minMuts       = $state('');
 	let advancedOpen  = $state(false);
 
+	function tradeDirection(t: Trade): 'sell' | 'buy' {
+		const meta = ((t as Record<string,unknown>).metadata ?? {}) as Record<string,unknown>;
+		return meta.direction === 'buy' ? 'buy' : 'sell';
+	}
+
 	// List form
+	let lDirection  = $state<'sell'|'buy'>('sell');
 	let lListingType = $state<'specimen'|'egg'|'resource'|'service'>('specimen');
 	let lCreatureId = $state<number|null>(null);
 	let lWanted     = $state('');
@@ -41,6 +48,13 @@
 	let lItemName   = $state('');
 	let lItemQty    = $state('');
 	let lDesc       = $state('');
+	// WTB-only form fields
+	let lWantSpecies  = $state('');
+	let lWantGender   = $state<'any'|'female'|'male'>('any');
+	let lWantMinLvl   = $state('');
+	let lWantMinMuts  = $state('');
+	let lWantTier     = $state<'any'|'bronze'|'silver'|'gold'|'diamond'>('any');
+	let lWantNotes    = $state('');
 
 	// Offer form
 	let oCreatureId = $state<number|null>(null);
@@ -187,6 +201,9 @@
 		if (browseFilter !== 'all') {
 			list = list.filter(t => (String((t as Record<string,unknown>).listingType ?? 'specimen')) === browseFilter);
 		}
+		if (directionFilter !== 'all') {
+			list = list.filter(t => tradeDirection(t) === directionFilter);
+		}
 		// Gender / tier / level / mutations only apply to specimen listings.
 		// Non-specimen listings always pass these filters.
 		if (filterGender !== 'any') {
@@ -274,18 +291,42 @@
 	async function listCreature() {
 		saving = true;
 		const payload: Record<string, unknown> = {
+			direction: lDirection,
 			listingType: lListingType,
 			wanted: lWanted || null,
 			price: lPrice || null
 		};
-		if (lListingType === 'specimen') {
-			if (!lCreatureId) { saving = false; return; }
-			const c = myCreatures.find(x => x.id === lCreatureId);
-			payload.creatureId = lCreatureId;
-			payload.creatureData = c;
+		if (lDirection === 'buy') {
+			// WTB: structured spec of what the buyer wants
+			if (lListingType === 'specimen') {
+				if (!lWantSpecies.trim()) { saving = false; return; }
+				payload.metadata = {
+					wantedSpecies: lWantSpecies.trim(),
+					wantedGender:  lWantGender === 'any' ? null : lWantGender,
+					wantedMinLvl:  parseInt(lWantMinLvl) || null,
+					wantedMinMuts: parseInt(lWantMinMuts) || null,
+					wantedTier:    lWantTier === 'any' ? null : lWantTier,
+					wantedNotes:   lWantNotes.trim() || null
+				};
+			} else {
+				if (!lItemName.trim()) { saving = false; return; }
+				payload.metadata = {
+					item: lItemName.trim(),
+					qty:  lItemQty.trim() || null,
+					desc: lDesc.trim() || null
+				};
+			}
 		} else {
-			if (!lItemName.trim()) { saving = false; return; }
-			payload.metadata = { item: lItemName.trim(), qty: lItemQty.trim() || null, desc: lDesc.trim() || null };
+			// WTS: existing flow
+			if (lListingType === 'specimen') {
+				if (!lCreatureId) { saving = false; return; }
+				const c = myCreatures.find(x => x.id === lCreatureId);
+				payload.creatureId = lCreatureId;
+				payload.creatureData = c;
+			} else {
+				if (!lItemName.trim()) { saving = false; return; }
+				payload.metadata = { item: lItemName.trim(), qty: lItemQty.trim() || null, desc: lDesc.trim() || null };
+			}
 		}
 		await fetch('/api/trades', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
 		listOpen = false; saving = false; location.reload();
@@ -297,6 +338,12 @@
 			const ty = String((t as Record<string,unknown>).listingType ?? 'specimen');
 			if (ty in c) c[ty as keyof typeof c]++;
 		}
+		return c;
+	});
+
+	const countByDirection = $derived.by(() => {
+		const c = { sell: 0, buy: 0 };
+		for (const t of trades) c[tradeDirection(t)]++;
 		return c;
 	});
 
@@ -345,6 +392,46 @@
 </script>
 
 <canvas id="tekHexCanvas" bind:this={hexCanvas}></canvas>
+
+{#snippet wtbSpecimenContent(meta: Record<string, unknown>)}
+	{@const species = String(meta.wantedSpecies ?? '?')}
+	{@const initial = (species.charAt(0) || '?').toUpperCase()}
+	{@const cat = dexCategory(species)}
+	{@const wantGender = String(meta.wantedGender ?? '').toLowerCase()}
+	{@const wantTier = String(meta.wantedTier ?? '')}
+	{@const wantMinLvl = meta.wantedMinLvl ? Number(meta.wantedMinLvl) : null}
+	{@const wantMinMuts = meta.wantedMinMuts ? Number(meta.wantedMinMuts) : null}
+	<div class="listing-content specimen-content">
+		<div class="spec-head">
+			<div class="spec-icon-wrap {cat}">
+				<span class="spec-icon">{initial}</span>
+			</div>
+			<div class="spec-meta">
+				<div class="item-name">{species}</div>
+				<div class="item-nick">Looking for one</div>
+				<div class="spec-badges">
+					{#if wantGender === 'female'}<span class="gender-pill female">♀ Female</span>
+					{:else if wantGender === 'male'}<span class="gender-pill male">♂ Male</span>
+					{:else}<span class="gender-pill unknown">Any gender</span>{/if}
+					{#if wantTier}<span class="tier-pill {wantTier}">{wantTier}+</span>{/if}
+				</div>
+			</div>
+		</div>
+		<div class="wtb-criteria">
+			<div class="wtb-crit-row">
+				<span class="wtb-crit-lbl">Min Lvl</span>
+				<span class="wtb-crit-val">{wantMinLvl ?? '—'}</span>
+			</div>
+			<div class="wtb-crit-row">
+				<span class="wtb-crit-lbl">Min Muts</span>
+				<span class="wtb-crit-val">{wantMinMuts ?? '—'}</span>
+			</div>
+		</div>
+		{#if meta.wantedNotes}
+			<div class="wtb-notes">{String(meta.wantedNotes)}</div>
+		{/if}
+	</div>
+{/snippet}
 
 {#snippet specimenContent(cd: Record<string, unknown>)}
 	{@const species = String(cd.species ?? '?')}
@@ -416,6 +503,21 @@
 
 	{#if tab === 'browse'}
 		<!-- ═══════════ TOOLBAR ═══════════ -->
+		<div class="dir-bar">
+			<button class="dir-tab" class:active={directionFilter === 'all'}  onclick={() => directionFilter = 'all'}>
+				<span class="dir-tab-label">All</span>
+				<span class="dir-tab-count">{trades.length}</span>
+			</button>
+			<button class="dir-tab sell" class:active={directionFilter === 'sell'} onclick={() => directionFilter = 'sell'}>
+				<span class="dir-tab-label">⬡ For Sale</span>
+				<span class="dir-tab-count">{countByDirection.sell}</span>
+			</button>
+			<button class="dir-tab buy" class:active={directionFilter === 'buy'}  onclick={() => directionFilter = 'buy'}>
+				<span class="dir-tab-label">◈ Looking To Buy</span>
+				<span class="dir-tab-count">{countByDirection.buy}</span>
+			</button>
+		</div>
+
 		<div class="toolbar">
 			<div class="toolbar-row">
 				<div class="tb-search">
@@ -485,37 +587,60 @@
 				{@const cd = (td.creatureData ?? {}) as Record<string,unknown>}
 				{@const meta = (td.metadata ?? {}) as Record<string,unknown>}
 				{@const ltype = String(td.listingType ?? 'specimen')}
+				{@const dir = tradeDirection(t)}
 				{@const seller = td.user as Record<string,unknown>}
 				{@const rating = sellerRatings[seller.id as number]}
 				{@const typeIcon = ltype === 'egg' ? '◇' : ltype === 'resource' ? '◊' : ltype === 'service' ? '◎' : '⬡'}
 				{@const typeLabel = ltype.charAt(0).toUpperCase() + ltype.slice(1)}
-				<a class="listing {ltype}" data-cat={ltype} onclick={() => { offerOpen = t; oCreatureId = null; oMessage = ''; }}>
+				<a class="listing {ltype} {dir}" data-cat={ltype} data-dir={dir} onclick={() => { offerOpen = t; oCreatureId = null; oMessage = ''; }}>
 					<div class="listing-top">
-						<span class="type-chip">{typeIcon} {typeLabel}</span>
+						<span class="type-chip">
+							{#if dir === 'buy'}<span class="dir-flag">◈ WTB</span>{/if}
+							{typeIcon} {typeLabel}
+						</span>
 						<span class="posted">{relTime(td.createdAt)}</span>
 					</div>
-					{#if ltype === 'specimen'}
-						{@render specimenContent(cd)}
+					{#if dir === 'buy'}
+						{#if ltype === 'specimen'}
+							{@render wtbSpecimenContent(meta)}
+						{:else}
+							<div class="listing-content {ltype}-content">
+								<div class="item-glyph">{typeIcon}</div>
+								<div class="item-name">{String(meta.item ?? 'Untitled')}</div>
+								{#if meta.qty}<div class="item-qty">{String(meta.qty)}</div>{/if}
+								{#if meta.desc}<p class="item-desc">{String(meta.desc)}</p>{/if}
+							</div>
+						{/if}
+						{#if td.price}
+							<div class="listing-wanted wtb-pay">
+								<span class="wanted-label">Paying</span>
+								<p class="wanted-text">"{String(td.price)}"</p>
+							</div>
+						{/if}
 					{:else}
-						<div class="listing-content {ltype}-content">
-							<div class="item-glyph">{typeIcon}</div>
-							<div class="item-name">{String(meta.item ?? 'Untitled')}</div>
-							{#if meta.qty}<div class="item-qty">{String(meta.qty)}</div>{/if}
-							{#if meta.desc}<p class="item-desc">{String(meta.desc)}</p>{/if}
-						</div>
-					{/if}
-					{#if td.wanted}
-						<div class="listing-wanted">
-							<span class="wanted-label">Wanted</span>
-							<p class="wanted-text">"{String(td.wanted)}"</p>
-						</div>
+						{#if ltype === 'specimen'}
+							{@render specimenContent(cd)}
+						{:else}
+							<div class="listing-content {ltype}-content">
+								<div class="item-glyph">{typeIcon}</div>
+								<div class="item-name">{String(meta.item ?? 'Untitled')}</div>
+								{#if meta.qty}<div class="item-qty">{String(meta.qty)}</div>{/if}
+								{#if meta.desc}<p class="item-desc">{String(meta.desc)}</p>{/if}
+							</div>
+						{/if}
+						{#if td.wanted}
+							<div class="listing-wanted">
+								<span class="wanted-label">Wanted</span>
+								<p class="wanted-text">"{String(td.wanted)}"</p>
+							</div>
+						{/if}
 					{/if}
 					<div class="listing-footer">
 						<span class="seller-block"><span class="name">{display(seller)}</span></span>
 						{#if rating && rating.count > 0}
 							<span class="seller-rating"><span class="star full">★</span>{rating.avg.toFixed(1)}</span>
 						{/if}
-						<button class="offer-btn">Make Offer ▸</button>
+						<button class="offer-btn">{dir === 'buy' ? 'Fulfill ▸' : 'Make Offer ▸'}</button>
 					</div>
 				</a>
 			{/each}
@@ -535,17 +660,53 @@
 				{#each myTrades as t}
 					{@const td = t as Record<string,unknown>}
 					{@const cd = (td.creatureData ?? {}) as Record<string,unknown>}
-					<div class="listing specimen" data-cat="specimen">
+					{@const meta = (td.metadata ?? {}) as Record<string,unknown>}
+					{@const ltype = String(td.listingType ?? 'specimen')}
+					{@const dir = tradeDirection(t)}
+					{@const typeIcon = ltype === 'egg' ? '◇' : ltype === 'resource' ? '◊' : ltype === 'service' ? '◎' : '⬡'}
+					{@const typeLabel = ltype.charAt(0).toUpperCase() + ltype.slice(1)}
+					<div class="listing {ltype} {dir}" data-cat={ltype} data-dir={dir}>
 						<div class="listing-top">
-							<span class="type-chip">⬡ Specimen</span>
+							<span class="type-chip">
+								{#if dir === 'buy'}<span class="dir-flag">◈ WTB</span>{/if}
+								{typeIcon} {typeLabel}
+							</span>
 							<span class="posted">{relTime(td.createdAt)}</span>
 						</div>
-						{@render specimenContent(cd)}
-						{#if td.wanted}
-							<div class="listing-wanted">
-								<span class="wanted-label">Wanted</span>
-								<p class="wanted-text">"{String(td.wanted)}"</p>
-							</div>
+						{#if dir === 'buy'}
+							{#if ltype === 'specimen'}
+								{@render wtbSpecimenContent(meta)}
+							{:else}
+								<div class="listing-content {ltype}-content">
+									<div class="item-glyph">{typeIcon}</div>
+									<div class="item-name">{String(meta.item ?? 'Untitled')}</div>
+									{#if meta.qty}<div class="item-qty">{String(meta.qty)}</div>{/if}
+									{#if meta.desc}<p class="item-desc">{String(meta.desc)}</p>{/if}
+								</div>
+							{/if}
+							{#if td.price}
+								<div class="listing-wanted wtb-pay">
+									<span class="wanted-label">Paying</span>
+									<p class="wanted-text">"{String(td.price)}"</p>
+								</div>
+							{/if}
+						{:else}
+							{#if ltype === 'specimen'}
+								{@render specimenContent(cd)}
+							{:else}
+								<div class="listing-content {ltype}-content">
+									<div class="item-glyph">{typeIcon}</div>
+									<div class="item-name">{String(meta.item ?? 'Untitled')}</div>
+									{#if meta.qty}<div class="item-qty">{String(meta.qty)}</div>{/if}
+									{#if meta.desc}<p class="item-desc">{String(meta.desc)}</p>{/if}
+								</div>
+							{/if}
+							{#if td.wanted}
+								<div class="listing-wanted">
+									<span class="wanted-label">Wanted</span>
+									<p class="wanted-text">"{String(td.wanted)}"</p>
+								</div>
+							{/if}
 						{/if}
 						<div class="listing-footer">
 							<span class="seller-block"><span class="name">{String(td.status)} · {td.offerCount ?? 0} offer{(td.offerCount as number) !== 1 ? 's' : ''}</span></span>
@@ -743,11 +904,27 @@
 <!-- List modal -->
 {#if listOpen}
 <div class="modal active" role="dialog" aria-modal="true">
-	<div class="modal-content" style="max-width:520px">
+	<div class="modal-content" style="max-width:560px">
 		<div class="modal-header"><h2 class="modal-title">Create Listing</h2><button class="close-btn" onclick={() => listOpen=false}>&times;</button></div>
 		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+
+			<!-- Direction picker -->
 			<div class="plan-field">
-				<label class="form-label" for="l-t">Listing Type *</label>
+				<label class="form-label">I want to *</label>
+				<div class="direction-picker">
+					<button type="button" class="dir-option sell" class:active={lDirection === 'sell'} onclick={() => lDirection = 'sell'}>
+						<div class="dir-option-title">⬡ Sell / Trade</div>
+						<div class="dir-option-desc">List something from my vault</div>
+					</button>
+					<button type="button" class="dir-option buy" class:active={lDirection === 'buy'} onclick={() => lDirection = 'buy'}>
+						<div class="dir-option-title">◈ Looking to Buy</div>
+						<div class="dir-option-desc">Post a request — sellers can fulfill</div>
+					</button>
+				</div>
+			</div>
+
+			<div class="plan-field">
+				<label class="form-label" for="l-t">Item type *</label>
 				<div style="display:flex;gap:6px;flex-wrap:wrap">
 					<button type="button" class="chip" class:active={lListingType === 'specimen'} onclick={() => lListingType = 'specimen'}>⬡ Specimen</button>
 					<button type="button" class="chip" class:active={lListingType === 'egg'}      onclick={() => lListingType = 'egg'}>◇ Egg</button>
@@ -755,46 +932,117 @@
 					<button type="button" class="chip" class:active={lListingType === 'service'}  onclick={() => lListingType = 'service'}>◎ Service</button>
 				</div>
 			</div>
-			{#if lListingType === 'specimen'}
-				<div class="plan-field"><label class="form-label" for="l-c">Select Specimen *</label>
-					<select id="l-c" class="form-control" bind:value={lCreatureId}>
-						<option value={null}>Choose…</option>
-						{#each myCreatures as c}<option value={c.id}>{creatureName(c)}</option>{/each}
-					</select>
-				</div>
+
+			{#if lDirection === 'sell'}
+				<!-- SELL form -->
+				{#if lListingType === 'specimen'}
+					<div class="plan-field"><label class="form-label" for="l-c">Select Specimen *</label>
+						<select id="l-c" class="form-control" bind:value={lCreatureId}>
+							<option value={null}>Choose…</option>
+							{#each myCreatures as c}<option value={c.id}>{creatureName(c)}</option>{/each}
+						</select>
+					</div>
+				{:else}
+					<div class="plan-field">
+						<label class="form-label" for="l-item">{lListingType === 'egg' ? 'Egg type' : lListingType === 'resource' ? 'Resource' : 'Service'} *</label>
+						<input id="l-item" class="form-control" bind:value={lItemName} placeholder={lListingType === 'egg' ? 'e.g. Wyvern egg (Fire)' : lListingType === 'resource' ? 'e.g. Black Pearls' : 'e.g. Bred-rex training'} />
+					</div>
+					<div class="plan-field"><label class="form-label" for="l-qty">Quantity / scope</label><input id="l-qty" class="form-control" bind:value={lItemQty} placeholder={lListingType === 'service' ? 'e.g. Per session' : 'e.g. 100×'} /></div>
+					<div class="plan-field"><label class="form-label" for="l-desc">Description</label><textarea id="l-desc" class="form-control" rows="3" bind:value={lDesc} placeholder="Notes, conditions, hours available…"></textarea></div>
+				{/if}
+				<div class="plan-field"><label class="form-label" for="l-w">What are you looking for in trade?</label><input id="l-w" class="form-control" bind:value={lWanted} placeholder="e.g. High melee Rex female" /></div>
+				<div class="plan-field"><label class="form-label" for="l-p">Price / notes</label><input id="l-p" class="form-control" bind:value={lPrice} placeholder="e.g. Open to offers" /></div>
 			{:else}
-				<div class="plan-field">
-					<label class="form-label" for="l-item">{lListingType === 'egg' ? 'Egg type' : lListingType === 'resource' ? 'Resource' : 'Service'} *</label>
-					<input id="l-item" class="form-control" bind:value={lItemName} placeholder={lListingType === 'egg' ? 'e.g. Wyvern egg (Fire)' : lListingType === 'resource' ? 'e.g. Black Pearls' : 'e.g. Bred-rex training'} />
-				</div>
-				<div class="plan-field"><label class="form-label" for="l-qty">Quantity / scope</label><input id="l-qty" class="form-control" bind:value={lItemQty} placeholder={lListingType === 'service' ? 'e.g. Per session' : 'e.g. 100×'} /></div>
-				<div class="plan-field"><label class="form-label" for="l-desc">Description</label><textarea id="l-desc" class="form-control" rows="3" bind:value={lDesc} placeholder="Notes, conditions, hours available…"></textarea></div>
+				<!-- BUY (WTB) form -->
+				{#if lListingType === 'specimen'}
+					<div class="plan-field">
+						<label class="form-label" for="l-ws">Species you want *</label>
+						<input id="l-ws" class="form-control" list="wtb-species-list" bind:value={lWantSpecies} placeholder="e.g. Rex, Argentavis…" />
+						<datalist id="wtb-species-list">{#each speciesList as s}<option value={s}>{s}</option>{/each}</datalist>
+					</div>
+					<div class="plan-field">
+						<label class="form-label">Gender (preferred)</label>
+						<div style="display:flex;gap:6px">
+							<button type="button" class="chip" class:active={lWantGender === 'any'}    onclick={() => lWantGender = 'any'}>Any</button>
+							<button type="button" class="chip" class:active={lWantGender === 'female'} onclick={() => lWantGender = 'female'}>♀ Female</button>
+							<button type="button" class="chip" class:active={lWantGender === 'male'}   onclick={() => lWantGender = 'male'}>♂ Male</button>
+						</div>
+					</div>
+					<div class="plan-field" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+						<div>
+							<label class="form-label" for="l-mlvl">Min level</label>
+							<input id="l-mlvl" class="form-control" type="number" min="0" bind:value={lWantMinLvl} placeholder="0" />
+						</div>
+						<div>
+							<label class="form-label" for="l-mmuts">Min mutations</label>
+							<input id="l-mmuts" class="form-control" type="number" min="0" bind:value={lWantMinMuts} placeholder="0" />
+						</div>
+					</div>
+					<div class="plan-field">
+						<label class="form-label">Tier (minimum)</label>
+						<div style="display:flex;gap:6px;flex-wrap:wrap">
+							<button type="button" class="chip" class:active={lWantTier === 'any'}     onclick={() => lWantTier = 'any'}>Any</button>
+							<button type="button" class="chip" class:active={lWantTier === 'bronze'}  onclick={() => lWantTier = 'bronze'}>Bronze+</button>
+							<button type="button" class="chip" class:active={lWantTier === 'silver'}  onclick={() => lWantTier = 'silver'}>Silver+</button>
+							<button type="button" class="chip" class:active={lWantTier === 'gold'}    onclick={() => lWantTier = 'gold'}>Gold+</button>
+							<button type="button" class="chip" class:active={lWantTier === 'diamond'} onclick={() => lWantTier = 'diamond'}>Diamond</button>
+						</div>
+					</div>
+					<div class="plan-field"><label class="form-label" for="l-wn">Notes</label><textarea id="l-wn" class="form-control" rows="2" bind:value={lWantNotes} placeholder="Anything else — color, lineage, server…"></textarea></div>
+				{:else}
+					<div class="plan-field">
+						<label class="form-label" for="l-bitem">What are you looking for? *</label>
+						<input id="l-bitem" class="form-control" bind:value={lItemName} placeholder={lListingType === 'egg' ? 'e.g. Wyvern egg (Fire)' : lListingType === 'resource' ? 'e.g. Black Pearls' : 'e.g. Boss carry, Alpha Rex'} />
+					</div>
+					<div class="plan-field"><label class="form-label" for="l-bqty">Quantity / scope</label><input id="l-bqty" class="form-control" bind:value={lItemQty} placeholder={lListingType === 'service' ? 'e.g. One run' : 'e.g. 100×'} /></div>
+					<div class="plan-field"><label class="form-label" for="l-bdesc">Notes</label><textarea id="l-bdesc" class="form-control" rows="3" bind:value={lDesc} placeholder="Quality, server preference, deadline…"></textarea></div>
+				{/if}
+				<div class="plan-field"><label class="form-label" for="l-bp">What you'll pay / offer</label><input id="l-bp" class="form-control" bind:value={lPrice} placeholder="e.g. 200 Black Pearls, or open to trade" /></div>
 			{/if}
-			<div class="plan-field"><label class="form-label" for="l-w">What are you looking for?</label><input id="l-w" class="form-control" bind:value={lWanted} placeholder="e.g. High melee Rex female" /></div>
-			<div class="plan-field"><label class="form-label" for="l-p">Price / notes</label><input id="l-p" class="form-control" bind:value={lPrice} placeholder="e.g. Open to offers" /></div>
 		</div>
-		<div class="modal-footer"><button class="btn btn-secondary" onclick={() => listOpen=false}>Cancel</button><button class="btn btn-primary" onclick={listCreature} disabled={saving || (lListingType === 'specimen' && !lCreatureId) || (lListingType !== 'specimen' && !lItemName.trim())}>{saving?'Listing…':'List'}</button></div>
+		<div class="modal-footer">
+			<button class="btn btn-secondary" onclick={() => listOpen=false}>Cancel</button>
+			<button class="btn btn-primary" onclick={listCreature} disabled={
+				saving ||
+				(lDirection === 'sell' && lListingType === 'specimen' && !lCreatureId) ||
+				(lDirection === 'sell' && lListingType !== 'specimen' && !lItemName.trim()) ||
+				(lDirection === 'buy'  && lListingType === 'specimen' && !lWantSpecies.trim()) ||
+				(lDirection === 'buy'  && lListingType !== 'specimen' && !lItemName.trim())
+			}>{saving ? (lDirection === 'buy' ? 'Posting…' : 'Listing…') : (lDirection === 'buy' ? 'Post Request' : 'List')}</button>
+		</div>
 	</div>
 </div>
 {/if}
 
 <!-- Offer modal -->
 {#if offerOpen}
-<div class="modal active" role="dialog" aria-modal="true">
-	<div class="modal-content" style="max-width:480px">
-		<div class="modal-header"><h2 class="modal-title">Make an Offer</h2><button class="close-btn" onclick={() => offerOpen=null}>&times;</button></div>
-		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
-			<div class="plan-field"><label class="form-label" for="o-c">Offer a Specimen (optional)</label>
-				<select id="o-c" class="form-control" bind:value={oCreatureId}>
-					<option value={null}>None — offer text only</option>
-					{#each myCreatures as c}<option value={c.id}>{creatureName(c)}</option>{/each}
-				</select>
+	{@const offerDir = tradeDirection(offerOpen)}
+	{@const isFulfill = offerDir === 'buy'}
+	<div class="modal active" role="dialog" aria-modal="true">
+		<div class="modal-content" style="max-width:480px">
+			<div class="modal-header">
+				<h2 class="modal-title">{isFulfill ? 'Fulfill This Request' : 'Make an Offer'}</h2>
+				<button class="close-btn" onclick={() => offerOpen=null}>&times;</button>
 			</div>
-			<div class="plan-field"><label class="form-label" for="o-m">Message</label><textarea id="o-m" class="form-control" rows="2" bind:value={oMessage}></textarea></div>
+			<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+				<div class="plan-field">
+					<label class="form-label" for="o-c">{isFulfill ? 'Specimen you\'re offering (optional)' : 'Offer a Specimen (optional)'}</label>
+					<select id="o-c" class="form-control" bind:value={oCreatureId}>
+						<option value={null}>None — message only</option>
+						{#each myCreatures as c}<option value={c.id}>{creatureName(c)}</option>{/each}
+					</select>
+				</div>
+				<div class="plan-field">
+					<label class="form-label" for="o-m">Message</label>
+					<textarea id="o-m" class="form-control" rows="2" bind:value={oMessage} placeholder={isFulfill ? 'Confirm what you can deliver and when…' : 'Note for the seller…'}></textarea>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-secondary" onclick={() => offerOpen=null}>Cancel</button>
+				<button class="btn btn-primary" onclick={makeOffer} disabled={saving}>{saving ? 'Sending...' : (isFulfill ? 'Send Fulfillment' : 'Send Offer')}</button>
+			</div>
 		</div>
-		<div class="modal-footer"><button class="btn btn-secondary" onclick={() => offerOpen=null}>Cancel</button><button class="btn btn-primary" onclick={makeOffer} disabled={saving}>{saving?'Sending...':'Send Offer'}</button></div>
 	</div>
-</div>
 {/if}
 
 <!-- Rating modal -->
@@ -1129,6 +1377,161 @@
 	background: rgba(239,68,68,0.22);
 	filter: drop-shadow(0 0 5px rgba(239,68,68,0.45));
 }
+
+/* ── WTS / WTB direction bar (sits above the search toolbar) ───────── */
+.dir-bar {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 14px;
+	flex-wrap: wrap;
+}
+.dir-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+	background: rgba(255,255,255,0.04);
+	border: 1px solid rgba(255,255,255,0.08);
+	color: var(--tek-text-dim);
+	font-family: var(--tek-mono);
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	padding: 9px 18px;
+	cursor: pointer;
+	clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+	transition: all 0.18s;
+}
+.dir-tab:hover { color: var(--tek-text); border-color: rgba(0,180,255,0.30); }
+.dir-tab.active {
+	background: rgba(0,180,255,0.18);
+	border-color: var(--tek-blue);
+	color: #7dd3fc;
+	box-shadow: 0 0 10px rgba(0,180,255,0.25);
+}
+.dir-tab.sell.active {
+	background: rgba(0,180,255,0.18);
+	border-color: var(--tek-blue);
+	color: #7dd3fc;
+}
+.dir-tab.buy.active {
+	background: rgba(245,158,11,0.18);
+	border-color: var(--tek-amber);
+	color: #fcd34d;
+	box-shadow: 0 0 10px rgba(245,158,11,0.30);
+}
+.dir-tab-count {
+	font-family: var(--tek-display);
+	font-size: 0.72rem;
+	background: rgba(0,0,0,0.28);
+	padding: 2px 8px;
+	border-radius: 99px;
+}
+
+/* WTB dir flag on listing cards */
+.dir-flag {
+	display: inline-block;
+	background: rgba(245,158,11,0.18);
+	border: 1px solid rgba(245,158,11,0.45);
+	color: #fcd34d;
+	padding: 1px 6px;
+	margin-right: 6px;
+	font-size: 0.5rem;
+	font-weight: 800;
+	letter-spacing: 0.18em;
+	clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+
+/* WTB listing — amber side-bar + tint */
+.listing.buy {
+	--type-rgb: 245,158,11;
+	background: linear-gradient(160deg, rgba(28,18,8,0.92) 0%, rgba(12,8,4,0.98) 100%);
+}
+
+/* WTB criteria block (Min Lvl / Min Muts) */
+.wtb-criteria {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	margin: 4px 0 12px;
+}
+.wtb-crit-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	background: rgba(0,0,0,0.25);
+	border-left: 2px solid rgba(245,158,11,0.30);
+	padding: 7px 11px;
+	clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+}
+.wtb-crit-lbl {
+	font-family: var(--tek-mono);
+	font-size: 0.56rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--tek-text-faint);
+}
+.wtb-crit-val {
+	font-family: var(--tek-display);
+	font-size: 1rem;
+	font-weight: 800;
+	color: var(--tek-amber);
+	text-shadow: 0 0 4px rgba(245,158,11,0.40);
+}
+.wtb-notes {
+	font-family: var(--tek-serif);
+	font-style: italic;
+	font-size: 0.84rem;
+	color: #94a3b8;
+	padding: 6px 10px;
+	border-left: 1px solid rgba(245,158,11,0.30);
+	margin-bottom: 12px;
+}
+.listing-wanted.wtb-pay { border-color: rgba(245,158,11,0.30); }
+.listing-wanted.wtb-pay .wanted-label { color: #fcd34d; }
+
+/* Direction picker in create-listing modal */
+.direction-picker {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+@media (max-width: 540px) { .direction-picker { grid-template-columns: 1fr; } }
+.dir-option {
+	text-align: left;
+	background: rgba(255,255,255,0.04);
+	border: 1px solid rgba(255,255,255,0.08);
+	color: var(--tek-text-dim);
+	font-family: inherit;
+	padding: 12px 14px;
+	cursor: pointer;
+	clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+	transition: all 0.18s;
+}
+.dir-option:hover { border-color: rgba(0,180,255,0.35); }
+.dir-option-title {
+	font-family: var(--tek-mono);
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	margin-bottom: 4px;
+}
+.dir-option-desc {
+	font-family: var(--tek-mono);
+	font-size: 0.66rem;
+	color: var(--tek-text-faint);
+}
+.dir-option.sell.active {
+	background: rgba(0,180,255,0.12);
+	border-color: var(--tek-blue);
+}
+.dir-option.sell.active .dir-option-title { color: #7dd3fc; }
+.dir-option.buy.active {
+	background: rgba(245,158,11,0.12);
+	border-color: var(--tek-amber);
+}
+.dir-option.buy.active .dir-option-title { color: #fcd34d; }
 
 .results-count {
 	margin-bottom: 14px;

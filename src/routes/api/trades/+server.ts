@@ -17,18 +17,26 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) return json({ error: 'Unauthorized' }, { status: 401 });
 	const uid = locals.user.id;
-	const { creatureId, creatureData, wanted, price, listingType, metadata } = await request.json();
+	const { creatureId, creatureData, wanted, price, listingType, metadata, direction } = await request.json();
 	const validType = ['specimen','egg','resource','service'].includes(listingType) ? listingType : 'specimen';
+	const validDirection = direction === 'buy' ? 'buy' : 'sell';
+	// Store direction inside the existing metadata JSON column so we don't need a schema change.
+	const incomingMeta = (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) ? metadata as Record<string,unknown> : {};
+	const finalMeta = { ...incomingMeta, direction: validDirection };
+
+	// WTB (buy) listings don't carry a real creatureData — the buyer is requesting one.
+	const isBuy = validDirection === 'buy';
+
 	const trade = await db.trade.create({ data: {
 		userId: uid,
-		creatureId: validType === 'specimen' ? (creatureId ?? null) : null,
-		creatureData: validType === 'specimen' ? (creatureData ?? null) : null,
+		creatureId:   isBuy ? null : (validType === 'specimen' ? (creatureId ?? null) : null),
+		creatureData: isBuy ? null : (validType === 'specimen' ? (creatureData ?? null) : null),
 		listingType: validType,
-		metadata: metadata ?? {},
+		metadata: finalMeta,
 		wanted: wanted ?? null,
 		price: price ?? null
 	} });
 	const cd = creatureData as Record<string,unknown> | null;
-	await db.activityEvent.create({ data: { userId: uid, type: 'trade_list', data: { listingType: validType, species: cd?.species ?? null, name: cd?.name ?? null, item: (metadata as Record<string,unknown>|null)?.item ?? null } } }).catch(() => {});
+	await db.activityEvent.create({ data: { userId: uid, type: 'trade_list', data: { listingType: validType, direction: validDirection, species: cd?.species ?? finalMeta.wantedSpecies ?? null, name: cd?.name ?? null, item: finalMeta.item ?? null } } }).catch(() => {});
 	return json(trade, { status: 201 });
 };
