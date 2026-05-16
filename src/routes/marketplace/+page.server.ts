@@ -7,7 +7,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		db.trade.findMany({ where: { status:'open', userId:{ not:uid } }, orderBy:{ createdAt:'desc' }, include:{ user:{ select:{ id:true, nickname:true, discordName:true } } } }),
 		db.trade.findMany({ where: { userId:uid }, orderBy:{ createdAt:'desc' }, include:{ _count:{ select:{ offers:true } } } }),
 		db.trade.findMany({ where: { status:'completed' }, orderBy:{ createdAt:'desc' }, take: 30, include:{ user:{ select:{ id:true, nickname:true, discordName:true } } } }),
-		db.offer.findMany({ where:{ toUserId:uid, status:'pending' }, include:{ fromUser:{ select:{ id:true, nickname:true, discordName:true } }, trade:true } }),
+		db.offer.findMany({
+			where:{ toUserId:uid, status:'pending' },
+			orderBy: { createdAt: 'desc' },
+			include:{
+				fromUser:{ select:{ id:true, nickname:true, discordName:true } },
+				trade: { include: { user: { select: { id:true, nickname:true, discordName:true } } } }
+			}
+		}),
 		db.offer.findMany({
 			where: { fromUserId: uid },
 			orderBy: { createdAt: 'desc' },
@@ -51,6 +58,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		myCreatures: creatures.map(c => ({ ...c.data as object, id: c.id })),
 		wishlist,
 		networkWishlists: networkWishlists.map(w => ({ ...w, iHaveIt: mySpecies.has(w.species) })),
-		sellerRatings
+		sellerRatings,
+		myUserId: uid
 	};
 };

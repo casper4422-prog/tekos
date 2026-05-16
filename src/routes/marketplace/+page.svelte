@@ -24,6 +24,24 @@
 	let ratingOpen = $state<{tradeId:number; userId:number; name:string}|null>(null);
 	let saving     = $state(false);
 
+	// Thread modal state
+	type ThreadEntry = {
+		from: number;
+		kind: 'chat' | 'counter';
+		text: string;
+		at: string;
+		counterCreatureId?: number | null;
+		counterCreatureData?: Record<string, unknown> | null;
+	};
+	let threadOpen        = $state<Record<string, unknown> | null>(null);
+	let threadMessages    = $state<ThreadEntry[]>([]);
+	let threadDraft       = $state('');
+	let threadCounterOn   = $state(false);
+	let threadCounterCreatureId = $state<number | null>(null);
+	let threadSending     = $state(false);
+	let threadLoading     = $state(false);
+	const myId            = $derived(Number((data as Record<string, unknown>).myUserId ?? 0));
+
 	let browseSearch  = $state('');
 	let browseFilter  = $state<string>('all');
 	let directionFilter = $state<'all'|'sell'|'buy'>('all');
@@ -369,6 +387,69 @@
 		} else {
 			offers = offers.filter((o:Trade) => (o.id as number) !== offerId);
 		}
+		threadOpen = null;
+	}
+
+	async function openThread(offer: Record<string, unknown>) {
+		threadOpen = offer;
+		threadDraft = '';
+		threadCounterOn = false;
+		threadCounterCreatureId = null;
+		threadLoading = true;
+		try {
+			const res = await fetch(`/api/offers/${offer.id}/messages`);
+			if (res.ok) {
+				const data = await res.json();
+				threadMessages = (data.thread ?? []) as ThreadEntry[];
+			}
+		} catch { /* ignore */ }
+		threadLoading = false;
+	}
+
+	async function sendThreadMessage() {
+		if (!threadOpen) return;
+		const text = threadDraft.trim();
+		const counterId = threadCounterOn ? threadCounterCreatureId : null;
+		if (!text && !counterId) return;
+		threadSending = true;
+		const payload: Record<string, unknown> = {
+			kind: counterId ? 'counter' : 'chat',
+			text
+		};
+		if (counterId) {
+			payload.counterCreatureId = counterId;
+			payload.counterCreatureData = myCreatures.find(c => c.id === counterId) ?? null;
+		}
+		const res = await fetch(`/api/offers/${(threadOpen as Record<string,unknown>).id}/messages`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload)
+		});
+		if (res.ok) {
+			const data = await res.json();
+			threadMessages = (data.thread ?? []) as ThreadEntry[];
+			threadDraft = '';
+			threadCounterOn = false;
+			threadCounterCreatureId = null;
+		}
+		threadSending = false;
+	}
+
+	function threadPartnerName(offer: Record<string, unknown>): string {
+		if (!offer) return '';
+		const fromU = offer.fromUser as Record<string, unknown> | undefined;
+		const toU = offer.toUser as Record<string, unknown> | undefined;
+		const other = Number(offer.fromUserId) === myId ? toU : fromU;
+		return other ? display(other) : 'Unknown';
+	}
+
+	function fmtThreadTime(iso: string): string {
+		const t = new Date(iso).getTime();
+		const s = (Date.now() - t) / 1000;
+		if (s < 60) return 'just now';
+		if (s < 3600) return `${Math.floor(s/60)}m ago`;
+		if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+		return `${Math.floor(s/86400)}d ago`;
 	}
 
 	async function submitRating() {
@@ -726,6 +807,7 @@
 					{@const od = o as Record<string,unknown>}
 					{@const offerCd = (od.offeredCreatureData ?? {}) as Record<string,unknown>}
 					{@const fromU = od.fromUser as Record<string,unknown>}
+					{@const threadLen = Array.isArray(od.thread) ? (od.thread as unknown[]).length : 0}
 					<div class="listing specimen" data-cat="specimen">
 						<div class="listing-top">
 							<span class="type-chip">⬡ Offer</span>
@@ -739,6 +821,9 @@
 							</div>
 						{/if}
 						<div class="listing-footer">
+							<button class="offer-btn thread-btn" onclick={() => openThread(od)}>
+								💬 Open Thread{#if threadLen > 0} <span class="thread-count">{threadLen}</span>{/if}
+							</button>
 							<button class="offer-btn" onclick={() => respondOffer(od.id as number, od.tradeId as number, fromU.id as number, display(fromU), 'accept')}>Accept ✓</button>
 							<button class="offer-btn" onclick={() => respondOffer(od.id as number, od.tradeId as number, fromU.id as number, display(fromU), 'reject')}>Reject ✕</button>
 						</div>
@@ -761,6 +846,7 @@
 					{@const tradeMeta = ((tradeRec?.metadata ?? {}) as Record<string,unknown>)}
 					{@const status = String(od.status ?? 'pending')}
 					{@const statusClass = status === 'accepted' ? 'ok' : status === 'rejected' ? 'no' : 'wait'}
+					{@const threadLen = Array.isArray(od.thread) ? (od.thread as unknown[]).length : 0}
 					<div class="listing specimen" data-cat="specimen">
 						<div class="listing-top">
 							<span class="type-chip">⬡ Offer Sent</span>
@@ -798,6 +884,11 @@
 								{:else if status === 'rejected'}✕ Rejected
 								{:else}⟳ Pending{/if}
 							</span>
+							{#if status === 'pending'}
+								<button class="offer-btn thread-btn" onclick={() => openThread(od)}>
+									💬 Open Thread{#if threadLen > 0} <span class="thread-count">{threadLen}</span>{/if}
+								</button>
+							{/if}
 						</div>
 					</div>
 				{/each}
@@ -1040,6 +1131,107 @@
 			<div class="modal-footer">
 				<button class="btn btn-secondary" onclick={() => offerOpen=null}>Cancel</button>
 				<button class="btn btn-primary" onclick={makeOffer} disabled={saving}>{saving ? 'Sending...' : (isFulfill ? 'Send Fulfillment' : 'Send Offer')}</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Thread modal — chat + counter-offer -->
+{#if threadOpen}
+	{@const o = threadOpen as Record<string, unknown>}
+	{@const partner = threadPartnerName(o)}
+	{@const isIncoming = Number(o.toUserId) === myId}
+	{@const offerStatus = String(o.status ?? 'pending')}
+	{@const offeredCd = (o.offeredCreatureData ?? {}) as Record<string, unknown>}
+	{@const initialMsg = String(o.message ?? '').trim()}
+	<div class="modal active" role="dialog" aria-modal="true">
+		<div class="modal-content thread-modal">
+			<div class="modal-header">
+				<h2 class="modal-title">
+					Negotiation · <span style="color:#7dd3fc">{partner}</span>
+					<span class="thread-status-pill {offerStatus}">{offerStatus}</span>
+				</h2>
+				<button class="close-btn" onclick={() => threadOpen=null}>&times;</button>
+			</div>
+
+			<div class="modal-body thread-body">
+				<!-- Original offer summary -->
+				<div class="thread-offer">
+					<span class="thread-offer-label">{isIncoming ? 'They offered' : 'You offered'}</span>
+					{#if offeredCd.species}
+						<span class="thread-offer-spec">{String(offeredCd.species)} · Lvl {Number(offeredCd.level ?? 1)} · {mutCount(offeredCd)} muts</span>
+					{:else}
+						<span class="thread-offer-spec" style="color:var(--tek-text-faint);font-style:italic">No specimen attached</span>
+					{/if}
+					{#if initialMsg}<div class="thread-offer-msg">"{initialMsg}"</div>{/if}
+				</div>
+
+				<!-- Thread bubbles -->
+				<div class="thread-stream">
+					{#if threadLoading}
+						<div style="text-align:center;color:var(--tek-text-faint);font-family:var(--tek-mono);font-size:0.7rem;padding:14px;">Loading…</div>
+					{:else if threadMessages.length === 0}
+						<div class="thread-empty">No follow-ups yet. Send a message or post a counter-offer below.</div>
+					{:else}
+						{#each threadMessages as m, i (i)}
+							{@const mine = m.from === myId}
+							<div class="thread-msg" class:mine class:counter={m.kind === 'counter'}>
+								<div class="thread-msg-meta">
+									<span class="thread-msg-who">{mine ? 'You' : partner}</span>
+									{#if m.kind === 'counter'}<span class="thread-msg-tag">⇄ Counter</span>{/if}
+									<span class="thread-msg-time">{fmtThreadTime(m.at)}</span>
+								</div>
+								{#if m.kind === 'counter' && m.counterCreatureData}
+									{@const cd = m.counterCreatureData as Record<string, unknown>}
+									<div class="thread-counter-spec">
+										<span class="initial">{(String(cd.species ?? '?').charAt(0) || '?').toUpperCase()}</span>
+										<div>
+											<div class="spec-name">{String(cd.species ?? '?')}</div>
+											<div class="spec-sub">Lvl {Number(cd.level ?? 1)} · {mutCount(cd)} muts</div>
+										</div>
+									</div>
+								{/if}
+								{#if m.text}<div class="thread-msg-text">{m.text}</div>{/if}
+							</div>
+						{/each}
+					{/if}
+				</div>
+
+				<!-- Compose -->
+				{#if offerStatus === 'pending'}
+					<div class="thread-compose">
+						<div class="thread-compose-row">
+							<label class="thread-counter-toggle">
+								<input type="checkbox" bind:checked={threadCounterOn} />
+								<span>⇄ Counter with a specimen</span>
+							</label>
+						</div>
+						{#if threadCounterOn}
+							<div class="thread-compose-row">
+								<select class="form-control" bind:value={threadCounterCreatureId}>
+									<option value={null}>Choose specimen…</option>
+									{#each myCreatures as c}<option value={c.id}>{creatureName(c)}</option>{/each}
+								</select>
+							</div>
+						{/if}
+						<div class="thread-compose-row">
+							<textarea
+								class="form-control"
+								rows="2"
+								bind:value={threadDraft}
+								placeholder={threadCounterOn ? 'Note for the counter offer…' : 'Type a message…'}
+							></textarea>
+						</div>
+						<div class="thread-compose-actions">
+							<button class="btn btn-secondary" onclick={() => threadOpen=null}>Close</button>
+							<button class="btn btn-primary" disabled={threadSending || (!threadDraft.trim() && !threadCounterCreatureId)} onclick={sendThreadMessage}>
+								{threadSending ? 'Sending…' : (threadCounterOn ? 'Send Counter' : 'Send')}
+							</button>
+						</div>
+					</div>
+				{:else}
+					<div class="thread-closed">This offer is {offerStatus}. The thread is read-only.</div>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -2228,6 +2420,204 @@
 	font-family: var(--tek-serif);
 	font-style: italic;
 	font-size: 0.95rem;
+}
+
+/* Thread modal */
+.thread-btn { background: rgba(139,92,246,0.10); border-color: rgba(139,92,246,0.40); color: #c4b5fd; }
+.thread-btn:hover { background: rgba(139,92,246,0.22); filter: drop-shadow(0 0 6px rgba(139,92,246,0.55)); }
+.thread-count {
+	display: inline-block;
+	background: rgba(0,0,0,0.30);
+	color: #fff;
+	padding: 0 6px;
+	margin-left: 4px;
+	border-radius: 99px;
+	font-size: 0.55rem;
+	font-weight: 800;
+}
+
+.thread-modal { max-width: 560px; width: 100%; }
+.thread-status-pill {
+	font-family: var(--tek-mono);
+	font-size: 0.56rem;
+	font-weight: 700;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	padding: 2px 8px;
+	margin-left: 12px;
+	clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+	background: rgba(245,158,11,0.14);
+	border: 1px solid rgba(245,158,11,0.40);
+	color: #fcd34d;
+	vertical-align: middle;
+}
+.thread-status-pill.accepted { background: rgba(16,185,129,0.14); border-color: rgba(16,185,129,0.45); color: #86efac; }
+.thread-status-pill.rejected { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.35); color: #fca5a5; }
+
+.thread-body { display: flex; flex-direction: column; gap: 14px; max-height: 70vh; overflow-y: auto; }
+
+.thread-offer {
+	background: rgba(0,180,255,0.06);
+	border: 1px solid rgba(0,180,255,0.18);
+	border-left: 2px solid var(--tek-blue);
+	padding: 10px 14px;
+	clip-path: polygon(6px 0%, 100% 0%, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0% 100%, 0% 6px);
+}
+.thread-offer-label {
+	display: block;
+	font-family: var(--tek-mono);
+	font-size: 0.54rem;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--tek-text-faint);
+	margin-bottom: 4px;
+}
+.thread-offer-spec {
+	font-family: var(--tek-display);
+	font-size: 0.92rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	color: var(--tek-text);
+	text-transform: uppercase;
+}
+.thread-offer-msg {
+	font-family: var(--tek-mono);
+	font-size: 0.74rem;
+	font-style: italic;
+	color: var(--tek-text-dim);
+	margin-top: 4px;
+}
+
+.thread-stream {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-height: 320px;
+	overflow-y: auto;
+	padding: 4px 2px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0,180,255,0.30) transparent;
+}
+.thread-stream::-webkit-scrollbar { width: 5px; }
+.thread-stream::-webkit-scrollbar-thumb { background: rgba(0,180,255,0.25); border-radius: 2px; }
+
+.thread-empty {
+	text-align: center;
+	font-family: var(--tek-mono);
+	font-size: 0.72rem;
+	color: var(--tek-text-faint);
+	font-style: italic;
+	padding: 16px 0;
+}
+
+.thread-msg {
+	background: rgba(255,255,255,0.04);
+	border: 1px solid rgba(255,255,255,0.06);
+	padding: 9px 12px;
+	max-width: 86%;
+	align-self: flex-start;
+	clip-path: polygon(6px 0%, 100% 0%, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0% 100%, 0% 6px);
+}
+.thread-msg.mine {
+	align-self: flex-end;
+	background: rgba(0,180,255,0.10);
+	border-color: rgba(0,180,255,0.30);
+}
+.thread-msg.counter {
+	background: rgba(139,92,246,0.08);
+	border-color: rgba(139,92,246,0.40);
+}
+.thread-msg.mine.counter { background: rgba(139,92,246,0.14); border-color: rgba(139,92,246,0.50); }
+.thread-msg-meta {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--tek-mono);
+	font-size: 0.54rem;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--tek-text-faint);
+	margin-bottom: 4px;
+}
+.thread-msg-who { color: var(--tek-text-dim); font-weight: 700; }
+.thread-msg.mine .thread-msg-who { color: #7dd3fc; }
+.thread-msg-tag {
+	background: rgba(139,92,246,0.18);
+	border: 1px solid rgba(139,92,246,0.40);
+	color: #c4b5fd;
+	padding: 1px 6px;
+	clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+.thread-msg-time { color: var(--tek-text-faint); margin-left: auto; }
+.thread-msg-text {
+	font-family: var(--tek-mono);
+	font-size: 0.82rem;
+	line-height: 1.5;
+	color: var(--tek-text);
+	white-space: pre-wrap;
+}
+.thread-counter-spec {
+	display: flex; align-items: center; gap: 10px;
+	background: rgba(0,0,0,0.30);
+	border: 1px solid rgba(139,92,246,0.30);
+	padding: 8px 12px;
+	margin: 4px 0;
+	clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+}
+.thread-counter-spec .initial {
+	font-family: var(--tek-display);
+	font-size: 1.1rem;
+	font-weight: 900;
+	color: #c4b5fd;
+	min-width: 22px;
+	text-align: center;
+}
+.thread-counter-spec .spec-name {
+	font-family: var(--tek-display);
+	font-size: 0.82rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	color: var(--tek-text);
+	text-transform: uppercase;
+}
+.thread-counter-spec .spec-sub {
+	font-family: var(--tek-mono);
+	font-size: 0.62rem;
+	color: var(--tek-text-dim);
+	margin-top: 1px;
+}
+
+.thread-compose {
+	border-top: 1px solid rgba(255,255,255,0.06);
+	padding-top: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.thread-compose-row { display: flex; gap: 6px; }
+.thread-counter-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	font-family: var(--tek-mono);
+	font-size: 0.72rem;
+	color: var(--tek-text-dim);
+	cursor: pointer;
+}
+.thread-counter-toggle input { accent-color: var(--tek-purple); }
+.thread-compose-actions {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+	padding-top: 4px;
+}
+.thread-closed {
+	text-align: center;
+	font-family: var(--tek-mono);
+	font-size: 0.74rem;
+	font-style: italic;
+	color: var(--tek-text-faint);
+	padding: 10px 0;
 }
 
 /* Rating modal star buttons */

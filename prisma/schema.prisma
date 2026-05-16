@@ -118,6 +118,7 @@ model Offer {
   offeredCreatureData Json?    @map("offered_creature_data")
   offeredPrice        String?  @map("offered_price")
   message             String?
+  thread              Json     @default("[]")
   status              String   @default("pending")
   createdAt           DateTime @default(now()) @map("created_at")
 
