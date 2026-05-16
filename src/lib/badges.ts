@@ -1,16 +1,25 @@
 /**
  * Badge computation — derives TekOS badges from a creature's stats.
  *
- * Three systems (from achievements_system.md):
- *  1. Prize Bloodline (base stats only, min of HP/STA/FOOD/WGT/MEL):
- *     Bronze 45 / Silver 50 / Gold 55 / Diamond 60
- *  2. Boss Ready (total = base + mut*2, requires HP AND MEL):
+ * IMPORTANT — Mutation math (changed 2026-05):
+ *   The `mutations` field holds the TOTAL mutation LEVELS for each stat,
+ *   not the count of mutation events. Survivors enter this manually based
+ *   on what their UI shows. So the total is a simple addition:
+ *       total = base + mutationLevels  (no ×2 multiplier)
+ *   Example: Rex with base HP 70 and 10 mutation levels → 80 total HP.
+ *
+ * Three systems:
+ *  1. Prize Bloodline — base stats only (no mutations, no domestic levels),
+ *     min of HP/STA/FOOD/WGT/MEL: Bronze 45 / Silver 50 / Gold 55 / Diamond 60
+ *  2. Boss Ready — total = base + mutation levels, requires HP AND MEL:
  *     Gamma 75 / Beta 100 / Alpha 125 / Titan 150
- *  3. Role badges:
+ *  3. Role badges (use total = base + mutation levels):
  *     Tank: HP >= 175 (alone)
  *     DPS:  MEL >= 175 (alone)
  *     Bruiser: HP >= 125 AND WGT >= 125
  *     Runner: HP >= 100 AND SPD >= 150
+ *  4. Underdog (non-meta species, total = base + mutation levels):
+ *     Champion 90 / Hero 115 / Legend 140 / Titan 160
  */
 
 export type Stats = Record<string, number>;
@@ -94,7 +103,9 @@ export function getStat(s: Stats | undefined, key: 'HP'|'STA'|'OXY'|'FOOD'|'WGT'
 }
 
 function totalStat(base: Stats | undefined, mut: Stats | undefined, key: Parameters<typeof getStat>[1]) {
-    return getStat(base, key) + getStat(mut, key) * 2;
+    // Mutations are stored as TOTAL mutation levels (already includes any per-event scaling).
+    // Survivors enter them manually from their UI — no multiplier needed here.
+    return getStat(base, key) + getStat(mut, key);
 }
 
 export function computeBadges(base: Stats | undefined, mut: Stats | undefined, species?: string): CreatureBadges {
@@ -112,7 +123,7 @@ export function computeBadges(base: Stats | undefined, mut: Stats | undefined, s
     else if (minCore >= 50) bloodline = 'silver';
     else if (minCore >= 45) bloodline = 'bronze';
 
-    // Boss Ready (total = base + mut*2, BOTH HP and MEL)
+    // Boss Ready (total = base + mutation levels, BOTH HP and MEL must meet threshold)
     const tHP  = totalStat(base, mut, 'HP');
     const tMEL = totalStat(base, mut, 'MEL');
     const tWGT = totalStat(base, mut, 'WGT');

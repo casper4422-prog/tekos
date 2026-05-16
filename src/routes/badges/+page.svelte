@@ -318,6 +318,45 @@
     {/if}
 
     <!-- ═══════════════════════════════════════════════════════
+         HOW BADGES WORK — explainer card
+         ═══════════════════════════════════════════════════════ -->
+    <div class="how-it-works">
+        <div class="how-head">
+            <span class="how-pip"></span>
+            <span class="how-title">How Badges Work</span>
+            <span class="how-rule"></span>
+            <span class="how-hint">Auto-computed from your Vault — no manual claiming</span>
+        </div>
+        <div class="how-grid">
+            <div class="how-card boss">
+                <div class="how-card-tag">System 1</div>
+                <div class="how-card-name">⚔ Boss Ready</div>
+                <div class="how-card-desc">Recognises creatures bred for the boss arena. Looks at <strong>HP + MEL combined</strong> (base + mutation levels). Both stats must meet the tier threshold.</div>
+                <div class="how-card-formula">Total = <span class="key">base</span> + <span class="key">mutation levels</span></div>
+                <div class="how-card-example">e.g. Rex with 70 base HP and 10 mutation levels = 80 HP total → not yet Gamma (needs 75 on <em>both</em> HP and MEL)</div>
+            </div>
+            <div class="how-card underdog">
+                <div class="how-card-tag">System 2</div>
+                <div class="how-card-name">🛡 Underdog</div>
+                <div class="how-card-desc">Same math as Boss Ready, but only <strong>non-meta species</strong> are eligible. Thresholds are higher because the achievement is bigger.</div>
+                <div class="how-card-formula">Total = <span class="key">base</span> + <span class="key">mutation levels</span></div>
+                <div class="how-card-example">Excluded species (Rex, Giga, Theri, Yuty, etc.) can't earn Underdog — they're already meta.</div>
+            </div>
+            <div class="how-card prize">
+                <div class="how-card-tag">System 3</div>
+                <div class="how-card-name">◈ Prize Bloodline</div>
+                <div class="how-card-desc">Rewards perfect genetics. Looks at <strong>base stats only</strong> across HP, STA, FOOD, WGT, MEL — the lowest one is your tier. Mutations and domestic levels are ignored.</div>
+                <div class="how-card-formula">Score = <span class="key">min</span>(HP, STA, FOOD, WGT, MEL) — base values only</div>
+                <div class="how-card-example">e.g. 45/52/48/40/55 base → score 40 → no badge yet (Bronze needs all 5 at ≥45)</div>
+            </div>
+        </div>
+        <div class="how-foot">
+            <strong>Mutation levels = the total mutation contribution to a stat</strong> (what TekOS shows in your specimen edit screen).
+            Enter them manually from your in-game UI; no multiplier is applied.
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
          SYSTEM TABS
          ═══════════════════════════════════════════════════════ -->
     <div class="sys-tabs">
@@ -334,7 +373,7 @@
         <!-- Standard Tier Ladder -->
         <div class="subsection">
             <div class="subsection-head">
-                <div class="subsection-title">Standard Tier <span class="subsection-desc">— HP ≥ X AND Melee ≥ X (base + mut × 2)</span></div>
+                <div class="subsection-title">Standard Tier <span class="subsection-desc">— HP ≥ X AND Melee ≥ X (base + mutation levels)</span></div>
                 <div class="map-stat"><span class="earned-c">{data.badgeWall.bossReady.length}</span> EARNED</div>
             </div>
             <div class="badge-grid">
@@ -1284,6 +1323,136 @@
     background: linear-gradient(90deg, var(--tek-amber), #ff8a00);
     box-shadow: 0 0 6px rgba(245,158,11,0.5);
 }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   HOW BADGES WORK — explainer card
+   ═════════════════════════════════════════════════════════════════════════ */
+.how-it-works {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
+    border: 1px solid rgba(0,180,255,0.18);
+    clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+    padding: 18px 22px;
+    margin-bottom: 24px;
+    position: relative;
+}
+.how-it-works::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 7px var(--tek-blue-glow);
+}
+.how-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: var(--tek-text-dim);
+}
+.how-pip {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--tek-blue);
+    box-shadow: 0 0 7px var(--tek-blue-glow);
+}
+.how-title {
+    color: var(--tek-text);
+    font-weight: 800;
+    letter-spacing: 0.22em;
+}
+.how-rule { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(0,180,255,0.30), transparent); }
+.how-hint { color: var(--tek-text-faint); font-size: 0.6rem; letter-spacing: 0.14em; }
+
+.how-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+}
+@media (max-width: 900px) { .how-grid { grid-template-columns: 1fr; } }
+
+.how-card {
+    --hc-rgb: 0,180,255;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(var(--hc-rgb), 0.22);
+    padding: 14px 16px;
+    clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+    position: relative;
+}
+.how-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px; bottom: 0;
+    width: 2px;
+    background: rgb(var(--hc-rgb));
+    box-shadow: 0 0 5px rgba(var(--hc-rgb), 0.55);
+}
+.how-card.boss     { --hc-rgb: 239,68,68;   }
+.how-card.underdog { --hc-rgb: 167,139,250; }
+.how-card.prize    { --hc-rgb: 0,180,255;   }
+
+.how-card-tag {
+    font-family: var(--tek-mono);
+    font-size: 0.54rem;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: rgb(var(--hc-rgb));
+    margin-bottom: 6px;
+    font-weight: 700;
+}
+.how-card-name {
+    font-family: var(--tek-display);
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--tek-text);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.how-card-desc {
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: var(--tek-text-dim);
+    margin-bottom: 10px;
+}
+.how-card-desc strong { color: var(--tek-text); font-weight: 600; }
+.how-card-desc em { color: rgb(var(--hc-rgb)); font-style: normal; font-weight: 700; }
+.how-card-formula {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-text);
+    background: rgba(0,0,0,0.40);
+    padding: 6px 9px;
+    margin-bottom: 8px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    border-left: 2px solid rgb(var(--hc-rgb));
+}
+.how-card-formula .key { color: rgb(var(--hc-rgb)); font-weight: 700; }
+.how-card-example {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--tek-text-faint);
+}
+
+.how-foot {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    line-height: 1.55;
+    color: var(--tek-text-dim);
+    padding: 10px 12px;
+    background: rgba(0,180,255,0.05);
+    border-left: 2px solid rgba(0,180,255,0.30);
+    clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+}
+.how-foot strong { color: var(--tek-text); font-weight: 600; }
 
 /* ═════════════════════════════════════════════════════════════════════════
    SYSTEM TABS
