@@ -39,9 +39,11 @@
     /* Sidebar dimensions */
     --sidebar-w:        220px;
 
-    /* Typography — Inter loaded via Google Fonts in index.html */
+    /* Typography — fonts loaded via Google Fonts in src/app.html */
     --tek-font:         'Inter', 'Segoe UI', system-ui, sans-serif;
-    --tek-mono:         'Fira Code', 'Consolas', 'Courier New', monospace;
+    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
+    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --tek-serif:        'Crimson Pro', Georgia, serif;
     --tek-radius:       12px;
     --tek-radius-sm:    8px;
 
@@ -129,30 +131,33 @@ body::before {
     filter: drop-shadow(0 0 8px var(--tek-blue-glow));
 }
 .tek-logo-name {
-    font-size: 1.15rem;
-    font-weight: 700;
-    letter-spacing: 2px;
+    font-family: var(--tek-display);
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
     color: var(--tek-blue);
     text-shadow: 0 0 12px var(--tek-blue-glow);
-    font-family: var(--tek-font);
 }
 .tek-logo-ver {
-    font-size: 0.6rem;
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
     color: var(--tek-text-dim);
-    letter-spacing: 1px;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     display: block;
-    margin-top: 1px;
+    margin-top: 2px;
 }
 
 /* Nav section label */
 .tek-nav-label {
+    font-family: var(--tek-mono);
     padding: 14px 18px 4px;
-    font-size: 0.62rem;
-    letter-spacing: 1.5px;
+    font-size: 0.6rem;
+    letter-spacing: 0.20em;
     text-transform: uppercase;
     color: var(--tek-text-faint);
-    font-weight: 600;
+    font-weight: 700;
 }
 
 /* Nav items */
@@ -170,8 +175,10 @@ body::before {
     transition: all 0.18s ease;
     border: 1px solid transparent;
     text-decoration: none;
-    font-size: 0.88rem;
-    font-weight: 500;
+    font-family: var(--tek-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     position: relative;
     background: none;
     width: calc(100% - 16px);
@@ -1428,10 +1435,7 @@ select.form-control option { background: #0a1228; color: #f1f5f9; }
     --tier-gold-glow:   rgba(255,215,0,0.55);
     --tier-diamond-glow:rgba(0,180,255,0.6);
 
-    /* Typography stack — display + serif fonts loaded in app.html */
-    --tek-display:      'Orbitron', 'Inter', system-ui, sans-serif;
-    --tek-mono:         'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-    --tek-serif:        'Crimson Pro', Georgia, serif;
+    /* Cinzel herald font (only used by Tek-themed boss labels) */
     --tek-herald:       'Cinzel', 'Crimson Pro', Georgia, serif;
 
     /* Common card chamfer corners (clip-paths) */

@@ -188,12 +188,13 @@
 :global(.tek-nav-group-items.alpha    .tek-nav-item.active .nav-icon-wrap) { color:#fca5a5; filter:drop-shadow(0 0 4px rgba(239,68,68,0.5)); }
 :global(.tek-nav-group-items.settings .tek-nav-item.active .nav-icon-wrap) { color:#d8b4fe; filter:drop-shadow(0 0 4px rgba(139,92,246,0.5)); }
 
-:global(.feedback-btn) { display:flex; align-items:center; gap:7px; margin:8px 10px 10px; padding:7px 12px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); color:#fbbf24; font-size:0.72rem; font-weight:600; letter-spacing:0.04em; text-decoration:none; clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%); transition:background 0.2s; }
+:global(.feedback-btn) { display:flex; align-items:center; gap:7px; margin:8px 10px 10px; padding:7px 12px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); color:#fbbf24; font-family:var(--tek-mono); font-size:0.66rem; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; text-decoration:none; clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%); transition:background 0.2s; }
 :global(.feedback-btn:hover) { background:rgba(245,158,11,0.15); }
-:global(.profile-name)     { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+/* Username keeps the body font so long nicknames stay readable */
+:global(.profile-name)     { font-family:var(--tek-font) !important; letter-spacing:0.02em !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 :global(.disconnect-item)  { color:#f87171 !important; }
 :global(.disconnect-item:hover) { background:rgba(239,68,68,0.12) !important; }
-:global(.notif-nav-badge)  { background:#ef4444; color:#fff; border-radius:99px; padding:1px 6px; font-size:0.62rem; font-weight:800; margin-left:auto; flex-shrink:0; }
+:global(.notif-nav-badge)  { background:#ef4444; color:#fff; font-family:var(--tek-mono); border-radius:99px; padding:1px 6px; font-size:0.6rem; font-weight:800; letter-spacing:0.04em; margin-left:auto; flex-shrink:0; }
 
 /* Guard: pages must never lock vertical scroll on body — the layout always allows it. */
 :global(html), :global(body) { overflow-y: auto !important; }
