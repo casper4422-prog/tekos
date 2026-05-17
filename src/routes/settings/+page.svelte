@@ -479,10 +479,18 @@
     // ═══════════════════════════════════════════════════════════════════════
     // INTEGRATIONS
     // ═══════════════════════════════════════════════════════════════════════
+    type DiscordEvents = { tribeAnnounce?: boolean; warRoom?: boolean; badge?: boolean; trade?: boolean };
     const initialIntegrations = (SERVER_SETTINGS.integrations ?? {}) as {
-        discordWebhook?: string; twitchKey?: string; youtubeChannel?: string;
+        discordWebhook?: string; discordEvents?: DiscordEvents;
+        twitchKey?: string; youtubeChannel?: string;
     };
     let discordWebhook = $state(initialIntegrations.discordWebhook ?? '');
+    let discordEvents = $state<DiscordEvents>({
+        tribeAnnounce: initialIntegrations.discordEvents?.tribeAnnounce !== false,
+        warRoom:       initialIntegrations.discordEvents?.warRoom !== false,
+        badge:         initialIntegrations.discordEvents?.badge !== false,
+        trade:         initialIntegrations.discordEvents?.trade !== false
+    });
     let twitchKey      = $state(initialIntegrations.twitchKey ?? '');
     let youtubeChannel = $state(initialIntegrations.youtubeChannel ?? '');
     let intSaving = $state(false);
@@ -514,6 +522,7 @@
             body: JSON.stringify({
                 integrations: {
                     discordWebhook: discordWebhook.trim(),
+                    discordEvents: { ...discordEvents },
                     twitchKey: twitchKey.trim(),
                     youtubeChannel: youtubeChannel.trim()
                 }
@@ -793,6 +802,14 @@
                         discordWebhook = body.integrations.discordWebhook ?? '';
                         twitchKey      = body.integrations.twitchKey ?? '';
                         youtubeChannel = body.integrations.youtubeChannel ?? '';
+                        if (body.integrations.discordEvents) {
+                            discordEvents = {
+                                tribeAnnounce: body.integrations.discordEvents.tribeAnnounce !== false,
+                                warRoom:       body.integrations.discordEvents.warRoom !== false,
+                                badge:         body.integrations.discordEvents.badge !== false,
+                                trade:         body.integrations.discordEvents.trade !== false
+                            };
+                        }
                     }
                 }
             } catch {}
@@ -1424,21 +1441,20 @@
             <div class="panel-section" class:active={activeSection === 'integrations'} id="section-integrations">
                 <div class="section-header">
                     <div class="section-title">Integrations</div>
-                    <div class="section-desc">Connect TekOS to the rest of your survivor toolkit</div>
+                    <div class="section-desc">Send TekOS events outward and pull external content into your Feed</div>
                 </div>
 
+                <!-- Discord webhook -->
                 <div class="group">
-                    <div class="group-label">Outbound webhooks</div>
-
-                    <!-- Discord webhook card -->
+                    <div class="group-label">Discord — outbound webhook</div>
                     <div class="action-card" style="flex-direction:column; align-items:stretch; gap:12px;">
                         <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start;">
                             <div class="action-info">
                                 <div class="action-title">
-                                    Discord webhook
+                                    Webhook URL
                                     {#if discordWebhook}<span class="chip blue">CONNECTED</span>{:else}<span class="chip">NOT LINKED</span>{/if}
                                 </div>
-                                <div class="action-desc">Tribe boss timers, war room alerts, and trade requests post to your Discord channel. Paste the webhook URL from your tribe channel's Integrations settings.</div>
+                                <div class="action-desc">Paste the webhook URL from any Discord channel's Integrations settings. Selected TekOS events will get posted there.</div>
                             </div>
                         </div>
                         <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -1448,44 +1464,113 @@
                         {#if webhookTestMsg}
                             <div style="font-family:var(--tek-mono); font-size:0.74rem; color:var(--tek-text-dim);">{webhookTestMsg}</div>
                         {/if}
-                    </div>
 
-                    <!-- Twitch -->
+                        {#if discordWebhook}
+                            <div class="discord-events">
+                                <div class="discord-events-label">Forward these events to Discord:</div>
+                                <label class="discord-event-row">
+                                    <div class="toggle" class:on={discordEvents.tribeAnnounce}
+                                         onclick={() => { discordEvents.tribeAnnounce = !discordEvents.tribeAnnounce; markDirty(); }}></div>
+                                    <div>
+                                        <div class="row-label">Tribe announcements</div>
+                                        <div class="row-hint">Wired — posts immediately when an admin sends an announcement.</div>
+                                    </div>
+                                </label>
+                                <label class="discord-event-row">
+                                    <div class="toggle muted" class:on={discordEvents.warRoom}
+                                         onclick={() => { discordEvents.warRoom = !discordEvents.warRoom; markDirty(); }}></div>
+                                    <div>
+                                        <div class="row-label">War-room schedule <span class="chip">Coming soon</span></div>
+                                        <div class="row-hint">When wired, posts a heads-up when a tribe schedules a boss run.</div>
+                                    </div>
+                                </label>
+                                <label class="discord-event-row">
+                                    <div class="toggle muted" class:on={discordEvents.badge}
+                                         onclick={() => { discordEvents.badge = !discordEvents.badge; markDirty(); }}></div>
+                                    <div>
+                                        <div class="row-label">Badge milestones <span class="chip">Coming soon</span></div>
+                                        <div class="row-hint">When wired, posts when you earn a Bloodline, Boss Ready, or Underdog badge.</div>
+                                    </div>
+                                </label>
+                                <label class="discord-event-row">
+                                    <div class="toggle muted" class:on={discordEvents.trade}
+                                         onclick={() => { discordEvents.trade = !discordEvents.trade; markDirty(); }}></div>
+                                    <div>
+                                        <div class="row-label">Trade offers received <span class="chip">Coming soon</span></div>
+                                        <div class="row-hint">When wired, posts when someone offers on one of your Marketplace listings.</div>
+                                    </div>
+                                </label>
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+
+                <!-- Dossier links -->
+                <div class="group">
+                    <div class="group-label">Dossier links — show your channels</div>
+
                     <div class="action-card" style="flex-direction:column; align-items:stretch; gap:12px;">
                         <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start;">
                             <div class="action-info">
                                 <div class="action-title">
-                                    Twitch alerts
-                                    {#if twitchKey}<span class="chip purple">CONNECTED</span>{:else}<span class="chip">NOT LINKED</span>{/if}
+                                    Twitch channel
+                                    {#if twitchKey}<span class="chip purple">SAVED</span>{:else}<span class="chip">NOT SET</span>{/if}
                                 </div>
-                                <div class="action-desc">Link your Twitch username or stream key to display a live indicator on your Dossier and unlock the Creator badge.</div>
+                                <div class="action-desc">Stored as a display field. Will surface as a link on your Dossier once that section ships. No live-status polling and no auto-badge today.</div>
                             </div>
                         </div>
-                        <input class="input wide" bind:value={twitchKey} oninput={markDirty} placeholder="twitch username or stream key" style="min-width:260px;" />
+                        <input class="input wide" bind:value={twitchKey} oninput={markDirty} placeholder="twitch.tv/yourchannel" style="min-width:260px;" />
                     </div>
 
-                    <!-- YouTube -->
                     <div class="action-card" style="flex-direction:column; align-items:stretch; gap:12px;">
                         <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start;">
                             <div class="action-info">
                                 <div class="action-title">
                                     YouTube channel
-                                    {#if youtubeChannel}<span class="chip green">CONNECTED</span>{:else}<span class="chip">NOT LINKED</span>{/if}
+                                    {#if youtubeChannel}<span class="chip green">SAVED</span>{:else}<span class="chip">NOT SET</span>{/if}
                                 </div>
-                                <div class="action-desc">Pin your latest video to your Dossier and let new uploads broadcast to the Global feed when your followers are signed in.</div>
+                                <div class="action-desc">
+                                    Stored as a display field for your Dossier.
+                                    <strong style="color:var(--tek-text)">To pull videos into your Feed, add the channel under <em>Feed → News → Your Sources</em></strong> — that's a separate per-source list, not this field.
+                                </div>
                             </div>
                         </div>
                         <input class="input wide" bind:value={youtubeChannel} oninput={markDirty} placeholder="@channelhandle or channel ID" style="min-width:260px;" />
                     </div>
                 </div>
 
+                <!-- Roadmap: Discord bot -->
+                <div class="group">
+                    <div class="group-label">Discord bot <span class="chip">Roadmap</span></div>
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:6px;">
+                        <div class="action-info">
+                            <div class="action-title">Connect a Discord bot to your tribe channel</div>
+                            <div class="action-desc">
+                                Future feature. Today, outbound posting uses the webhook URL above (one-way). The bot would unlock the inbound direction: tribe chat from Discord mirrored into your TekOS feed, slash commands to log specimens or trades from inside Discord, and per-event subscriptions per channel. Wiring this means standing up a bot worker, OAuth, and per-guild config — bigger than a Settings checkbox.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API access -->
                 <div class="group">
                     <div class="group-label">API access <span class="chip amber">POWER USER</span></div>
-                    <div style="font-size: 0.8rem; color: var(--tek-text-dim); line-height: 1.5; margin-bottom: 10px;">
-                        Build your own tools against your TekOS data. Tokens grant read access to your Vault, Dossier, and tribe — never to other Survivors.
-                    </div>
-                    <div class="placeholder-note" style="font-size:0.74rem;">
-                        ⚠ Personal access tokens and developer docs are coming in a follow-up build.
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:6px;">
+                        <div class="action-info">
+                            <div class="action-title">What this is</div>
+                            <div class="action-desc">
+                                Personal Access Tokens you can use to call TekOS endpoints from your own scripts, bots, or external dashboards. The token is scoped to <strong style="color:var(--tek-text)">your own data only</strong> — never another survivor's. Useful for: bulk-importing creatures from a spreadsheet, syncing your Vault with an external tracker, building a custom Dossier widget, or wiring a Discord/Twitch bot to your TekOS account.
+                            </div>
+                        </div>
+                        <div class="action-info" style="margin-top:6px;">
+                            <div class="action-title">What you'll be able to do at launch</div>
+                            <div class="action-desc">
+                                Read your Vault · Read your tribe membership and announcements · Post a new creature · Update an existing creature · Read your badges · Read your Marketplace listings and offers. Write access is rate-limited and scoped per token.
+                            </div>
+                        </div>
+                        <div class="placeholder-note" style="font-size:0.74rem; margin-top:8px;">
+                            ⚠ Token generation, scopes, and developer docs ship in a follow-up build. No public endpoint exists today.
+                        </div>
                     </div>
                 </div>
 
@@ -2754,5 +2839,37 @@
     border-top: 1px solid rgba(255,255,255,0.05);
     padding-top: 8px;
     margin-top: 8px !important;
+}
+
+/* Discord per-event toggles */
+.discord-events {
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.discord-events-label {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--tek-text-faint);
+}
+.discord-event-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+    cursor: pointer;
+}
+.discord-event-row .toggle.muted {
+    opacity: 0.4;
+    pointer-events: none;
+}
+.discord-event-row .row-label .chip {
+    margin-left: 6px;
+    font-size: 0.52rem;
 }
 </style>
