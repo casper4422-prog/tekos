@@ -27,6 +27,154 @@
     let profMsg     = $state('');
     let profErr     = $state(false);
 
+    // Change Email modal
+    let emailOpen     = $state(false);
+    let emailNew      = $state('');
+    let emailPassword = $state('');
+    let emailSaving   = $state(false);
+    let emailMsg      = $state('');
+    let emailErr      = $state(false);
+    function openChangeEmail() {
+        emailOpen = true;
+        emailNew = ''; emailPassword = '';
+        emailMsg = ''; emailErr = false;
+    }
+    async function submitChangeEmail() {
+        emailMsg = ''; emailErr = false;
+        if (!emailNew.trim()) { emailMsg = 'New email is required'; emailErr = true; return; }
+        if (!emailPassword) { emailMsg = 'Confirm your current password'; emailErr = true; return; }
+        emailSaving = true;
+        try {
+            const res = await fetch('/api/account/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword: emailPassword, newEmail: emailNew.trim() })
+            });
+            if (res.ok) {
+                emailMsg = '✓ Email updated';
+                setTimeout(() => { emailOpen = false; location.reload(); }, 1200);
+            } else {
+                const body = await res.json().catch(() => ({}));
+                emailMsg = body.error ?? 'Failed to change email';
+                emailErr = true;
+            }
+        } catch {
+            emailMsg = 'Network error'; emailErr = true;
+        }
+        emailSaving = false;
+    }
+
+    // Discord unlink
+    async function unlinkDiscord() {
+        if (!confirm('Unlink your Discord account from TekOS?')) return;
+        const res = await fetch('/api/account/discord', { method: 'DELETE' });
+        if (res.ok) location.reload();
+        else {
+            const body = await res.json().catch(() => ({}));
+            alert(body.error ?? 'Failed to unlink Discord');
+        }
+    }
+
+    // Typed-confirm dialog for destructive actions (Clear Vault / Leave All Tribes / Delete Account)
+    type ConfirmKind = 'clear-vault' | 'leave-tribes' | 'delete-account';
+    let confirmOpen     = $state<ConfirmKind | null>(null);
+    let confirmTyped    = $state('');
+    let confirmPassword = $state('');
+    let confirmSaving   = $state(false);
+    let confirmMsg      = $state('');
+    let confirmErr      = $state(false);
+
+    const CONFIRM_COPY: Record<ConfirmKind, { title: string; phrase: string; description: string; danger: string; actionLabel: string; needsPassword: boolean }> = {
+        'clear-vault': {
+            title: 'Clear Vault',
+            phrase: 'WIPE',
+            description: 'This will permanently delete every creature in your Vault. Pinned projects, breeding history, and lineage links are all destroyed.',
+            danger: 'This cannot be undone.',
+            actionLabel: 'Wipe my Vault',
+            needsPassword: false
+        },
+        'leave-tribes': {
+            title: 'Leave All Tribes',
+            phrase: 'LEAVE',
+            description: 'This removes you from every tribe you are a member of. Tribes you OWN are kept intact — you would need to transfer or delete those separately.',
+            danger: 'You will need a new invite to rejoin.',
+            actionLabel: 'Leave all tribes',
+            needsPassword: false
+        },
+        'delete-account': {
+            title: 'Delete Account',
+            phrase: (data.profile?.nickname ?? data.profile?.email ?? '').toString(),
+            description: 'This permanently deletes your account: profile, specimens, badges, trades, messages, friendships, and notifications. Cascades through every system.',
+            danger: 'Everything is gone. No recovery.',
+            actionLabel: 'Delete my account forever',
+            needsPassword: true
+        }
+    };
+
+    function openConfirm(kind: ConfirmKind) {
+        confirmOpen = kind;
+        confirmTyped = ''; confirmPassword = '';
+        confirmMsg = ''; confirmErr = false;
+    }
+    async function submitConfirm() {
+        if (!confirmOpen) return;
+        const cfg = CONFIRM_COPY[confirmOpen];
+        confirmMsg = ''; confirmErr = false;
+        if (confirmTyped.trim().toLowerCase() !== cfg.phrase.toLowerCase()) {
+            confirmMsg = `Type "${cfg.phrase}" exactly to confirm`;
+            confirmErr = true;
+            return;
+        }
+        if (cfg.needsPassword && !confirmPassword) {
+            confirmMsg = 'Enter your current password';
+            confirmErr = true;
+            return;
+        }
+        confirmSaving = true;
+        try {
+            if (confirmOpen === 'clear-vault') {
+                const res = await fetch('/api/creatures/all', { method: 'DELETE' });
+                if (res.ok) {
+                    const b = await res.json().catch(() => ({}));
+                    confirmOpen = null;
+                    dangerMsg = `✓ Vault cleared — ${b.deleted ?? 0} specimens removed.`;
+                    dangerErr = false;
+                    setTimeout(() => dangerMsg = '', 4000);
+                } else {
+                    confirmMsg = 'Failed to clear Vault'; confirmErr = true;
+                }
+            } else if (confirmOpen === 'leave-tribes') {
+                const res = await fetch('/api/tribes/leave-all', { method: 'POST' });
+                if (res.ok) {
+                    const b = await res.json().catch(() => ({}));
+                    confirmOpen = null;
+                    dangerMsg = `✓ Left ${b.left ?? 0} tribes.`;
+                    dangerErr = false;
+                    setTimeout(() => dangerMsg = '', 4000);
+                } else {
+                    confirmMsg = 'Failed to leave tribes'; confirmErr = true;
+                }
+            } else if (confirmOpen === 'delete-account') {
+                const res = await fetch('/api/account', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ currentPassword: confirmPassword, confirmText: confirmTyped.trim() })
+                });
+                if (res.ok) {
+                    confirmOpen = null;
+                    window.location.href = '/login';
+                } else {
+                    const body = await res.json().catch(() => ({}));
+                    confirmMsg = body.error ?? 'Failed to delete account';
+                    confirmErr = true;
+                }
+            }
+        } catch {
+            confirmMsg = 'Network error'; confirmErr = true;
+        }
+        confirmSaving = false;
+    }
+
     // Change Password modal
     let pwdOpen    = $state(false);
     let pwdCurrent = $state('');
@@ -388,32 +536,7 @@
     // ═══════════════════════════════════════════════════════════════════════
     let dangerMsg = $state('');
     let dangerErr = $state(false);
-    async function clearVault() {
-        if (!confirm('This will permanently delete every creature in your Vault. Continue?')) return;
-        dangerMsg = 'Wiping Vault…';
-        const res = await fetch('/api/creatures/all', { method: 'DELETE' });
-        if (res.ok) {
-            const b = await res.json().catch(() => ({}));
-            dangerMsg = `✓ Vault cleared — ${b.deleted ?? 0} specimens removed.`;
-            dangerErr = false;
-        } else {
-            dangerMsg = 'Failed to clear Vault.'; dangerErr = true;
-        }
-        setTimeout(() => dangerMsg = '', 4000);
-    }
-    async function leaveAllTribes() {
-        if (!confirm('This will remove you from every tribe you are a member of. Owned tribes remain. Continue?')) return;
-        dangerMsg = 'Leaving tribes…';
-        const res = await fetch('/api/tribes/leave-all', { method: 'POST' });
-        if (res.ok) {
-            const b = await res.json().catch(() => ({}));
-            dangerMsg = `✓ Left ${b.left ?? 0} tribes.`;
-            dangerErr = false;
-        } else {
-            dangerMsg = 'Failed to leave tribes.'; dangerErr = true;
-        }
-        setTimeout(() => dangerMsg = '', 4000);
-    }
+    // Old direct handlers replaced by openConfirm() typed-confirm flow above.
 
     // ═══════════════════════════════════════════════════════════════════════
     // Global save bar — routes to the current section's save handler
@@ -797,7 +920,7 @@
                         </div>
                         {#if data.profile?.discordName}
                             <div class="linked-status"><span class="dot"></span>LINKED</div>
-                            <button class="btn ghost">Unlink</button>
+                            <button class="btn ghost" onclick={unlinkDiscord}>Unlink</button>
                         {:else}
                             <a class="btn" href="/api/auth/discord/start">LINK DISCORD</a>
                         {/if}
@@ -809,7 +932,7 @@
                             <div class="linked-handle">{data.profile?.email ?? ''}</div>
                         </div>
                         <div class="linked-status"><span class="dot"></span>VERIFIED</div>
-                        <button class="btn ghost">Change</button>
+                        <button class="btn ghost" onclick={openChangeEmail}>Change</button>
                     </div>
                 </div>
 
@@ -1220,9 +1343,9 @@
                         These actions cannot be undone. We strongly recommend exporting your archive first.
                     </div>
                     <div class="danger-actions">
-                        <button class="btn danger" onclick={clearVault}>CLEAR VAULT</button>
-                        <button class="btn danger" onclick={leaveAllTribes}>LEAVE ALL TRIBES</button>
-                        <button class="btn danger" disabled>DELETE ACCOUNT</button>
+                        <button class="btn danger" onclick={() => openConfirm('clear-vault')}>CLEAR VAULT</button>
+                        <button class="btn danger" onclick={() => openConfirm('leave-tribes')}>LEAVE ALL TRIBES</button>
+                        <button class="btn danger" onclick={() => openConfirm('delete-account')}>DELETE ACCOUNT</button>
                     </div>
                     {#if dangerMsg}
                         <div class="result-msg" class:error={dangerErr} style="margin-top:12px;">{dangerMsg}</div>
@@ -1357,6 +1480,68 @@
         </div>
     </div>
 </div>
+{/if}
+
+<!-- Change Email modal -->
+{#if emailOpen}
+<div class="pwd-modal-overlay" role="dialog" aria-modal="true" onclick={() => emailOpen=false}>
+    <div class="pwd-modal" onclick={(e) => e.stopPropagation()} role="document">
+        <div class="pwd-modal-head">
+            <div class="pwd-modal-title">Change Email</div>
+            <button class="pwd-modal-close" onclick={() => emailOpen=false}>×</button>
+        </div>
+        <div class="pwd-modal-body">
+            <label class="pwd-label" for="em-new">New email</label>
+            <input id="em-new" type="email" class="pwd-input" autocomplete="email" bind:value={emailNew} placeholder="new.address@example.com" />
+
+            <label class="pwd-label" for="em-pw">Current password</label>
+            <input id="em-pw" type="password" class="pwd-input" autocomplete="current-password" bind:value={emailPassword} onkeydown={(e) => { if (e.key === 'Enter') submitChangeEmail(); }} />
+
+            {#if emailMsg}
+                <div class="pwd-msg" class:err={emailErr}>{emailMsg}</div>
+            {/if}
+        </div>
+        <div class="pwd-modal-foot">
+            <button class="btn ghost" onclick={() => emailOpen=false}>Cancel</button>
+            <button class="btn solid" onclick={submitChangeEmail} disabled={emailSaving}>{emailSaving ? 'Saving…' : 'Update Email'}</button>
+        </div>
+    </div>
+</div>
+{/if}
+
+<!-- Danger confirm modal (Clear Vault / Leave Tribes / Delete Account) -->
+{#if confirmOpen}
+    {@const cfg = CONFIRM_COPY[confirmOpen]}
+    <div class="pwd-modal-overlay" role="dialog" aria-modal="true" onclick={() => confirmOpen=null}>
+        <div class="pwd-modal danger" onclick={(e) => e.stopPropagation()} role="document">
+            <div class="pwd-modal-head danger">
+                <div class="pwd-modal-title">⚠ {cfg.title}</div>
+                <button class="pwd-modal-close" onclick={() => confirmOpen=null}>×</button>
+            </div>
+            <div class="pwd-modal-body">
+                <p class="confirm-desc">{cfg.description}</p>
+                <p class="confirm-danger">{cfg.danger}</p>
+
+                <label class="pwd-label" for="cf-typed">
+                    To confirm, type <strong class="confirm-phrase">{cfg.phrase}</strong>
+                </label>
+                <input id="cf-typed" type="text" class="pwd-input" autocomplete="off" autocapitalize="off" autocorrect="off" bind:value={confirmTyped} placeholder={cfg.phrase} />
+
+                {#if cfg.needsPassword}
+                    <label class="pwd-label" for="cf-pw">Current password</label>
+                    <input id="cf-pw" type="password" class="pwd-input" autocomplete="current-password" bind:value={confirmPassword} onkeydown={(e) => { if (e.key === 'Enter') submitConfirm(); }} />
+                {/if}
+
+                {#if confirmMsg}
+                    <div class="pwd-msg" class:err={confirmErr}>{confirmMsg}</div>
+                {/if}
+            </div>
+            <div class="pwd-modal-foot">
+                <button class="btn ghost" onclick={() => confirmOpen=null}>Cancel</button>
+                <button class="btn danger" onclick={submitConfirm} disabled={confirmSaving}>{confirmSaving ? 'Working…' : cfg.actionLabel}</button>
+            </div>
+        </div>
+    </div>
 {/if}
 
 <style>
@@ -2405,5 +2590,41 @@
     display: flex; justify-content: flex-end; gap: 8px;
     padding: 12px 18px 16px;
     border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Danger modal variant */
+.pwd-modal.danger {
+    border-color: rgba(239,68,68,0.50);
+    filter: drop-shadow(0 0 1px rgba(239,68,68,0.45)) drop-shadow(0 16px 50px rgba(0,0,0,0.65));
+}
+.pwd-modal-head.danger {
+    border-bottom-color: rgba(239,68,68,0.20);
+}
+.pwd-modal.danger .pwd-modal-title { color: #fca5a5; }
+.confirm-desc {
+    font-family: var(--tek-mono);
+    font-size: 0.78rem;
+    line-height: 1.55;
+    color: var(--tek-text-dim);
+    margin: 0 0 8px;
+}
+.confirm-danger {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: #fca5a5;
+    background: rgba(239,68,68,0.10);
+    border-left: 2px solid rgba(239,68,68,0.50);
+    padding: 8px 11px;
+    margin: 0 0 14px;
+    clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+}
+.confirm-phrase {
+    font-family: var(--tek-display);
+    color: #fca5a5;
+    background: rgba(239,68,68,0.18);
+    padding: 1px 7px;
+    letter-spacing: 0.10em;
+    margin: 0 2px;
 }
 </style>
