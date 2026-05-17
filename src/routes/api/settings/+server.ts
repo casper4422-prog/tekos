@@ -25,7 +25,6 @@ function redactRconPassword(settings: Record<string, unknown>): Record<string, u
 
 const ALLOWED_KEYS = new Set([
 	'mapPalette',
-	'voiceId',
 	'theme',
 	'privacy',
 	'notifications',
@@ -49,9 +48,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 	if (merged.mapPalette == null && !Array.isArray(legacy) && (legacy as any).mapPalette) {
 		merged.mapPalette = (legacy as any).mapPalette;
-	}
-	if (merged.voiceId == null && !Array.isArray(legacy) && (legacy as any).voiceId) {
-		merged.voiceId = (legacy as any).voiceId;
 	}
 	return json(redactRconPassword(merged));
 };

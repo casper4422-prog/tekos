@@ -27,6 +27,48 @@
     let profMsg     = $state('');
     let profErr     = $state(false);
 
+    // Change Password modal
+    let pwdOpen    = $state(false);
+    let pwdCurrent = $state('');
+    let pwdNew     = $state('');
+    let pwdConfirm = $state('');
+    let pwdSaving  = $state(false);
+    let pwdMsg     = $state('');
+    let pwdErr     = $state(false);
+
+    function openChangePassword() {
+        pwdOpen = true;
+        pwdCurrent = ''; pwdNew = ''; pwdConfirm = '';
+        pwdMsg = ''; pwdErr = false;
+    }
+    async function submitChangePassword() {
+        pwdMsg = ''; pwdErr = false;
+        if (!pwdCurrent) { pwdMsg = 'Enter your current password'; pwdErr = true; return; }
+        if (pwdNew.length < 8) { pwdMsg = 'New password must be at least 8 characters'; pwdErr = true; return; }
+        if (pwdNew !== pwdConfirm) { pwdMsg = 'New password and confirmation do not match'; pwdErr = true; return; }
+        pwdSaving = true;
+        try {
+            const res = await fetch('/api/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPassword: pwdCurrent, newPassword: pwdNew })
+            });
+            if (res.ok) {
+                pwdMsg = '✓ Password updated';
+                pwdErr = false;
+                setTimeout(() => { pwdOpen = false; pwdMsg = ''; }, 1200);
+            } else {
+                const body = await res.json().catch(() => ({}));
+                pwdMsg = body.error ?? 'Failed to change password';
+                pwdErr = true;
+            }
+        } catch {
+            pwdMsg = 'Network error';
+            pwdErr = true;
+        }
+        pwdSaving = false;
+    }
+
     // Avatar / banner uploaders (URL-paste stubs; backend accepts { url })
     let avatarFileInput: HTMLInputElement;
     let bannerFileInput: HTMLInputElement;
@@ -406,9 +448,6 @@
         primary: string; accent: string; bg: string;
         prvBg: string; prvLine: string; prvGlow1: string; prvGlow2: string;
         sw1: string; sw2: string; sw3: string;
-        locked?: boolean;
-        unlockReq?: string;
-        unlockPct?: number;
     };
     const PALETTES: MapPalette[] = [
         { id: 'island',     name: 'The Island',     tag: 'CYAN · DEFAULT',
@@ -440,27 +479,22 @@
           primary: '#60a5fa', accent: '#fcd34d', bg: '#040818',
           prvBg: '#040818', prvLine: 'rgba(96,165,250,0.20)',
           prvGlow1: 'rgba(96,165,250,0.45)', prvGlow2: 'rgba(252,211,77,0.30)',
-          sw1: '#60a5fa', sw2: '#fcd34d', sw3: '#08142d' }
-    ];
-    const LOCKED_PALETTES: MapPalette[] = [
-        { id: 'alpha', name: 'Alpha Survivor', tag: 'REWARD · GOLD',
+          sw1: '#60a5fa', sw2: '#fcd34d', sw3: '#08142d' },
+        { id: 'alpha', name: 'Alpha Survivor', tag: 'GOLD',
           primary: '#fcd34d', accent: '#ffffff', bg: '#0c0a02',
           prvBg: '#0c0a02', prvLine: 'rgba(250,204,21,0.20)',
           prvGlow1: 'rgba(250,204,21,0.45)', prvGlow2: 'rgba(255,255,255,0.20)',
-          sw1: '#fcd34d', sw2: '#ffffff', sw3: '#1a1408',
-          locked: true, unlockReq: 'Defeat every Alpha boss across all maps · 6 / 11', unlockPct: 54 },
-        { id: 'tek-proto', name: 'Tek Prototype', tag: 'REWARD · BLUEPRINT',
+          sw1: '#fcd34d', sw2: '#ffffff', sw3: '#1a1408' },
+        { id: 'tek-proto', name: 'Tek Prototype', tag: 'BLUEPRINT',
           primary: '#2dd4bf', accent: '#a5f3fc', bg: '#020c0c',
           prvBg: '#020c0c', prvLine: 'rgba(45,212,191,0.25)',
           prvGlow1: 'rgba(45,212,191,0.50)', prvGlow2: 'rgba(165,243,252,0.30)',
-          sw1: '#2dd4bf', sw2: '#a5f3fc', sw3: '#021818',
-          locked: true, unlockReq: 'Collect 25 Prize Bloodline badges · 8 / 25', unlockPct: 32 },
-        { id: 'corrupted', name: 'Element Corrupted', tag: 'REWARD · CORRUPTION',
+          sw1: '#2dd4bf', sw2: '#a5f3fc', sw3: '#021818' },
+        { id: 'corrupted', name: 'Element Corrupted', tag: 'CORRUPTION',
           primary: '#d946ef', accent: '#f472b6', bg: '#100214',
           prvBg: '#100214', prvLine: 'rgba(217,70,239,0.25)',
           prvGlow1: 'rgba(217,70,239,0.50)', prvGlow2: 'rgba(244,114,182,0.30)',
-          sw1: '#d946ef', sw2: '#f472b6', sw3: '#200628',
-          locked: true, unlockReq: 'Earn the Underdog badge on any Alpha boss · 0 / 1', unlockPct: 0 }
+          sw1: '#d946ef', sw2: '#f472b6', sw3: '#200628' }
     ];
 
     let activePaletteId = $state('island');
@@ -481,7 +515,6 @@
         root.style.setProperty('--tek-bg',     p.bg);
     }
     async function selectPalette(p: MapPalette) {
-        if (p.locked) return;
         activePaletteId = p.id;
         applyThemeToDom(p);
         themeMsg = ''; themeErr = false;
@@ -499,34 +532,6 @@
         } catch {
             themeMsg = 'Network error'; themeErr = true;
         }
-    }
-
-    // AI Companion voice
-    type Voice = { id: string; name: string; sample: string; meta: string };
-    const VOICES: Voice[] = [
-        { id: 'stoic', name: 'Stoic Tek',
-          sample: '"Implant link established. 47 specimens catalogued. No anomalies detected."',
-          meta: 'FORMAL · MINIMAL' },
-        { id: 'wry', name: 'Wry Survivor',
-          sample: '"Welcome back. Your Yutyrannus still hasn\'t slept. Neither have you."',
-          meta: 'FRIENDLY · DRY' },
-        { id: 'lore', name: 'Lore-Keeper',
-          sample: '"The Obelisk hums. Bloodlines stir. Long is the road of the Survivor."',
-          meta: 'FLOWERY · LORE-HEAVY' },
-        { id: 'mute', name: 'Mute',
-          sample: '— No flavor text. Just the data.',
-          meta: 'SILENT · DATA-ONLY' }
-    ];
-    let activeVoiceId = $state('wry');
-
-    async function selectVoice(v: Voice) {
-        activeVoiceId = v.id;
-        try {
-            await fetch('/api/settings', {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ voiceId: v.id })
-            });
-        } catch {}
     }
 
     // ── Hex canvas ──────────────────────────────────────────────────────────
@@ -595,7 +600,6 @@
                         const matched = PALETTES.find(p => p.primary.toLowerCase() === body.theme.primary.toLowerCase());
                         if (matched) activePaletteId = matched.id;
                     }
-                    if (body.voiceId) activeVoiceId = body.voiceId;
                     if (body.privacy && typeof body.privacy === 'object') {
                         privacy = { ...PRIVACY_DEFAULTS, ...body.privacy };
                     }
@@ -784,13 +788,6 @@
                 </div>
 
                 <div class="group">
-                    <div class="group-label">Active sessions</div>
-                    <div class="placeholder-note" style="font-size:0.74rem;">
-                        ⚠ Active session tracking coming soon. We'll show every device signed in to your TekOS instance here and let you revoke them.
-                    </div>
-                </div>
-
-                <div class="group">
                     <div class="group-label">Linked accounts</div>
                     <div class="linked-row">
                         <div class="linked-icon discord">D</div>
@@ -823,14 +820,7 @@
                             <div class="row-label">Password</div>
                             <div class="row-hint">Change your sign-in passcode.</div>
                         </div>
-                        <button class="btn">CHANGE PASSWORD</button>
-                    </div>
-                    <div class="row">
-                        <div class="row-info">
-                            <div class="row-label">Two-factor authentication</div>
-                            <div class="row-hint">Require a code from your authenticator app on sign-in.</div>
-                        </div>
-                        <div class="toggle" data-toggle></div>
+                        <button class="btn" onclick={openChangePassword}>CHANGE PASSWORD</button>
                     </div>
                 </div>
             </div>
@@ -1067,7 +1057,7 @@
                 </div>
 
                 <div class="group">
-                    <div class="group-label">Map palettes <span style="color: var(--tek-text-dim); text-transform: none; letter-spacing: 0.05em;">— 6 available · 3 locked</span></div>
+                    <div class="group-label">Map palettes <span style="color: var(--tek-text-dim); text-transform: none; letter-spacing: 0.05em;">— Pick your map's aesthetic. Affects accents site-wide.</span></div>
                     <div class="themes-grid">
                         {#each PALETTES as p}
                             <div class="theme-card"
@@ -1088,46 +1078,12 @@
                             </div>
                         {/each}
 
-                        {#each LOCKED_PALETTES as p}
-                            <div class="theme-card locked"
-                                 style:--prv-bg={p.prvBg}
-                                 style:--prv-line={p.prvLine}
-                                 style:--prv-glow1={p.prvGlow1}
-                                 style:--prv-glow2={p.prvGlow2}>
-                                <div class="lock-overlay">🔒 LOCKED</div>
-                                <div class="theme-preview"></div>
-                                <div class="theme-name">{p.name}</div>
-                                <div class="theme-tag">{p.tag}</div>
-                                <div class="theme-swatches">
-                                    <div class="swatch" style:background={p.sw1}></div>
-                                    <div class="swatch" style:background={p.sw2}></div>
-                                    <div class="swatch" style:background={p.sw3}></div>
-                                </div>
-                                <div class="unlock-req">{p.unlockReq}</div>
-                                <div class="unlock-progress"><div class="unlock-progress-bar" style:width="{p.unlockPct}%"></div></div>
-                            </div>
-                        {/each}
                     </div>
                     {#if themeMsg}
                         <div class="result-msg" class:error={themeErr} style="margin-top: 10px;">{themeMsg}</div>
                     {/if}
                 </div>
 
-                <div class="group">
-                    <div class="group-label">AI Companion voice</div>
-                    <div style="font-size: 0.8rem; color: var(--tek-text-dim); line-height: 1.5; margin-bottom: 6px;">
-                        Sets the tone of boot messages, the Landing greeting, and flavor text throughout TekOS. The information is the same — only the voice changes.
-                    </div>
-                    <div class="voice-grid">
-                        {#each VOICES as v}
-                            <div class="voice-card" class:active={activeVoiceId === v.id} onclick={() => selectVoice(v)}>
-                                <div class="voice-name">{v.name}</div>
-                                <div class="voice-sample">{v.sample}</div>
-                                <div class="voice-meta">{v.meta}</div>
-                            </div>
-                        {/each}
-                    </div>
-                </div>
             </div>
 
             <!-- ============ CLUSTER ============ -->
@@ -1372,6 +1328,36 @@
     </div>
 
 </div>
+
+<!-- Change Password modal -->
+{#if pwdOpen}
+<div class="pwd-modal-overlay" role="dialog" aria-modal="true" onclick={() => pwdOpen=false}>
+    <div class="pwd-modal" onclick={(e) => e.stopPropagation()} role="document">
+        <div class="pwd-modal-head">
+            <div class="pwd-modal-title">Change Password</div>
+            <button class="pwd-modal-close" onclick={() => pwdOpen=false}>×</button>
+        </div>
+        <div class="pwd-modal-body">
+            <label class="pwd-label" for="pwd-cur">Current password</label>
+            <input id="pwd-cur" type="password" class="pwd-input" autocomplete="current-password" bind:value={pwdCurrent} />
+
+            <label class="pwd-label" for="pwd-new">New password</label>
+            <input id="pwd-new" type="password" class="pwd-input" autocomplete="new-password" bind:value={pwdNew} placeholder="At least 8 characters" />
+
+            <label class="pwd-label" for="pwd-conf">Confirm new password</label>
+            <input id="pwd-conf" type="password" class="pwd-input" autocomplete="new-password" bind:value={pwdConfirm} onkeydown={(e) => { if (e.key === 'Enter') submitChangePassword(); }} />
+
+            {#if pwdMsg}
+                <div class="pwd-msg" class:err={pwdErr}>{pwdMsg}</div>
+            {/if}
+        </div>
+        <div class="pwd-modal-foot">
+            <button class="btn ghost" onclick={() => pwdOpen=false}>Cancel</button>
+            <button class="btn solid" onclick={submitChangePassword} disabled={pwdSaving}>{pwdSaving ? 'Saving…' : 'Update Password'}</button>
+        </div>
+    </div>
+</div>
+{/if}
 
 <style>
 :global(#tekHexCanvas) { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
@@ -2344,4 +2330,80 @@
     50%      { opacity: 0.5; transform: scale(0.7); }
 }
 .save-actions { display: flex; gap: 10px; }
+
+/* Change Password modal */
+.pwd-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(4, 8, 20, 0.75);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    animation: pwd-fade 0.2s ease;
+}
+@keyframes pwd-fade { from { opacity: 0; } to { opacity: 1; } }
+.pwd-modal {
+    width: 100%;
+    max-width: 420px;
+    background: linear-gradient(160deg, rgba(10,18,44,0.95) 0%, rgba(4,8,20,0.99) 100%);
+    border: 1px solid rgba(0,180,255,0.30);
+    clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+    filter: drop-shadow(0 0 1px rgba(0,180,255,0.40)) drop-shadow(0 16px 50px rgba(0,0,0,0.65));
+}
+.pwd-modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(0,180,255,0.12);
+}
+.pwd-modal-title {
+    font-family: var(--tek-display);
+    font-size: 0.92rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tek-text);
+}
+.pwd-modal-close {
+    background: none; border: none;
+    color: var(--tek-text-faint);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+}
+.pwd-modal-close:hover { color: var(--tek-text); }
+.pwd-modal-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.pwd-label {
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+.pwd-input {
+    background: rgba(4,8,20,0.85);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-bottom: 1px solid rgba(0,180,255,0.30);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.86rem;
+    padding: 9px 12px;
+    outline: none;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+}
+.pwd-input::placeholder { color: var(--tek-text-faint); }
+.pwd-input:focus { border-color: rgba(0,180,255,0.45); border-bottom-color: var(--tek-blue); }
+.pwd-msg {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    color: var(--tek-green);
+    margin-top: 4px;
+}
+.pwd-msg.err { color: #fca5a5; }
+.pwd-modal-foot {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 12px 18px 16px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
 </style>
