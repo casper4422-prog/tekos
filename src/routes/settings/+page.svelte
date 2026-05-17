@@ -536,6 +536,45 @@
     // ═══════════════════════════════════════════════════════════════════════
     let dangerMsg = $state('');
     let dangerErr = $state(false);
+    // ── Import collection (paste from a Vault Export JSON file) ─────────
+    let importInput: HTMLInputElement;
+    let importMsg = $state('');
+    let importErr = $state(false);
+    let importBusy = $state(false);
+
+    async function onImportFile(e: Event) {
+        const file = (e.target as HTMLInputElement)?.files?.[0];
+        if (!file) return;
+        importMsg = 'Reading file…'; importErr = false; importBusy = true;
+        try {
+            const text = await file.text();
+            let parsed: unknown;
+            try { parsed = JSON.parse(text); }
+            catch { importMsg = 'Could not parse JSON — file is malformed'; importErr = true; importBusy = false; return; }
+            const res = await fetch('/api/creatures/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(parsed)
+            });
+            const body = await res.json().catch(() => ({}));
+            if (res.ok) {
+                importMsg = `✓ Imported ${body.inserted ?? 0} creatures${body.skipped ? ` · ${body.skipped} skipped` : ''}.`;
+                importErr = false;
+            } else {
+                importMsg = body.error ?? 'Import failed';
+                importErr = true;
+            }
+        } catch (err) {
+            importMsg = (err as Error).message ?? 'Import failed';
+            importErr = true;
+        }
+        importBusy = false;
+        if (importInput) importInput.value = '';
+    }
+
+    // Cluster help disclosure
+    let serverHelpOpen = $state(false);
+
     // Old direct handlers replaced by openConfirm() typed-confirm flow above.
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1256,6 +1295,44 @@
                         <button class="btn" onclick={addServer}>＋ ADD SERVER</button>
                     </div>
 
+                    <!-- Server-name helper -->
+                    <div class="srv-help">
+                        <button
+                            class="srv-help-toggle"
+                            type="button"
+                            onclick={() => serverHelpOpen = !serverHelpOpen}
+                            aria-expanded={serverHelpOpen}
+                        >
+                            <span class="srv-help-chev">{serverHelpOpen ? '▾' : '▸'}</span>
+                            How do I find my server name?
+                        </button>
+                        {#if serverHelpOpen}
+                            <div class="srv-help-body">
+                                <p>Use whichever fits your situation — the name TekOS needs is the same name the server broadcasts on the network.</p>
+                                <ol class="srv-help-list">
+                                    <li>
+                                        <strong>In-game (easiest):</strong> When you're at the join screen, the server appears in the list with its full name shown. On a connected server, open the pause menu → <em>Show MOTD</em> or <em>Server Info</em>.
+                                    </li>
+                                    <li>
+                                        <strong>Steam server browser:</strong> Open Steam → <em>View → Servers</em> → <em>LAN</em> or <em>Internet</em>. Filter by game "ARK: Survival Ascended" and find your server. The "Name" column is what you want.
+                                    </li>
+                                    <li>
+                                        <strong>Battlemetrics:</strong> Search the server on
+                                        <a href="https://www.battlemetrics.com/servers/ark" target="_blank" rel="noopener noreferrer">battlemetrics.com</a>.
+                                        The full name and IP:port are right at the top of each result.
+                                    </li>
+                                    <li>
+                                        <strong>Unofficial / cluster servers:</strong> Most cluster networks (LoadedCrysis, Arkpocalypse, etc.) post the exact server names in their Discord or website server list.
+                                    </li>
+                                    <li>
+                                        <strong>Dedicated/self-hosted:</strong> Check your <code>GameUserSettings.ini</code> — the <code>SessionName</code> line is the broadcast name.
+                                    </li>
+                                </ol>
+                                <p class="srv-help-tip">Paste the full name exactly as shown — TekOS uses it as the lookup key when polling status.</p>
+                            </div>
+                        {/if}
+                    </div>
+
                     <!-- RCON block -->
                     <div class="rcon-block">
                         <div class="rcon-head">
@@ -1335,6 +1412,31 @@
                             <a class="btn" href="/api/creatures?format=json" download="vault.json">JSON</a>
                         </div>
                     </div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Import</div>
+                    <div class="action-card">
+                        <div class="action-info">
+                            <div class="action-title">Import Collection</div>
+                            <div class="action-desc">Pick a Vault Export JSON file (yours or someone else's). Each creature is added as a fresh entry — your existing Vault isn't touched. Up to 5000 entries per import.</div>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <input
+                                type="file"
+                                accept="application/json,.json"
+                                bind:this={importInput}
+                                onchange={onImportFile}
+                                style="display:none;"
+                            />
+                            <button class="btn" onclick={() => importInput?.click()} disabled={importBusy}>
+                                {importBusy ? 'Importing…' : 'CHOOSE FILE'}
+                            </button>
+                        </div>
+                    </div>
+                    {#if importMsg}
+                        <div class="result-msg" class:error={importErr} style="margin-top:10px;">{importMsg}</div>
+                    {/if}
                 </div>
 
                 <div class="danger-zone">
@@ -2626,5 +2728,66 @@
     padding: 1px 7px;
     letter-spacing: 0.10em;
     margin: 0 2px;
+}
+
+/* Server-name helper disclosure */
+.srv-help {
+    margin-top: 14px;
+    font-family: var(--tek-mono);
+}
+.srv-help-toggle {
+    background: rgba(0,180,255,0.06);
+    border: 1px dashed rgba(0,180,255,0.30);
+    color: #7dd3fc;
+    font-family: inherit;
+    font-size: 0.74rem;
+    letter-spacing: 0.12em;
+    padding: 8px 14px;
+    cursor: pointer;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    transition: all 0.18s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.srv-help-toggle:hover {
+    background: rgba(0,180,255,0.14);
+    border-color: rgba(0,180,255,0.55);
+}
+.srv-help-chev {
+    font-size: 0.7rem;
+    color: var(--tek-blue);
+    transition: transform 0.18s;
+}
+.srv-help-body {
+    margin-top: 10px;
+    padding: 14px 16px;
+    background: rgba(4,8,20,0.55);
+    border-left: 2px solid rgba(0,180,255,0.30);
+    clip-path: polygon(6px 0%, 100% 0%, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0% 100%, 0% 6px);
+    font-size: 0.78rem;
+    color: var(--tek-text-dim);
+    line-height: 1.55;
+}
+.srv-help-body p { margin: 0 0 8px; }
+.srv-help-list { margin: 4px 0 8px 18px; padding: 0; }
+.srv-help-list li { margin-bottom: 8px; }
+.srv-help-list strong { color: var(--tek-text); font-weight: 600; }
+.srv-help-list em { color: #7dd3fc; font-style: normal; font-weight: 500; }
+.srv-help-list code {
+    background: rgba(0,0,0,0.40);
+    padding: 1px 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+    font-size: 0.78em;
+    color: #fcd34d;
+}
+.srv-help-list a { color: var(--tek-blue); }
+.srv-help-list a:hover { text-decoration: underline; }
+.srv-help-tip {
+    color: #fcd34d;
+    font-style: italic;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 8px;
+    margin-top: 8px !important;
 }
 </style>
