@@ -293,10 +293,7 @@
         vaultVisibility:   'tribe_friends' as 'public' | 'tribe_friends' | 'friends' | 'private',
         dmPermissions:     'friends_tribe' as 'everyone' | 'friends_tribe' | 'friends' | 'none',
         friendRequests:    'everyone' as 'everyone' | 'mutuals' | 'none',
-        showBreeding:      true,
-        showFoundersIndex: true,
         showOnline:        true,
-        showActivity:      true,
         allowTribeInvites: true,
         allowTradeRequests:true,
         showVaultCount:    true,
@@ -1024,24 +1021,8 @@
                     </div>
                     <div class="row">
                         <div class="row-info">
-                            <div class="row-label">Show Active Breeding Projects</div>
-                            <div class="row-hint">When off, your in-progress mutation stacking stays private.</div>
-                        </div>
-                        <div class="toggle" class:on={privacy.showBreeding}
-                             onclick={() => { privacy.showBreeding = !privacy.showBreeding; markDirty(); }}></div>
-                    </div>
-                    <div class="row">
-                        <div class="row-info">
-                            <div class="row-label">Show Founders Index</div>
-                            <div class="row-hint">Reveals the wild tames that seeded your stat genealogy.</div>
-                        </div>
-                        <div class="toggle" class:on={privacy.showFoundersIndex}
-                             onclick={() => { privacy.showFoundersIndex = !privacy.showFoundersIndex; markDirty(); }}></div>
-                    </div>
-                    <div class="row">
-                        <div class="row-info">
-                            <div class="row-label">Show vault count on public profile</div>
-                            <div class="row-hint">Displays "47 specimens" on your Dossier header.</div>
+                            <div class="row-label">Show vault count on your public profile</div>
+                            <div class="row-hint">When off, your specimen count shows as "—" to other survivors.</div>
                         </div>
                         <div class="toggle" class:on={privacy.showVaultCount}
                              onclick={() => { privacy.showVaultCount = !privacy.showVaultCount; markDirty(); }}></div>
@@ -1116,14 +1097,6 @@
                         </div>
                         <div class="toggle" class:on={privacy.showOnline}
                              onclick={() => { privacy.showOnline = !privacy.showOnline; markDirty(); }}></div>
-                    </div>
-                    <div class="row">
-                        <div class="row-info">
-                            <div class="row-label">Show current activity</div>
-                            <div class="row-hint">e.g. "Editing Ragnarok·07 boss prep" on your Friends row.</div>
-                        </div>
-                        <div class="toggle" class:on={privacy.showActivity}
-                             onclick={() => { privacy.showActivity = !privacy.showActivity; markDirty(); }}></div>
                     </div>
                 </div>
 

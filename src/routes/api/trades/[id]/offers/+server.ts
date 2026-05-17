@@ -4,6 +4,7 @@ import { db } from '$lib/db';
 import { notify } from '$lib/notify';
 import { requireUser } from '$lib/auth';
 import { intParam } from '$lib/params';
+import { canSendTradeOffer } from '$lib/privacy';
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const uid = requireUser(locals).id;
@@ -11,6 +12,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const trade = await db.trade.findUnique({ where: { id: tradeId } });
 	if (!trade || trade.status !== 'open') return json({ error: 'Trade not available' }, { status: 400 });
 	if (trade.userId === uid) return json({ error: 'Cannot offer on your own trade' }, { status: 400 });
+	if (!(await canSendTradeOffer(uid, trade.userId))) {
+		return json({ error: 'This seller isn\'t accepting trade offers right now.' }, { status: 403 });
+	}
 	const { offeredCreatureId, offeredCreatureData, offeredPrice, message } = await request.json();
 	if (offeredCreatureId) {
 		const owned = await db.creature.findFirst({ where: { id: offeredCreatureId, userId: uid } });

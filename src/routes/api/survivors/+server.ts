@@ -42,6 +42,7 @@ export const GET: RequestHandler = async ({ url }) => {
 				discordName: true,
 				bio: true,
 				lastSeen: true,
+				settings: true,
 				_count: { select: { creatures: true } },
 				tribeMemberships: {
 					select: { tribe: { select: { name: true } } },
@@ -55,19 +56,35 @@ export const GET: RequestHandler = async ({ url }) => {
 	]);
 
 	const now = Date.now();
+	// Honor each survivor's privacy: appearInSuggestions hides them from the
+	// directory entirely; showOnline / showVaultCount mask specific fields.
+	const visibleUsers = users.filter(u => {
+		const settings = (u.settings as Record<string, unknown> | null) ?? {};
+		const privacy = (settings.privacy as Record<string, unknown> | undefined) ?? {};
+		// profileVisibility 'private' also hides from the survivor list.
+		if (privacy.profileVisibility === 'private') return false;
+		return privacy.appearInSuggestions !== false;
+	});
+
 	return json({
-		users: users.map(u => ({
-			id: u.id,
-			nickname: u.nickname ?? u.discordName ?? 'Unknown survivor',
-			bio: u.bio,
-			online: u.lastSeen ? (now - new Date(u.lastSeen).getTime()) < ONLINE_MS : false,
-			lastSeen: u.lastSeen,
-			specimens: u._count.creatures,
-			tribe: u.tribeMemberships[0]?.tribe ?? null
-		})),
-		total,
+		users: visibleUsers.map(u => {
+			const settings = (u.settings as Record<string, unknown> | null) ?? {};
+			const privacy = (settings.privacy as Record<string, unknown> | undefined) ?? {};
+			const showOnline = privacy.showOnline !== false;
+			const showVaultCount = privacy.showVaultCount !== false;
+			return {
+				id: u.id,
+				nickname: u.nickname ?? u.discordName ?? 'Unknown survivor',
+				bio: u.bio,
+				online: showOnline && u.lastSeen ? (now - new Date(u.lastSeen).getTime()) < ONLINE_MS : false,
+				lastSeen: showOnline ? u.lastSeen : null,
+				specimens: showVaultCount ? u._count.creatures : null,
+				tribe: u.tribeMemberships[0]?.tribe ?? null
+			};
+		}),
+		total: visibleUsers.length,
 		page,
-		pages: Math.ceil(total / take),
+		pages: Math.ceil(visibleUsers.length / take),
 		tribeCount,
 		bloodlineCount
 	});

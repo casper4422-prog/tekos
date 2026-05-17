@@ -4,6 +4,7 @@ import { db } from '$lib/db';
 import { notify } from '$lib/notify';
 import { requireUser } from '$lib/auth';
 import { intParam } from '$lib/params';
+import { canInviteToTribe } from '$lib/privacy';
 
 // Invite a survivor to this tribe. Owner/admin only. Sends a tribe_invite notification.
 export const POST: RequestHandler = async ({ params, request, locals }) => {
@@ -33,6 +34,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 	const already = await db.tribeMembership.findFirst({ where: { userId: target.id } });
 	if (already) return json({ error: 'Already in a tribe' }, { status: 409 });
+
+	if (!(await canInviteToTribe(uid, target.id))) {
+		return json({ error: 'This survivor isn\'t accepting tribe invites right now.' }, { status: 403 });
+	}
 
 	await notify(target.id, uid, 'tribe_invite', { tribeId: id, tribeName: me.tribe.name });
 	await db.tribalActivity.create({ data: { tribeId: id, userId: uid, eventType: 'invite_sent', metadata: { targetId: target.id, targetName: target.nickname ?? target.discordName ?? 'Unknown survivor' } } });

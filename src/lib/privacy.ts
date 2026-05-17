@@ -14,7 +14,36 @@ type PrivacySettings = {
 	vaultVisibility?:   'public' | 'tribe_friends' | 'friends' | 'private';
 	dmPermissions?:     'everyone' | 'friends_tribe' | 'friends' | 'none';
 	friendRequests?:    'everyone' | 'mutuals' | 'none';
+	allowTribeInvites?: boolean;
+	allowTradeRequests?: boolean;
+	appearInSuggestions?: boolean;
 };
+
+async function loadPrivacyRaw(userId: number): Promise<PrivacySettings> {
+	const row = await db.user.findUnique({
+		where: { id: userId },
+		select: { settings: true }
+	});
+	const settings = (row?.settings as Record<string, unknown> | null) ?? {};
+	return ((settings.privacy as PrivacySettings) ?? {});
+}
+
+export async function canInviteToTribe(senderId: number, recipientId: number): Promise<boolean> {
+	if (senderId === recipientId) return false;
+	const p = await loadPrivacyRaw(recipientId);
+	return p.allowTribeInvites !== false;
+}
+
+export async function canSendTradeOffer(senderId: number, recipientId: number): Promise<boolean> {
+	if (senderId === recipientId) return false;
+	const p = await loadPrivacyRaw(recipientId);
+	return p.allowTradeRequests !== false;
+}
+
+export async function appearsInSuggestions(userId: number): Promise<boolean> {
+	const p = await loadPrivacyRaw(userId);
+	return p.appearInSuggestions !== false;
+}
 
 async function loadPrivacy(userId: number): Promise<PrivacySettings> {
 	const row = await db.user.findUnique({

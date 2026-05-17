@@ -192,22 +192,31 @@
         <section class="section-block">
             <div class="tek-section-head">
                 <div class="tek-section-title">Recent Specimens</div>
-                <div class="tek-section-meta">{data.creatures.length} TOTAL · {data.speciesOwned} SPECIES</div>
+                <div class="tek-section-meta">
+                    {#if data.vaultHidden}VAULT HIDDEN
+                    {:else}{data.creatures.length} TOTAL · {data.speciesOwned} SPECIES{/if}
+                </div>
             </div>
-            <div class="rec-grid">
-                {#each data.creatures.slice(0, 6) as c}
-                    <a class="rec-card" href="/specimens/{c.id}">
-                        <div class="rec-species">{c.species.toUpperCase()}</div>
-                        <div class="rec-name">{c.name}</div>
-                        <div class="rec-meta">
-                            <span class="gender" class:m={c.gender === 'Male'} class:f={c.gender === 'Female'}>
-                                {c.gender === 'Female' ? '♀' : c.gender === 'Male' ? '♂' : '?'}
-                            </span>
-                            <span>LVL {c.level}</span>
-                        </div>
-                    </a>
-                {/each}
-            </div>
+            {#if data.vaultHidden}
+                <div class="vault-hidden-notice">
+                    🔒 This survivor keeps their Vault private. Become friends or join their tribe to see what they're breeding.
+                </div>
+            {:else}
+                <div class="rec-grid">
+                    {#each data.creatures.slice(0, 6) as c}
+                        <a class="rec-card" href="/specimens/{c.id}">
+                            <div class="rec-species">{c.species.toUpperCase()}</div>
+                            <div class="rec-name">{c.name}</div>
+                            <div class="rec-meta">
+                                <span class="gender" class:m={c.gender === 'Male'} class:f={c.gender === 'Female'}>
+                                    {c.gender === 'Female' ? '♀' : c.gender === 'Male' ? '♂' : '?'}
+                                </span>
+                                <span>LVL {c.level}</span>
+                            </div>
+                        </a>
+                    {/each}
+                </div>
+            {/if}
         </section>
     {/if}
 </div>
@@ -515,4 +524,17 @@
 .rec-meta .gender { color: var(--tek-text-dim); }
 .rec-meta .gender.m { color: var(--tek-blue); }
 .rec-meta .gender.f { color: var(--tek-pink); }
+
+.vault-hidden-notice {
+    text-align: center;
+    padding: 30px 24px;
+    background: rgba(0,180,255,0.04);
+    border: 1px dashed rgba(0,180,255,0.20);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.86rem;
+    letter-spacing: 0.02em;
+    line-height: 1.6;
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+}
 </style>

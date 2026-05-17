@@ -71,22 +71,40 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         })
         : null;
 
+    // Display-flag preferences (set by the target survivor in Settings → Privacy).
+    // The viewer themselves always sees everything regardless of these flags.
+    const targetSettings = await db.user.findUnique({
+        where: { id: targetId },
+        select: { settings: true }
+    });
+    const targetPrivacy = ((targetSettings?.settings as Record<string, unknown> | null)?.privacy ?? {}) as Record<string, unknown>;
+    const viewingSelf = myId === targetId;
+    const display = {
+        showBreeding:      viewingSelf || targetPrivacy.showBreeding !== false,
+        showFoundersIndex: viewingSelf || targetPrivacy.showFoundersIndex !== false,
+        showOnline:        viewingSelf || targetPrivacy.showOnline !== false,
+        showActivity:      viewingSelf || targetPrivacy.showActivity !== false,
+        showVaultCount:    viewingSelf || targetPrivacy.showVaultCount !== false,
+        showBadges:        viewingSelf || targetPrivacy.showBadges !== false
+    };
+
     return {
         profile: user,
         creatures,
         pinned,
         speciesOwned,
         stats: {
-            specimens: creatures.length,
-            badges: totalBadges,
+            specimens: display.showVaultCount ? creatures.length : null,
+            badges: display.showBadges ? totalBadges : null,
             friends: friendCount,
             tradeRep
         },
         tribe: membership?.tribe ?? null,
-        isOnline,
+        isOnline: display.showOnline ? isOnline : false,
         friendship,
-        isSelf: myId === targetId,
-        badgeWall,
-        vaultHidden: !vaultAllowed
+        isSelf: viewingSelf,
+        badgeWall: display.showBadges ? badgeWall : { bloodline: [], bossReady: [], roles: [], underdog: [] },
+        vaultHidden: !vaultAllowed,
+        display
     };
 };
