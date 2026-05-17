@@ -4,6 +4,7 @@ import { db } from '$lib/db';
 import { notify } from '$lib/notify';
 import { requireUser } from '$lib/auth';
 import { rateLimit } from '$lib/rateLimit';
+import { canSendFriendRequest } from '$lib/privacy';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const uid = requireUser(locals).id;
@@ -45,8 +46,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const uid = requireUser(locals).id;
 	if (rateLimit(`friend:${uid}`, 30, 60 * 60 * 1000)) return json({ error: 'Too many friend requests, try again later' }, { status: 429 });
-	const { friendUserId } = await request.json();
+	const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+	// Accept either `friendUserId` (older callers) or `toUserId` (Network panel) for the same field.
+	const friendUserId = Number(body.friendUserId ?? body.toUserId ?? 0);
 	if (!friendUserId || friendUserId === uid) return json({ error: 'Invalid user' }, { status: 400 });
+	if (!(await canSendFriendRequest(uid, friendUserId))) {
+		return json({ error: 'This survivor isn\'t accepting friend requests from you right now.' }, { status: 403 });
+	}
 	const existing = await db.friendship.findFirst({ where: { OR: [{ userId: uid, friendUserId }, { userId: friendUserId, friendUserId: uid }] } });
 	if (existing) return json({ error: 'Request already exists' }, { status: 409 });
 	const row = await db.friendship.create({ data: { userId: uid, friendUserId, status: 'pending' } });

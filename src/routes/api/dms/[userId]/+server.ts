@@ -4,6 +4,7 @@ import { db } from '$lib/db';
 import { requireUser } from '$lib/auth';
 import { intParam } from '$lib/params';
 import { rateLimit } from '$lib/rateLimit';
+import { canSendDM } from '$lib/privacy';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	const uid = requireUser(locals).id;
@@ -17,13 +18,16 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	return json(msgs);
 };
 
-export const POST: RequestHandler = async ({ params, request, locals, getClientAddress }) => {
+export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const uid = requireUser(locals).id;
 	if (rateLimit(`dm:${uid}`, 60, 60 * 1000)) return json({ error: 'Sending too fast, slow down' }, { status: 429 });
 	const otherId = intParam(params.userId, 'userId');
 	const { message } = await request.json();
 	if (!message?.trim()) return json({ error: 'Empty message' }, { status: 400 });
 	if (message.trim().length > 2000) return json({ error: 'Message too long (max 2000 characters)' }, { status: 400 });
+	if (!(await canSendDM(uid, otherId))) {
+		return json({ error: 'This survivor isn\'t accepting messages from you right now.' }, { status: 403 });
+	}
 	const msg = await db.directMessage.create({ data: { fromUserId: uid, toUserId: otherId, message: message.trim() } });
 	return json(msg, { status: 201 });
 };

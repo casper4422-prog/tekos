@@ -2,22 +2,32 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/db';
 import { aggregateBadgesByCategory, type Stats } from '$lib/badges';
+import { canViewProfile, canViewVault } from '$lib/privacy';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
     const targetId = parseInt(params.id);
     if (!Number.isFinite(targetId)) throw error(404, 'Survivor not found');
     const myId = locals.user?.id ?? -1;
 
+    // Profile visibility gate — 404 (rather than 403) so private accounts are unenumerable.
+    if (!(await canViewProfile(myId === -1 ? null : myId, targetId))) {
+        throw error(404, 'Survivor not found');
+    }
+
+    const vaultAllowed = await canViewVault(myId === -1 ? null : myId, targetId);
+
     const [user, creatureRows, friendCount, membership, tradeRatings] = await Promise.all([
         db.user.findUnique({
             where: { id: targetId },
             select: { id:true, nickname:true, discordName:true, bio:true, lookingFor:true, pinnedCreatures:true, createdAt:true, lastSeen:true }
         }),
-        db.creature.findMany({
-            where: { userId: targetId },
-            select: { id: true, data: true, createdAt: true },
-            orderBy: { createdAt: 'desc' }
-        }),
+        vaultAllowed
+            ? db.creature.findMany({
+                where: { userId: targetId },
+                select: { id: true, data: true, createdAt: true },
+                orderBy: { createdAt: 'desc' }
+            })
+            : Promise.resolve([] as Array<{ id: number; data: unknown; createdAt: Date }>),
         db.friendship.count({
             where: { OR: [{ userId:targetId, status:'accepted' }, { friendUserId:targetId, status:'accepted' }] }
         }),
@@ -76,6 +86,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         isOnline,
         friendship,
         isSelf: myId === targetId,
-        badgeWall
+        badgeWall,
+        vaultHidden: !vaultAllowed
     };
 };
