@@ -329,7 +329,8 @@
     // ═══════════════════════════════════════════════════════════════════════
     // NOTIFICATIONS
     // ═══════════════════════════════════════════════════════════════════════
-    type NotifChannels = { inapp: boolean; email: boolean; discord: boolean; push: boolean };
+    // Only in-app is wired today. Email/Discord/Push channels were placeholder.
+    type NotifChannels = { inapp: boolean };
     type NotifKey =
         | 'tribeActivity' | 'tradeRequests' | 'directMessages'
         | 'friendRequests' | 'bossTimers' | 'serverEvents'
@@ -346,15 +347,15 @@
         { key: 'globalDigest',    name: 'Global feed digest', hint: 'Weekly summary of news from sources you follow' }
     ];
     const NOTIF_DEFAULTS: Record<NotifKey, NotifChannels> = {
-        tribeActivity:   { inapp: true,  email: false, discord: true,  push: true  },
-        tradeRequests:   { inapp: true,  email: true,  discord: false, push: true  },
-        directMessages:  { inapp: true,  email: false, discord: false, push: true  },
-        friendRequests:  { inapp: true,  email: false, discord: false, push: false },
-        bossTimers:      { inapp: true,  email: true,  discord: true,  push: true  },
-        serverEvents:    { inapp: true,  email: false, discord: true,  push: false },
-        serverStatus:    { inapp: true,  email: false, discord: false, push: false },
-        badgeMilestones: { inapp: true,  email: false, discord: false, push: true  },
-        globalDigest:    { inapp: false, email: true,  discord: false, push: false }
+        tribeActivity:   { inapp: true  },
+        tradeRequests:   { inapp: true  },
+        directMessages:  { inapp: true  },
+        friendRequests:  { inapp: true  },
+        bossTimers:      { inapp: true  },
+        serverEvents:    { inapp: true  },
+        serverStatus:    { inapp: true  },
+        badgeMilestones: { inapp: true  },
+        globalDigest:    { inapp: false }
     };
     function buildNotifInitial(): Record<NotifKey, NotifChannels> {
         const out = {} as Record<NotifKey, NotifChannels>;
@@ -1151,9 +1152,6 @@
                             <tr>
                                 <th class="cat">Category</th>
                                 <th>In-App</th>
-                                <th>Email</th>
-                                <th>Discord</th>
-                                <th>Push</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1165,12 +1163,6 @@
                                     </td>
                                     <td><div class="notif-cell-toggle" class:on={notif[r.key].inapp}
                                               onclick={() => toggleNotif(r.key, 'inapp')}></div></td>
-                                    <td><div class="notif-cell-toggle" class:on={notif[r.key].email}
-                                              onclick={() => toggleNotif(r.key, 'email')}></div></td>
-                                    <td><div class="notif-cell-toggle" class:on={notif[r.key].discord}
-                                              onclick={() => toggleNotif(r.key, 'discord')}></div></td>
-                                    <td><div class="notif-cell-toggle" class:on={notif[r.key].push}
-                                              onclick={() => toggleNotif(r.key, 'push')}></div></td>
                                 </tr>
                             {/each}
                         </tbody>
@@ -1181,8 +1173,8 @@
                     <div class="group-label">Quiet hours</div>
                     <div class="row">
                         <div class="row-info">
-                            <div class="row-label">Mute push &amp; Discord pings during quiet hours</div>
-                            <div class="row-hint">In-app and email still arrive. Boss timer alerts override quiet hours.</div>
+                            <div class="row-label">Mute in-app notifications during quiet hours</div>
+                            <div class="row-hint">Local time. While active, new notifications are skipped entirely — they won't show up on your bell, even later.</div>
                         </div>
                         <div class="toggle" class:on={quietHoursOn}
                              onclick={() => { quietHoursOn = !quietHoursOn; markDirty(); }}></div>
