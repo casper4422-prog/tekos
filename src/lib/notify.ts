@@ -70,5 +70,7 @@ export async function notify(userId: number, actorUserId: number, type: string, 
 		}
 	} catch { /* fall open on any pref read failure */ }
 
-	await db.notification.create({ data: { userId, actorUserId, type, payload } }).catch(() => {});
+	await db.notification.create({ data: { userId, actorUserId, type, payload } }).catch((err) => {
+		console.error('[notify] create failed', { userId, type, err });
+	});
 }

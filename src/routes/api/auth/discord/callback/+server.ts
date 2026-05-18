@@ -12,9 +12,14 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 	cookies.delete('discord_oauth_state', { path: '/' });
 	if (!state || !storedState || state !== storedState) redirect(302, '/login?error=invalid_state');
 
-	const clientId = process.env.DISCORD_CLIENT_ID!;
-	const clientSecret = process.env.DISCORD_CLIENT_SECRET!;
-	const redirectUri = process.env.DISCORD_REDIRECT_URI ?? 'http://localhost:5173/api/auth/discord/callback';
+	const isProd = process.env.NODE_ENV === 'production';
+	const clientId = process.env.DISCORD_CLIENT_ID;
+	const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+	const redirectUri = process.env.DISCORD_REDIRECT_URI ?? (isProd ? '' : 'http://localhost:5173/api/auth/discord/callback');
+	if (!clientId || !clientSecret || !redirectUri) {
+		console.error('[discord-oauth] Missing DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET / DISCORD_REDIRECT_URI');
+		redirect(302, '/login?error=discord_misconfigured');
+	}
 
 	// Exchange code for token
 	const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
