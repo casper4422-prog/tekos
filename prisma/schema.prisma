@@ -158,7 +158,7 @@ model Tribe {
   ownerUserId     Int      @map("owner_user_id")
   createdAt       DateTime @default(now()) @map("created_at")
 
-  owner        User               @relation(fields: [ownerUserId], references: [id])
+  owner        User               @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   members      TribeMembership[]
   creatures    TribeCreature[]
   joinRequests TribeJoinRequest[]
@@ -259,7 +259,7 @@ model TribeAlliance {
 
   tribe1      Tribe          @relation("Tribe1", fields: [tribe1Id], references: [id], onDelete: Cascade)
   tribe2      Tribe          @relation("Tribe2", fields: [tribe2Id], references: [id], onDelete: Cascade)
-  requestedBy User           @relation("AllianceRequester", fields: [requestedById], references: [id])
+  requestedBy User           @relation("AllianceRequester", fields: [requestedById], references: [id], onDelete: Cascade)
   chats       AllianceChat[]
 
   @@unique([tribe1Id, tribe2Id])
@@ -482,7 +482,7 @@ model Announcement {
   createdById Int      @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  createdBy User @relation(fields: [createdById], references: [id])
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   @@map("announcements")
 }

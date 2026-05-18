@@ -134,7 +134,7 @@
     </div>
 
     <!-- ═════════════ BADGE WALL ═════════════ -->
-    {#if data.stats.badges > 0}
+    {#if (data.stats.badges ?? 0) > 0}
         <section class="section-block">
             <div class="tek-section-head">
                 <div class="tek-section-title">Badge Wall</div>

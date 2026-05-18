@@ -491,8 +491,7 @@
 
     onMount(() => {
         // Species autocomplete from global DB
-        // @ts-expect-error global from external script
-        const db = window.EXPANDED_SPECIES_DATABASE;
+        const db = (window as unknown as { EXPANDED_SPECIES_DATABASE?: Record<string, unknown> }).EXPANDED_SPECIES_DATABASE;
         if (db) speciesList = Object.keys(db).sort();
 
         // Hex canvas background

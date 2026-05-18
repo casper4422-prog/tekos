@@ -29,9 +29,23 @@
     };
     export type FeaturedSavePayload = { creatureIds: number[] };
 
+    // Accepts either nested CreatureRow (id + data:{...}) or flat VaultCreature
+    // (id + name/species/baseStats/... at root). `normCreatures` reconciles both.
+    type PinModalCreature = CreatureRow | {
+        id: number;
+        createdAt?: Date;
+        name?: string;
+        species?: string;
+        level?: number;
+        gender?: string;
+        baseStats?: Record<string, number>;
+        mutations?: Record<string, number>;
+        domesticLevels?: Record<string, number>;
+    };
+
     type Props = {
         open?: boolean;
-        creatures: CreatureRow[];
+        creatures: PinModalCreature[];
         mode?: 'project' | 'featured';
         /** featured-mode: currently pinned creature ids (multi-select prefill). */
         pinned?: number[];

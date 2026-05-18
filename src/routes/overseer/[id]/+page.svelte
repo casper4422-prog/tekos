@@ -86,7 +86,7 @@
 	let pollTimer: ReturnType<typeof setInterval>;
 
 	// Invite friends
-	type FriendEntry = { id:number; friendId:number; nickname:string|null; email:string };
+	type FriendEntry = { id:number; friendId:number; nickname:string|null; discordName:string|null };
 	let friends  = $state<FriendEntry[]>([]);
 	let inviting = $state<number|null>(null);
 

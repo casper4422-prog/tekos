@@ -13,7 +13,7 @@
     const badges = $derived(computeBadges(c.baseStats, c.mutations));
 
     function totalLevel(s: StatKey) {
-        return getStat(c.baseStats, s) + getStat(c.mutations, s) * 2;
+        return getStat(c.baseStats, s) + getStat(c.mutations, s);
     }
 
     const totalMuts = $derived(STATS.reduce((sum, s) => sum + getStat(c.mutations, s), 0));

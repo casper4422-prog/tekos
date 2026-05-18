@@ -86,8 +86,8 @@ function computeClose(creatures: CreatureLite[]) {
     function bestForBoth(thresh: number) {
         let best: { c: CreatureLite; gap: number; statKey: string } | null = null;
         for (const c of creatures) {
-            const hp  = getStat(c.baseStats, 'HP') + getStat(c.mutations, 'HP') * 2;
-            const mel = getStat(c.baseStats, 'MEL') + getStat(c.mutations, 'MEL') * 2;
+            const hp  = getStat(c.baseStats, 'HP') + getStat(c.mutations, 'HP');
+            const mel = getStat(c.baseStats, 'MEL') + getStat(c.mutations, 'MEL');
             const min = Math.min(hp, mel);
             if (min >= thresh) continue; // already earned
             const gap = thresh - min;
@@ -158,8 +158,8 @@ function computeBestInProgress(creatures: CreatureLite[]) {
         let best: Best | null = null;
         for (const c of creatures) {
             if (filterSpecies && !filterSpecies(c.species)) continue;
-            const hp  = getStat(c.baseStats, 'HP') + getStat(c.mutations, 'HP') * 2;
-            const mel = getStat(c.baseStats, 'MEL') + getStat(c.mutations, 'MEL') * 2;
+            const hp  = getStat(c.baseStats, 'HP') + getStat(c.mutations, 'HP');
+            const mel = getStat(c.baseStats, 'MEL') + getStat(c.mutations, 'MEL');
             const min = Math.min(hp, mel);
             if (min >= thresh) continue;
             if (!best || min > best.minStat) {
