@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import type { Prisma } from '@prisma/client';
 import { db } from '$lib/db';
 import { requireUser } from '$lib/auth';
 
@@ -39,7 +40,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		delete (data as Record<string, unknown>).userId;
 		if (!data.species && !data.name) { skipped++; continue; }
 		try {
-			await db.creature.create({ data: { userId: uid, data } });
+			await db.creature.create({ data: { userId: uid, data: data as Prisma.InputJsonValue } });
 			inserted++;
 		} catch (e) {
 			errors.push(`Row ${i}: ${(e as Error).message ?? 'insert failed'}`);

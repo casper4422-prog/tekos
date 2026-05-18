@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import type { Prisma } from '@prisma/client';
 import { db } from '$lib/db';
 import { requireUser } from '$lib/auth';
 
@@ -14,7 +15,7 @@ async function saveSources(uid: number, sources: Record<string,unknown>[]) {
 	const u = await db.user.findUnique({ where:{ id:uid }, select:{ pinnedCreatures:true } });
 	const raw = (u?.pinnedCreatures as Record<string,unknown>) ?? {};
 	const updated = Array.isArray(raw) ? { feedSources: sources } : { ...raw, feedSources: sources };
-	await db.user.update({ where:{ id:uid }, data:{ pinnedCreatures: updated } });
+	await db.user.update({ where:{ id:uid }, data:{ pinnedCreatures: updated as Prisma.InputJsonValue } });
 }
 
 export const GET: RequestHandler = async ({ locals }) => {

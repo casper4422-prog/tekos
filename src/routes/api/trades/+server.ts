@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import type { Prisma } from '@prisma/client';
 import { db } from '$lib/db';
 import { requireUser } from '$lib/auth';
 
@@ -22,7 +23,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const validDirection = direction === 'buy' ? 'buy' : 'sell';
 	// Store direction inside the existing metadata JSON column so we don't need a schema change.
 	const incomingMeta = (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) ? metadata as Record<string,unknown> : {};
-	const finalMeta = { ...incomingMeta, direction: validDirection };
+	const finalMeta: Record<string, unknown> = { ...incomingMeta, direction: validDirection };
 
 	// WTB (buy) listings don't carry a real creatureData — the buyer is requesting one.
 	const isBuy = validDirection === 'buy';
@@ -32,7 +33,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		creatureId:   isBuy ? null : (validType === 'specimen' ? (creatureId ?? null) : null),
 		creatureData: isBuy ? null : (validType === 'specimen' ? (creatureData ?? null) : null),
 		listingType: validType,
-		metadata: finalMeta,
+		metadata: finalMeta as Prisma.InputJsonValue,
 		wanted: wanted ?? null,
 		price: price ?? null
 	} });

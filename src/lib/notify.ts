@@ -1,4 +1,5 @@
 import { db } from '$lib/db';
+import type { Prisma } from '@prisma/client';
 
 // Map notify() event types to the user-facing notification category they belong to.
 // Categories match the rows in Settings → Notifications. If an event type isn't
@@ -70,7 +71,7 @@ export async function notify(userId: number, actorUserId: number, type: string, 
 		}
 	} catch { /* fall open on any pref read failure */ }
 
-	await db.notification.create({ data: { userId, actorUserId, type, payload } }).catch((err) => {
+	await db.notification.create({ data: { userId, actorUserId, type, payload: payload as Prisma.InputJsonValue } }).catch((err) => {
 		console.error('[notify] create failed', { userId, type, err });
 	});
 }

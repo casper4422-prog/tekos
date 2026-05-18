@@ -22,12 +22,12 @@
     const STATS = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA', 'SPD'] as const;
     type StatKey = (typeof STATS)[number];
 
-    export type ProjectSavePayload = {
+    type ProjectSavePayload = {
         creatureId: number;
         focusStat: StatKey | null;
         targetMutations: number;
     };
-    export type FeaturedSavePayload = { creatureIds: number[] };
+    type FeaturedSavePayload = { creatureIds: number[] };
 
     // Accepts either nested CreatureRow (id + data:{...}) or flat VaultCreature
     // (id + name/species/baseStats/... at root). `normCreatures` reconciles both.

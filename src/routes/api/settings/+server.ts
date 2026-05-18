@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import type { Prisma } from '@prisma/client';
 import { db } from '$lib/db';
 import { encrypt, decrypt, isEncrypted } from '$lib/crypto';
 
@@ -91,6 +92,6 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const toSave = encryptRconPassword(next);
-	await db.user.update({ where: { id: uid }, data: { settings: toSave } });
+	await db.user.update({ where: { id: uid }, data: { settings: toSave as Prisma.InputJsonValue } });
 	return json({ ok: true, settings: redactRconPassword(next) });
 };

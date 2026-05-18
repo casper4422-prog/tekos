@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import type { Prisma } from '@prisma/client';
 import { db } from '$lib/db';
 import { requireUser } from '$lib/auth';
 import { notify } from '$lib/notify';
@@ -67,7 +68,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const existing = readThread(offer.thread);
 	const updated = [...existing, entry];
 
-	await db.offer.update({ where: { id }, data: { thread: updated } });
+	await db.offer.update({ where: { id }, data: { thread: updated as unknown as Prisma.InputJsonValue } });
 
 	const otherUserId = offer.fromUserId === uid ? offer.toUserId : offer.fromUserId;
 	const me = await db.user.findUnique({ where: { id: uid }, select: { nickname:true, discordName:true } });

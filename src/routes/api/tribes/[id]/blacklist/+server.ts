@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import type { Prisma } from '@prisma/client';
 import { db } from '$lib/db';
 import { requireUser } from '$lib/auth';
 import { intParam } from '$lib/params';
@@ -31,7 +32,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 	const data = await getTribeData(id);
 	const entry = { id: Date.now(), name: name.trim(), reason: reason?.trim() || null, type: type || 'player', addedAt: new Date().toISOString(), addedById: uid };
 	data.blacklist.push(entry);
-	await db.tribe.update({ where: { id }, data: { colors: { colors: data.colors, blacklist: data.blacklist } } });
+	await db.tribe.update({ where: { id }, data: { colors: { colors: data.colors, blacklist: data.blacklist } as unknown as Prisma.InputJsonValue } });
 	return json(entry, { status: 201 });
 };
 
@@ -43,6 +44,6 @@ export const DELETE: RequestHandler = async ({ params, request, locals }) => {
 	const { entryId } = await request.json();
 	const data = await getTribeData(id);
 	data.blacklist = data.blacklist.filter((b: Record<string,unknown>) => b.id !== entryId);
-	await db.tribe.update({ where: { id }, data: { colors: { colors: data.colors, blacklist: data.blacklist } } });
+	await db.tribe.update({ where: { id }, data: { colors: { colors: data.colors, blacklist: data.blacklist } as unknown as Prisma.InputJsonValue } });
 	return json({ ok: true });
 };
