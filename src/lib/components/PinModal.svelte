@@ -319,6 +319,7 @@
         class="pm-overlay modal-overlay"
         class:closing
         onclick={onBackdropClick}
+        onkeydown={(e) => { if (e.key === 'Escape') close(); }}
         role="dialog"
         aria-modal="true"
         tabindex="-1"

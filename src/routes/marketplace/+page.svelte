@@ -673,7 +673,7 @@
 				{@const rating = sellerRatings[seller.id as number]}
 				{@const typeIcon = ltype === 'egg' ? '◇' : ltype === 'resource' ? '◊' : ltype === 'service' ? '◎' : '⬡'}
 				{@const typeLabel = ltype.charAt(0).toUpperCase() + ltype.slice(1)}
-				<a class="listing {ltype} {dir}" data-cat={ltype} data-dir={dir} onclick={() => { offerOpen = t; oCreatureId = null; oMessage = ''; }}>
+				<button type="button" class="listing {ltype} {dir}" data-cat={ltype} data-dir={dir} onclick={() => { offerOpen = t; oCreatureId = null; oMessage = ''; }}>
 					<div class="listing-top">
 						<span class="type-chip">
 							{#if dir === 'buy'}<span class="dir-flag">◈ WTB</span>{/if}
@@ -721,9 +721,9 @@
 						{#if rating && rating.count > 0}
 							<span class="seller-rating"><span class="star full">★</span>{rating.avg.toFixed(1)}</span>
 						{/if}
-						<button class="offer-btn">{dir === 'buy' ? 'Fulfill ▸' : 'Make Offer ▸'}</button>
+						<span class="offer-btn">{dir === 'buy' ? 'Fulfill ▸' : 'Make Offer ▸'}</span>
 					</div>
-				</a>
+				</button>
 			{/each}
 
 			<!-- Create listing placeholder -->
@@ -1001,7 +1001,7 @@
 
 			<!-- Direction picker -->
 			<div class="plan-field">
-				<label class="form-label">I want to *</label>
+				<div class="form-label">I want to *</div>
 				<div class="direction-picker">
 					<button type="button" class="dir-option sell" class:active={lDirection === 'sell'} onclick={() => lDirection = 'sell'}>
 						<div class="dir-option-title">⬡ Sell / Trade</div>
@@ -1052,7 +1052,7 @@
 						<datalist id="wtb-species-list">{#each speciesList as s}<option value={s}>{s}</option>{/each}</datalist>
 					</div>
 					<div class="plan-field">
-						<label class="form-label">Gender (preferred)</label>
+						<div class="form-label">Gender (preferred)</div>
 						<div style="display:flex;gap:6px">
 							<button type="button" class="chip" class:active={lWantGender === 'any'}    onclick={() => lWantGender = 'any'}>Any</button>
 							<button type="button" class="chip" class:active={lWantGender === 'female'} onclick={() => lWantGender = 'female'}>♀ Female</button>
@@ -1070,7 +1070,7 @@
 						</div>
 					</div>
 					<div class="plan-field">
-						<label class="form-label">Tier (minimum)</label>
+						<div class="form-label">Tier (minimum)</div>
 						<div style="display:flex;gap:6px;flex-wrap:wrap">
 							<button type="button" class="chip" class:active={lWantTier === 'any'}     onclick={() => lWantTier = 'any'}>Any</button>
 							<button type="button" class="chip" class:active={lWantTier === 'bronze'}  onclick={() => lWantTier = 'bronze'}>Bronze+</button>

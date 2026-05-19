@@ -842,34 +842,34 @@
         <!-- LEFT NAV -->
         <nav class="side-nav">
             <div class="side-nav-label">Configure</div>
-            <div class="nav-item" class:active={activeSection === 'account'} onclick={() => activeSection = 'account'}>
+            <button type="button" class="nav-item" class:active={activeSection === 'account'} onclick={() => activeSection = 'account'}>
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
                 Account
-            </div>
-            <div class="nav-item" class:active={activeSection === 'privacy'} onclick={() => activeSection = 'privacy'}>
+            </button>
+            <button type="button" class="nav-item" class:active={activeSection === 'privacy'} onclick={() => activeSection = 'privacy'}>
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L3 6v6c0 5 4 9 9 10 5-1 9-5 9-10V6l-9-4z"/></svg>
                 Privacy
-            </div>
-            <div class="nav-item" class:active={activeSection === 'notifications'} onclick={() => activeSection = 'notifications'}>
+            </button>
+            <button type="button" class="nav-item" class:active={activeSection === 'notifications'} onclick={() => activeSection = 'notifications'}>
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0112 0v5l2 3H4l2-3V8z"/><path d="M10 19a2 2 0 004 0"/></svg>
                 Notifications
-            </div>
-            <div class="nav-item" class:active={activeSection === 'themes'} onclick={() => activeSection = 'themes'}>
+            </button>
+            <button type="button" class="nav-item" class:active={activeSection === 'themes'} onclick={() => activeSection = 'themes'}>
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
                 Themes
-            </div>
-            <div class="nav-item" class:active={activeSection === 'cluster'} onclick={() => activeSection = 'cluster'}>
+            </button>
+            <button type="button" class="nav-item" class:active={activeSection === 'cluster'} onclick={() => activeSection = 'cluster'}>
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="17" r="1" fill="currentColor"/></svg>
                 Cluster
-            </div>
-            <div class="nav-item" class:active={activeSection === 'data'} onclick={() => activeSection = 'data'}>
+            </button>
+            <button type="button" class="nav-item" class:active={activeSection === 'data'} onclick={() => activeSection = 'data'}>
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.7 4 3 9 3s9-1.3 9-3V5M3 11v6c0 1.7 4 3 9 3s9-1.3 9-3v-6"/></svg>
                 Data
-            </div>
-            <div class="nav-item" class:active={activeSection === 'integrations'} onclick={() => activeSection = 'integrations'}>
+            </button>
+            <button type="button" class="nav-item" class:active={activeSection === 'integrations'} onclick={() => activeSection = 'integrations'}>
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>
                 Integrations
-            </div>
+            </button>
         </nav>
 
         <!-- RIGHT PANEL -->
@@ -1041,16 +1041,16 @@
                             <div class="row-label">Show vault count on your public profile</div>
                             <div class="row-hint">When off, your specimen count shows as "—" to other survivors.</div>
                         </div>
-                        <div class="toggle" class:on={privacy.showVaultCount}
-                             onclick={() => { privacy.showVaultCount = !privacy.showVaultCount; markDirty(); }}></div>
+                        <button type="button" class="toggle" class:on={privacy.showVaultCount} role="switch" aria-checked={privacy.showVaultCount} aria-label="Show vault count"
+                             onclick={() => { privacy.showVaultCount = !privacy.showVaultCount; markDirty(); }}></button>
                     </div>
                     <div class="row">
                         <div class="row-info">
                             <div class="row-label">Show badges on public profile</div>
                             <div class="row-hint">Shows your Boss Ready / Underdog / Prize Bloodline wall.</div>
                         </div>
-                        <div class="toggle" class:on={privacy.showBadges}
-                             onclick={() => { privacy.showBadges = !privacy.showBadges; markDirty(); }}></div>
+                        <button type="button" class="toggle" class:on={privacy.showBadges} role="switch" aria-checked={privacy.showBadges} aria-label="Show badges"
+                             onclick={() => { privacy.showBadges = !privacy.showBadges; markDirty(); }}></button>
                     </div>
                 </div>
 
@@ -1084,16 +1084,16 @@
                             <div class="row-label">Allow tribe invites</div>
                             <div class="row-hint">When off, tribes cannot send you recruitment requests.</div>
                         </div>
-                        <div class="toggle" class:on={privacy.allowTribeInvites}
-                             onclick={() => { privacy.allowTribeInvites = !privacy.allowTribeInvites; markDirty(); }}></div>
+                        <button type="button" class="toggle" class:on={privacy.allowTribeInvites} role="switch" aria-checked={privacy.allowTribeInvites} aria-label="Allow tribe invites"
+                             onclick={() => { privacy.allowTribeInvites = !privacy.allowTribeInvites; markDirty(); }}></button>
                     </div>
                     <div class="row">
                         <div class="row-info">
                             <div class="row-label">Allow trade requests from anyone</div>
                             <div class="row-hint">When off, only friends &amp; tribe can offer on your listings.</div>
                         </div>
-                        <div class="toggle" class:on={privacy.allowTradeRequests}
-                             onclick={() => { privacy.allowTradeRequests = !privacy.allowTradeRequests; markDirty(); }}></div>
+                        <button type="button" class="toggle" class:on={privacy.allowTradeRequests} role="switch" aria-checked={privacy.allowTradeRequests} aria-label="Allow trade requests"
+                             onclick={() => { privacy.allowTradeRequests = !privacy.allowTradeRequests; markDirty(); }}></button>
                     </div>
                 </div>
 
@@ -1104,16 +1104,16 @@
                             <div class="row-label">Appear in Network suggestions</div>
                             <div class="row-hint">Surface in Friend page Discovery and Tribe recruitment.</div>
                         </div>
-                        <div class="toggle" class:on={privacy.appearInSuggestions}
-                             onclick={() => { privacy.appearInSuggestions = !privacy.appearInSuggestions; markDirty(); }}></div>
+                        <button type="button" class="toggle" class:on={privacy.appearInSuggestions} role="switch" aria-checked={privacy.appearInSuggestions} aria-label="Appear in network suggestions"
+                             onclick={() => { privacy.appearInSuggestions = !privacy.appearInSuggestions; markDirty(); }}></button>
                     </div>
                     <div class="row">
                         <div class="row-info">
                             <div class="row-label">Show me as online when active</div>
                             <div class="row-hint">Off hides your green pip — friends will see you as offline.</div>
                         </div>
-                        <div class="toggle" class:on={privacy.showOnline}
-                             onclick={() => { privacy.showOnline = !privacy.showOnline; markDirty(); }}></div>
+                        <button type="button" class="toggle" class:on={privacy.showOnline} role="switch" aria-checked={privacy.showOnline} aria-label="Show online status"
+                             onclick={() => { privacy.showOnline = !privacy.showOnline; markDirty(); }}></button>
                     </div>
                 </div>
 
@@ -1151,8 +1151,8 @@
                                         <div class="notif-cat-name">{r.name}</div>
                                         <div class="notif-cat-hint">{r.hint}</div>
                                     </td>
-                                    <td><div class="notif-cell-toggle" class:on={notif[r.key].inapp}
-                                              onclick={() => toggleNotif(r.key, 'inapp')}></div></td>
+                                    <td><button type="button" class="notif-cell-toggle" class:on={notif[r.key].inapp} role="switch" aria-checked={notif[r.key].inapp} aria-label="In-app notifications for {r.name}"
+                                              onclick={() => toggleNotif(r.key, 'inapp')}></button></td>
                                 </tr>
                             {/each}
                         </tbody>
@@ -1166,8 +1166,8 @@
                             <div class="row-label">Mute in-app notifications during quiet hours</div>
                             <div class="row-hint">Local time. While active, new notifications are skipped entirely — they won't show up on your bell, even later.</div>
                         </div>
-                        <div class="toggle" class:on={quietHoursOn}
-                             onclick={() => { quietHoursOn = !quietHoursOn; markDirty(); }}></div>
+                        <button type="button" class="toggle" class:on={quietHoursOn} role="switch" aria-checked={quietHoursOn} aria-label="Enable quiet hours"
+                             onclick={() => { quietHoursOn = !quietHoursOn; markDirty(); }}></button>
                     </div>
                     <div class="row">
                         <div class="row-info">
@@ -1204,7 +1204,7 @@
                     <div class="group-label">Map palettes <span style="color: var(--tek-text-dim); text-transform: none; letter-spacing: 0.05em;">— Pick your map's aesthetic. Affects accents site-wide.</span></div>
                     <div class="themes-grid">
                         {#each PALETTES as p}
-                            <div class="theme-card"
+                            <button type="button" class="theme-card"
                                  class:active={activePaletteId === p.id}
                                  style:--prv-bg={p.prvBg}
                                  style:--prv-line={p.prvLine}
@@ -1219,7 +1219,7 @@
                                     <div class="swatch" style:background={p.sw2}></div>
                                     <div class="swatch" style:background={p.sw3}></div>
                                 </div>
-                            </div>
+                            </button>
                         {/each}
 
                     </div>
@@ -1256,7 +1256,7 @@
                                 <div class="server-chip" class:offline={!s.online}>
                                     <span class="pip"></span>
                                     <span class="name">{s.name} <span style="color:var(--tek-text-faint);font-size:0.7em;">· {s.map}{s.role === 'admin' ? ' · ADMIN' : ''}</span></span>
-                                    <span class="x" onclick={() => removeServer(s.id)} title="Remove">✕</span>
+                                    <button type="button" class="x" onclick={() => removeServer(s.id)} title="Remove" aria-label="Remove server">✕</button>
                                 </div>
                             {/each}
                         </div>
@@ -1360,8 +1360,8 @@
                             <div class="row-label">Auto-pause when you're offline</div>
                             <div class="row-hint">Stop polling your subscribed servers when you haven't been active for 24h.</div>
                         </div>
-                        <div class="toggle" class:on={pollPauseIdle}
-                             onclick={() => { pollPauseIdle = !pollPauseIdle; markDirty(); }}></div>
+                        <button type="button" class="toggle" class:on={pollPauseIdle} role="switch" aria-checked={pollPauseIdle} aria-label="Pause polling when idle"
+                             onclick={() => { pollPauseIdle = !pollPauseIdle; markDirty(); }}></button>
                     </div>
                 </div>
 
@@ -1468,38 +1468,38 @@
                         {#if discordWebhook}
                             <div class="discord-events">
                                 <div class="discord-events-label">Forward these events to Discord:</div>
-                                <label class="discord-event-row">
-                                    <div class="toggle" class:on={discordEvents.tribeAnnounce}
-                                         onclick={() => { discordEvents.tribeAnnounce = !discordEvents.tribeAnnounce; markDirty(); }}></div>
+                                <div class="discord-event-row">
+                                    <button type="button" class="toggle" class:on={discordEvents.tribeAnnounce} role="switch" aria-checked={discordEvents.tribeAnnounce} aria-label="Forward tribe announcements to Discord"
+                                         onclick={() => { discordEvents.tribeAnnounce = !discordEvents.tribeAnnounce; markDirty(); }}></button>
                                     <div>
                                         <div class="row-label">Tribe announcements</div>
                                         <div class="row-hint">Wired — posts immediately when an admin sends an announcement.</div>
                                     </div>
-                                </label>
-                                <label class="discord-event-row">
-                                    <div class="toggle muted" class:on={discordEvents.warRoom}
-                                         onclick={() => { discordEvents.warRoom = !discordEvents.warRoom; markDirty(); }}></div>
+                                </div>
+                                <div class="discord-event-row">
+                                    <button type="button" class="toggle muted" class:on={discordEvents.warRoom} role="switch" aria-checked={discordEvents.warRoom} aria-label="Forward war room events to Discord"
+                                         onclick={() => { discordEvents.warRoom = !discordEvents.warRoom; markDirty(); }}></button>
                                     <div>
                                         <div class="row-label">War-room schedule <span class="chip">Coming soon</span></div>
                                         <div class="row-hint">When wired, posts a heads-up when a tribe schedules a boss run.</div>
                                     </div>
-                                </label>
-                                <label class="discord-event-row">
-                                    <div class="toggle muted" class:on={discordEvents.badge}
-                                         onclick={() => { discordEvents.badge = !discordEvents.badge; markDirty(); }}></div>
+                                </div>
+                                <div class="discord-event-row">
+                                    <button type="button" class="toggle muted" class:on={discordEvents.badge} role="switch" aria-checked={discordEvents.badge} aria-label="Forward badge milestones to Discord"
+                                         onclick={() => { discordEvents.badge = !discordEvents.badge; markDirty(); }}></button>
                                     <div>
                                         <div class="row-label">Badge milestones <span class="chip">Coming soon</span></div>
                                         <div class="row-hint">When wired, posts when you earn a Bloodline, Boss Ready, or Underdog badge.</div>
                                     </div>
-                                </label>
-                                <label class="discord-event-row">
-                                    <div class="toggle muted" class:on={discordEvents.trade}
-                                         onclick={() => { discordEvents.trade = !discordEvents.trade; markDirty(); }}></div>
+                                </div>
+                                <div class="discord-event-row">
+                                    <button type="button" class="toggle muted" class:on={discordEvents.trade} role="switch" aria-checked={discordEvents.trade} aria-label="Forward trade offers to Discord"
+                                         onclick={() => { discordEvents.trade = !discordEvents.trade; markDirty(); }}></button>
                                     <div>
                                         <div class="row-label">Trade offers received <span class="chip">Coming soon</span></div>
                                         <div class="row-hint">When wired, posts when someone offers on one of your Marketplace listings.</div>
                                     </div>
-                                </label>
+                                </div>
                             </div>
                         {/if}
                     </div>
@@ -1606,8 +1606,11 @@
 
 <!-- Change Password modal -->
 {#if pwdOpen}
-<div class="pwd-modal-overlay" role="dialog" aria-modal="true" onclick={() => pwdOpen=false}>
-    <div class="pwd-modal" onclick={(e) => e.stopPropagation()} role="document">
+<div class="pwd-modal-overlay" role="dialog" aria-modal="true" tabindex="-1"
+    onclick={() => pwdOpen=false}
+    onkeydown={(e) => { if (e.key === 'Escape') pwdOpen=false; }}>
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div class="pwd-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
         <div class="pwd-modal-head">
             <div class="pwd-modal-title">Change Password</div>
             <button class="pwd-modal-close" onclick={() => pwdOpen=false}>×</button>
@@ -1636,8 +1639,11 @@
 
 <!-- Change Email modal -->
 {#if emailOpen}
-<div class="pwd-modal-overlay" role="dialog" aria-modal="true" onclick={() => emailOpen=false}>
-    <div class="pwd-modal" onclick={(e) => e.stopPropagation()} role="document">
+<div class="pwd-modal-overlay" role="dialog" aria-modal="true" tabindex="-1"
+    onclick={() => emailOpen=false}
+    onkeydown={(e) => { if (e.key === 'Escape') emailOpen=false; }}>
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div class="pwd-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
         <div class="pwd-modal-head">
             <div class="pwd-modal-title">Change Email</div>
             <button class="pwd-modal-close" onclick={() => emailOpen=false}>×</button>
@@ -1664,8 +1670,11 @@
 <!-- Danger confirm modal (Clear Vault / Leave Tribes / Delete Account) -->
 {#if confirmOpen}
     {@const cfg = CONFIRM_COPY[confirmOpen]}
-    <div class="pwd-modal-overlay" role="dialog" aria-modal="true" onclick={() => confirmOpen=null}>
-        <div class="pwd-modal danger" onclick={(e) => e.stopPropagation()} role="document">
+    <div class="pwd-modal-overlay" role="dialog" aria-modal="true" tabindex="-1"
+        onclick={() => confirmOpen=null}
+        onkeydown={(e) => { if (e.key === 'Escape') confirmOpen=null; }}>
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+        <div class="pwd-modal danger" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
             <div class="pwd-modal-head danger">
                 <div class="pwd-modal-title">⚠ {cfg.title}</div>
                 <button class="pwd-modal-close" onclick={() => confirmOpen=null}>×</button>
@@ -1780,7 +1789,11 @@
     gap: 10px;
     padding: 11px 12px;
     cursor: pointer;
+    background: none;
+    border: none;
     border-left: 2px solid transparent;
+    width: 100%;
+    text-align: left;
     font-family: var(--tek-mono);
     font-size: 0.74rem;
     letter-spacing: 0.10em;
@@ -1913,12 +1926,15 @@
 .toggle {
     position: relative;
     width: 44px; height: 24px;
+    padding: 0;
     background: rgba(15,23,42,0.9);
     border: 1px solid rgba(100,116,139,0.30);
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s;
     flex-shrink: 0;
+    appearance: none;
+    -webkit-appearance: none;
 }
 .toggle::after {
     content: '';
@@ -2183,6 +2199,10 @@
     cursor: pointer;
     transition: all 0.2s;
     overflow: hidden;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    color: inherit;
 }
 .theme-card:hover {
     border-color: var(--tek-blue-border);
@@ -2360,12 +2380,15 @@
 .notif-cell-toggle {
     display: inline-flex;
     width: 22px; height: 22px;
+    padding: 0;
     border-radius: 4px;
     background: rgba(15,23,42,0.6);
     border: 1px solid rgba(100,116,139,0.25);
     cursor: pointer;
     position: relative;
     transition: all 0.15s;
+    appearance: none;
+    -webkit-appearance: none;
 }
 .notif-cell-toggle.on {
     background: rgba(0,180,255,0.15);
@@ -2458,6 +2481,10 @@
     color: var(--tek-text-faint);
     cursor: pointer;
     transition: color 0.15s;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
 }
 .server-chip .x:hover { color: var(--tek-red); }
 

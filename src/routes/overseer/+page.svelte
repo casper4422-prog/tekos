@@ -810,8 +810,11 @@
 {@const sv = svgFor(b.id)}
 {@const letter = bossLetter(b.id, b.name)}
 {@const dtips = TIPS[b.id] ?? TIPS.default}
-<div class="modal-overlay" role="dialog" aria-modal="true" onclick={() => detailBoss = null}>
-	<div class="modal-stage" onclick={(e) => e.stopPropagation()} role="document">
+<div class="modal-overlay" role="dialog" aria-modal="true" tabindex="-1"
+	onclick={() => detailBoss = null}
+	onkeydown={(e) => { if (e.key === 'Escape') detailBoss = null; }}>
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div class="modal-stage" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
 		<!-- Breadcrumb -->
 		<div class="breadcrumb">
 			<button class="bc-link" onclick={() => detailBoss = null}>Overseer</button>
@@ -964,8 +967,11 @@
 
 <!-- ═════════ ADD SPECIMEN MODAL ═════════ -->
 {#if addOpen}
-<div class="modal-overlay" role="dialog" aria-modal="true" onclick={() => addOpen=false}>
-	<div class="modal-stage" style="max-width:720px" onclick={(e) => e.stopPropagation()} role="document">
+<div class="modal-overlay" role="dialog" aria-modal="true" tabindex="-1"
+	onclick={() => addOpen=false}
+	onkeydown={(e) => { if (e.key === 'Escape') addOpen=false; }}>
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div class="modal-stage" style="max-width:720px" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
 		<div class="section-header">
 			<span class="pip"></span>
 			Commit Specimen
@@ -990,8 +996,11 @@
 
 <!-- ═════════ LOG FIGHT MODAL ═════════ -->
 {#if logOpen}
-<div class="modal-overlay" role="dialog" aria-modal="true" onclick={() => logOpen=false}>
-	<div class="modal-stage" style="max-width:520px" onclick={(e) => e.stopPropagation()} role="document">
+<div class="modal-overlay" role="dialog" aria-modal="true" tabindex="-1"
+	onclick={() => logOpen=false}
+	onkeydown={(e) => { if (e.key === 'Escape') logOpen=false; }}>
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div class="modal-stage" style="max-width:520px" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
 		<div class="section-header">
 			<span class="pip"></span>
 			Log Boss Fight
@@ -1017,8 +1026,11 @@
 
 <!-- ═════════ INVITE MODAL ═════════ -->
 {#if inviteOpen}
-<div class="modal-overlay" role="dialog" aria-modal="true" onclick={() => inviteOpen=false}>
-	<div class="modal-stage" style="max-width:520px" onclick={(e) => e.stopPropagation()} role="document">
+<div class="modal-overlay" role="dialog" aria-modal="true" tabindex="-1"
+	onclick={() => inviteOpen=false}
+	onkeydown={(e) => { if (e.key === 'Escape') inviteOpen=false; }}>
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div class="modal-stage" style="max-width:520px" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
 		<div class="section-header">
 			<span class="pip"></span>
 			Invite to War Room

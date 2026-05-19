@@ -22,6 +22,7 @@
     class:on={checked}
     onclick={toggle}
     aria-pressed={checked}
+    aria-label="Toggle"
 ></button>
 
 <style>

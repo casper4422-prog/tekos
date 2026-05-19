@@ -374,7 +374,7 @@
 		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
 			<div style="color:#94a3b8;font-size:0.88rem">{String(session.bossName)} · {String(session.difficulty).toUpperCase()}</div>
 			<div class="plan-field">
-				<label class="form-label">Outcome</label>
+				<div class="form-label">Outcome</div>
 				<div style="display:flex;gap:8px">
 					<button class="btn btn-sm" class:btn-primary={logOutcome==='success'} class:btn-secondary={logOutcome!=='success'} onclick={() => logOutcome='success'}>Victory</button>
 					<button class="btn btn-sm" class:btn-danger={logOutcome==='failed'} class:btn-secondary={logOutcome!=='failed'}  onclick={() => logOutcome='failed'}>Defeat</button>
