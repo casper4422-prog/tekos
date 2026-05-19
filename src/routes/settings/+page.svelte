@@ -1818,16 +1818,6 @@
     opacity: 0.7;
 }
 .nav-item.active .icon { opacity: 1; }
-.nav-item .nav-pip {
-    margin-left: auto;
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--tek-amber);
-    box-shadow: 0 0 5px rgba(245,158,11,0.6);
-    flex-shrink: 0;
-    display: none;
-}
-.nav-item.unsaved .nav-pip { display: block; }
 
 /* Right panel */
 .panel {
@@ -1913,15 +1903,6 @@
     color: var(--tek-text-dim);
     line-height: 1.4;
 }
-.row-hint code {
-    font-family: var(--tek-mono);
-    font-size: 0.72rem;
-    color: var(--tek-blue);
-    background: rgba(0,180,255,0.07);
-    padding: 1px 6px;
-    border-radius: 2px;
-}
-
 /* Toggle switch */
 .toggle {
     position: relative;
@@ -2078,12 +2059,6 @@
     line-height: 1.5;
     letter-spacing: 0.04em;
     clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
-}
-.placeholder-note code {
-    font-family: var(--tek-mono);
-    background: rgba(245,158,11,0.08);
-    padding: 1px 5px;
-    border-radius: 2px;
 }
 
 /* ═════════════════════════════════════════════════════════════════════════

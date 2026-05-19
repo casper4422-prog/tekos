@@ -1804,7 +1804,6 @@
 	padding: 3px 9px;
 	clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
 }
-.type-chip svg { width: 11px; height: 11px; }
 .posted {
 	font-family: var(--tek-mono);
 	font-size: 0.56rem;
@@ -1837,9 +1836,6 @@
 	font-style: italic;
 	margin-bottom: 10px;
 }
-.listing-content.specimen-content .item-nick .gender { font-style: normal; }
-.listing-content.specimen-content .item-nick .gender.female { color: var(--tek-pink); }
-.listing-content.specimen-content .item-nick .gender.male   { color: #60a5fa; }
 .listing-content.specimen-content .item-stats {
 	display: flex;
 	align-items: baseline;
@@ -2155,7 +2151,6 @@
 	margin: 4px auto 10px;
 	position: relative;
 }
-.listing-content.egg-content .egg-icon-wrap svg { width: 100%; height: 100%; filter: drop-shadow(0 0 8px rgba(245,158,11,0.45)); animation: egg-glow 3s ease-in-out infinite; }
 @keyframes egg-glow {
 	0%, 100% { filter: drop-shadow(0 0 8px rgba(245,158,11,0.45)); }
 	50%      { filter: drop-shadow(0 0 14px rgba(245,158,11,0.70)); }
@@ -2187,16 +2182,6 @@
 	line-height: 1.55;
 	clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
 }
-.listing-content.egg-content .egg-parents .label {
-	font-size: 0.54rem;
-	letter-spacing: 0.18em;
-	color: var(--tek-text-faint);
-	text-transform: uppercase;
-	margin-bottom: 3px;
-	display: block;
-}
-.listing-content.egg-content .egg-parents .male   { color: #60a5fa; }
-.listing-content.egg-content .egg-parents .female { color: var(--tek-pink); }
 .listing-content.egg-content .egg-qty {
 	text-align: right;
 	margin-top: 8px;
@@ -2206,8 +2191,6 @@
 	color: var(--tek-amber);
 	text-shadow: 0 0 6px rgba(245,158,11,0.50);
 }
-.listing-content.egg-content .egg-qty .lbl { font-family: var(--tek-mono); font-size: 0.55rem; letter-spacing: 0.20em; color: var(--tek-text-faint); text-transform: uppercase; font-weight: 600; }
-
 /* RESOURCE content */
 .listing-content.resource-content {
 	display: flex;
@@ -2247,8 +2230,6 @@
 	text-shadow: 0 0 8px rgba(139,92,246,0.55);
 	margin-top: 6px;
 }
-.listing-content.resource-content .resource-qty .lbl { font-family: var(--tek-mono); font-size: 0.55rem; letter-spacing: 0.18em; color: var(--tek-text-faint); text-transform: uppercase; font-weight: 600; margin-left: 5px; }
-
 /* SERVICE content */
 .listing-content.service-content {
 	display: flex;

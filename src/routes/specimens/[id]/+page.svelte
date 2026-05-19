@@ -1882,7 +1882,6 @@
     color: var(--tek-text);
     line-height: 1.45;
 }
-.activity-text strong { color: var(--tek-blue); font-weight: 700; }
 .activity-text .who   { color: #fcd34d; font-weight: 600; }
 .activity-text .what  { color: #c4b5fd; font-weight: 600; }
 .activity-time {

@@ -866,18 +866,6 @@
     background-image: repeating-linear-gradient(180deg, transparent 0 3px, rgba(var(--tier-rgb), 0.03) 3px 4px);
     pointer-events: none;
 }
-/* Corner brackets per badge */
-.badge-trophy .bracket {
-    position: absolute;
-    width: 14px; height: 14px;
-    border: 1.2px solid rgba(var(--tier-rgb), 0.55);
-    filter: drop-shadow(0 0 3px rgba(var(--tier-rgb), 0.5));
-}
-.badge-trophy .bracket.tl { top: 8px; left: 8px; border-right: none; border-bottom: none; }
-.badge-trophy .bracket.tr { top: 8px; right: 8px; border-left: none; border-bottom: none; }
-.badge-trophy .bracket.bl { bottom: 8px; left: 8px; border-right: none; border-top: none; }
-.badge-trophy .bracket.br { bottom: 8px; right: 8px; border-left: none; border-top: none; }
-
 .badge-icon {
     width: 64px; height: 64px;
     display: flex; align-items: center; justify-content: center;
@@ -890,8 +878,6 @@
     0%, 100% { filter: drop-shadow(0 0 14px rgba(var(--tier-rgb), 0.6)); }
     50%      { filter: drop-shadow(0 0 26px rgba(var(--tier-rgb), 0.95)); }
 }
-.badge-trophy.locked .badge-icon { animation: none; opacity: 0.4; }
-
 .badge-tier {
     font-family: var(--tek-display);
     font-size: 0.9rem;
@@ -1263,8 +1249,6 @@
     text-transform: uppercase;
     text-align: center;
 }
-.project-card-new:hover .project-card-new-label { color: var(--tek-blue); }
-
 /* ═════════════════════════════════════════════════════════════════════════
    STATS DASHBOARD
    ═════════════════════════════════════════════════════════════════════════ */
@@ -1381,10 +1365,6 @@
 .activity-text strong {
     color: var(--tek-blue);
     font-weight: 700;
-}
-.activity-text .species-name {
-    color: #c4b5fd;
-    font-weight: 600;
 }
 .activity-time {
     font-family: var(--tek-mono);

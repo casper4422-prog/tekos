@@ -1076,14 +1076,6 @@
     opacity: 0.7;
 }
 .mode-tab.active .mt-icon { opacity: 1; }
-.mode-tab .soon {
-    font-size: 0.56rem;
-    color: var(--tek-amber);
-    border: 1px solid rgba(245,158,11,0.40);
-    padding: 1px 5px;
-    letter-spacing: 0.16em;
-    margin-left: 4px;
-}
 
 /* ═════════════════════════════════════════════════════════════════════════
    TWO-COLUMN LAYOUT — FORM + LIVE PREVIEW
@@ -1344,12 +1336,6 @@
     border-left: 2px solid rgba(139,92,246,0.40);
     line-height: 1.5;
 }
-.stats-help code {
-    color: var(--tek-blue);
-    background: rgba(0,180,255,0.08);
-    padding: 1px 5px;
-}
-
 /* ═════════════════════════════════════════════════════════════════════════
    LINEAGE — Parent pickers
    ═════════════════════════════════════════════════════════════════════════ */
@@ -1409,11 +1395,6 @@
     font-size: 0.78rem;
     clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
 }
-.parent-selected .name { color: var(--tek-text); flex: 1; }
-.parent-selected .species { color: var(--tek-text-dim); }
-.parent-selected .x { color: var(--tek-text-faint); cursor: pointer; }
-.parent-selected .x:hover { color: var(--tek-red); }
-
 /* ═════════════════════════════════════════════════════════════════════════
    STAT GENEALOGY — Founder per stat
    ═════════════════════════════════════════════════════════════════════════ */

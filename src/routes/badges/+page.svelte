@@ -1397,7 +1397,6 @@
     margin-bottom: 10px;
 }
 .how-card-desc strong { color: var(--tek-text); font-weight: 600; }
-.how-card-desc em { color: rgb(var(--hc-rgb)); font-style: normal; font-weight: 700; }
 .how-card-formula {
     font-family: var(--tek-mono);
     font-size: 0.72rem;

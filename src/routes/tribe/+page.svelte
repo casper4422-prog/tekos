@@ -1147,7 +1147,6 @@
 .pending-info .label  { font-weight: 700; color: var(--tek-text); margin-right: 8px; }
 .pending-info .meta   { color: var(--tek-text-dim); }
 .pending-info .who    { color: #fcd34d; font-weight: 600; }
-.pending-info .target { color: #c4b5fd; font-weight: 600; }
 
 .pending-timer {
 	font-family: var(--tek-display);
@@ -1193,15 +1192,6 @@
 .pending-btn.trade:hover    { background: rgba(0,180,255,0.30); filter: drop-shadow(0 0 8px var(--tek-blue-glow)); }
 .pending-btn.alliance { background: rgba(16,185,129,0.18); border-color: rgba(16,185,129,0.42); color: #86efac; }
 .pending-btn.alliance:hover { background: rgba(16,185,129,0.30); filter: drop-shadow(0 0 8px rgba(16,185,129,0.50)); }
-.pending-btn .lock-icon {
-	width: 11px; height: 11px;
-	margin-right: 5px;
-	color: currentColor;
-	opacity: 0.85;
-	vertical-align: middle;
-	margin-top: -1px;
-}
-
 /* ═════════════════════════════════════════════════════════════════════════
    SECTION SCAFFOLD
    ═════════════════════════════════════════════════════════════════════════ */
@@ -1615,9 +1605,6 @@
 	color: var(--tek-text);
 	line-height: 1.45;
 }
-.feed-text strong { color: var(--tek-blue); font-weight: 700; }
-.feed-text .who   { color: #fcd34d; font-weight: 600; }
-.feed-text .what  { color: #c4b5fd; font-weight: 600; }
 .feed-time {
 	font-family: var(--tek-mono);
 	font-size: 0.66rem;
