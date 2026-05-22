@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
     import { computeBadges } from '$lib/badges';
     import PinModal from '$lib/components/PinModal.svelte';
     import type { PageData } from './$types';
@@ -8,6 +9,27 @@
 
     let pinModalOpen = $state(false);
     let pinModalMode = $state<'project' | 'featured'>('project');
+
+    // Share button — copies a link to this user's public dossier to the clipboard.
+    let shareLabel = $state('Share');
+    async function copyProfileLink() {
+        if (!data.profile?.id) return;
+        const url = `${window.location.origin}/survivors/${data.profile.id}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            shareLabel = 'Copied!';
+        } catch {
+            shareLabel = 'Copy failed';
+        }
+        setTimeout(() => { shareLabel = 'Share'; }, 1800);
+    }
+
+    function openProject(creatureId: number, e?: KeyboardEvent | MouseEvent) {
+        // Bump buttons stopPropagation themselves so this only fires for card-level clicks.
+        if (e && 'key' in e && e.key !== 'Enter' && e.key !== ' ') return;
+        if (e && 'key' in e) e.preventDefault();
+        goto(`/specimens/${creatureId}`);
+    }
 
     async function savePin(payload: { creatureId: number; focusStat: string | null; targetMutations: number } | { creatureIds: number[] }) {
         if ('creatureIds' in payload) {
@@ -233,7 +255,7 @@
             </div>
             <div class="identity-actions">
                 <a class="btn btn-primary" href="/settings">Edit Dossier</a>
-                <button class="btn btn-ghost">⬡ Share</button>
+                <button class="btn btn-ghost" onclick={copyProfileLink}>⬡ {shareLabel}</button>
             </div>
         </div>
     </section>
@@ -357,7 +379,7 @@
                     {@const focusLabel = c.focusStat ?? '—'}
                     {@const currentMut = mutationCounts[c.id] ?? 0}
                     {@const targetMut = c.targetMutations ?? 0}
-                    <div class="pin-card {cat}">
+                    <div class="pin-card {cat}" role="link" tabindex="0" onclick={() => openProject(c.id)} onkeydown={(e) => openProject(c.id, e)}>
                         <div class="pin-top">
                             <span class="pin-tier">⬢ {tierLabel}</span>
                             <svg class="pin-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
@@ -374,12 +396,12 @@
                             <div class="project-focus-stat">{focusBase}</div>
                         </div>
                         <div class="project-counter">
-                            <button class="project-btn minus" title="Decrement {focusLabel} mutations" onclick={() => bump(c.id, -1)} disabled={!c.focusStat}>−</button>
+                            <button class="project-btn minus" title="Decrement {focusLabel} mutations" onclick={(e) => { e.stopPropagation(); bump(c.id, -1); }} disabled={!c.focusStat}>−</button>
                             <div class="project-counter-center">
                                 <div class="project-counter-num">{currentMut}{targetMut > 0 ? ` / ${targetMut}` : ''}</div>
                                 <div class="project-counter-lbl">{focusLabel === '—' ? 'Mutations' : `${focusLabel} Mutations`}</div>
                             </div>
-                            <button class="project-btn plus" title="Increment {focusLabel} mutations — new baby with +1" onclick={() => bump(c.id, 1)} disabled={!c.focusStat}>+</button>
+                            <button class="project-btn plus" title="Increment {focusLabel} mutations — new baby with +1" onclick={(e) => { e.stopPropagation(); bump(c.id, 1); }} disabled={!c.focusStat}>+</button>
                         </div>
                         <div class="project-meta">
                             <div class="project-meta-row"><span class="key">Last bred</span><span class="val">{relativeTime(c.createdAt)}</span></div>
@@ -401,10 +423,10 @@
             <span class="rule"></span>
         </div>
         <div class="stats-grid">
-            <div class="stat-cell">
+            <a class="stat-cell" href="/specimens">
                 <div class="stat-cell-val gradient">{data.stats.specimens}</div>
                 <div class="stat-cell-lbl">Specimens</div>
-            </div>
+            </a>
             <div class="stat-cell">
                 <div class="stat-cell-val">
                     {#if data.stats.tradeRep !== null}
@@ -415,18 +437,18 @@
                 </div>
                 <div class="stat-cell-lbl">Trade Rep</div>
             </div>
-            <div class="stat-cell">
+            <a class="stat-cell" href="/badges">
                 <div class="stat-cell-val gradient">{data.stats.badges}</div>
                 <div class="stat-cell-lbl">Badges</div>
-            </div>
-            <div class="stat-cell">
+            </a>
+            <a class="stat-cell" href="/network">
                 <div class="stat-cell-val">{data.stats.friends}<span class="live-pip"></span></div>
                 <div class="stat-cell-lbl">Friends</div>
-            </div>
-            <div class="stat-cell">
+            </a>
+            <a class="stat-cell" href="/overseer">
                 <div class="stat-cell-val unread">{data.recentBoss.length}</div>
                 <div class="stat-cell-lbl">Boss Runs</div>
-            </div>
+            </a>
         </div>
     </section>
 
@@ -703,6 +725,11 @@
     color: var(--tek-text-faint);
     text-decoration: none;
     transition: color 0.18s;
+    /* Reset native <button> defaults so anchor + button forms render identically */
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
 }
 .section-header .action:hover { color: var(--tek-blue); }
 .section-header .action .arrow { color: var(--tek-blue); margin-left: 4px; }
@@ -1264,9 +1291,15 @@
     background: linear-gradient(160deg, rgba(10,18,44,0.92) 0%, rgba(4,8,20,0.98) 100%);
     clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
     padding: 18px 16px 14px 20px;
-    transition: transform 0.18s ease;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    /* Anchor form: kill default link decoration so the cell looks identical */
+    color: inherit;
+    text-decoration: none;
+    display: block;
 }
 .stat-cell:hover { transform: translateY(-2px); }
+a.stat-cell { cursor: pointer; }
+a.stat-cell:hover { box-shadow: 0 6px 18px rgba(0,180,255,0.10); }
 .stat-cell::before {
     content: '';
     position: absolute;
