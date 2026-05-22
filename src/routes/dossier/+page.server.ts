@@ -12,12 +12,18 @@ export const load: PageServerLoad = async ({ locals }) => {
             recentBoss: [],
             badgeWall: { bloodline: [], bossReady: [], roles: [], underdog: [] },
             pinnedIds: [] as number[],
-            pinnedProjects: [] as Array<{ creatureId: number; focusStat: string | null; targetMutations: number }>
+            pinnedProjects: [] as Array<{ creatureId: number; focusStat: string | null; targetMutations: number }>,
+            activeTrades: { myListings: [], pendingOffers: [] },
+            recentActivity: [],
+            notifications: { unreadCount: 0, latest: [] }
         };
     }
     const userId = locals.user.id;
 
-    const [user, creatureRows, friendCount, membership, bossRecords, tradeRatings] = await Promise.all([
+    const [
+        user, creatureRows, friendCount, membership, bossRecords, tradeRatings,
+        myListings, pendingOffers, recentActivity, unreadNotifsCount, latestNotifs
+    ] = await Promise.all([
         db.user.findUnique({
             where: { id: userId },
             select: {
@@ -36,14 +42,54 @@ export const load: PageServerLoad = async ({ locals }) => {
         }),
         db.tribeMembership.findFirst({
             where: { userId },
-            include: { tribe: { select: { id: true, name: true, mainMap: true, flagImage: true, colors: true } } }
+            include: {
+                tribe: {
+                    select: {
+                        id: true, name: true, mainMap: true, flagImage: true, colors: true,
+                        _count: { select: { members: true } }
+                    }
+                }
+            }
         }),
         db.bossRecord.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
             take: 6
         }),
-        db.tradeRating.findMany({ where: { ratedUserId: userId }, select: { rating: true } })
+        db.tradeRating.findMany({ where: { ratedUserId: userId }, select: { rating: true } }),
+        // My open listings on the marketplace
+        db.trade.findMany({
+            where: { userId, status: 'open' },
+            select: {
+                id: true, listingType: true, wanted: true, price: true, createdAt: true,
+                creatureData: true, metadata: true,
+                _count: { select: { offers: true } }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 6
+        }),
+        // Offers other survivors have sent ME, waiting for my response
+        db.offer.findMany({
+            where: { toUserId: userId, status: 'pending' },
+            include: {
+                fromUser: { select: { id: true, nickname: true, discordName: true } },
+                trade: { select: { id: true, listingType: true } }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 6
+        }),
+        // Broader activity feed — things I've done across the site
+        db.activityEvent.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+        }),
+        db.notification.count({ where: { userId, read: false } }),
+        db.notification.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            take: 5
+        })
     ]);
 
     // Shape creatures for UI
@@ -94,6 +140,45 @@ export const load: PageServerLoad = async ({ locals }) => {
         }
     }
 
+    // Shape tribe with role + member count for the Tribe Snapshot card
+    const tribe = membership?.tribe ? {
+        id: membership.tribe.id,
+        name: membership.tribe.name,
+        mainMap: membership.tribe.mainMap,
+        flagImage: membership.tribe.flagImage,
+        colors: membership.tribe.colors,
+        myRole: membership.role,
+        memberCount: membership.tribe._count.members
+    } : null;
+
+    // Shape Active Trades — my open listings + pending offers to me
+    const activeTrades = {
+        myListings: myListings.map(t => {
+            const cd = (t.creatureData as Record<string, unknown> | null) ?? null;
+            const meta = (t.metadata as Record<string, unknown> | null) ?? null;
+            return {
+                id: t.id,
+                listingType: t.listingType,
+                wanted: t.wanted,
+                price: t.price,
+                createdAt: t.createdAt,
+                offerCount: t._count.offers,
+                species: cd?.species ?? meta?.wantedSpecies ?? null,
+                name: cd?.name ?? null,
+                direction: (meta?.direction as string) ?? 'sell'
+            };
+        }),
+        pendingOffers: pendingOffers.map(o => ({
+            id: o.id,
+            tradeId: o.tradeId,
+            listingType: o.trade.listingType,
+            fromId: o.fromUser.id,
+            fromName: o.fromUser.nickname ?? o.fromUser.discordName ?? 'Survivor',
+            message: o.message,
+            createdAt: o.createdAt
+        }))
+    };
+
     return {
         profile: user,
         creatures,
@@ -103,10 +188,27 @@ export const load: PageServerLoad = async ({ locals }) => {
             friends:   friendCount,
             tradeRep
         },
-        tribe: membership?.tribe ?? null,
+        tribe,
         recentBoss: bossRecords,
         badgeWall,
         pinnedIds,
-        pinnedProjects
+        pinnedProjects,
+        activeTrades,
+        recentActivity: recentActivity.map(a => ({
+            id: a.id,
+            type: a.type,
+            data: a.data,
+            createdAt: a.createdAt
+        })),
+        notifications: {
+            unreadCount: unreadNotifsCount,
+            latest: latestNotifs.map(n => ({
+                id: n.id,
+                type: n.type,
+                payload: n.payload,
+                read: n.read,
+                createdAt: n.createdAt
+            }))
+        }
     };
 };

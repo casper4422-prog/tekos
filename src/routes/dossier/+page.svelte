@@ -160,6 +160,49 @@
         return `${months}mo ago`;
     }
 
+    // ─── Recent Activity helpers ─────────────────────────────────
+    function activityIcon(type: string): string {
+        if (type === 'creature_add') return '🧬';
+        if (type === 'boss_record') return '⚔';
+        if (type === 'trade_list' || type === 'trade_open' || type === 'trade_close') return '⇆';
+        if (type === 'badge_earned') return '⬢';
+        return '◈';
+    }
+    function activityText(a: { type: string; data: unknown }): string {
+        const d = (a.data && typeof a.data === 'object' ? a.data : {}) as Record<string, unknown>;
+        if (a.type === 'creature_add') return `Logged ${String(d.species ?? d.name ?? 'a specimen')}`;
+        if (a.type === 'boss_record') return `${d.outcome === 'success' ? 'Beat' : 'Fought'} ${String(d.bossName ?? 'a boss')}`;
+        if (a.type === 'trade_list' || a.type === 'trade_open') {
+            const verb = d.direction === 'buy' ? 'Looking for' : 'Listed';
+            return `${verb} ${String(d.species ?? d.item ?? 'something')}`;
+        }
+        if (a.type === 'trade_close') return `Closed a trade${d.species ? ` for ${String(d.species)}` : ''}`;
+        if (a.type === 'badge_earned') return `Earned ${String(d.badge ?? 'a badge')}`;
+        return a.type.replace(/_/g, ' ');
+    }
+
+    // ─── Notification preview helpers ────────────────────────────
+    function notifIcon(type: string): string {
+        if (type === 'friend_request' || type === 'friend_accepted') return '◈';
+        if (type.startsWith('tribe_') || type.startsWith('alliance_')) return '⬡';
+        if (type.startsWith('trade_') || type.startsWith('offer_')) return '⇆';
+        if (type === 'war_room_invite') return '⚔';
+        return '◉';
+    }
+    function notifText(n: { type: string; payload: unknown }): string {
+        const p = (n.payload && typeof n.payload === 'object' ? n.payload : {}) as Record<string, unknown>;
+        const from = String(p.fromName ?? 'Someone');
+        if (n.type === 'friend_request')   return `${from} wants to connect`;
+        if (n.type === 'friend_accepted')  return `${from} accepted your friend request`;
+        if (n.type === 'tribe_invite')     return `${from} invited you to a tribe`;
+        if (n.type === 'tribe_announcement') return `New announcement in ${String(p.tribeName ?? 'your tribe')}`;
+        if (n.type === 'trade_offer')      return `${from} made you an offer`;
+        if (n.type === 'offer_message')    return `${from} sent a message about an offer`;
+        if (n.type === 'offer_counter')    return `${from} sent a counter-offer`;
+        if (n.type === 'war_room_invite')  return `${from} invited you to a war room`;
+        return n.type.replace(/_/g, ' ');
+    }
+
     onMount(() => {
         const canvas = document.getElementById('tekHexCanvas') as HTMLCanvasElement | null;
         if (!canvas) return;
@@ -259,6 +302,40 @@
             </div>
         </div>
     </section>
+
+    <!-- ═══════════ TRIBE SNAPSHOT ═══════════ -->
+    {#if data.tribe}
+    <section class="section">
+        <div class="section-header">
+            <span class="pip"></span>
+            Tribe
+            <span class="rule"></span>
+            <a href="/tribe" class="action">Tribe Hub <span class="arrow">▸</span></a>
+        </div>
+        <a class="tribe-snapshot" href="/tribe">
+            <div class="tribe-sigil">
+                {#if data.tribe.flagImage}
+                    <img src={data.tribe.flagImage} alt="" />
+                {:else}
+                    <div class="tribe-sigil-fallback">⬡</div>
+                {/if}
+            </div>
+            <div class="tribe-info">
+                <div class="tribe-name">{data.tribe.name}</div>
+                <div class="tribe-meta">
+                    <span class="role">{data.tribe.myRole?.toUpperCase()}</span>
+                    <span class="sep">·</span>
+                    <span class="count">{data.tribe.memberCount} member{data.tribe.memberCount === 1 ? '' : 's'}</span>
+                    {#if data.tribe.mainMap}
+                        <span class="sep">·</span>
+                        <span class="map">{data.tribe.mainMap}</span>
+                    {/if}
+                </div>
+            </div>
+            <span class="tribe-arrow">▸</span>
+        </a>
+    </section>
+    {/if}
 
     <!-- ═══════════ BADGE WALL (centerpiece) ═══════════ -->
     <section class="section">
@@ -415,6 +492,53 @@
         {/if}
     </section>
 
+    <!-- ═══════════ ACTIVE TRADES ═══════════ -->
+    {#if data.activeTrades.myListings.length > 0 || data.activeTrades.pendingOffers.length > 0}
+    <section class="section">
+        <div class="section-header">
+            <span class="pip"></span>
+            Active Trades
+            <span class="rule"></span>
+            <a href="/marketplace" class="action">Marketplace <span class="arrow">▸</span></a>
+        </div>
+        <div class="trades-grid">
+            {#if data.activeTrades.pendingOffers.length > 0}
+            <div class="trades-block">
+                <div class="trades-block-label">Offers waiting on you <span class="trades-block-count">{data.activeTrades.pendingOffers.length}</span></div>
+                {#each data.activeTrades.pendingOffers as o (o.id)}
+                    <a class="trade-row pending" href="/marketplace?offer={o.id}">
+                        <span class="trade-icon">⇆</span>
+                        <div class="trade-info">
+                            <div class="trade-title">{o.fromName} <span class="trade-dim">on your {o.listingType}</span></div>
+                            {#if o.message}<div class="trade-preview">"{o.message}"</div>{/if}
+                        </div>
+                        <span class="trade-time">{relativeTime(o.createdAt)}</span>
+                    </a>
+                {/each}
+            </div>
+            {/if}
+            {#if data.activeTrades.myListings.length > 0}
+            <div class="trades-block">
+                <div class="trades-block-label">Your open listings <span class="trades-block-count">{data.activeTrades.myListings.length}</span></div>
+                {#each data.activeTrades.myListings as t (t.id)}
+                    <a class="trade-row" href="/marketplace?trade={t.id}">
+                        <span class="trade-icon">{t.direction === 'buy' ? '◈' : '⬡'}</span>
+                        <div class="trade-info">
+                            <div class="trade-title">
+                                {t.direction === 'buy' ? 'WTB' : 'Listed'} {String(t.species ?? t.listingType)}
+                                {#if t.name}<span class="trade-dim">— "{t.name}"</span>{/if}
+                            </div>
+                            {#if t.wanted}<div class="trade-preview">Want: {t.wanted}</div>{/if}
+                        </div>
+                        <span class="trade-time">{t.offerCount} offer{t.offerCount === 1 ? '' : 's'}</span>
+                    </a>
+                {/each}
+            </div>
+            {/if}
+        </div>
+    </section>
+    {/if}
+
     <!-- ═══════════ STATS DASHBOARD ═══════════ -->
     <section class="section">
         <div class="section-header">
@@ -475,6 +599,50 @@
                 {/each}
             </div>
         </section>
+    {/if}
+
+    <!-- ═══════════ RECENT ACTIVITY ═══════════ -->
+    {#if data.recentActivity.length > 0}
+    <section class="section">
+        <div class="section-header">
+            <span class="pip"></span>
+            Recent Activity
+            <span class="rule"></span>
+        </div>
+        <div class="recent-feed">
+            {#each data.recentActivity as a (a.id)}
+                <div class="recent-row">
+                    <span class="recent-icon">{activityIcon(a.type)}</span>
+                    <span class="recent-text">{activityText(a)}</span>
+                    <span class="recent-time">{relativeTime(a.createdAt)}</span>
+                </div>
+            {/each}
+        </div>
+    </section>
+    {/if}
+
+    <!-- ═══════════ NOTIFICATIONS PREVIEW ═══════════ -->
+    {#if data.notifications.unreadCount > 0 || data.notifications.latest.length > 0}
+    <section class="section">
+        <div class="section-header">
+            <span class="pip" class:amber={data.notifications.unreadCount > 0}></span>
+            Notifications
+            {#if data.notifications.unreadCount > 0}
+                <span class="notif-count">{data.notifications.unreadCount} unread</span>
+            {/if}
+            <span class="rule"></span>
+            <a href="/notifications" class="action">View All <span class="arrow">▸</span></a>
+        </div>
+        <div class="notif-preview">
+            {#each data.notifications.latest as n (n.id)}
+                <a class="notif-row" class:unread={!n.read} href="/notifications">
+                    <span class="notif-icon">{notifIcon(n.type)}</span>
+                    <span class="notif-text">{notifText(n)}</span>
+                    <span class="notif-time">{relativeTime(n.createdAt)}</span>
+                </a>
+            {/each}
+        </div>
+    </section>
     {/if}
 
 </div>
@@ -1428,4 +1596,159 @@ a.stat-cell:hover { box-shadow: 0 6px 18px rgba(0,180,255,0.10); }
     .identity-actions { flex-direction: row; align-self: stretch; justify-content: flex-end; }
     .stage { padding: 60px 14px 80px; }
 }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   TRIBE SNAPSHOT
+   ═════════════════════════════════════════════════════════════════════════ */
+.tribe-snapshot {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    background: linear-gradient(160deg, rgba(139,92,246,0.10) 0%, rgba(4,8,20,0.94) 100%);
+    border: 1px solid rgba(139,92,246,0.25);
+    clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+    padding: 14px 22px;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
+    position: relative;
+}
+.tribe-snapshot::before {
+    content: ''; position: absolute; left: 0; top: 12px; bottom: 0;
+    width: 2px; background: var(--tek-purple); box-shadow: 0 0 6px rgba(139,92,246,0.5);
+}
+.tribe-snapshot:hover { transform: translateY(-2px); border-color: rgba(139,92,246,0.45); box-shadow: 0 6px 18px rgba(139,92,246,0.10); }
+.tribe-sigil {
+    width: 56px; height: 56px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(139,92,246,0.20), rgba(0,180,255,0.10));
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    flex-shrink: 0;
+}
+.tribe-sigil img { width: 100%; height: 100%; object-fit: cover; }
+.tribe-sigil-fallback { font-family: var(--tek-display); font-size: 1.5rem; color: var(--tek-purple); filter: drop-shadow(0 0 6px rgba(139,92,246,0.45)); }
+.tribe-info { min-width: 0; line-height: 1.3; }
+.tribe-name {
+    font-family: var(--tek-display); font-size: 1.05rem; font-weight: 800;
+    letter-spacing: 0.04em; color: var(--tek-text); text-transform: uppercase;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tribe-meta {
+    font-family: var(--tek-mono); font-size: 0.66rem; letter-spacing: 0.10em;
+    color: var(--tek-text-dim); text-transform: uppercase; margin-top: 4px;
+}
+.tribe-meta .role { color: var(--tek-purple); font-weight: 700; }
+.tribe-meta .sep { color: var(--tek-text-faint); margin: 0 6px; }
+.tribe-meta .map { color: var(--tek-amber); }
+.tribe-arrow { color: var(--tek-purple); font-family: var(--tek-display); font-size: 1.1rem; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   ACTIVE TRADES
+   ═════════════════════════════════════════════════════════════════════════ */
+.trades-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+@media (max-width: 860px) { .trades-grid { grid-template-columns: 1fr; } }
+.trades-block {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(245,158,11,0.15);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 12px 16px 12px 18px;
+    position: relative;
+}
+.trades-block::before {
+    content: ''; position: absolute; left: 0; top: 10px; bottom: 0;
+    width: 2px; background: var(--tek-amber); box-shadow: 0 0 5px rgba(245,158,11,0.5);
+}
+.trades-block:nth-child(2)::before { background: var(--tek-blue); box-shadow: 0 0 5px var(--tek-blue-glow); }
+.trades-block:nth-child(2) { border-color: rgba(0,180,255,0.18); }
+.trades-block-label {
+    font-family: var(--tek-mono); font-size: 0.62rem; letter-spacing: 0.18em;
+    color: var(--tek-text-dim); text-transform: uppercase; margin-bottom: 10px;
+}
+.trades-block-count {
+    background: rgba(245,158,11,0.18); color: var(--tek-amber); padding: 1px 7px;
+    border-radius: 99px; font-size: 0.58rem; margin-left: 4px;
+}
+.trades-block:nth-child(2) .trades-block-count { background: rgba(0,180,255,0.18); color: var(--tek-blue); }
+.trade-row {
+    display: grid; grid-template-columns: 22px 1fr auto;
+    gap: 10px; align-items: center;
+    padding: 8px 10px;
+    background: rgba(0,0,0,0.20);
+    clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+    text-decoration: none; color: inherit;
+    transition: background 0.18s;
+    margin-bottom: 6px;
+}
+.trade-row:last-child { margin-bottom: 0; }
+.trade-row:hover { background: rgba(0,180,255,0.06); }
+.trade-row.pending:hover { background: rgba(245,158,11,0.06); }
+.trade-icon { font-family: var(--tek-display); font-size: 0.95rem; color: var(--tek-amber); text-align: center; }
+.trade-row:not(.pending) .trade-icon { color: var(--tek-blue); }
+.trade-info { min-width: 0; line-height: 1.35; }
+.trade-title { font-size: 0.82rem; color: var(--tek-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trade-dim { color: var(--tek-text-dim); }
+.trade-preview { font-family: var(--tek-mono); font-size: 0.66rem; color: var(--tek-text-dim); font-style: italic; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trade-time { font-family: var(--tek-mono); font-size: 0.62rem; letter-spacing: 0.08em; color: var(--tek-text-faint); white-space: nowrap; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   RECENT ACTIVITY
+   ═════════════════════════════════════════════════════════════════════════ */
+.recent-feed {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 14px 22px;
+    position: relative;
+}
+.recent-feed::before {
+    content: ''; position: absolute; left: 0; top: 10px; bottom: 0;
+    width: 2px; background: linear-gradient(180deg, var(--tek-blue), var(--tek-purple));
+    box-shadow: 0 0 5px var(--tek-blue-glow);
+}
+.recent-row {
+    display: grid; grid-template-columns: 22px 1fr auto;
+    gap: 12px; align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.recent-row:last-child { border-bottom: none; }
+.recent-icon { font-size: 0.95rem; text-align: center; line-height: 1; }
+.recent-text { font-family: var(--tek-mono); font-size: 0.74rem; color: var(--tek-text); letter-spacing: 0.04em; }
+.recent-time { font-family: var(--tek-mono); font-size: 0.62rem; letter-spacing: 0.08em; color: var(--tek-text-faint); white-space: nowrap; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   NOTIFICATIONS PREVIEW
+   ═════════════════════════════════════════════════════════════════════════ */
+.section-header .pip.amber { background: var(--tek-amber); box-shadow: 0 0 8px rgba(245,158,11,0.7); }
+.notif-count {
+    font-family: var(--tek-mono); font-size: 0.6rem;
+    background: rgba(245,158,11,0.18); color: var(--tek-amber);
+    padding: 2px 8px; border-radius: 99px; letter-spacing: 0.10em;
+    margin-left: 8px;
+}
+.notif-preview {
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 10px 22px;
+    position: relative;
+}
+.notif-preview::before {
+    content: ''; position: absolute; left: 0; top: 10px; bottom: 0;
+    width: 2px; background: var(--tek-amber); box-shadow: 0 0 5px rgba(245,158,11,0.5);
+}
+.notif-row {
+    display: grid; grid-template-columns: 22px 1fr auto;
+    gap: 12px; align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    text-decoration: none; color: inherit;
+    transition: background 0.18s;
+}
+.notif-row:last-child { border-bottom: none; }
+.notif-row:hover { background: rgba(0,180,255,0.04); }
+.notif-row.unread .notif-text { color: var(--tek-text); font-weight: 500; }
+.notif-icon { font-size: 0.95rem; color: var(--tek-text-dim); text-align: center; }
+.notif-row.unread .notif-icon { color: var(--tek-amber); }
+.notif-text { font-family: var(--tek-mono); font-size: 0.72rem; color: var(--tek-text-dim); letter-spacing: 0.04em; }
+.notif-time { font-family: var(--tek-mono); font-size: 0.6rem; letter-spacing: 0.08em; color: var(--tek-text-faint); white-space: nowrap; }
 </style>
