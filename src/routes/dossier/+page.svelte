@@ -130,6 +130,26 @@
             : 'RUNNER';
     }
 
+    // For a badge wall chip (Boss Ready / Bloodline / Role / Underdog), find the
+    // representative creature in this user's vault that earned it. Returns the
+    // first match by recency (data.creatures is desc by createdAt). Falls back
+    // to /specimens (filtered list) when no specific creature matches.
+    function creatureForBadge(species: string, kind: 'bloodline'|'bossReady'|'role'|'underdog', value: string): number | null {
+        for (const c of data.creatures) {
+            if (c.species !== species) continue;
+            const b = computeBadges(c.baseStats, c.mutations, c.species);
+            if (kind === 'bloodline' && b.bloodline === value) return c.id;
+            if (kind === 'bossReady' && b.bossReady === value) return c.id;
+            if (kind === 'role' && b.roles.includes(value as 'tank'|'dps'|'bruiser'|'runner')) return c.id;
+            if (kind === 'underdog' && b.underdog === value) return c.id;
+        }
+        return null;
+    }
+    function badgeHref(species: string, kind: 'bloodline'|'bossReady'|'role'|'underdog', value: string): string {
+        const cid = creatureForBadge(species, kind, value);
+        return cid ? `/specimens/${cid}` : '/specimens';
+    }
+
     // Category color class for pin-card from species heuristics (combat / flyer / utility / etc.)
     function categoryForSpecies(species: string): string {
         const s = species.toLowerCase();
@@ -362,13 +382,13 @@
                     </div>
                     <div class="badge-cat-chips">
                         {#each sortedBossReady as b}
-                            <div class="badge-chip {b.tier}">
+                            <a class="badge-chip {b.tier}" href={badgeHref(b.species, 'bossReady', b.tier ?? '')}>
                                 <svg class="badge-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>
                                 <div class="badge-chip-body">
                                     <div class="badge-chip-tier">{b.tier}</div>
                                     <div class="badge-chip-species">{b.species}</div>
                                 </div>
-                            </div>
+                            </a>
                         {/each}
                     </div>
                 </div>
@@ -387,13 +407,13 @@
                     </div>
                     <div class="badge-cat-chips">
                         {#each data.badgeWall.roles as b}
-                            <div class="badge-chip silver">
+                            <a class="badge-chip silver" href={badgeHref(b.species, 'role', b.role)}>
                                 <svg class="badge-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
                                 <div class="badge-chip-body">
                                     <div class="badge-chip-tier">{roleTierLabel(b.role)}</div>
                                     <div class="badge-chip-species">{b.species}</div>
                                 </div>
-                            </div>
+                            </a>
                         {/each}
                     </div>
                 </div>
@@ -416,13 +436,13 @@
                     </div>
                     <div class="badge-cat-chips">
                         {#each sortedBloodline as b}
-                            <div class="badge-chip {b.tier}">
+                            <a class="badge-chip {b.tier}" href={badgeHref(b.species, 'bloodline', b.tier ?? '')}>
                                 <svg class="badge-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m17 6-2.5-2.5"/><path d="m14 8-1-1"/><path d="m7 18 2.5 2.5"/><path d="m3.5 14.5.5.5"/><path d="m20 9 .5.5"/><path d="m6.5 12.5 1 1"/><path d="m16.5 10.5 1 1"/><path d="m10 16 1.5 1.5"/></svg>
                                 <div class="badge-chip-body">
                                     <div class="badge-chip-tier">{b.tier}</div>
                                     <div class="badge-chip-species">{b.species}</div>
                                 </div>
-                            </div>
+                            </a>
                         {/each}
                     </div>
                 </div>
@@ -971,6 +991,9 @@
     cursor: pointer;
     transition: transform 0.18s ease, filter 0.18s ease;
     filter: drop-shadow(0 0 1px rgba(var(--tier-rgb), 0.30)) drop-shadow(0 4px 14px rgba(0,0,0,0.45));
+    /* Anchor form (chips now link to the creature that earned the badge) */
+    text-decoration: none;
+    color: inherit;
 }
 .badge-chip:hover {
     transform: translateY(-1px);
