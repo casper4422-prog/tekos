@@ -3,7 +3,7 @@
         id: number; friendId: number; nickname: string | null;
         discordName: string | null; online: boolean; specimenCount: number;
     };
-    type Pending = { id: number; nickname: string | null; discordName: string | null };
+    type Pending = { id: number; fromId?: number; toId?: number; nickname: string | null; discordName: string | null };
     type Tribe = { id: number; name: string } | null;
     type NetworkData = {
         friends: Friend[];
@@ -121,7 +121,7 @@
                             </svg>
                         </div>
                         <div class="suggest-id">
-                            <div class="suggest-name">{displayName(u)}</div>
+                            <div class="suggest-name"><a href="/survivors/{u.id}" class="name-link">{displayName(u)}</a></div>
                             <div class="suggest-reason">{u.discordName ? `⌬ ${u.discordName}` : 'Survivor'}</div>
                         </div>
                         {#if u.friendStatus === 'accepted'}
@@ -150,7 +150,7 @@
                             </svg>
                         </div>
                         <div class="suggest-id">
-                            <div class="suggest-name">{displayName(u)}</div>
+                            <div class="suggest-name"><a href="/survivors/{u.id}" class="name-link">{displayName(u)}</a></div>
                             <div class="suggest-reason">{u.online ? '● Active now' : (u.discordName ? `⌬ ${u.discordName}` : 'Survivor')}</div>
                         </div>
                         <button class="suggest-add-btn" onclick={() => sendRequest(u.id)} disabled={actionLoading === u.id}>+ Add</button>
@@ -187,7 +187,7 @@
                 </svg>
             </div>
             <div class="pending-info">
-                <div class="pending-name">{displayName(r)}</div>
+                <div class="pending-name">{#if r.fromId}<a href="/survivors/{r.fromId}" class="name-link">{displayName(r)}</a>{:else}{displayName(r)}{/if}</div>
                 <div class="pending-meta">{#if r.discordName}⌬ {r.discordName}{:else}Survivor{/if}</div>
             </div>
             <div class="pending-actions">
@@ -222,7 +222,7 @@
                     <div class="pip"></div>
                 </div>
                 <div class="online-id">
-                    <div class="online-name">{displayName(f)}</div>
+                    <div class="online-name"><a href="/survivors/{f.friendId}" class="name-link">{displayName(f)}</a></div>
                     <div class="online-tribe">{#if f.discordName}⌬ {f.discordName}{:else}⌬ Survivor{/if}</div>
                 </div>
             </div>
@@ -268,7 +268,7 @@
                     <div class="pip" class:online={f.online}></div>
                 </div>
                 <div class="friend-id">
-                    <div class="friend-callsign">{displayName(f)}</div>
+                    <div class="friend-callsign"><a href="/survivors/{f.friendId}" class="name-link" onclick={(e) => e.stopPropagation()}>{displayName(f)}</a></div>
                     <div class="friend-meta">{#if f.discordName}<span class="tribe">⌬ {f.discordName}</span>{:else}Survivor{/if}</div>
                 </div>
                 <span class="friend-status" class:online={f.online}>{f.online ? '● Online' : 'Offline'}</span>
@@ -336,7 +336,7 @@
                 </svg>
             </div>
             <div class="pending-info">
-                <div class="pending-name">{displayName(r)}</div>
+                <div class="pending-name">{#if r.toId}<a href="/survivors/{r.toId}" class="name-link">{displayName(r)}</a>{:else}{displayName(r)}{/if}</div>
                 <div class="pending-meta">{#if r.discordName}⌬ {r.discordName} · {/if}Awaiting response</div>
             </div>
             <div class="pending-actions">
@@ -523,6 +523,10 @@
 .act-btn.danger { background: rgba(239,68,68,0.08); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); margin-left: auto; }
 .act-btn.danger:hover { background: rgba(239,68,68,0.18); filter: drop-shadow(0 0 6px rgba(239,68,68,0.45)); }
 .act-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Inline name link — preserves typography from parent, lights up on hover */
+.name-link { color: inherit; text-decoration: none; transition: color 0.15s, text-shadow 0.15s; }
+.name-link:hover { color: var(--tek-blue); text-shadow: 0 0 6px var(--tek-blue-glow); }
 
 @media (max-width: 720px) {
     .friend-main { grid-template-columns: 32px 1fr auto; gap: 10px; padding: 10px 14px; }

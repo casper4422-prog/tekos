@@ -87,6 +87,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		sent: sent.map(r => ({ id: r.id, toId: r.friendUserId, nickname: r.friend.nickname, discordName: r.friend.discordName })),
 		suggested,
 		myTribe: myMembership?.tribe ?? null,
-		convos
+		convos,
+		myId: uid
 	};
 };

@@ -131,7 +131,7 @@
     {#if activeTab === 'network'}
         <NetworkPanel {data} />
     {:else if activeTab === 'messages'}
-        <MessagesPanel convos={data.convos ?? []} />
+        <MessagesPanel convos={data.convos ?? []} myId={data.myId} />
     {:else}
         <SurvivorsPanel />
     {/if}

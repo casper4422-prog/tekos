@@ -1,20 +1,9 @@
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { db } from '$lib/db';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
-	const uid = locals.user!.id;
-	const otherId = parseInt(params.userId);
-
-	const [msgs, other] = await Promise.all([
-		db.directMessage.findMany({
-			where: { OR: [{ fromUserId: uid, toUserId: otherId }, { fromUserId: otherId, toUserId: uid }] },
-			orderBy: { createdAt: 'asc' }
-		}),
-		db.user.findUnique({ where: { id: otherId }, select: { id:true, nickname:true, discordName:true } })
-	]);
-
-	// mark incoming as read
-	await db.directMessage.updateMany({ where: { fromUserId: otherId, toUserId: uid, read: false }, data: { read: true } });
-
-	return { messages: msgs, other, myId: uid };
+// /messages/[userId] now lives inside /network as a tab + query param so the
+// Friends/Messages/Survivors tab nav stays visible. Preserve any external
+// links by redirecting to the new canonical URL.
+export const load: PageServerLoad = async ({ params }) => {
+	throw redirect(302, `/network?tab=messages&with=${params.userId}`);
 };
