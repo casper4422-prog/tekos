@@ -42,7 +42,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		]);
 	}
 
-	const allTribes = membership ? null : await db.tribe.findMany({
+	const allTribes = await db.tribe.findMany({
+		where: membership ? { NOT: { id: membership.tribe.id } } : {},
 		orderBy: { createdAt: 'desc' },
 		include: { _count: { select: { members: true } } }
 	});

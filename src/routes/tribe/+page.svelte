@@ -303,6 +303,52 @@
 		await fetch(`/api/alliances/${id}`, { method:'DELETE' });
 		await loadAlliances();
 	}
+
+	// Diplomacy modals
+	let proposeAllianceOpen = $state(false);
+	let paTargetId          = $state<number | ''>('');
+	let paSaving            = $state(false);
+	let paErr               = $state('');
+
+	let addBlacklistOpen = $state(false);
+	let blName           = $state('');
+	let blReason         = $state('');
+	let blType           = $state<'tribe' | 'player'>('tribe');
+	let blSaving         = $state(false);
+	let blErr            = $state('');
+
+	async function proposeAlliance() {
+		if (!paTargetId || !membership) return;
+		paSaving = true; paErr = '';
+		const res = await fetch('/api/alliances', {
+			method: 'POST', headers: {'Content-Type':'application/json'},
+			body: JSON.stringify({ targetTribeId: Number(paTargetId) })
+		});
+		paSaving = false;
+		if (res.ok) { proposeAllianceOpen = false; paTargetId = ''; await loadAlliances(); }
+		else paErr = (await res.json()).error ?? 'Failed to propose alliance';
+	}
+
+	async function addBlacklist() {
+		if (!blName.trim() || !membership) return;
+		blSaving = true; blErr = '';
+		const res = await fetch(`/api/tribes/${membership.tribe.id}/blacklist`, {
+			method: 'POST', headers: {'Content-Type':'application/json'},
+			body: JSON.stringify({ name: blName.trim(), reason: blReason || null, type: blType })
+		});
+		blSaving = false;
+		if (res.ok) { addBlacklistOpen = false; blName = ''; blReason = ''; blType = 'tribe'; await loadBlacklist(); }
+		else blErr = (await res.json()).error ?? 'Failed';
+	}
+
+	async function removeBlacklist(entryId: number) {
+		if (!membership) return;
+		await fetch(`/api/tribes/${membership.tribe.id}/blacklist`, {
+			method: 'DELETE', headers: {'Content-Type':'application/json'},
+			body: JSON.stringify({ entryId })
+		});
+		await loadBlacklist();
+	}
 </script>
 
 <canvas id="tekHexCanvas"></canvas>
@@ -593,7 +639,10 @@
 			<div class="diplo-card allies">
 				<div class="diplo-header allies">
 					<span>◇ Allies</span>
-					<span class="diplo-count">{allies.length} TRIBE{allies.length === 1 ? '' : 'S'}</span>
+					<div style="display:flex;align-items:center;gap:10px;">
+						<span class="diplo-count">{allies.length} TRIBE{allies.length === 1 ? '' : 'S'}</span>
+						{#if isAdmin}<button class="diplo-add-btn" onclick={() => { proposeAllianceOpen = true; paErr = ''; paTargetId = ''; }}>+ Propose</button>{/if}
+					</div>
 				</div>
 				<div class="diplo-tribes">
 					{#if allies.length === 0}
@@ -615,7 +664,10 @@
 			<div class="diplo-card enemies">
 				<div class="diplo-header enemies">
 					<span>◯ Blacklist</span>
-					<span class="diplo-count">{blacklist.length} TRIBE{blacklist.length === 1 ? '' : 'S'}</span>
+					<div style="display:flex;align-items:center;gap:10px;">
+						<span class="diplo-count">{blacklist.length}</span>
+						{#if isAdmin}<button class="diplo-add-btn enemy" onclick={() => { addBlacklistOpen = true; blErr = ''; blName = ''; blReason = ''; blType = 'tribe'; }}>+ Flag</button>{/if}
+					</div>
 				</div>
 				<div class="diplo-tribes">
 					{#if blacklist.length === 0}
@@ -625,6 +677,8 @@
 							<div class="diplo-tribe-chip enemy">
 								<svg class="sigil" viewBox="0 0 100 110" fill="currentColor"><polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="none" stroke="currentColor" stroke-width="6"/></svg>
 								<span class="tribe-name">{b.name}</span>
+								{#if b.reason}<span class="bl-reason">{b.reason}</span>{/if}
+								{#if isAdmin}<button onclick={() => removeBlacklist(b.id)} class="bl-remove" title="Remove">✕</button>{/if}
 							</div>
 						{/each}
 					{/if}
@@ -848,6 +902,57 @@
 		<div class="modal-footer">
 			<button class="btn btn-ghost" onclick={() => inviteOpen=false}>Cancel</button>
 			<button class="btn btn-primary" onclick={sendInvite} disabled={saving || !iHandle.trim()}>{saving ? 'Sending…' : 'Send invite'}</button>
+		</div>
+	</div>
+</div>
+{/if}
+
+<!-- Propose Alliance modal -->
+{#if proposeAllianceOpen}
+<div class="modal active" role="dialog" aria-modal="true">
+	<div class="modal-content" style="max-width:440px">
+		<div class="modal-header"><h2 class="modal-title">Propose Alliance</h2><button class="close-btn" onclick={() => proposeAllianceOpen=false}>&times;</button></div>
+		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+			<div class="tribe-tip">Send an alliance proposal. Their admins will be notified and can accept or reject.</div>
+			<div class="plan-field">
+				<label class="form-label" for="pa-tribe">Select Tribe</label>
+				<select id="pa-tribe" class="form-control" bind:value={paTargetId}>
+					<option value="">— Choose a tribe —</option>
+					{#each (allTribes ?? []).filter(t => !alliances.some(a => ((a as Record<string,unknown>).partnerTribe as Record<string,unknown>|undefined)?.id === t.id)) as t}
+						<option value={t.id}>{t.name}{t.mainMap ? ` · ${t.mainMap}` : ''}</option>
+					{/each}
+				</select>
+			</div>
+			{#if paErr}<div class="tek-login-error">{paErr}</div>{/if}
+		</div>
+		<div class="modal-footer">
+			<button class="btn btn-ghost" onclick={() => proposeAllianceOpen=false}>Cancel</button>
+			<button class="btn btn-primary" onclick={proposeAlliance} disabled={paSaving || !paTargetId}>{paSaving ? 'Proposing…' : 'Propose Alliance'}</button>
+		</div>
+	</div>
+</div>
+{/if}
+
+<!-- Flag Threat (blacklist) modal -->
+{#if addBlacklistOpen}
+<div class="modal active" role="dialog" aria-modal="true">
+	<div class="modal-content" style="max-width:440px">
+		<div class="modal-header"><h2 class="modal-title">Flag Threat</h2><button class="close-btn" onclick={() => addBlacklistOpen=false}>&times;</button></div>
+		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+			<div class="plan-field"><label class="form-label" for="bl-name">Name *</label><input id="bl-name" class="form-control" bind:value={blName} placeholder="Tribe or player name" /></div>
+			<div class="plan-field">
+				<label class="form-label" for="bl-type">Type</label>
+				<select id="bl-type" class="form-control" bind:value={blType}>
+					<option value="tribe">Tribe</option>
+					<option value="player">Player</option>
+				</select>
+			</div>
+			<div class="plan-field"><label class="form-label" for="bl-reason">Reason (optional)</label><input id="bl-reason" class="form-control" bind:value={blReason} placeholder="e.g. Griefed our base, offline raided…" /></div>
+			{#if blErr}<div class="tek-login-error">{blErr}</div>{/if}
+		</div>
+		<div class="modal-footer">
+			<button class="btn btn-ghost" onclick={() => addBlacklistOpen=false}>Cancel</button>
+			<button class="btn btn-primary" onclick={addBlacklist} disabled={blSaving || !blName.trim()}>{blSaving ? 'Flagging…' : 'Flag Threat'}</button>
 		</div>
 	</div>
 </div>
@@ -1662,6 +1767,31 @@
 	font-size: 0.6rem;
 	color: var(--tek-text-faint);
 }
+.diplo-add-btn {
+	background: rgba(16,185,129,0.12);
+	border: 1px solid rgba(16,185,129,0.35);
+	color: #86efac;
+	font-family: var(--tek-mono);
+	font-size: 0.58rem; font-weight: 700;
+	letter-spacing: 0.14em; text-transform: uppercase;
+	padding: 3px 9px; cursor: pointer;
+	clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+	transition: all 0.18s;
+}
+.diplo-add-btn:hover { background: rgba(16,185,129,0.25); filter: drop-shadow(0 0 5px rgba(16,185,129,0.4)); }
+.diplo-add-btn.enemy { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.35); color: #fca5a5; }
+.diplo-add-btn.enemy:hover { background: rgba(239,68,68,0.25); filter: drop-shadow(0 0 5px rgba(239,68,68,0.4)); }
+.bl-reason {
+	font-family: var(--tek-mono); font-size: 0.6rem;
+	color: var(--tek-text-faint); font-style: italic;
+	max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bl-remove {
+	background: none; border: none; color: var(--tek-text-faint);
+	cursor: pointer; padding: 0; line-height: 1; font-size: 0.7rem;
+	transition: color 0.18s; margin-left: 2px;
+}
+.bl-remove:hover { color: #fca5a5; }
 
 .diplo-tribes {
 	display: flex;
