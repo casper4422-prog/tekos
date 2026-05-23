@@ -221,6 +221,30 @@
     }
     const ROLE_OPTIONS = ['Breeder', 'Tank', 'DPS', 'Harvester', 'Flyer', 'Utility'] as const;
 
+    // ── Mutation tracker bump (Phase 3) ──
+    // Mirrors the Dossier project-counter so changes round-trip through DB.
+    // PATCHes creature.mutations[focusStat] when the user clicks +/-.
+    let focusCurrent = $state(0);
+    $effect(() => {
+        const stat = data.pinnedProject?.focusStat;
+        if (stat) focusCurrent = getStat(c.mutations, stat as 'HP'|'STA'|'OXY'|'FOOD'|'WGT'|'MEL'|'CRA'|'SPD');
+    });
+    async function bumpFocusStat(delta: number) {
+        const stat = data.pinnedProject?.focusStat;
+        if (!stat || saving) return;
+        saving = true;
+        const next = Math.max(0, focusCurrent + delta);
+        focusCurrent = next;
+        try {
+            await fetch(`/api/creatures/${c.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mutations: { [stat]: next } })
+            });
+        } catch { /* optimistic stays */ }
+        saving = false;
+    }
+
     // ── Pin as project: save THIS specific creature as a breeding project ─────
     type ProjectSavePayload = { creatureId: number; focusStat: string | null; targetMutations: number };
     type FeaturedSavePayload = { creatureIds: number[] };
@@ -492,10 +516,21 @@
                             {/if}
                         </div>
                     </div>
-                    <div style="text-align:right">
-                        <div class="project-stat">{data.pinnedProject.targetMutations ?? totalMuts}</div>
-                        <div class="project-stat-lbl">{data.pinnedProject.targetMutations ? 'TARGET' : 'MUTS'}</div>
-                    </div>
+                    {#if data.isOwner && data.pinnedProject.focusStat}
+                        <div class="project-bumper">
+                            <button class="bump-btn minus" onclick={() => bumpFocusStat(-1)} disabled={saving} aria-label="Decrement {data.pinnedProject.focusStat} mutations">−</button>
+                            <div class="bump-center">
+                                <div class="project-stat">{focusCurrent}{data.pinnedProject.targetMutations ? ` / ${data.pinnedProject.targetMutations}` : ''}</div>
+                                <div class="project-stat-lbl">{data.pinnedProject.focusStat} MUTS</div>
+                            </div>
+                            <button class="bump-btn plus" onclick={() => bumpFocusStat(+1)} disabled={saving} aria-label="Increment {data.pinnedProject.focusStat} mutations">+</button>
+                        </div>
+                    {:else}
+                        <div style="text-align:right">
+                            <div class="project-stat">{data.pinnedProject.targetMutations ?? totalMuts}</div>
+                            <div class="project-stat-lbl">{data.pinnedProject.targetMutations ? 'TARGET' : 'MUTS'}</div>
+                        </div>
+                    {/if}
                     <a class="project-open-btn" href="/dossier">Open ▸</a>
                 </div>
             {/if}
@@ -2077,4 +2112,30 @@
     clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
     z-index: 60;
 }
+
+/* ── Mutation tracker bumper (project-callout) ── */
+.project-bumper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.bump-btn {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,180,255,0.10);
+    border: 1px solid rgba(0,180,255,0.32);
+    color: var(--tek-blue);
+    font-family: var(--tek-display);
+    font-size: 1rem;
+    font-weight: 900;
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.bump-btn:hover:not(:disabled) {
+    background: rgba(0,180,255,0.25);
+    filter: drop-shadow(0 0 6px var(--tek-blue-glow));
+}
+.bump-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.bump-center { text-align: center; min-width: 80px; }
 </style>

@@ -99,9 +99,22 @@
         mutationCounts = next;
     });
 
-    function bump(id: number, delta: number) {
+    async function bump(id: number, delta: number) {
+        const project = (data.pinnedProjects ?? []).find(p => p.creatureId === id);
+        const focusStat = project?.focusStat;
+        if (!focusStat) return;
         const cur = mutationCounts[id] ?? 0;
-        mutationCounts[id] = Math.max(0, cur + delta);
+        const next = Math.max(0, cur + delta);
+        mutationCounts[id] = next;
+        // Persist to creature.mutations[focusStat] via PATCH so the Individual
+        // page reads the same count next render.
+        try {
+            await fetch(`/api/creatures/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mutations: { [focusStat]: next } })
+            });
+        } catch { /* keep optimistic UI value on failure */ }
     }
 
     // Tier ordering for sorting earned badges
