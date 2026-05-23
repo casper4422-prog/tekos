@@ -221,6 +221,69 @@
     }
     const ROLE_OPTIONS = ['Breeder', 'Tank', 'DPS', 'Harvester', 'Flyer', 'Utility'] as const;
 
+    // ── Founders + Stat Origins (Phase 4) ──
+    // Founders are vault creatures of the same species flagged isFounder=true.
+    // Stat Origins maps each of the 7 stat keys to a founder id, stored in
+    // creature.data.statOrigins. Pickers are species-filtered.
+    const speciesPeers = $derived(
+        (data.vault ?? []).filter(v => v.species === c.species)
+    );
+    const founders = $derived(speciesPeers.filter(v => v.isFounder));
+    const nonFounders = $derived(speciesPeers.filter(v => !v.isFounder));
+    const statOrigins = $derived(c.statOrigins ?? {});
+
+    async function promoteToFounder(creatureId: number) {
+        if (saving) return;
+        saving = true;
+        try {
+            const res = await fetch(`/api/creatures/${creatureId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isFounder: true })
+            });
+            if (res.ok) location.reload();
+        } finally { saving = false; }
+    }
+    async function removeFounderFlag(creatureId: number) {
+        if (saving) return;
+        if (!confirm('Remove this creature from the founders list?')) return;
+        saving = true;
+        try {
+            const res = await fetch(`/api/creatures/${creatureId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isFounder: false })
+            });
+            if (res.ok) location.reload();
+        } finally { saving = false; }
+    }
+    async function setStatOrigin(stat: string, founderIdStr: string) {
+        if (saving) return;
+        const founderId = founderIdStr ? Number(founderIdStr) : null;
+        const next: Record<string, number> = { ...statOrigins };
+        if (founderId === null) delete next[stat];
+        else next[stat] = founderId;
+        saving = true;
+        try {
+            const res = await fetch(`/api/creatures/${c.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ statOrigins: next })
+            });
+            if (res.ok) location.reload();
+        } finally { saving = false; }
+    }
+    function founderName(id: number | undefined): string {
+        if (!id) return '—';
+        const f = founders.find(fnd => fnd.id === id);
+        return f ? `"${f.name}"` : '—';
+    }
+    function founderStat(id: number | undefined, key: typeof STATS[number]): number {
+        if (!id) return 0;
+        const f = founders.find(fnd => fnd.id === id);
+        return f ? getStat(f.baseStats, key) : 0;
+    }
+
     // ── Mutation tracker bump (Phase 3) ──
     // Mirrors the Dossier project-counter so changes round-trip through DB.
     // PATCHes creature.mutations[focusStat] when the user clicks +/-.
@@ -586,81 +649,93 @@
                     {/if}
                 </div>
 
-                <!-- STAT GENEALOGY -->
-                <div class="subhead">
-                    <span class="num">2</span>Stat Genealogy
-                    <span class="count">{STATS.length} stats traced</span>
-                </div>
-                <div class="stat-geneology">
-                    <div class="statg-header">
-                        <span>Stat</span>
-                        <span class="col-right">Base</span>
-                        <span class="col-right">Mut</span>
-                        <span>Source</span>
-                    </div>
-                    {#each STATS as s}
-                        {@const base = getStat(c.baseStats, s)}
-                        {@const mut = getStat(c.mutations, s)}
-                        {@const tag = statSource(s)}
-                        {@const isActive = data.pinnedProject?.focusStat === s}
-                        <div class="statg-row" class:active-project={isActive}>
-                            <span class="statg-label">{s}</span>
-                            <span class="statg-base">{base}</span>
-                            <span class="statg-mut" class:has={mut > 0} class:zero={mut === 0}>{mut > 0 ? `+${mut}` : '·'}</span>
-                            <span class="statg-source">
-                                <span class="arrow">↳</span>
-                                <span class="name {sourceClass(tag)}">{sourceName(tag)}</span>
-                                <span class="meta">
-                                    {#if tag === 'paternal'}— from father
-                                    {:else if tag === 'maternal'}— from mother
-                                    {:else if tag === 'mutation'}— mutation gain
-                                    {:else}— origin unknown
-                                    {/if}
-                                </span>
-                                {#if isActive}<span class="active-flag">★ Stacking</span>{/if}
-                            </span>
-                        </div>
-                    {/each}
-                </div>
-
                 <!-- FOUNDERS -->
                 <div class="subhead">
-                    <span class="num">3</span>Founders
+                    <span class="num">2</span>Founders
                     <span class="count">
-                        {#if data.founders.length}
-                            {data.founders.length} wild tame{data.founders.length === 1 ? '' : 's'} started this line
+                        {#if founders.length}
+                            {founders.length} founder{founders.length === 1 ? '' : 's'} for this {c.species} bloodline
                         {:else}
                             None linked yet
                         {/if}
                     </span>
                 </div>
-                <div class="founders-list">
-                    {#each data.founders as f (f.id)}
-                        <a class="founder" href="/specimens/{f.id}">
-                            <span class="founder-glyph">{genderGlyph(f.gender)}</span>
-                            <div class="founder-id">
-                                <div class="founder-name"><span class="titled">"{f.name}"</span> · Founder</div>
-                                <div class="founder-meta">{f.species} · Lvl {f.level} · logged {shortDate(f.createdAt)}</div>
-                            </div>
-                            <div>
-                                <div class="founder-contrib">{mutTotal(f)} muts</div>
-                                <div class="founder-tamed">{shortDate(f.createdAt)}</div>
-                            </div>
-                        </a>
+                <div class="founders-row">
+                    {#each founders as f (f.id)}
+                        <div class="founder-chip">
+                            <a class="founder-chip-link" href="/specimens/{f.id}">
+                                <span class="gender-glyph {genderClass(f.gender)}">{genderGlyph(f.gender)}</span>
+                                <div class="founder-chip-id">
+                                    <div class="founder-chip-name">"{f.name}"</div>
+                                    <div class="founder-chip-stats">HP {getStat(f.baseStats, 'HP')} · MEL {getStat(f.baseStats, 'MEL')} · {f.species}</div>
+                                </div>
+                            </a>
+                            {#if data.isOwner}
+                                <button class="founder-remove-btn" onclick={() => removeFounderFlag(f.id)} disabled={saving} title="Unmark as founder">×</button>
+                            {/if}
+                        </div>
                     {:else}
-                        <div class="founder deceased">
-                            <span class="founder-glyph">?</span>
-                            <div class="founder-id">
-                                <div class="founder-name">— No founders linked</div>
-                                <div class="founder-meta">Walk lineage requires parents in vault</div>
-                            </div>
-                            <div>
-                                <div class="founder-contrib">—</div>
-                                <div class="founder-tamed">—</div>
-                            </div>
+                        <div class="founder-empty-state">
+                            No founders linked. Mark one of your wild-tamed {c.species} as a founder below to start tracking stat origins.
                         </div>
                     {/each}
                 </div>
+                {#if data.isOwner && nonFounders.length > 0}
+                    <details class="add-founder-picker">
+                        <summary>+ Mark a {c.species} as founder</summary>
+                        <div class="add-founder-list">
+                            {#each nonFounders as v (v.id)}
+                                <button class="add-founder-row" onclick={() => promoteToFounder(v.id)} disabled={saving}>
+                                    <span class="gender-glyph {genderClass(v.gender)}">{genderGlyph(v.gender)}</span>
+                                    <div class="add-founder-id">
+                                        <div class="add-founder-name">"{v.name}"</div>
+                                        <div class="add-founder-meta">Lvl {v.level} · HP {getStat(v.baseStats, 'HP')} · MEL {getStat(v.baseStats, 'MEL')}</div>
+                                    </div>
+                                    <span class="add-founder-go">+</span>
+                                </button>
+                            {/each}
+                        </div>
+                    </details>
+                {/if}
+
+                <!-- STAT ORIGINS — only meaningful once at least one founder is linked -->
+                {#if founders.length > 0}
+                    <div class="subhead">
+                        <span class="num">3</span>Stat Origins
+                        <span class="count">Which founder contributed each stat to this bloodline</span>
+                    </div>
+                    <div class="stat-origins">
+                        <div class="origin-header">
+                            <span>Stat</span>
+                            <span class="col-right">This creature</span>
+                            <span>Came from</span>
+                            <span>Other founders</span>
+                        </div>
+                        {#each STATS as s}
+                            {@const myBase = getStat(c.baseStats, s)}
+                            {@const originId = statOrigins[s]}
+                            <div class="origin-row">
+                                <span class="origin-stat">{s}</span>
+                                <span class="origin-base">{myBase}</span>
+                                <span class="origin-pick">
+                                    {#if data.isOwner}
+                                        <select class="origin-select" value={originId ?? ''} onchange={(e) => setStatOrigin(s, (e.currentTarget as HTMLSelectElement).value)} disabled={saving}>
+                                            <option value="">—</option>
+                                            {#each founders as f (f.id)}
+                                                <option value={f.id}>"{f.name}" ({getStat(f.baseStats, s)})</option>
+                                            {/each}
+                                        </select>
+                                    {:else}
+                                        <span class="origin-readonly">{founderName(originId)} {#if originId}({founderStat(originId, s)}){/if}</span>
+                                    {/if}
+                                </span>
+                                <span class="origin-hint">
+                                    {#each founders.filter(f => f.id !== originId) as f, i (f.id)}{i > 0 ? ' · ' : ''}{f.name}: {getStat(f.baseStats, s)}{/each}
+                                </span>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
             </div>
 
             <!-- PROVENANCE / NOTES -->
@@ -2138,4 +2213,162 @@
 }
 .bump-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .bump-center { text-align: center; min-width: 80px; }
+
+/* ─── Founders + Stat Origins (Phase 4 ancestry rework) ─────────────── */
+.founders-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.founder-chip {
+    display: flex;
+    align-items: stretch;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(0,180,255,0.22);
+    clip-path: polygon(6px 0%, 100% 0%, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0% 100%, 0% 6px);
+    transition: border-color 0.18s;
+}
+.founder-chip:hover { border-color: rgba(0,180,255,0.45); }
+.founder-chip-link {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 12px;
+    text-decoration: none;
+    color: inherit;
+    min-width: 0;
+}
+.founder-chip-link .gender-glyph { font-size: 1.1rem; font-family: var(--tek-display); }
+.founder-chip-id { min-width: 0; line-height: 1.3; }
+.founder-chip-name { font-family: var(--tek-mono); font-size: 0.82rem; color: var(--tek-text); font-weight: 600; }
+.founder-chip-stats { font-family: var(--tek-mono); font-size: 0.64rem; letter-spacing: 0.06em; color: var(--tek-text-dim); margin-top: 2px; }
+.founder-remove-btn {
+    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+    border: none;
+    border-left: 1px solid rgba(255,255,255,0.06);
+    color: var(--tek-text-faint);
+    cursor: pointer;
+    padding: 0 10px;
+    font-size: 1rem;
+    transition: color 0.15s, background 0.15s;
+}
+.founder-remove-btn:hover:not(:disabled) { color: var(--tek-red); background: rgba(239,68,68,0.10); }
+.founder-remove-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.founder-empty-state {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 0.85rem;
+    color: var(--tek-text-dim);
+    padding: 14px 16px;
+    background: rgba(0,0,0,0.20);
+    border-left: 2px solid rgba(0,180,255,0.30);
+    clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+}
+
+.add-founder-picker {
+    margin-bottom: 20px;
+}
+.add-founder-picker summary {
+    cursor: pointer;
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tek-blue);
+    padding: 7px 12px;
+    background: rgba(0,180,255,0.08);
+    border: 1px solid rgba(0,180,255,0.25);
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    display: inline-block;
+    list-style: none;
+    transition: background 0.15s;
+}
+.add-founder-picker summary::-webkit-details-marker { display: none; }
+.add-founder-picker summary:hover { background: rgba(0,180,255,0.18); }
+.add-founder-list {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.add-founder-row {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--tek-text);
+    padding: 7px 12px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+    transition: all 0.15s;
+}
+.add-founder-row:hover:not(:disabled) { border-color: rgba(0,180,255,0.45); background: rgba(0,180,255,0.06); }
+.add-founder-row:disabled { opacity: 0.5; cursor: not-allowed; }
+.add-founder-id { min-width: 0; line-height: 1.3; }
+.add-founder-name { font-family: var(--tek-mono); font-size: 0.78rem; color: var(--tek-text); }
+.add-founder-meta { font-family: var(--tek-mono); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--tek-text-dim); margin-top: 2px; }
+.add-founder-go { color: var(--tek-blue); font-family: var(--tek-display); font-size: 1rem; }
+
+.stat-origins {
+    background: rgba(0,0,0,0.25);
+    border-left: 2px solid rgba(0,180,255,0.40);
+    clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+    padding: 12px 16px 14px;
+}
+.origin-header {
+    display: grid;
+    grid-template-columns: 60px 100px 1fr 1fr;
+    gap: 14px;
+    align-items: center;
+    padding-bottom: 8px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.origin-header .col-right { text-align: left; }
+.origin-row {
+    display: grid;
+    grid-template-columns: 60px 100px 1fr 1fr;
+    gap: 14px;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+}
+.origin-row:last-child { border-bottom: none; }
+.origin-stat { color: var(--tek-blue); font-weight: 700; letter-spacing: 0.08em; }
+.origin-base { color: var(--tek-text); font-weight: 600; }
+.origin-pick { min-width: 0; }
+.origin-select {
+    width: 100%;
+    background: rgba(5,8,18,0.6);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    padding: 5px 22px 5px 8px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    appearance: none; -webkit-appearance: none; cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--tek-blue) 50%), linear-gradient(135deg, var(--tek-blue) 50%, transparent 50%);
+    background-position: calc(100% - 10px) 50%, calc(100% - 6px) 50%;
+    background-size: 5px 5px; background-repeat: no-repeat;
+}
+.origin-select:focus { outline: none; border-color: var(--tek-blue); }
+.origin-select option { background: #0a1228; color: var(--tek-text); }
+.origin-readonly { color: var(--tek-text); }
+.origin-hint { color: var(--tek-text-faint); font-size: 0.64rem; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>

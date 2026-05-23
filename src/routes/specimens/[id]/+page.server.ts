@@ -30,6 +30,8 @@ export type SpecimenDetail = {
     obtainedFrom?: string;                    // free-text label, may co-exist with obtainedFromUserId
     obtainedFromUserId?: number;              // when set, render obtainedFrom as a /survivors/[id] link
     cryoLocation?: string;                    // free text: which fridge/pod
+    // Ancestry → Stat Origins (planning notes §5 rework)
+    statOrigins?: Record<string, number>;     // { HP: founderId, STA: founderId, ... }
 };
 
 export type SpecimenLite = {
@@ -55,6 +57,17 @@ export type PinnedProject = {
 /** Total mutations across all stats (each unit in Stats = +2 levels, so muts = sum / 2 doesn't apply here — we sum raw). */
 function totalMutCount(m: Stats): number {
     return Object.values(m).reduce((s, n) => s + (Number(n) || 0), 0);
+}
+
+// Defensive — statOrigins is `{stat: founderId}`. Ignore non-number values so a
+// hand-edited blob can't break the renderer.
+function extractStatOrigins(raw: unknown): Record<string, number> | undefined {
+    if (!raw || typeof raw !== 'object') return undefined;
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        if (typeof v === 'number') out[k] = v;
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
 }
 
 function liteFromRow(r: { id: number; data: unknown; createdAt: Date }): SpecimenLite {
@@ -110,7 +123,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         availableForTrade:    d.availableForTrade === true,
         obtainedFrom:        typeof d.obtainedFrom === 'string' ? d.obtainedFrom : undefined,
         obtainedFromUserId:  typeof d.obtainedFromUserId === 'number' ? d.obtainedFromUserId : undefined,
-        cryoLocation:        typeof d.cryoLocation === 'string' ? d.cryoLocation : undefined
+        cryoLocation:        typeof d.cryoLocation === 'string' ? d.cryoLocation : undefined,
+        statOrigins:         extractStatOrigins(d.statOrigins)
     };
 
     // If obtainedFromUserId points to a real survivor, fetch their display name
