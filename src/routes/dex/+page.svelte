@@ -33,16 +33,17 @@
 
 	// Variant types — derive from name prefix as v1. Explicit tagging in the
 	// species DB would be cleaner but the prefix convention is consistent across
-	// the existing ASA entries (Aberrant Rex, X-Rex, R-Carno, Tek Stryder, Lunar
-	// Mantis, …). Falls back to 'Vanilla' when no prefix matches.
-	const VARIANT_OPTIONS = ['Vanilla', 'Aberrant', 'X-', 'R-', 'Tek', 'Lunar'] as const;
+	// the existing ASA entries (Aberrant Rex, X-Rex, R-Carno, Tek Stryder, S-Rex).
+	// Falls back to 'Vanilla' when no prefix matches. Lunar variants live on
+	// Genesis 1/2 which aren't out for ASA yet, so they're not in the list.
+	const VARIANT_OPTIONS = ['Vanilla', 'Aberrant', 'X-', 'R-', 'Tek', 'S-'] as const;
 	function variantTypeOf(name: string): string {
 		const n = name.trim();
 		if (/^Aberrant\s/i.test(n)) return 'Aberrant';
 		if (/^X-/i.test(n))         return 'X-';
 		if (/^R-/i.test(n))         return 'R-';
+		if (/^S-/i.test(n))         return 'S-';
 		if (/^Tek\s/i.test(n))      return 'Tek';
-		if (/^Lunar\s/i.test(n))    return 'Lunar';
 		return 'Vanilla';
 	}
 
