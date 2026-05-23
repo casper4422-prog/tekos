@@ -12,16 +12,52 @@
 		habitat?: string;
 		dossierText?: string;
 		baseStats?: Record<string, number>;
+		spawnMaps?: string[];
 		[k: string]: unknown;
 	};
 
 	let { data }: { data: PageData } = $props();
 	const ownedBySpecies = $derived(data.ownedBySpecies ?? {});
+	const badgedSet = $derived(new Set(data.badgedSpecies ?? []));
 
 	let species = $state<Record<string, SpeciesEntry>>({});
 	let search = $state('');
 	let activeFilter = $state('all');
 	let hexCanvas: HTMLCanvasElement | null = $state(null);
+
+	// New filters (planning notes §7) — Map / Owned / Has Badge / Variant Type
+	let filterMap = $state<string>('any');
+	let filterOwned = $state<'any' | 'owned' | 'not-owned'>('any');
+	let filterHasBadge = $state<boolean>(false);
+	let filterVariant = $state<string>('any');
+
+	// Variant types — derive from name prefix as v1. Explicit tagging in the
+	// species DB would be cleaner but the prefix convention is consistent across
+	// the existing ASA entries (Aberrant Rex, X-Rex, R-Carno, Tek Stryder, Lunar
+	// Mantis, …). Falls back to 'Vanilla' when no prefix matches.
+	const VARIANT_OPTIONS = ['Vanilla', 'Aberrant', 'X-', 'R-', 'Tek', 'Lunar'] as const;
+	function variantTypeOf(name: string): string {
+		const n = name.trim();
+		if (/^Aberrant\s/i.test(n)) return 'Aberrant';
+		if (/^X-/i.test(n))         return 'X-';
+		if (/^R-/i.test(n))         return 'R-';
+		if (/^Tek\s/i.test(n))      return 'Tek';
+		if (/^Lunar\s/i.test(n))    return 'Lunar';
+		return 'Vanilla';
+	}
+
+	// Maps list — pulled from EXPANDED_SPECIES_DATABASE spawnMaps fields on mount.
+	let allMaps = $state<string[]>([]);
+
+	const advancedFiltersActive = $derived(
+		filterMap !== 'any' || filterOwned !== 'any' || filterHasBadge || filterVariant !== 'any'
+	);
+	function clearAdvancedFilters() {
+		filterMap = 'any';
+		filterOwned = 'any';
+		filterHasBadge = false;
+		filterVariant = 'any';
+	}
 
 	// Preview filter buttons → CSS class names on cards
 	const FILTERS: { key: string; label: string }[] = [
@@ -86,16 +122,29 @@
 		return name.length > 10;
 	}
 
-	function visibleKeys(): string[] {
+	const visibleKeys = $derived.by((): string[] => {
 		const keys = Object.keys(species);
 		const q = search.trim().toLowerCase();
 		return keys
 			.filter((k) => {
 				const s = species[k];
 				if (!s) return false;
-				const name = (s.name ?? k).toLowerCase();
-				if (q && !name.includes(q)) return false;
+				const displayName = s.name ?? k;
+				if (q && !displayName.toLowerCase().includes(q)) return false;
 				if (activeFilter !== 'all' && previewCat(s) !== activeFilter) return false;
+				// Map
+				if (filterMap !== 'any') {
+					const spawnMaps = s.spawnMaps ?? [];
+					if (!spawnMaps.includes(filterMap)) return false;
+				}
+				// Owned / Not Owned
+				const count = ownedCount(displayName);
+				if (filterOwned === 'owned' && count === 0) return false;
+				if (filterOwned === 'not-owned' && count > 0) return false;
+				// Has badge
+				if (filterHasBadge && !badgedSet.has(displayName)) return false;
+				// Variant type
+				if (filterVariant !== 'any' && variantTypeOf(displayName) !== filterVariant) return false;
 				return true;
 			})
 			.sort((a, b) => {
@@ -103,7 +152,7 @@
 				const nb = (species[b].name ?? b).toLowerCase();
 				return na.localeCompare(nb);
 			});
-	}
+	});
 
 	function navigateTo(name: string) {
 		window.location.href = `/dex/${encodeURIComponent(name)}`;
@@ -112,7 +161,16 @@
 	onMount(() => {
 		const db = (window as unknown as { EXPANDED_SPECIES_DATABASE?: Record<string, SpeciesEntry> })
 			.EXPANDED_SPECIES_DATABASE;
-		if (db) species = db;
+		if (db) {
+			species = db;
+			// Build the unique sorted list of maps for the Map filter dropdown
+			const mapSet = new Set<string>();
+			for (const key in db) {
+				const sm = db[key]?.spawnMaps;
+				if (Array.isArray(sm)) for (const m of sm) mapSet.add(String(m));
+			}
+			allMaps = Array.from(mapSet).sort();
+		}
 
 		// Hex canvas animation (literal port from preview)
 		const canvas = hexCanvas;
@@ -198,11 +256,52 @@
 				>{f.label}</button>
 			{/each}
 		</div>
+
+		<!-- Advanced filters: Map / Owned / Has Badge / Variant Type -->
+		<div class="dex-adv-row">
+			<div class="adv-group">
+				<label class="adv-label" for="dex-map">Map</label>
+				<select id="dex-map" class="adv-select" bind:value={filterMap}>
+					<option value="any">Any map</option>
+					{#each allMaps as m (m)}
+						<option value={m}>{m}</option>
+					{/each}
+				</select>
+			</div>
+
+			<div class="adv-group">
+				<span class="adv-label">Owned</span>
+				<button class="adv-chip" class:active={filterOwned === 'any'} onclick={() => filterOwned = 'any'}>Any</button>
+				<button class="adv-chip" class:active={filterOwned === 'owned'} onclick={() => filterOwned = 'owned'}>✓ Owned</button>
+				<button class="adv-chip" class:active={filterOwned === 'not-owned'} onclick={() => filterOwned = 'not-owned'}>○ Not Owned</button>
+			</div>
+
+			<div class="adv-group">
+				<label class="adv-check">
+					<input type="checkbox" bind:checked={filterHasBadge} />
+					Has Badge
+				</label>
+			</div>
+
+			<div class="adv-group">
+				<label class="adv-label" for="dex-variant">Variant</label>
+				<select id="dex-variant" class="adv-select" bind:value={filterVariant}>
+					<option value="any">Any variant</option>
+					{#each VARIANT_OPTIONS as v}
+						<option value={v}>{v}</option>
+					{/each}
+				</select>
+			</div>
+
+			{#if advancedFiltersActive}
+				<button class="adv-clear" onclick={clearAdvancedFilters}>Clear filters</button>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Dex cards grid -->
 	<div class="dex-grid">
-		{#each visibleKeys() as key (key)}
+		{#each visibleKeys as key (key)}
 			{@const s = species[key]}
 			{@const name = (s.name ?? key)}
 			{@const cat = previewCat(s)}
@@ -379,6 +478,83 @@
 }
 .dex-filter:hover { color: var(--tek-blue); border-color: rgba(0,180,255,0.40); }
 .dex-filter.active { color: #001a2e; background: var(--tek-blue); border-color: var(--tek-blue); }
+
+/* Advanced filters row — Map / Owned / Has Badge / Variant */
+.dex-adv-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px;
+    margin-top: 14px;
+    width: 100%;
+}
+.adv-group { display: flex; align-items: center; gap: 6px; }
+.adv-label {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+    margin-right: 2px;
+}
+.adv-select {
+    background: rgba(5,8,18,0.6);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text);
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    padding: 6px 26px 6px 10px;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    appearance: none; -webkit-appearance: none; cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--tek-blue) 50%), linear-gradient(135deg, var(--tek-blue) 50%, transparent 50%);
+    background-position: calc(100% - 12px) 50%, calc(100% - 7px) 50%;
+    background-size: 5px 5px; background-repeat: no-repeat;
+}
+.adv-select:focus { outline: none; border-color: var(--tek-blue); }
+.adv-select option { background: #0a1228; color: var(--tek-text); }
+
+.adv-chip {
+    background: rgba(5,8,18,0.6);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.10em;
+    padding: 5px 10px;
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.adv-chip:hover { color: var(--tek-text); border-color: var(--tek-blue-border); }
+.adv-chip.active { background: rgba(0,180,255,0.12); border-color: var(--tek-blue); color: var(--tek-blue); }
+
+.adv-check {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: var(--tek-text-dim);
+    cursor: pointer;
+}
+.adv-check input { accent-color: var(--tek-blue); cursor: pointer; }
+.adv-check:hover { color: var(--tek-text); }
+
+.adv-clear {
+    margin-left: auto;
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.25);
+    color: #fca5a5;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 5px 11px;
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.adv-clear:hover { background: rgba(239,68,68,0.18); color: #ff8b8b; }
 
 /* ── Grid ───────────────────────────────────────────────────────────────── */
 .dex-grid {
