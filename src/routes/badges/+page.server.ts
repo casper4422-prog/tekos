@@ -4,14 +4,15 @@ import { computeBadges, getStat, aggregateBadgesByCategory, type Stats } from '$
 import { computeMapBossBadges, MAP_BOSSES, ULTIMATE_BADGES, SPECIAL_ACHIEVEMENTS } from '$lib/mapBosses';
 
 /**
- * Breeder Rank ladder (from achievements_system.md):
- *  1. Apprentice  — first Bronze Bloodline
- *  2. Journeyman  — Bronze on 5 species
- *  3. Expert      — first Silver Bloodline
- *  4. Master      — first Gold Bloodline
- *  5. Grandmaster — Gold on 3 species
- *  6. Legend      — first Diamond Bloodline
- *  7. Myth        — Diamond on multiple species (2+)
+ * Breeder Rank ladder — 8 ranks:
+ *  1. Beach Bob       — first Bronze Bloodline
+ *  2. Primitive Tamer — Bronze on 5 species
+ *  3. Vault Keeper    — first Silver Bloodline
+ *  4. Mutation Hunter — Silver on 5 species
+ *  5. Alpha Line      — first Gold Bloodline
+ *  6. Element Forged  — Gold on 5 species
+ *  7. Ascendant       — first Diamond Bloodline
+ *  8. Homo Deus       — Diamond on 5 species
  */
 function computeBreederRank(bloodlineEntries: Array<{ species: string; tier: 'bronze'|'silver'|'gold'|'diamond' }>) {
     const bronzeSpecies  = new Set(bloodlineEntries.filter(b => b.tier === 'bronze').map(b => b.species));
@@ -20,13 +21,14 @@ function computeBreederRank(bloodlineEntries: Array<{ species: string; tier: 'br
     const diamondSpecies = new Set(bloodlineEntries.filter(b => b.tier === 'diamond').map(b => b.species));
 
     const ladder = [
-        { id: 'apprentice',  name: 'Apprentice',  achieved: bronzeSpecies.size >= 1 },
-        { id: 'journeyman',  name: 'Journeyman',  achieved: bronzeSpecies.size >= 5 },
-        { id: 'expert',      name: 'Expert',      achieved: silverSpecies.size >= 1 },
-        { id: 'master',      name: 'Master',      achieved: goldSpecies.size   >= 1 },
-        { id: 'grandmaster', name: 'Grandmaster', achieved: goldSpecies.size   >= 3 },
-        { id: 'legend',      name: 'Legend',      achieved: diamondSpecies.size >= 1 },
-        { id: 'myth',        name: 'Myth',        achieved: diamondSpecies.size >= 2 }
+        { id: 'beach_bob',       name: 'Beach Bob',       achieved: bronzeSpecies.size  >= 1 },
+        { id: 'primitive_tamer', name: 'Primitive Tamer', achieved: bronzeSpecies.size  >= 5 },
+        { id: 'vault_keeper',    name: 'Vault Keeper',    achieved: silverSpecies.size  >= 1 },
+        { id: 'mutation_hunter', name: 'Mutation Hunter', achieved: silverSpecies.size  >= 5 },
+        { id: 'alpha_line',      name: 'Alpha Line',      achieved: goldSpecies.size    >= 1 },
+        { id: 'element_forged',  name: 'Element Forged',  achieved: goldSpecies.size    >= 5 },
+        { id: 'ascendant',       name: 'Ascendant',       achieved: diamondSpecies.size >= 1 },
+        { id: 'homo_deus',       name: 'Homo Deus',       achieved: diamondSpecies.size >= 5 }
     ];
     const currentIdx = ladder.reduce((idx, step, i) => (step.achieved ? i : idx), -1);
     const current = currentIdx >= 0 ? ladder[currentIdx] : null;
@@ -35,24 +37,27 @@ function computeBreederRank(bloodlineEntries: Array<{ species: string; tier: 'br
     // Compute progress to next rank
     let progressLabel = '';
     let progressPct = 0;
-    if (next?.id === 'journeyman') {
+    if (next?.id === 'primitive_tamer') {
         progressLabel = `${bronzeSpecies.size} / 5 species with Bronze`;
         progressPct = Math.min(100, (bronzeSpecies.size / 5) * 100);
-    } else if (next?.id === 'expert') {
+    } else if (next?.id === 'vault_keeper') {
         progressLabel = 'First Silver Bloodline on any species';
         progressPct = silverSpecies.size > 0 ? 100 : 0;
-    } else if (next?.id === 'master') {
+    } else if (next?.id === 'mutation_hunter') {
+        progressLabel = `${silverSpecies.size} / 5 species with Silver`;
+        progressPct = Math.min(100, (silverSpecies.size / 5) * 100);
+    } else if (next?.id === 'alpha_line') {
         progressLabel = 'First Gold Bloodline on any species';
         progressPct = goldSpecies.size > 0 ? 100 : 0;
-    } else if (next?.id === 'grandmaster') {
-        progressLabel = `${goldSpecies.size} / 3 species with Gold`;
-        progressPct = Math.min(100, (goldSpecies.size / 3) * 100);
-    } else if (next?.id === 'legend') {
-        progressLabel = 'First Diamond Bloodline';
+    } else if (next?.id === 'element_forged') {
+        progressLabel = `${goldSpecies.size} / 5 species with Gold`;
+        progressPct = Math.min(100, (goldSpecies.size / 5) * 100);
+    } else if (next?.id === 'ascendant') {
+        progressLabel = 'First Diamond Bloodline on any species';
         progressPct = diamondSpecies.size > 0 ? 100 : 0;
-    } else if (next?.id === 'myth') {
-        progressLabel = `${diamondSpecies.size} / 2 species with Diamond`;
-        progressPct = Math.min(100, (diamondSpecies.size / 2) * 100);
+    } else if (next?.id === 'homo_deus') {
+        progressLabel = `${diamondSpecies.size} / 5 species with Diamond`;
+        progressPct = Math.min(100, (diamondSpecies.size / 5) * 100);
     }
 
     return { ladder, current, next, progressLabel, progressPct };

@@ -12,13 +12,14 @@
     let tekHexCanvas = $state<HTMLCanvasElement | null>(null);
 
     const rankFlavor: Record<string, string> = {
-        apprentice:  '"Every bloodline begins with one survivor and one tame."',
-        journeyman:  '"Five species can\'t be luck. The pattern recognizes itself."',
-        expert:      '"You see the math now. The wild becomes negotiable."',
-        master:      '"Your bloodlines hold their shape across generations. The wild forgets what you remember."',
-        grandmaster: '"Three Gold lines. The market notices. Other Survivors ask for your seed."',
-        legend:      '"A Diamond is rare for a reason. You proved them wrong."',
-        myth:        '"What you breed becomes folklore. The Obelisks know your name."'
+        beach_bob:       '"You woke up on the beach with nothing. You tamed something. That\'s a start."',
+        primitive_tamer: '"Five species. You\'re not just surviving anymore — you\'re building something."',
+        vault_keeper:    '"Your first Silver line. The vault is starting to mean something."',
+        mutation_hunter: '"Five Silver lines. You know what you\'re looking for. The mutations are coming."',
+        alpha_line:      '"Gold. The tribe notices. Your tames are no longer just tools."',
+        element_forged:  '"Five Gold lines. Element-tier dedication. The ARK remembers breeders like you."',
+        ascendant:       '"A Diamond bloodline. Ascendant quality — the same standard as the best gear in the game."',
+        homo_deus:       '"Five Diamonds. You didn\'t just survive the ARK — you mastered it. Homo Deus."'
     };
 
     function setTab(t: SystemTab) { sys = t; }
