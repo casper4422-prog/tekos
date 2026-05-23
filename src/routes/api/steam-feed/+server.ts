@@ -26,15 +26,19 @@ type SteamNewsResponse = {
 	};
 };
 
+// Steam template var → real CDN. Used by [img]{STEAM_CLAN_IMAGE}/...[/img].
+const STEAM_CLAN_CDN = 'https://clan.cloudflare.steamstatic.com/images/';
+
 // GET /api/steam-feed?url=... → returns up to 5 latest ASA announcements
 // from the public Steam News API. The `url` query param is accepted but
 // ignored in v1 — any saved Steam source resolves to the ASA app feed.
 // Future v2 can parse appids / group ids out of the URL.
 //
 // Steam News API requires no key for this endpoint and is fully public.
-// We strip BBCode/HTML tags from contents for a clean excerpt.
+// We extract the first image URL from contents (BBCode [img] or HTML <img>)
+// and strip BBCode/HTML for a clean card-sized excerpt.
 export const GET: RequestHandler = async ({ fetch: serverFetch }) => {
-	const apiUrl = `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${ASA_APPID}&count=5&maxlength=400&format=json`;
+	const apiUrl = `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${ASA_APPID}&count=5&maxlength=600&format=json`;
 	try {
 		const r = await serverFetch(apiUrl);
 		if (!r.ok) return json({ items: [] });
@@ -44,6 +48,7 @@ export const GET: RequestHandler = async ({ fetch: serverFetch }) => {
 			title: n.title,
 			url: n.url,
 			body: stripFormatting(n.contents),
+			imageUrl: extractFirstImage(n.contents),
 			author: n.author || 'Steam',
 			feedLabel: n.feedlabel || 'Steam News',
 			date: new Date(n.date * 1000).toISOString()
@@ -53,6 +58,22 @@ export const GET: RequestHandler = async ({ fetch: serverFetch }) => {
 		return json({ items: [] });
 	}
 };
+
+// Find first image url. Steam announcements typically use BBCode [img]…[/img]
+// wrapping the {STEAM_CLAN_IMAGE} placeholder, but newer items occasionally
+// use raw HTML <img>. Returns null when no image is in the body.
+function extractFirstImage(raw: string): string | null {
+	if (!raw) return null;
+	let m = raw.match(/\[img\]\s*([^\[]+?)\s*\[\/img\]/i);
+	let url = m?.[1] ?? null;
+	if (!url) {
+		m = raw.match(/<img[^>]+src=["']([^"']+)["']/i);
+		url = m?.[1] ?? null;
+	}
+	if (!url) return null;
+	url = url.replace('{STEAM_CLAN_IMAGE}', STEAM_CLAN_CDN);
+	return url.trim();
+}
 
 // Steam contents come back with a mix of BBCode (`[b]`, `[url=...]X[/url]`, etc.)
 // and HTML — strip both, collapse whitespace, trim to a card-friendly length.

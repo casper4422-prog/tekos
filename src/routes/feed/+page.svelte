@@ -211,6 +211,7 @@
         date: string;
         platformName: string;
         videoLink?: string;
+        imageUrl?: string;
     };
 
     const newsRows = $derived.by<NewsItem[]>(() => {
@@ -225,7 +226,8 @@
                 excerpt: n.description as string,
                 link: n.link as string,
                 date: n.date as string,
-                platformName: 'Wildcard'
+                platformName: 'Wildcard',
+                imageUrl: typeof n.imageUrl === 'string' ? n.imageUrl : undefined
             });
         }
         for (const v of (data.youtubeItems ?? [])) {
@@ -251,7 +253,8 @@
                 excerpt: s.body as string,
                 link: s.url as string,
                 date: s.date as string,
-                platformName: 'Steam'
+                platformName: 'Steam',
+                imageUrl: typeof s.imageUrl === 'string' ? s.imageUrl : undefined
             });
         }
         out.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -714,6 +717,11 @@
                                 <span class="time">{relTime(n.date)}</span>
                             </div>
                             {#if n.title}<div class="news-title">{n.title}</div>{/if}
+                            {#if n.imageUrl}
+                                <a class="news-thumb" href={n.link} target="_blank" rel="noopener noreferrer" aria-label="Open full article">
+                                    <img src={n.imageUrl} alt="" loading="lazy" referrerpolicy="no-referrer" />
+                                </a>
+                            {/if}
                             {#if n.excerpt}<div class="news-excerpt">{n.excerpt}</div>{/if}
                             {#if n.videoLink}
                                 <div class="video-thumb">
@@ -1418,6 +1426,28 @@
     line-height: 1.55;
     margin-bottom: 8px;
 }
+
+/* Hero image extracted from the news item (Steam BBCode [img] / HTML <img>).
+   Hidden when the image fails to load (img:not([src]) won't display anyway,
+   but the empty <a> wrapper stays — that's fine, it's keyboard-focusable). */
+.news-thumb {
+    display: block;
+    margin: 6px 0 10px;
+    max-height: 240px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+    clip-path: polygon(6px 0%, 100% 0%, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0% 100%, 0% 6px);
+    background: rgba(0,0,0,0.30);
+}
+.news-thumb img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 240px;
+    object-fit: cover;
+    transition: opacity 0.18s;
+}
+.news-thumb:hover img { opacity: 0.85; }
 
 .video-thumb {
     margin-top: 6px;
