@@ -104,8 +104,11 @@
 	}
 
 	// Log fight form
-	let logOutcome = $state<'success'|'failed'>('success');
-	let logNotes   = $state('');
+	let logOutcome    = $state<'success'|'failed'>('success');
+	let logNotes      = $state('');
+	let logSquad      = $state<{name:string; userId:number}[]>([]);
+	let logCreatures  = $state<Record<string,unknown>[]>([]);
+	let logDuration   = $state('');
 
 	// Poll for new messages every 8 seconds when on chat tab
 	onMount(() => {
@@ -123,8 +126,18 @@
 	});
 	onDestroy(() => clearInterval(pollTimer));
 
+	function openLogFight() {
+		logOpen = true;
+		logOutcome = 'success';
+		logNotes = '';
+		logDuration = String(Math.round((Date.now() - new Date(String(session.createdAt)).getTime()) / 60000));
+		logSquad = members.map(m => ({ name: display(m.user as Record<string,unknown>), userId: Number((m.user as Record<string,unknown>).id ?? 0) }));
+		logCreatures = [...creatures];
+	}
+
 	async function logFight() {
-		await fetch('/api/boss-records', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ bossName:String(session.bossName), difficulty:String(session.difficulty), outcome:logOutcome, notes:logNotes||null, creaturesUsed:creatures.map(c => c.creatureData ?? c) }) });
+		const dur = logDuration ? (parseInt(logDuration) || null) : null;
+		await fetch('/api/boss-records', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ bossName:String(session.bossName), difficulty:String(session.difficulty), outcome:logOutcome, notes:logNotes||null, creaturesUsed:logCreatures.map(c => c.creatureData ?? c), squadMembers:logSquad, duration:dur }) });
 		logOpen = false; alert('Fight recorded!');
 	}
 
@@ -181,7 +194,7 @@
 		<button class="tek-btn-v2 ghost sm" onclick={loadFriends}>
 			<UserPlus size={13} strokeWidth={2.5} /> Invite
 		</button>
-		<button class="tek-btn-v2 sm" onclick={() => { logOpen=true; logOutcome='success'; logNotes=''; }}>
+		<button class="tek-btn-v2 sm" onclick={openLogFight}>
 			<ScrollText size={13} strokeWidth={2.5} /> Log Fight
 		</button>
 		{#if isCreator && !closed}
@@ -247,9 +260,11 @@
 		<div class="war-member-list">
 			{#each members as m}
 				{@const md = m as Record<string,unknown>}
-				<div class="cham-shell war-member" style="--cut:6px">
-					<div class="war-member-inner">{display(md.user as Record<string,unknown>)}</div>
-				</div>
+				{@const u = (md.user as Record<string,unknown>) ?? {}}
+				{@const memberId = Number(u.id ?? 0)}
+				<a href="/survivors/{memberId}" class="cham-shell war-member" style="--cut:6px;text-decoration:none">
+					<div class="war-member-inner">{display(u)}</div>
+				</a>
 			{/each}
 		</div>
 
@@ -366,20 +381,65 @@
 <!-- Log fight modal -->
 {#if logOpen}
 <div class="modal active" role="dialog" aria-modal="true">
-	<div class="modal-content" style="max-width:420px">
+	<div class="modal-content" style="max-width:580px">
 		<div class="modal-header">
 			<h2 class="modal-title">Log Boss Fight</h2>
 			<button class="close-btn" onclick={() => logOpen=false}>&times;</button>
 		</div>
-		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
-			<div style="color:#94a3b8;font-size:0.88rem">{String(session.bossName)} · {String(session.difficulty).toUpperCase()}</div>
-			<div class="plan-field">
-				<div class="form-label">Outcome</div>
-				<div style="display:flex;gap:8px">
-					<button class="btn btn-sm" class:btn-primary={logOutcome==='success'} class:btn-secondary={logOutcome!=='success'} onclick={() => logOutcome='success'}>Victory</button>
-					<button class="btn btn-sm" class:btn-danger={logOutcome==='failed'} class:btn-secondary={logOutcome!=='failed'}  onclick={() => logOutcome='failed'}>Defeat</button>
+		<div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
+			<div style="color:#94a3b8;font-size:0.82rem;font-family:monospace">{String(session.bossName)} · {String(session.difficulty).toUpperCase()}</div>
+
+			<!-- Outcome + Duration -->
+			<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+				<div class="plan-field">
+					<div class="form-label">Outcome</div>
+					<div style="display:flex;gap:8px">
+						<button class="btn btn-sm" class:btn-primary={logOutcome==='success'} class:btn-secondary={logOutcome!=='success'} onclick={() => logOutcome='success'}>⚔ Victory</button>
+						<button class="btn btn-sm" class:btn-danger={logOutcome==='failed'} class:btn-secondary={logOutcome!=='failed'} onclick={() => logOutcome='failed'}>✗ Defeat</button>
+					</div>
+				</div>
+				<div class="plan-field">
+					<label class="form-label" for="log-duration">Duration (minutes)</label>
+					<input id="log-duration" type="number" min="1" class="form-control" bind:value={logDuration} placeholder="e.g. 12" />
 				</div>
 			</div>
+
+			<!-- Squad -->
+			<div class="plan-field">
+				<div class="form-label">Squad ({logSquad.length})</div>
+				{#if logSquad.length === 0}
+					<div style="color:#475569;font-size:0.8rem">No members loaded.</div>
+				{:else}
+					<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+						{#each logSquad as member, i}
+							<div class="log-id-tag">
+								<a href="/survivors/{member.userId}" style="color:#7dd3fc;text-decoration:none">{member.name}</a>
+								<button onclick={() => logSquad = logSquad.filter((_,j) => j !== i)} style="background:none;border:none;cursor:pointer;color:#475569;font-size:1rem;padding:0 0 1px 4px" aria-label="Remove">×</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Creatures -->
+			<div class="plan-field">
+				<div class="form-label">Tames ({logCreatures.length})</div>
+				{#if logCreatures.length === 0}
+					<div style="color:#475569;font-size:0.8rem">No tames loaded.</div>
+				{:else}
+					<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+						{#each logCreatures as c, i}
+							{@const cd = (c.creatureData ?? c) as Record<string,unknown>}
+							<div class="log-id-tag">
+								<span style="color:#f1f5f9">{String(cd.species ?? '?')} "{String(cd.name ?? 'Unnamed')}"</span>
+								<button onclick={() => logCreatures = logCreatures.filter((_,j) => j !== i)} style="background:none;border:none;cursor:pointer;color:#475569;font-size:1rem;padding:0 0 1px 4px" aria-label="Remove">×</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Notes -->
 			<div class="plan-field">
 				<label class="form-label" for="log-notes">Notes</label>
 				<textarea id="log-notes" class="form-control" rows="2" bind:value={logNotes} placeholder="How did it go?"></textarea>
@@ -506,4 +566,14 @@
 .war-tip-item { display:flex; align-items:flex-start; gap:9px; font-size:0.82rem; color:#94a3b8; line-height:1.5; }
 .war-tip-bullet { width:6px; height:6px; border-radius:50%; flex-shrink:0; margin-top:6px; }
 .war-tip-creature { color:#f1f5f9; }
+
+.log-id-tag {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(0,180,255,0.08);
+    border: 1px solid rgba(0,180,255,0.20);
+    padding: 3px 6px 3px 9px;
+    font-size: 0.78rem;
+    font-family: monospace;
+}
 </style>

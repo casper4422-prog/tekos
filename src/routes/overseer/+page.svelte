@@ -225,6 +225,10 @@
 	let logOpen         = $state(false);
 	let logOutcome      = $state<'success'|'failed'>('success');
 	let logNotes        = $state('');
+	let logSquad        = $state<{name:string; userId:number}[]>([]);
+	let logCreatures    = $state<Record<string,unknown>[]>([]);
+	let logDuration     = $state('');
+	let receiptRecord   = $state<Record<string,unknown>|null>(null);
 	let inviteOpen      = $state(false);
 	let friends         = $state<Record<string,unknown>[]>([]);
 	let pollTimer: ReturnType<typeof setInterval>;
@@ -360,8 +364,19 @@
 
 	async function logFight() {
 		if (!activeSession) return;
-		await fetch('/api/boss-records', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ bossName:String(activeSession.bossName), difficulty:String(activeSession.difficulty), outcome:logOutcome, notes:logNotes||null, creaturesUsed:sessionCreatures.map(c => c.creatureData ?? c) }) });
+		const dur = logDuration ? (parseInt(logDuration) || null) : null;
+		await fetch('/api/boss-records', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ bossName:String(activeSession.bossName), difficulty:String(activeSession.difficulty), outcome:logOutcome, notes:logNotes||null, creaturesUsed:logCreatures.map(c => c.creatureData ?? c), squadMembers:logSquad, duration:dur }) });
 		logOpen = false; alert('Fight recorded!');
+	}
+
+	function openLogFight() {
+		if (!activeSession) return;
+		logOpen = true;
+		logOutcome = 'success';
+		logNotes = '';
+		logDuration = String(Math.round((Date.now() - new Date(String(activeSession.createdAt)).getTime()) / 60000));
+		logSquad = sessionMembers.map(m => ({ name: display(m.user as Record<string,unknown>), userId: Number((m.user as Record<string,unknown>).id ?? 0) }));
+		logCreatures = [...sessionCreatures];
 	}
 
 	async function loadFriendsAndInvite() {
@@ -550,7 +565,9 @@
 				<div class="boss-grid">
 					{#each records as r}
 						{@const rd = r as Record<string,unknown>}
-						<div class="boss-card {rd.outcome==='success'?'forest':'dragon'}">
+						{@const squad = (rd.squadMembers as {name:string;userId:number}[]) ?? []}
+						{@const usedCreatures = (rd.creaturesUsed as Record<string,unknown>[]) ?? []}
+						<button class="boss-card {rd.outcome==='success'?'forest':'dragon'}" onclick={() => receiptRecord = rd}>
 							<div class="boss-top">
 								<div class="boss-glyph">
 									<svg viewBox="0 0 100 110">
@@ -565,8 +582,9 @@
 							</div>
 							<div class="boss-status" style="border-top:none;padding-top:0">
 								<span class="status-badge {rd.outcome==='success'?'ready':'notready'}"><span class="status-pip"></span>{rd.outcome==='success'?'Victory':'Defeat'}</span>
+								<span class="boss-extra">{squad.length > 0 ? `${squad.length} survivors` : usedCreatures.length > 0 ? `${usedCreatures.length} tames` : 'View receipt'}</span>
 							</div>
-						</div>
+						</button>
 					{/each}
 				</div>
 			</section>
@@ -606,7 +624,7 @@
 					<div class="diff-select-label">Difficulty</div>
 					<button class="diff-btn active">{String(activeSession.difficulty ?? '').toUpperCase()}</button>
 					<button class="diff-btn" onclick={loadFriendsAndInvite}>Invite</button>
-					<button class="diff-btn" onclick={() => { logOpen=true; logOutcome='success'; logNotes=''; }}>Log Fight</button>
+					<button class="diff-btn" onclick={openLogFight}>Log Fight</button>
 					{#if isCreator && !closed}<button class="diff-btn" onclick={closeRoom}>Close</button>{/if}
 				</div>
 			</div>
@@ -728,7 +746,8 @@
 									{@const md = m as Record<string,unknown>}
 									{@const u = (md.user as Record<string,unknown>) ?? {}}
 									{@const name = display(u)}
-									<div class="squad-slot filled"><span class="initial">{name.charAt(0).toUpperCase()}</span><span class="pip"></span></div>
+									{@const uid = Number(u.id ?? 0)}
+									<a href="/survivors/{uid}" class="squad-slot filled" title={name}><span class="initial">{name.charAt(0).toUpperCase()}</span><span class="pip"></span></a>
 								{/each}
 								{#each Array.from({ length: Math.max(0, 8 - sessionMembers.length) }) as _}
 									<div class="squad-slot empty">+</div>
@@ -1000,25 +1019,159 @@
 	onclick={() => logOpen=false}
 	onkeydown={(e) => { if (e.key === 'Escape') logOpen=false; }}>
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<div class="modal-stage" style="max-width:520px" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
+	<div class="modal-stage" style="max-width:640px" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
 		<div class="section-header">
 			<span class="pip"></span>
 			Log Boss Fight
 			<span class="rule"></span>
 		</div>
-		<div class="warroom">
-			{#if activeSession}<div style="font-family:var(--tek-mono);color:#94a3b8;font-size:0.78rem;margin-bottom:14px">{String(activeSession.bossName)} · {String(activeSession.difficulty).toUpperCase()}</div>{/if}
-			<div class="diff-select-label">Outcome</div>
-			<div style="display:flex;gap:8px;margin-bottom:14px">
-				<button class="diff-btn" class:active={logOutcome==='success'} onclick={() => logOutcome='success'}>Victory</button>
-				<button class="diff-btn" class:active={logOutcome==='failed'} onclick={() => logOutcome='failed'}>Defeat</button>
+		<div class="warroom" style="display:flex;flex-direction:column;gap:18px">
+			{#if activeSession}
+				<div style="font-family:var(--tek-mono);color:#94a3b8;font-size:0.78rem">{String(activeSession.bossName)} · {String(activeSession.difficulty).toUpperCase()}</div>
+			{/if}
+
+			<!-- Outcome + Duration -->
+			<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+				<div>
+					<div class="diff-select-label" style="margin-bottom:8px">Outcome</div>
+					<div style="display:flex;gap:8px">
+						<button class="diff-btn" class:active={logOutcome==='success'} onclick={() => logOutcome='success'}>⚔ Victory</button>
+						<button class="diff-btn" class:active={logOutcome==='failed'} onclick={() => logOutcome='failed'}>✗ Defeat</button>
+					</div>
+				</div>
+				<div>
+					<div class="diff-select-label" style="margin-bottom:8px">Duration (minutes)</div>
+					<input type="number" min="1" class="chat-input" style="width:100%;font-family:var(--tek-mono);font-size:0.82rem" bind:value={logDuration} placeholder="e.g. 12" />
+				</div>
 			</div>
-			<div class="diff-select-label">Notes</div>
-			<textarea class="chat-input" rows={3} style="width:100%;margin-top:6px;font-family:inherit;clip-path:polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);" bind:value={logNotes}></textarea>
+
+			<!-- Squad -->
+			<div>
+				<div class="diff-select-label" style="margin-bottom:8px">Squad ({logSquad.length})</div>
+				{#if logSquad.length === 0}
+					<div style="color:#475569;font-size:0.78rem;font-family:var(--tek-mono)">No members loaded from war room.</div>
+				{:else}
+					<div style="display:flex;flex-wrap:wrap;gap:6px">
+						{#each logSquad as member, i}
+							<div class="log-tag">
+								<a href="/survivors/{member.userId}" class="log-tag-name">{member.name}</a>
+								<button class="log-tag-remove" onclick={() => logSquad = logSquad.filter((_,j) => j !== i)} aria-label="Remove">×</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Creatures -->
+			<div>
+				<div class="diff-select-label" style="margin-bottom:8px">Tames ({logCreatures.length})</div>
+				{#if logCreatures.length === 0}
+					<div style="color:#475569;font-size:0.78rem;font-family:var(--tek-mono)">No tames loaded from war room.</div>
+				{:else}
+					<div style="display:flex;flex-wrap:wrap;gap:6px">
+						{#each logCreatures as c, i}
+							{@const cd = (c.creatureData ?? c) as Record<string,unknown>}
+							<div class="log-tag">
+								<span class="log-tag-name">{String(cd.species ?? '?')} "{String(cd.name ?? 'Unnamed')}"</span>
+								<button class="log-tag-remove" onclick={() => logCreatures = logCreatures.filter((_,j) => j !== i)} aria-label="Remove">×</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Notes -->
+			<div>
+				<div class="diff-select-label" style="margin-bottom:8px">Notes</div>
+				<textarea class="chat-input" rows={2} style="width:100%;font-family:inherit;clip-path:polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);" bind:value={logNotes} placeholder="How did it go? Any key moments..."></textarea>
+			</div>
 		</div>
 		<div class="modal-actions">
 			<button class="diff-btn" onclick={() => logOpen=false}>Cancel</button>
-			<button class="btn-create" onclick={logFight}>Save</button>
+			<button class="btn-create" onclick={logFight}>Save Record</button>
+		</div>
+	</div>
+</div>
+{/if}
+
+<!-- ═════════ FIGHT RECEIPT MODAL ═════════ -->
+{#if receiptRecord}
+{@const rr = receiptRecord}
+{@const rrSquad = (rr.squadMembers as {name:string;userId:number}[]) ?? []}
+{@const rrCreatures = (rr.creaturesUsed as Record<string,unknown>[]) ?? []}
+{@const rrDate = new Date(String(rr.createdAt))}
+<div class="modal-overlay" role="dialog" aria-modal="true" tabindex="-1"
+	onclick={() => receiptRecord=null}
+	onkeydown={(e) => { if (e.key === 'Escape') receiptRecord=null; }}>
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div class="modal-stage" style="max-width:580px" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
+		<div class="section-header">
+			<span class="pip"></span>
+			Fight Receipt
+			<span class="rule"></span>
+			<button class="action" onclick={() => receiptRecord=null}>Close <span class="arrow">▸</span></button>
+		</div>
+		<div class="warroom" style="display:flex;flex-direction:column;gap:18px">
+
+			<!-- Header -->
+			<div style="display:flex;align-items:center;gap:16px">
+				<div class="boss-glyph" style="width:52px;height:58px;flex-shrink:0">
+					<svg viewBox="0 0 100 110">
+						<polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill={rr.outcome==='success'?'rgba(34,197,94,0.15)':'rgba(239,68,68,0.15)'} stroke={rr.outcome==='success'?'#22c55e':'#ef4444'} stroke-width="2"/>
+						<text x="50" y="72" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill={rr.outcome==='success'?'#86efac':'#fca5a5'}>{rr.outcome==='success'?'V':'X'}</text>
+					</svg>
+				</div>
+				<div>
+					<div style="font-family:var(--tek-display);font-size:1.1rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:var(--tek-text)">{String(rr.bossName)}</div>
+					<div style="font-family:var(--tek-mono);font-size:0.72rem;color:#64748b;margin-top:4px">
+						{String(rr.difficulty ?? '').toUpperCase()}
+						{#if rr.duration} · {rr.duration} min{/if}
+						· {rrDate.toLocaleDateString()} {rrDate.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+					</div>
+					<div style="margin-top:6px">
+						<span class="status-badge {rr.outcome==='success'?'ready':'notready'}"><span class="status-pip"></span>{rr.outcome==='success'?'Victory':'Defeat'}</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- Squad -->
+			{#if rrSquad.length > 0}
+				<div>
+					<div class="diff-select-label" style="margin-bottom:8px">Squad ({rrSquad.length})</div>
+					<div style="display:flex;flex-wrap:wrap;gap:6px">
+						{#each rrSquad as member}
+							<a href="/survivors/{member.userId}" class="log-tag log-tag-link">
+								<span class="log-tag-name">{member.name}</span>
+							</a>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Creatures -->
+			{#if rrCreatures.length > 0}
+				<div>
+					<div class="diff-select-label" style="margin-bottom:8px">Tames Used ({rrCreatures.length})</div>
+					<div style="display:flex;flex-direction:column;gap:5px">
+						{#each rrCreatures as c}
+							{@const cd = c as Record<string,unknown>}
+							<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(0,0,0,0.30);font-family:var(--tek-mono);font-size:0.74rem">
+								<span style="color:var(--tek-text);font-weight:600">{String(cd.species ?? '?')}</span>
+								<span style="color:#64748b">"{String(cd.name ?? 'Unnamed')}"</span>
+								{#if cd.level}<span style="color:#475569">Lvl {Number(cd.level)}</span>{/if}
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Notes -->
+			{#if rr.notes}
+				<div>
+					<div class="diff-select-label" style="margin-bottom:8px">Notes</div>
+					<div style="font-size:0.84rem;color:#94a3b8;line-height:1.6;padding:10px 12px;background:rgba(0,0,0,0.25)">{String(rr.notes)}</div>
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>
@@ -1978,7 +2131,10 @@
 .squad-slot.filled {
     background: linear-gradient(160deg, rgba(0,180,255,0.20) 0%, rgba(4,8,20,0.92) 100%);
     border-color: rgba(0,180,255,0.40);
+    text-decoration: none;
+    color: inherit;
 }
+.squad-slot.filled:hover { border-color: rgba(0,180,255,0.75); filter: drop-shadow(0 0 6px rgba(0,180,255,0.35)); }
 .squad-slot.filled .initial { font-size: 0.92rem; font-weight: 800; color: #7dd3fc; }
 .squad-slot.empty {
     border-style: dashed;
@@ -2327,4 +2483,33 @@
     .boss-hero-glyph { width: 88px; height: 100px; }
     .warroom { padding: 18px 18px; }
 }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   LOG TAGS (squad / creatures in Log Fight modal)
+   ═════════════════════════════════════════════════════════════════════════ */
+.log-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,180,255,0.08);
+    border: 1px solid rgba(0,180,255,0.22);
+    padding: 4px 8px 4px 10px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+}
+.log-tag-link { text-decoration: none; cursor: pointer; }
+.log-tag-link:hover { background: rgba(0,180,255,0.18); }
+.log-tag-name { color: #7dd3fc; }
+.log-tag-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #475569;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0 0 1px 0;
+    transition: color 0.15s;
+}
+.log-tag-remove:hover { color: #ef4444; }
 </style>
