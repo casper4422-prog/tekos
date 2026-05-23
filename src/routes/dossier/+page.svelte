@@ -196,7 +196,7 @@
     // ─── Recent Activity helpers ─────────────────────────────────
     function activityIcon(type: string): string {
         if (type === 'creature_add') return '🧬';
-        if (type === 'boss_record') return '⚔';
+        if (type === 'boss_record' || type === 'boss_fight') return '⚔';
         if (type === 'trade_list' || type === 'trade_open' || type === 'trade_close') return '⇆';
         if (type === 'badge_earned') return '⬢';
         return '◈';
@@ -204,7 +204,7 @@
     function activityText(a: { type: string; data: unknown }): string {
         const d = (a.data && typeof a.data === 'object' ? a.data : {}) as Record<string, unknown>;
         if (a.type === 'creature_add') return `Logged ${String(d.species ?? d.name ?? 'a specimen')}`;
-        if (a.type === 'boss_record') return `${d.outcome === 'success' ? 'Beat' : 'Fought'} ${String(d.bossName ?? 'a boss')}`;
+        if (a.type === 'boss_record' || a.type === 'boss_fight') return `${d.outcome === 'success' ? 'Beat' : 'Fought'} ${String(d.bossName ?? 'a boss')}`;
         if (a.type === 'trade_list' || a.type === 'trade_open') {
             const verb = d.direction === 'buy' ? 'Looking for' : 'Listed';
             return `${verb} ${String(d.species ?? d.item ?? 'something')}`;
@@ -212,6 +212,17 @@
         if (a.type === 'trade_close') return `Closed a trade${d.species ? ` for ${String(d.species)}` : ''}`;
         if (a.type === 'badge_earned') return `Earned ${String(d.badge ?? 'a badge')}`;
         return a.type.replace(/_/g, ' ');
+    }
+    function activityHref(a: { type: string; data: unknown }): string {
+        const d = (a.data && typeof a.data === 'object' ? a.data : {}) as Record<string, unknown>;
+        if (a.type === 'creature_add') {
+            const id = (d.creatureId ?? d.id) as number | undefined;
+            return id ? `/specimens/${id}` : '/specimens';
+        }
+        if (a.type === 'boss_fight' || a.type === 'boss_record') return '/overseer';
+        if (a.type === 'trade_list' || a.type === 'trade_open' || a.type === 'trade_close') return '/marketplace';
+        if (a.type === 'badge_earned') return '/badges';
+        return '#';
     }
 
     // ─── Notification preview helpers ────────────────────────────
@@ -644,11 +655,11 @@
         </div>
         <div class="recent-feed">
             {#each data.recentActivity as a (a.id)}
-                <div class="recent-row">
+                <a class="recent-row" href={activityHref(a)}>
                     <span class="recent-icon">{activityIcon(a.type)}</span>
                     <span class="recent-text">{activityText(a)}</span>
                     <span class="recent-time">{relativeTime(a.createdAt)}</span>
-                </div>
+                </a>
             {/each}
         </div>
     </section>
@@ -1746,7 +1757,10 @@ a.stat-cell:hover { box-shadow: 0 6px 18px rgba(0,180,255,0.10); }
     gap: 12px; align-items: center;
     padding: 7px 0;
     border-bottom: 1px solid rgba(255,255,255,0.04);
+    text-decoration: none; color: inherit;
+    transition: background 0.18s; cursor: pointer;
 }
+.recent-row:hover { background: rgba(0,180,255,0.04); margin: 0 -22px; padding: 7px 22px; }
 .recent-row:last-child { border-bottom: none; }
 .recent-icon { font-size: 0.95rem; text-align: center; line-height: 1; }
 .recent-text { font-family: var(--tek-mono); font-size: 0.74rem; color: var(--tek-text); letter-spacing: 0.04em; }

@@ -56,7 +56,7 @@
 
     function eventKindClass(type: string): string {
         if (type === 'creature_add') return 'breeding';
-        if (type === 'boss_record' || type === 'boss') return 'boss';
+        if (type === 'boss_record' || type === 'boss' || type === 'boss_fight') return 'boss';
         if (type === 'trade_open' || type === 'trade') return 'trade';
         if (type === 'badge_earned') return 'badge';
         return '';
@@ -68,7 +68,7 @@
 
     function eventTypeGlyph(type: string): string {
         if (type === 'creature_add') return '🧬';
-        if (type === 'boss_record' || type === 'boss') return '⚔';
+        if (type === 'boss_record' || type === 'boss' || type === 'boss_fight') return '⚔';
         if (type === 'trade_open' || type === 'trade') return '⇆';
         if (type === 'badge_earned') return '⬢';
         return '⬡';
@@ -174,10 +174,21 @@
         const d = it.data;
         const name = displayName(it.user);
         if (it.type === 'creature_add') return `${name} logged ${d.name ?? d.species ?? 'a specimen'}`;
-        if (it.type === 'boss_record') return `${name} ${d.outcome === 'success' ? 'beat' : 'fought'} ${d.bossName ?? 'a boss'}`;
+        if (it.type === 'boss_record' || it.type === 'boss_fight') return `${name} ${d.outcome === 'success' ? 'beat' : 'fought'} ${d.bossName ?? 'a boss'}`;
         if (it.type === 'trade_open') return `${name} listed ${d.species ?? 'a trade'} on the Marketplace`;
         if (it.type === 'badge_earned') return `${name} earned ${d.badge ?? 'a badge'}`;
-        return `${name} — ${it.type}`;
+        return `${name} — ${it.type.replace(/_/g, ' ')}`;
+    }
+
+    function eventHref(it: FeedItem): string {
+        if (it.type === 'creature_add') {
+            const id = (it.data.creatureId ?? it.data.id) as number | undefined;
+            return id ? `/specimens/${id}` : '/specimens';
+        }
+        if (it.type === 'boss_fight' || it.type === 'boss_record') return '/overseer';
+        if (it.type === 'trade_open' || it.type === 'trade_list') return '/marketplace';
+        if (it.type === 'badge_earned') return '/badges';
+        return '#';
     }
 
     function metaLine(it: FeedItem): string {
@@ -544,7 +555,7 @@
                             <div class="date-divider">{row.label}</div>
                         {:else}
                             {@const it = row.item}
-                            <div class="feed-event {eventKindClass(it.type)}">
+                            <a class="feed-event {eventKindClass(it.type)}" href={eventHref(it)}>
                                 <div class="feed-avatar">
                                     <svg viewBox="0 0 100 110">
                                         <polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(0,180,255,0.18)" stroke="#00b4ff" stroke-width="2"/>
@@ -557,7 +568,7 @@
                                     <div class="feed-meta"><span class="source">{metaLine(it)}</span></div>
                                 </div>
                                 <div class="feed-time">{relTime(it.createdAt)}</div>
-                            </div>
+                            </a>
                         {/if}
                     {/each}
                 {/if}
@@ -865,6 +876,7 @@
     display: grid;
     grid-template-columns: 36px 1fr auto;
     gap: 14px; align-items: flex-start;
+    text-decoration: none; color: inherit;
     background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.94) 100%);
     backdrop-filter: blur(10px);
     clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
