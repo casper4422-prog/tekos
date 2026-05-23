@@ -506,42 +506,22 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // INTEGRATIONS
+    // INTEGRATIONS — streaming & social channels
     // ═══════════════════════════════════════════════════════════════════════
-    type DiscordEvents = { tribeAnnounce?: boolean; warRoom?: boolean; badge?: boolean; trade?: boolean };
     const initialIntegrations = (SERVER_SETTINGS.integrations ?? {}) as {
-        discordWebhook?: string; discordEvents?: DiscordEvents;
         twitchKey?: string; youtubeChannel?: string;
+        kickChannel?: string; rumbleChannel?: string;
+        tiktokHandle?: string; twitterHandle?: string;
     };
-    let discordWebhook = $state(initialIntegrations.discordWebhook ?? '');
-    let discordEvents = $state<DiscordEvents>({
-        tribeAnnounce: initialIntegrations.discordEvents?.tribeAnnounce !== false,
-        warRoom:       initialIntegrations.discordEvents?.warRoom !== false,
-        badge:         initialIntegrations.discordEvents?.badge !== false,
-        trade:         initialIntegrations.discordEvents?.trade !== false
-    });
     let twitchKey      = $state(initialIntegrations.twitchKey ?? '');
     let youtubeChannel = $state(initialIntegrations.youtubeChannel ?? '');
+    let kickChannel    = $state(initialIntegrations.kickChannel ?? '');
+    let rumbleChannel  = $state(initialIntegrations.rumbleChannel ?? '');
+    let tiktokHandle   = $state(initialIntegrations.tiktokHandle ?? '');
+    let twitterHandle  = $state(initialIntegrations.twitterHandle ?? '');
     let intSaving = $state(false);
     let intMsg    = $state('');
     let intErr    = $state(false);
-    let webhookTestMsg = $state('');
-
-    async function testDiscordWebhook() {
-        if (!discordWebhook.trim()) { webhookTestMsg = 'Paste a webhook URL first.'; return; }
-        webhookTestMsg = 'Sending test ping…';
-        try {
-            const res = await fetch(discordWebhook.trim(), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: '⬡ TekOS test ping — webhook is live.' })
-            });
-            webhookTestMsg = res.ok ? '✓ Webhook responded OK.' : `Webhook responded ${res.status}.`;
-        } catch {
-            webhookTestMsg = 'Network error reaching webhook.';
-        }
-        setTimeout(() => webhookTestMsg = '', 4000);
-    }
 
     async function saveIntegrations() {
         intSaving = true; intMsg = ''; intErr = false;
@@ -550,15 +530,17 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 integrations: {
-                    discordWebhook: discordWebhook.trim(),
-                    discordEvents: { ...discordEvents },
                     twitchKey: twitchKey.trim(),
-                    youtubeChannel: youtubeChannel.trim()
+                    youtubeChannel: youtubeChannel.trim(),
+                    kickChannel: kickChannel.trim(),
+                    rumbleChannel: rumbleChannel.trim(),
+                    tiktokHandle: tiktokHandle.trim(),
+                    twitterHandle: twitterHandle.trim()
                 }
             })
         });
         if (res.ok) {
-            intMsg = '✓ Integrations saved.';
+            intMsg = '✓ Channels saved.';
             dirty = false;
             setTimeout(() => intMsg = '', 2500);
         } else {
@@ -608,6 +590,69 @@
         if (importInput) importInput.value = '';
     }
 
+    // CSV / spreadsheet bulk import
+    let csvInput: HTMLInputElement;
+    let csvMsg  = $state('');
+    let csvErr  = $state(false);
+    let csvBusy = $state(false);
+
+    function downloadCsvTemplate() {
+        const rows = [
+            ['Name','Species','Level','Gender','Base HP','Base STA','Base OXY','Base FOOD','Base WGT','Base MEL','Base CRA','Mut HP','Mut STA','Mut OXY','Mut FOOD','Mut WGT','Mut MEL','Mut CRA'],
+            ['Alpha Rex 1','Rex','150','Male','70','20','10','20','20','40','0','10','0','0','0','0','20','0'],
+            ['Storm Carno','Carno','135','Female','55','25','10','22','18','35','0','0','5','0','0','5','10','0']
+        ];
+        const csv = rows.map(r => r.join(',')).join('\r\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'tekos-creature-template.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    async function onCsvImport(e: Event) {
+        const file = (e.target as HTMLInputElement)?.files?.[0];
+        if (!file) return;
+        csvMsg = 'Reading file…'; csvErr = false; csvBusy = true;
+        try {
+            const text = await file.text();
+            const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+            if (lines.length < 2) {
+                csvMsg = 'File has no data rows'; csvErr = true; csvBusy = false; return;
+            }
+            const num = (s: string) => parseFloat(s.replace(/"/g,'').trim()) || 0;
+            const str = (s: string) => s.replace(/^"|"$/g,'').trim();
+            const creatures = lines.slice(1).map(line => {
+                const c = line.split(',');
+                return {
+                    name:       str(c[0] ?? '') || undefined,
+                    species:    str(c[1] ?? '') || 'Unknown',
+                    level:      num(c[2] ?? '') || undefined,
+                    gender:     str(c[3] ?? '') || undefined,
+                    baseStats:  { HP: num(c[4]??''), STA: num(c[5]??''), OXY: num(c[6]??''), FOOD: num(c[7]??''), WGT: num(c[8]??''), MEL: num(c[9]??''), CRA: num(c[10]??'') },
+                    mutations:  { HP: num(c[11]??''), STA: num(c[12]??''), OXY: num(c[13]??''), FOOD: num(c[14]??''), WGT: num(c[15]??''), MEL: num(c[16]??''), CRA: num(c[17]??'') }
+                };
+            });
+            const res = await fetch('/api/creatures/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(creatures)
+            });
+            const body2 = await res.json().catch(() => ({}));
+            if (res.ok) {
+                csvMsg = `✓ Imported ${body2.inserted ?? creatures.length} creatures${body2.skipped ? ` · ${body2.skipped} skipped` : ''}.`;
+                csvErr = false;
+            } else {
+                csvMsg = body2.error ?? 'Import failed'; csvErr = true;
+            }
+        } catch (err) {
+            csvMsg = (err as Error).message ?? 'Import failed'; csvErr = true;
+        }
+        csvBusy = false;
+        if (csvInput) csvInput.value = '';
+    }
+
     // Cluster help disclosure
     let serverHelpOpen = $state(false);
 
@@ -643,53 +688,54 @@
     // ── Theme palettes ──────────────────────────────────────────────────────
     type MapPalette = {
         id: string; name: string; tag: string;
-        primary: string; accent: string; bg: string;
+        primary: string; accent: string; bg: string; lightBg: string;
         prvBg: string; prvLine: string; prvGlow1: string; prvGlow2: string;
         sw1: string; sw2: string; sw3: string;
     };
+    let themeMode = $state<'dark' | 'light'>('dark');
     const PALETTES: MapPalette[] = [
         { id: 'island',     name: 'The Island',     tag: 'CYAN · DEFAULT',
-          primary: '#00b4ff', accent: '#8b5cf6', bg: '#050812',
+          primary: '#00b4ff', accent: '#8b5cf6', bg: '#050812', lightBg: '#e8f6ff',
           prvBg: '#050812', prvLine: 'rgba(0,180,255,0.18)',
           prvGlow1: 'rgba(0,180,255,0.40)', prvGlow2: 'rgba(139,92,246,0.30)',
           sw1: '#00b4ff', sw2: '#8b5cf6', sw3: '#0a1228' },
         { id: 'aberration', name: 'Aberration',     tag: 'BIO · PURPLE/GREEN',
-          primary: '#a855f7', accent: '#10b981', bg: '#0c0418',
+          primary: '#a855f7', accent: '#10b981', bg: '#0c0418', lightBg: '#f3e8ff',
           prvBg: '#0c0418', prvLine: 'rgba(168,85,247,0.20)',
           prvGlow1: 'rgba(168,85,247,0.45)', prvGlow2: 'rgba(16,185,129,0.35)',
           sw1: '#a855f7', sw2: '#10b981', sw3: '#180a28' },
         { id: 'scorched',   name: 'Scorched Earth', tag: 'DESERT · AMBER/RED',
-          primary: '#f59e0b', accent: '#ef4444', bg: '#1a0a04',
+          primary: '#f59e0b', accent: '#ef4444', bg: '#1a0a04', lightBg: '#fff8e8',
           prvBg: '#1a0a04', prvLine: 'rgba(245,158,11,0.20)',
           prvGlow1: 'rgba(245,158,11,0.45)', prvGlow2: 'rgba(239,68,68,0.35)',
           sw1: '#f59e0b', sw2: '#ef4444', sw3: '#2a1408' },
         { id: 'genesis',    name: 'Genesis',        tag: 'SIM · TEAL/MAGENTA',
-          primary: '#22d3ee', accent: '#d946ef', bg: '#040818',
+          primary: '#22d3ee', accent: '#d946ef', bg: '#040818', lightBg: '#e8feff',
           prvBg: '#040818', prvLine: 'rgba(34,211,238,0.20)',
           prvGlow1: 'rgba(34,211,238,0.45)', prvGlow2: 'rgba(217,70,239,0.30)',
           sw1: '#22d3ee', sw2: '#d946ef', sw3: '#091230' },
         { id: 'extinction', name: 'Extinction',     tag: 'RUIN · ORANGE/TEAL',
-          primary: '#fb923c', accent: '#14b8a6', bg: '#180a04',
+          primary: '#fb923c', accent: '#14b8a6', bg: '#180a04', lightBg: '#fff4e8',
           prvBg: '#180a04', prvLine: 'rgba(251,146,60,0.20)',
           prvGlow1: 'rgba(251,146,60,0.45)', prvGlow2: 'rgba(20,184,166,0.35)',
           sw1: '#fb923c', sw2: '#14b8a6', sw3: '#2a1208' },
         { id: 'ragnarok',   name: 'Ragnarok',       tag: 'NORDIC · BLUE/GOLD',
-          primary: '#60a5fa', accent: '#fcd34d', bg: '#040818',
+          primary: '#60a5fa', accent: '#fcd34d', bg: '#040818', lightBg: '#e8f0ff',
           prvBg: '#040818', prvLine: 'rgba(96,165,250,0.20)',
           prvGlow1: 'rgba(96,165,250,0.45)', prvGlow2: 'rgba(252,211,77,0.30)',
           sw1: '#60a5fa', sw2: '#fcd34d', sw3: '#08142d' },
         { id: 'alpha', name: 'Alpha Survivor', tag: 'GOLD',
-          primary: '#fcd34d', accent: '#ffffff', bg: '#0c0a02',
+          primary: '#d97706', accent: '#92400e', bg: '#0c0a02', lightBg: '#fffbe8',
           prvBg: '#0c0a02', prvLine: 'rgba(250,204,21,0.20)',
           prvGlow1: 'rgba(250,204,21,0.45)', prvGlow2: 'rgba(255,255,255,0.20)',
           sw1: '#fcd34d', sw2: '#ffffff', sw3: '#1a1408' },
         { id: 'tek-proto', name: 'Tek Prototype', tag: 'BLUEPRINT',
-          primary: '#2dd4bf', accent: '#a5f3fc', bg: '#020c0c',
+          primary: '#2dd4bf', accent: '#a5f3fc', bg: '#020c0c', lightBg: '#e8fffb',
           prvBg: '#020c0c', prvLine: 'rgba(45,212,191,0.25)',
           prvGlow1: 'rgba(45,212,191,0.50)', prvGlow2: 'rgba(165,243,252,0.30)',
           sw1: '#2dd4bf', sw2: '#a5f3fc', sw3: '#021818' },
         { id: 'corrupted', name: 'Element Corrupted', tag: 'CORRUPTION',
-          primary: '#d946ef', accent: '#f472b6', bg: '#100214',
+          primary: '#d946ef', accent: '#f472b6', bg: '#100214', lightBg: '#ffe8ff',
           prvBg: '#100214', prvLine: 'rgba(217,70,239,0.25)',
           prvGlow1: 'rgba(217,70,239,0.50)', prvGlow2: 'rgba(244,114,182,0.30)',
           sw1: '#d946ef', sw2: '#f472b6', sw3: '#200628' }
@@ -710,7 +756,19 @@
         root.style.setProperty('--tek-blue-border', `rgba(${hexToRgb(p.primary)},0.30)`);
         root.style.setProperty('--tek-blue-glow',   `rgba(${hexToRgb(p.primary)},0.50)`);
         root.style.setProperty('--tek-purple', p.accent);
-        root.style.setProperty('--tek-bg',     p.bg);
+        if (themeMode === 'light') {
+            root.setAttribute('data-theme-mode', 'light');
+            root.style.setProperty('--tek-bg',         p.lightBg);
+            root.style.setProperty('--tek-text',        '#0a1228');
+            root.style.setProperty('--tek-text-dim',    '#3d4f6b');
+            root.style.setProperty('--tek-text-faint',  '#7a8fab');
+        } else {
+            root.removeAttribute('data-theme-mode');
+            root.style.setProperty('--tek-bg', p.bg);
+            root.style.removeProperty('--tek-text');
+            root.style.removeProperty('--tek-text-dim');
+            root.style.removeProperty('--tek-text-faint');
+        }
     }
     async function selectPalette(p: MapPalette) {
         activePaletteId = p.id;
@@ -719,7 +777,7 @@
         try {
             const res = await fetch('/api/settings', {
                 method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mapPalette: p.id, theme: { primary: p.primary, accent: p.accent, bg: p.bg } })
+                body: JSON.stringify({ mapPalette: p.id, themeMode, theme: { primary: p.primary, accent: p.accent, bg: themeMode === 'light' ? p.lightBg : p.bg } })
             });
             if (res.ok) {
                 themeMsg = '✓ Palette saved';
@@ -730,6 +788,17 @@
         } catch {
             themeMsg = 'Network error'; themeErr = true;
         }
+    }
+    async function selectThemeMode(mode: 'dark' | 'light') {
+        themeMode = mode;
+        const p = PALETTES.find(x => x.id === activePaletteId) ?? PALETTES[0];
+        applyThemeToDom(p);
+        try {
+            await fetch('/api/settings', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ themeMode: mode })
+            });
+        } catch {}
     }
 
     // ── Hex canvas ──────────────────────────────────────────────────────────
@@ -828,17 +897,17 @@
                         pollPauseIdle = body.cluster.poll.pauseWhenIdle ?? pollPauseIdle;
                     }
                     if (body.integrations) {
-                        discordWebhook = body.integrations.discordWebhook ?? '';
                         twitchKey      = body.integrations.twitchKey ?? '';
                         youtubeChannel = body.integrations.youtubeChannel ?? '';
-                        if (body.integrations.discordEvents) {
-                            discordEvents = {
-                                tribeAnnounce: body.integrations.discordEvents.tribeAnnounce !== false,
-                                warRoom:       body.integrations.discordEvents.warRoom !== false,
-                                badge:         body.integrations.discordEvents.badge !== false,
-                                trade:         body.integrations.discordEvents.trade !== false
-                            };
-                        }
+                        kickChannel    = body.integrations.kickChannel ?? '';
+                        rumbleChannel  = body.integrations.rumbleChannel ?? '';
+                        tiktokHandle   = body.integrations.tiktokHandle ?? '';
+                        twitterHandle  = body.integrations.twitterHandle ?? '';
+                    }
+                    if (body.themeMode === 'light') {
+                        themeMode = 'light';
+                        const matched2 = PALETTES.find(p => p.id === (body.mapPalette ?? activePaletteId));
+                        if (matched2) applyThemeToDom(matched2);
                     }
                 }
             } catch {}
@@ -1017,6 +1086,61 @@
                         <div class="linked-status"><span class="dot"></span>VERIFIED</div>
                         <button class="btn ghost" onclick={openChangeEmail}>Change</button>
                     </div>
+                    {#if twitchKey || youtubeChannel || kickChannel || rumbleChannel || tiktokHandle || twitterHandle}
+                        <div class="group-sublabel" style="margin-top:14px; margin-bottom:6px;">Streaming &amp; Social</div>
+                        {#if twitchKey}
+                        <div class="linked-row">
+                            <div class="linked-icon" style="background:linear-gradient(135deg,#9147ff,#6441a5);">Tv</div>
+                            <div class="linked-info"><div class="linked-name">Twitch</div><div class="linked-handle">{twitchKey}</div></div>
+                            <div class="linked-status"><span class="dot"></span>SET</div>
+                            <button class="btn ghost" onclick={() => activeSection = 'integrations'}>Edit</button>
+                        </div>
+                        {/if}
+                        {#if youtubeChannel}
+                        <div class="linked-row">
+                            <div class="linked-icon" style="background:linear-gradient(135deg,#ff0000,#cc0000);">Yt</div>
+                            <div class="linked-info"><div class="linked-name">YouTube</div><div class="linked-handle">{youtubeChannel}</div></div>
+                            <div class="linked-status"><span class="dot"></span>SET</div>
+                            <button class="btn ghost" onclick={() => activeSection = 'integrations'}>Edit</button>
+                        </div>
+                        {/if}
+                        {#if kickChannel}
+                        <div class="linked-row">
+                            <div class="linked-icon" style="background:linear-gradient(135deg,#53fc18,#2e8b0a); color:#000;">Kk</div>
+                            <div class="linked-info"><div class="linked-name">Kick</div><div class="linked-handle">{kickChannel}</div></div>
+                            <div class="linked-status"><span class="dot"></span>SET</div>
+                            <button class="btn ghost" onclick={() => activeSection = 'integrations'}>Edit</button>
+                        </div>
+                        {/if}
+                        {#if rumbleChannel}
+                        <div class="linked-row">
+                            <div class="linked-icon" style="background:linear-gradient(135deg,#85c742,#5a8a2a);">Rm</div>
+                            <div class="linked-info"><div class="linked-name">Rumble</div><div class="linked-handle">{rumbleChannel}</div></div>
+                            <div class="linked-status"><span class="dot"></span>SET</div>
+                            <button class="btn ghost" onclick={() => activeSection = 'integrations'}>Edit</button>
+                        </div>
+                        {/if}
+                        {#if tiktokHandle}
+                        <div class="linked-row">
+                            <div class="linked-icon" style="background:linear-gradient(135deg,#ff0050,#00f2ea);">Tk</div>
+                            <div class="linked-info"><div class="linked-name">TikTok</div><div class="linked-handle">{tiktokHandle}</div></div>
+                            <div class="linked-status"><span class="dot"></span>SET</div>
+                            <button class="btn ghost" onclick={() => activeSection = 'integrations'}>Edit</button>
+                        </div>
+                        {/if}
+                        {#if twitterHandle}
+                        <div class="linked-row">
+                            <div class="linked-icon" style="background:linear-gradient(135deg,#000,#333);">X</div>
+                            <div class="linked-info"><div class="linked-name">X / Twitter</div><div class="linked-handle">{twitterHandle}</div></div>
+                            <div class="linked-status"><span class="dot"></span>SET</div>
+                            <button class="btn ghost" onclick={() => activeSection = 'integrations'}>Edit</button>
+                        </div>
+                        {/if}
+                    {:else}
+                        <div style="font-family:var(--tek-mono); font-size:0.72rem; color:var(--tek-text-faint); padding:10px 0;">
+                            No streaming channels set. <button type="button" onclick={() => activeSection='integrations'} style="background:none;border:none;color:var(--tek-blue);font-family:var(--tek-mono);font-size:0.72rem;cursor:pointer;padding:0;text-decoration:underline;">Link channels →</button>
+                        </div>
+                    {/if}
                 </div>
 
                 <div class="group">
@@ -1227,6 +1351,21 @@
                 <div class="section-header">
                     <div class="section-title">Themes</div>
                     <div class="section-desc">Recolor your TekOS instance to match your home map · unlock more by earning badges</div>
+                </div>
+
+                <div class="group">
+                    <div class="group-label">Brightness</div>
+                    <div class="theme-mode-row">
+                        <button type="button" class="theme-mode-btn" class:active={themeMode === 'dark'} onclick={() => selectThemeMode('dark')}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                            Dark
+                        </button>
+                        <button type="button" class="theme-mode-btn" class:active={themeMode === 'light'} onclick={() => selectThemeMode('light')}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                            Light
+                        </button>
+                        <span style="font-family:var(--tek-mono); font-size:0.68rem; color:var(--tek-text-faint); margin-left:8px;">Light mode uses softer backgrounds while keeping your palette accent colors.</span>
+                    </div>
                 </div>
 
                 <div class="group">
@@ -1455,6 +1594,40 @@
                     {/if}
                 </div>
 
+                <div class="group">
+                    <div class="group-label">Bulk import — Spreadsheet</div>
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:14px;">
+                        <div class="action-info">
+                            <div class="action-title">Import from CSV / Excel</div>
+                            <div class="action-desc">Download the template, fill it in with your creatures' stats, then upload it. One row per creature — your existing Vault isn't touched. Open the CSV in Excel, Google Sheets, or any spreadsheet app.</div>
+                        </div>
+                        <div class="csv-template-cols">
+                            <div class="csv-col-group">
+                                <div class="csv-col-label">Identity</div>
+                                <div class="csv-col-tags"><span>Name</span><span>Species</span><span>Level</span><span>Gender</span></div>
+                            </div>
+                            <div class="csv-col-group">
+                                <div class="csv-col-label">Base stats</div>
+                                <div class="csv-col-tags"><span>HP</span><span>STA</span><span>OXY</span><span>FOOD</span><span>WGT</span><span>MEL</span><span>CRA</span></div>
+                            </div>
+                            <div class="csv-col-group">
+                                <div class="csv-col-label">Mutation levels</div>
+                                <div class="csv-col-tags"><span>HP</span><span>STA</span><span>OXY</span><span>FOOD</span><span>WGT</span><span>MEL</span><span>CRA</span></div>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button class="btn ghost" onclick={downloadCsvTemplate}>⬇ DOWNLOAD TEMPLATE</button>
+                            <input type="file" accept=".csv,text/csv" bind:this={csvInput} onchange={onCsvImport} style="display:none;" />
+                            <button class="btn" onclick={() => csvInput?.click()} disabled={csvBusy}>
+                                {csvBusy ? 'Importing…' : '⬆ UPLOAD SPREADSHEET'}
+                            </button>
+                        </div>
+                        {#if csvMsg}
+                            <div class="result-msg" class:error={csvErr}>{csvMsg}</div>
+                        {/if}
+                    </div>
+                </div>
+
                 <div class="danger-zone">
                     <div class="danger-title">⚠ Danger Zone</div>
                     <div class="danger-desc">
@@ -1475,143 +1648,87 @@
             <div class="panel-section" class:active={activeSection === 'integrations'} id="section-integrations">
                 <div class="section-header">
                     <div class="section-title">Integrations</div>
-                    <div class="section-desc">Send TekOS events outward and pull external content into your Feed</div>
+                    <div class="section-desc">Link your streaming and social channels — they'll show on your Dossier</div>
                 </div>
 
-                <!-- Discord webhook -->
                 <div class="group">
-                    <div class="group-label">Discord — outbound webhook</div>
-                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:12px;">
-                        <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start;">
-                            <div class="action-info">
-                                <div class="action-title">
-                                    Webhook URL
-                                    {#if discordWebhook}<span class="chip blue">CONNECTED</span>{:else}<span class="chip">NOT LINKED</span>{/if}
-                                </div>
-                                <div class="action-desc">Paste the webhook URL from any Discord channel's Integrations settings. Selected TekOS events will get posted there.</div>
-                            </div>
-                        </div>
-                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                            <input class="input wide" bind:value={discordWebhook} oninput={markDirty} placeholder="https://discord.com/api/webhooks/…" style="flex:1; min-width:260px;" />
-                            <button class="btn ghost" onclick={testDiscordWebhook}>TEST PING</button>
-                        </div>
-                        {#if webhookTestMsg}
-                            <div style="font-family:var(--tek-mono); font-size:0.74rem; color:var(--tek-text-dim);">{webhookTestMsg}</div>
-                        {/if}
+                    <div class="group-label">Streaming channels</div>
 
-                        {#if discordWebhook}
-                            <div class="discord-events">
-                                <div class="discord-events-label">Forward these events to Discord:</div>
-                                <div class="discord-event-row">
-                                    <button type="button" class="toggle" class:on={discordEvents.tribeAnnounce} role="switch" aria-checked={discordEvents.tribeAnnounce} aria-label="Forward tribe announcements to Discord"
-                                         onclick={() => { discordEvents.tribeAnnounce = !discordEvents.tribeAnnounce; markDirty(); }}></button>
-                                    <div>
-                                        <div class="row-label">Tribe announcements</div>
-                                        <div class="row-hint">Wired — posts immediately when an admin sends an announcement.</div>
-                                    </div>
-                                </div>
-                                <div class="discord-event-row">
-                                    <button type="button" class="toggle muted" class:on={discordEvents.warRoom} role="switch" aria-checked={discordEvents.warRoom} aria-label="Forward war room events to Discord"
-                                         onclick={() => { discordEvents.warRoom = !discordEvents.warRoom; markDirty(); }}></button>
-                                    <div>
-                                        <div class="row-label">War-room schedule <span class="chip">Coming soon</span></div>
-                                        <div class="row-hint">When wired, posts a heads-up when a tribe schedules a boss run.</div>
-                                    </div>
-                                </div>
-                                <div class="discord-event-row">
-                                    <button type="button" class="toggle muted" class:on={discordEvents.badge} role="switch" aria-checked={discordEvents.badge} aria-label="Forward badge milestones to Discord"
-                                         onclick={() => { discordEvents.badge = !discordEvents.badge; markDirty(); }}></button>
-                                    <div>
-                                        <div class="row-label">Badge milestones <span class="chip">Coming soon</span></div>
-                                        <div class="row-hint">When wired, posts when you earn a Bloodline, Boss Ready, Specialist, or Underdog badge.</div>
-                                    </div>
-                                </div>
-                                <div class="discord-event-row">
-                                    <button type="button" class="toggle muted" class:on={discordEvents.trade} role="switch" aria-checked={discordEvents.trade} aria-label="Forward trade offers to Discord"
-                                         onclick={() => { discordEvents.trade = !discordEvents.trade; markDirty(); }}></button>
-                                    <div>
-                                        <div class="row-label">Trade offers received <span class="chip">Coming soon</span></div>
-                                        <div class="row-hint">When wired, posts when someone offers on one of your Marketplace listings.</div>
-                                    </div>
-                                </div>
-                            </div>
-                        {/if}
-                    </div>
-                </div>
-
-                <!-- Dossier links -->
-                <div class="group">
-                    <div class="group-label">Dossier links — show your channels</div>
-
-                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:12px;">
-                        <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start;">
-                            <div class="action-info">
-                                <div class="action-title">
-                                    Twitch channel
-                                    {#if twitchKey}<span class="chip purple">SAVED</span>{:else}<span class="chip">NOT SET</span>{/if}
-                                </div>
-                                <div class="action-desc">Stored as a display field. Will surface as a link on your Dossier once that section ships. No live-status polling and no auto-badge today.</div>
-                            </div>
-                        </div>
-                        <input class="input wide" bind:value={twitchKey} oninput={markDirty} placeholder="twitch.tv/yourchannel" style="min-width:260px;" />
-                    </div>
-
-                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:12px;">
-                        <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start;">
-                            <div class="action-info">
-                                <div class="action-title">
-                                    YouTube channel
-                                    {#if youtubeChannel}<span class="chip green">SAVED</span>{:else}<span class="chip">NOT SET</span>{/if}
-                                </div>
-                                <div class="action-desc">
-                                    Stored as a display field for your Dossier.
-                                    <strong style="color:var(--tek-text)">To pull videos into your Feed, add the channel under <em>Feed → News → Your Sources</em></strong> — that's a separate per-source list, not this field.
-                                </div>
-                            </div>
-                        </div>
-                        <input class="input wide" bind:value={youtubeChannel} oninput={markDirty} placeholder="@channelhandle or channel ID" style="min-width:260px;" />
-                    </div>
-                </div>
-
-                <!-- Roadmap: Discord bot -->
-                <div class="group">
-                    <div class="group-label">Discord bot <span class="chip">Roadmap</span></div>
-                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:6px;">
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:10px;">
                         <div class="action-info">
-                            <div class="action-title">Connect a Discord bot to your tribe channel</div>
-                            <div class="action-desc">
-                                Future feature. Today, outbound posting uses the webhook URL above (one-way). The bot would unlock the inbound direction: tribe chat from Discord mirrored into your TekOS feed, slash commands to log specimens or trades from inside Discord, and per-event subscriptions per channel. Wiring this means standing up a bot worker, OAuth, and per-guild config — bigger than a Settings checkbox.
+                            <div class="action-title" style="display:flex;align-items:center;gap:8px;">
+                                <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;background:linear-gradient(135deg,#9147ff,#6441a5);font-size:0.65rem;font-weight:700;color:#fff;">Tv</span>
+                                Twitch
+                                {#if twitchKey}<span class="chip purple">SAVED</span>{:else}<span class="chip">NOT SET</span>{/if}
                             </div>
                         </div>
+                        <input class="input wide" bind:value={twitchKey} oninput={markDirty} placeholder="twitch.tv/yourchannel" />
+                    </div>
+
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:10px;">
+                        <div class="action-info">
+                            <div class="action-title" style="display:flex;align-items:center;gap:8px;">
+                                <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;background:linear-gradient(135deg,#ff0000,#cc0000);font-size:0.65rem;font-weight:700;color:#fff;">Yt</span>
+                                YouTube
+                                {#if youtubeChannel}<span class="chip green">SAVED</span>{:else}<span class="chip">NOT SET</span>{/if}
+                            </div>
+                        </div>
+                        <input class="input wide" bind:value={youtubeChannel} oninput={markDirty} placeholder="@channelhandle or channel ID" />
+                    </div>
+
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:10px;">
+                        <div class="action-info">
+                            <div class="action-title" style="display:flex;align-items:center;gap:8px;">
+                                <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;background:linear-gradient(135deg,#53fc18,#2e8b0a);font-size:0.65rem;font-weight:700;color:#000;">Kk</span>
+                                Kick
+                                {#if kickChannel}<span class="chip" style="--chip-rgb:83,252,24;">SAVED</span>{:else}<span class="chip">NOT SET</span>{/if}
+                            </div>
+                        </div>
+                        <input class="input wide" bind:value={kickChannel} oninput={markDirty} placeholder="kick.com/yourchannel" />
+                    </div>
+
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:10px;">
+                        <div class="action-info">
+                            <div class="action-title" style="display:flex;align-items:center;gap:8px;">
+                                <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;background:linear-gradient(135deg,#85c742,#5a8a2a);font-size:0.65rem;font-weight:700;color:#fff;">Rm</span>
+                                Rumble
+                                {#if rumbleChannel}<span class="chip green">SAVED</span>{:else}<span class="chip">NOT SET</span>{/if}
+                            </div>
+                        </div>
+                        <input class="input wide" bind:value={rumbleChannel} oninput={markDirty} placeholder="rumble.com/c/yourchannel" />
                     </div>
                 </div>
 
-                <!-- API access -->
                 <div class="group">
-                    <div class="group-label">API access <span class="chip amber">POWER USER</span></div>
-                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:6px;">
+                    <div class="group-label">Social channels</div>
+
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:10px;">
                         <div class="action-info">
-                            <div class="action-title">What this is</div>
-                            <div class="action-desc">
-                                Personal Access Tokens you can use to call TekOS endpoints from your own scripts, bots, or external dashboards. The token is scoped to <strong style="color:var(--tek-text)">your own data only</strong> — never another survivor's. Useful for: bulk-importing creatures from a spreadsheet, syncing your Vault with an external tracker, building a custom Dossier widget, or wiring a Discord/Twitch bot to your TekOS account.
+                            <div class="action-title" style="display:flex;align-items:center;gap:8px;">
+                                <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;background:linear-gradient(135deg,#ff0050,#00f2ea);font-size:0.65rem;font-weight:700;color:#fff;">Tk</span>
+                                TikTok
+                                {#if tiktokHandle}<span class="chip blue">SAVED</span>{:else}<span class="chip">NOT SET</span>{/if}
                             </div>
                         </div>
-                        <div class="action-info" style="margin-top:6px;">
-                            <div class="action-title">What you'll be able to do at launch</div>
-                            <div class="action-desc">
-                                Read your Vault · Read your tribe membership and announcements · Post a new creature · Update an existing creature · Read your badges · Read your Marketplace listings and offers. Write access is rate-limited and scoped per token.
+                        <input class="input wide" bind:value={tiktokHandle} oninput={markDirty} placeholder="@yourhandle" />
+                    </div>
+
+                    <div class="action-card" style="flex-direction:column; align-items:stretch; gap:10px;">
+                        <div class="action-info">
+                            <div class="action-title" style="display:flex;align-items:center;gap:8px;">
+                                <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;background:linear-gradient(135deg,#000,#333);font-size:0.65rem;font-weight:700;color:#fff;">X</span>
+                                X / Twitter
+                                {#if twitterHandle}<span class="chip">SAVED</span>{:else}<span class="chip">NOT SET</span>{/if}
                             </div>
                         </div>
-                        <div class="placeholder-note" style="font-size:0.74rem; margin-top:8px;">
-                            ⚠ Token generation, scopes, and developer docs ship in a follow-up build. No public endpoint exists today.
-                        </div>
+                        <input class="input wide" bind:value={twitterHandle} oninput={markDirty} placeholder="@yourhandle" />
                     </div>
                 </div>
 
                 <div class="row">
                     <div></div>
                     <button class="btn solid" onclick={saveIntegrations} disabled={intSaving}>
-                        {intSaving ? 'SAVING…' : 'SAVE INTEGRATIONS'}
+                        {intSaving ? 'SAVING…' : 'SAVE CHANNELS'}
                     </button>
                 </div>
                 {#if intMsg}
@@ -2801,5 +2918,96 @@
 .discord-event-row .row-label .chip {
     margin-left: 6px;
     font-size: 0.52rem;
+}
+
+/* ─── Theme mode toggle ─────────────────────────────────────────────────── */
+.theme-mode-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 4px 0 8px;
+}
+.theme-mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(100,116,139,0.10);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    cursor: pointer;
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.theme-mode-btn.active {
+    background: rgba(0,180,255,0.12);
+    border-color: var(--tek-blue-border);
+    color: var(--tek-blue);
+    box-shadow: 0 0 10px rgba(0,180,255,0.20);
+}
+.theme-mode-btn:hover:not(.active) {
+    border-color: rgba(100,116,139,0.45);
+    color: var(--tek-text);
+}
+
+/* ─── Sublabel inside groups ──────────────────────────────────────────── */
+.group-sublabel {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--tek-text-faint);
+    border-bottom: 1px solid rgba(100,116,139,0.15);
+    padding-bottom: 6px;
+}
+
+/* ─── CSV template column preview ────────────────────────────────────── */
+.csv-template-cols {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 10px 0 4px;
+}
+.csv-col-group { display: flex; flex-direction: column; gap: 6px; }
+.csv-col-label {
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tek-text-faint);
+}
+.csv-col-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.csv-col-tags span {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    padding: 2px 6px;
+    background: rgba(0,180,255,0.08);
+    border: 1px solid rgba(0,180,255,0.20);
+    color: var(--tek-blue);
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+
+/* ─── Global light-mode overrides ─────────────────────────────────────── */
+:global([data-theme-mode="light"]) {
+    background-color: var(--tek-bg) !important;
+    color: var(--tek-text) !important;
+}
+:global([data-theme-mode="light"] body) {
+    background-color: var(--tek-bg) !important;
+    color: var(--tek-text) !important;
+}
+:global([data-theme-mode="light"] .stage),
+:global([data-theme-mode="light"] .panel),
+:global([data-theme-mode="light"] .side-nav) {
+    background-color: var(--tek-bg) !important;
 }
 </style>

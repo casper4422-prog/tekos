@@ -53,7 +53,7 @@
     // Project info comes from data.pinnedProjects (server-side joined from
     // user.pinnedCreatures); new pins always have focusStat, legacy pins may not.
     type Pinned = (typeof data.creatures)[number] & {
-        focusStat: 'HP'|'STA'|'OXY'|'FOOD'|'WGT'|'MEL'|'CRA'|'SPD'|null;
+        focusStat: 'HP'|'STA'|'OXY'|'FOOD'|'WGT'|'MEL'|'CRA'|null;
         targetMutations: number;
     };
     const pinned = $derived<Pinned[]>(
@@ -75,7 +75,7 @@
     // Short stat key ↔ full key as stored on creature.baseStats/mutations
     const STAT_LONG = {
         HP: 'Health', STA: 'Stamina', OXY: 'Oxygen',
-        FOOD: 'Food', WGT: 'Weight', MEL: 'Melee', CRA: 'Crafting', SPD: 'Speed'
+        FOOD: 'Food', WGT: 'Weight', MEL: 'Melee', CRA: 'Crafting'
     } as const;
 
     function getStatValue(stats: Record<string, number> | undefined, key: Pinned['focusStat']): number {

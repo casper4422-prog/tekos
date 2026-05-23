@@ -18,8 +18,7 @@
     import HexAvatar from './HexAvatar.svelte';
     import type { CreatureRow } from '$lib/types';
 
-    // The 8 ARK stats per spec (preview shows 7; spec requires SPD too).
-    const STATS = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA', 'SPD'] as const;
+    const STATS = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'] as const;
     type StatKey = (typeof STATS)[number];
 
     type ProjectSavePayload = {
@@ -176,8 +175,7 @@
         FOOD: 'food',
         WGT: 'weight',
         MEL: 'melee',
-        CRA: 'crafting',
-        SPD: 'speed'
+        CRA: 'crafting'
     };
 
     const filtered = $derived(

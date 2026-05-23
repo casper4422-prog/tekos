@@ -290,7 +290,7 @@
     let focusCurrent = $state(0);
     $effect(() => {
         const stat = data.pinnedProject?.focusStat;
-        if (stat) focusCurrent = getStat(c.mutations, stat as 'HP'|'STA'|'OXY'|'FOOD'|'WGT'|'MEL'|'CRA'|'SPD');
+        if (stat) focusCurrent = getStat(c.mutations, stat as 'HP'|'STA'|'OXY'|'FOOD'|'WGT'|'MEL'|'CRA');
     });
     async function bumpFocusStat(delta: number) {
         const stat = data.pinnedProject?.focusStat;
@@ -351,7 +351,7 @@
             ? {
                 creatureId: c.id,
                 focusStat: (data.pinnedProject.focusStat ?? null) as
-                    'HP' | 'STA' | 'OXY' | 'FOOD' | 'WGT' | 'MEL' | 'CRA' | 'SPD' | null,
+                    'HP' | 'STA' | 'OXY' | 'FOOD' | 'WGT' | 'MEL' | 'CRA' | null,
                 targetMutations: data.pinnedProject.targetMutations ?? 0
             }
             : null

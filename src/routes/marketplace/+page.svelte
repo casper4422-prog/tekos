@@ -163,10 +163,10 @@
 	}
 
 	// Stat keys vary in saved creatures — fall back across short/long/upper forms.
-	const STAT_KEYS = ['health','stamina','melee','weight','oxygen','food','speed','crafting'];
+	const STAT_KEYS = ['health','stamina','melee','weight','oxygen','food','crafting'];
 	const STAT_LABELS: Record<string,string> = {
 		health: 'HP', stamina: 'STA', melee: 'MEL', weight: 'WGT',
-		oxygen: 'OXY', food: 'FOOD', speed: 'SPD', crafting: 'CRA'
+		oxygen: 'OXY', food: 'FOOD', crafting: 'CRA'
 	};
 	function statValue(stats: Record<string,unknown> | undefined, key: string): number {
 		if (!stats) return 0;
