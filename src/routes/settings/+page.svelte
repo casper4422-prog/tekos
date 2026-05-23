@@ -398,18 +398,45 @@
     // ═══════════════════════════════════════════════════════════════════════
     type ServerEntry = { id: string; name: string; map: string; role: 'admin' | 'member'; online: boolean; password?: string };
     const MAP_OPTIONS = [
-        'The Island', 'Ragnarok', 'Aberration', 'Extinction',
-        'Scorched Earth', 'The Center', 'Valguero', 'Genesis',
-        'Crystal Isles', 'Lost Island', 'Fjordur', 'Genesis 2'
+        'The Island', 'Scorched Earth', 'Aberration', 'Extinction',
+        'The Center', 'Genesis', 'Genesis 2', 'Ragnarok',
+        'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Lost Colony'
     ];
+
+    function detectMapFromName(name: string): string | null {
+        const n = name.toLowerCase();
+        if (n.includes('lost colony') || n.includes('lostcolony') || n.includes('lost_colony')) return 'Lost Colony';
+        if (n.includes('genesis 2') || n.includes('genesis2') || n.includes('gen2') || n.includes('genesis part 2')) return 'Genesis 2';
+        if (n.includes('crystal isles') || n.includes('crystalisles') || n.includes('crystal_isles')) return 'Crystal Isles';
+        if (n.includes('lost island') || n.includes('lostisland') || n.includes('lost_island')) return 'Lost Island';
+        if (n.includes('scorched earth') || n.includes('scorchedearth') || n.includes('scorched_earth') || n.includes('scorched')) return 'Scorched Earth';
+        if (n.includes('aberration') || n.includes('abberation')) return 'Aberration';
+        if (n.includes('extinction')) return 'Extinction';
+        if (n.includes('the center') || n.includes('thecenter') || n.includes('the_center')) return 'The Center';
+        if (n.includes('the island') || n.includes('theisland') || n.includes('the_island')) return 'The Island';
+        if (n.includes('ragnarok')) return 'Ragnarok';
+        if (n.includes('valguero')) return 'Valguero';
+        if (n.includes('genesis')) return 'Genesis';
+        if (n.includes('fjordur')) return 'Fjordur';
+        if (n.includes('island')) return 'The Island';
+        return null;
+    }
+
     const seededServers = (SERVER_SETTINGS.cluster?.servers ?? SERVER_SETTINGS.servers ?? []) as ServerEntry[];
     let servers = $state<ServerEntry[]>(Array.isArray(seededServers) ? seededServers : []);
-    let newServerName = $state('');
-    let newServerMap  = $state(MAP_OPTIONS[0]);
-    let newServerPass = $state('');
-    let clusterSaving = $state(false);
-    let clusterMsg    = $state('');
-    let clusterErr    = $state(false);
+    let newServerName      = $state('');
+    let newServerMap       = $state(MAP_OPTIONS[0]);
+    let newServerPass      = $state('');
+    let mapAutoDetected    = $state(false);
+    let clusterSaving      = $state(false);
+    let clusterMsg         = $state('');
+    let clusterErr         = $state(false);
+
+    function autoDetectMap() {
+        const detected = detectMapFromName(newServerName);
+        if (detected) { newServerMap = detected; mapAutoDetected = true; }
+        else mapAutoDetected = false;
+    }
 
     // RCON (single shared block per audit; admin-only in spirit — we keep the UI but the values are user-stored)
     const initialRcon = (SERVER_SETTINGS.cluster?.rcon ?? {}) as { host?: string; port?: string | number; password?: string };
@@ -1047,7 +1074,7 @@
                     <div class="row">
                         <div class="row-info">
                             <div class="row-label">Show badges on public profile</div>
-                            <div class="row-hint">Shows your Boss Ready / Underdog / Prize Bloodline wall.</div>
+                            <div class="row-hint">Shows your Boss Ready / Specialist Roles / Underdog / Prize Bloodline wall.</div>
                         </div>
                         <button type="button" class="toggle" class:on={privacy.showBadges} role="switch" aria-checked={privacy.showBadges} aria-label="Show badges"
                              onclick={() => { privacy.showBadges = !privacy.showBadges; markDirty(); }}></button>
@@ -1267,12 +1294,17 @@
                     {/if}
 
                     <div class="add-server-row" style="flex-wrap:wrap; gap:8px;">
-                        <input class="input" bind:value={newServerName} oninput={markDirty} placeholder="Server name (e.g. Ragnarok·07)" style="flex:1; min-width:200px;" />
-                        <select class="select" bind:value={newServerMap} onchange={markDirty} style="min-width:160px;">
-                            {#each MAP_OPTIONS as m}
-                                <option value={m}>{m}</option>
-                            {/each}
-                        </select>
+                        <input class="input" bind:value={newServerName} oninput={() => { markDirty(); autoDetectMap(); }} placeholder="Server name (e.g. Ragnarok·07)" style="flex:1; min-width:200px;" />
+                        <div style="display:flex; flex-direction:column; gap:3px; min-width:160px;">
+                            <select class="select" bind:value={newServerMap} onchange={() => { markDirty(); mapAutoDetected = false; }} style="width:100%;">
+                                {#each MAP_OPTIONS as m}
+                                    <option value={m}>{m}</option>
+                                {/each}
+                            </select>
+                            {#if mapAutoDetected}
+                                <div style="font-family:var(--tek-mono); font-size:0.58rem; letter-spacing:0.12em; color:var(--tek-green); text-transform:uppercase;">⟳ auto-detected</div>
+                            {/if}
+                        </div>
                         <input class="input" bind:value={newServerPass} placeholder="Password (optional)" type="password" style="min-width:160px;" />
                         <button class="btn" onclick={addServer}>＋ ADD SERVER</button>
                     </div>
@@ -1300,7 +1332,7 @@
                                     </li>
                                     <li>
                                         <strong>Battlemetrics:</strong> Search the server on
-                                        <a href="https://www.battlemetrics.com/servers/ark" target="_blank" rel="noopener noreferrer">battlemetrics.com</a>.
+                                        <a href="https://www.battlemetrics.com/servers/arksa" target="_blank" rel="noopener noreferrer">battlemetrics.com/servers/arksa</a>.
                                         The full name and IP:port are right at the top of each result.
                                     </li>
                                     <li>
@@ -1489,7 +1521,7 @@
                                          onclick={() => { discordEvents.badge = !discordEvents.badge; markDirty(); }}></button>
                                     <div>
                                         <div class="row-label">Badge milestones <span class="chip">Coming soon</span></div>
-                                        <div class="row-hint">When wired, posts when you earn a Bloodline, Boss Ready, or Underdog badge.</div>
+                                        <div class="row-hint">When wired, posts when you earn a Bloodline, Boss Ready, Specialist, or Underdog badge.</div>
                                     </div>
                                 </div>
                                 <div class="discord-event-row">
