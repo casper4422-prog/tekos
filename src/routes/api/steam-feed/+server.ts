@@ -59,9 +59,10 @@ export const GET: RequestHandler = async ({ fetch: serverFetch }) => {
 	}
 };
 
-// Find first image url. Steam announcements typically use BBCode [img]…[/img]
-// wrapping the {STEAM_CLAN_IMAGE} placeholder, but newer items occasionally
-// use raw HTML <img>. Returns null when no image is in the body.
+// Find first image url. Steam announcements use three formats — BBCode [img]…[/img],
+// raw HTML <img>, or (newer Community Crunch posts) a bare {STEAM_CLAN_IMAGE}/…png
+// dropped inline as plain text. The inline-text variant was the visible bug —
+// extract that case here so it renders as a thumbnail instead of leaking text.
 function extractFirstImage(raw: string): string | null {
 	if (!raw) return null;
 	let m = raw.match(/\[img\]\s*([^\[]+?)\s*\[\/img\]/i);
@@ -70,6 +71,14 @@ function extractFirstImage(raw: string): string | null {
 		m = raw.match(/<img[^>]+src=["']([^"']+)["']/i);
 		url = m?.[1] ?? null;
 	}
+	if (!url) {
+		m = raw.match(/\{STEAM_CLAN_IMAGE\}\/\S+?\.(?:png|jpe?g|gif|webp)/i);
+		url = m?.[0] ?? null;
+	}
+	if (!url) {
+		m = raw.match(/https?:\/\/\S+?\.(?:png|jpe?g|gif|webp)/i);
+		url = m?.[0] ?? null;
+	}
 	if (!url) return null;
 	url = url.replace('{STEAM_CLAN_IMAGE}', STEAM_CLAN_CDN);
 	return url.trim();
@@ -77,16 +86,16 @@ function extractFirstImage(raw: string): string | null {
 
 // Steam contents come back with a mix of BBCode (`[b]`, `[url=...]X[/url]`, etc.)
 // and HTML — strip both, collapse whitespace, trim to a card-friendly length.
+// Also strips naked image URLs so they don't pollute the excerpt after the
+// thumbnail has been hoisted out.
 function stripFormatting(raw: string): string {
 	if (!raw) return '';
 	let s = raw;
-	// BBCode tags
 	s = s.replace(/\[\/?[a-zA-Z][^\]]*\]/g, '');
-	// HTML tags
 	s = s.replace(/<\/?[a-zA-Z][^>]*>/g, '');
-	// HTML entities (common ones)
+	s = s.replace(/\{STEAM_CLAN_IMAGE\}\/\S+?\.(?:png|jpe?g|gif|webp)/gi, '');
+	s = s.replace(/https?:\/\/\S+?\.(?:png|jpe?g|gif|webp)/gi, '');
 	s = s.replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
-	// Collapse whitespace
 	s = s.replace(/\s+/g, ' ').trim();
 	if (s.length > 280) s = s.slice(0, 280).trimEnd() + '…';
 	return s;
