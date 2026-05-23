@@ -60,6 +60,29 @@
         return () => document.removeEventListener('click', onGlobalClick);
     });
 
+    // Populate the Map filter dropdown from the global species DB. The DB is
+    // loaded by /static/species-database.js via a <script> tag in app.html so
+    // it may not be on `window` yet when this component mounts — poll briefly.
+    onMount(() => {
+        let cancelled = false;
+        function tryLoadMaps() {
+            if (cancelled) return;
+            const db = typeof window !== 'undefined' ? window.EXPANDED_SPECIES_DATABASE : null;
+            if (!db || Object.keys(db).length === 0) {
+                setTimeout(tryLoadMaps, 200);
+                return;
+            }
+            const set = new Set<string>();
+            for (const key in db) {
+                const sm = (db[key] as Record<string, unknown>)?.spawnMaps;
+                if (Array.isArray(sm)) for (const m of sm) set.add(String(m));
+            }
+            allMaps = Array.from(set).sort();
+        }
+        tryLoadMaps();
+        return () => { cancelled = true; };
+    });
+
     function openPinModal(id: number) {
         pinModalPreselectId = id;
         pinModalOpen = true;
@@ -80,6 +103,34 @@
     let search = $state('');
     let activeFilter = $state<string>('all');
     let sortMode = $state<string>('Mutations ↓');
+
+    // ── New filters (planning notes §4) — Map / Gender / Has Mutations / Badge.
+    // "Available for Breeding" + "Available for Trade" are deferred — they depend on
+    // toggle fields that get added during the Specimens Individual page rework.
+    let filterMap = $state<string>('any');
+    let filterGender = $state<'any' | 'male' | 'female'>('any');
+    let filterHasMuts = $state<boolean>(false);
+    // Badge filter value: 'any' | 'bloodline:bronze' | 'bloodline:silver' | … | 'boss:titan'
+    let filterBadge = $state<string>('any');
+
+    // Map list — pulled from window.EXPANDED_SPECIES_DATABASE on mount. The species
+    // DB is a global script loaded by app.html so we have to wait for it to land.
+    let allMaps = $state<string[]>([]);
+
+    function spawnMapsForSpecies(species: string): string[] {
+        if (typeof window === 'undefined') return [];
+        const db = window.EXPANDED_SPECIES_DATABASE ?? {};
+        const direct = db[species] as Record<string, unknown> | undefined;
+        if (direct && Array.isArray(direct.spawnMaps)) return direct.spawnMaps as string[];
+        const low = species.toLowerCase();
+        for (const key in db) {
+            if (key.toLowerCase() === low) {
+                const entry = db[key] as Record<string, unknown>;
+                if (Array.isArray(entry.spawnMaps)) return entry.spawnMaps as string[];
+            }
+        }
+        return [];
+    }
 
     /* ── Category mapping from species name ───────────────────────────── */
     const CATEGORY_MAP: Record<string, string> = {
@@ -218,6 +269,23 @@
                 || (e.ref.notes ?? '').toLowerCase().includes(q)
             );
         }
+        if (filterMap !== 'any') {
+            list = list.filter(e => spawnMapsForSpecies(e.ref.species).includes(filterMap));
+        }
+        if (filterGender !== 'any') {
+            list = list.filter(e => e.ref.gender.toLowerCase() === filterGender);
+        }
+        if (filterHasMuts) {
+            list = list.filter(e => e.muts > 0);
+        }
+        if (filterBadge !== 'any') {
+            const [system, tier] = filterBadge.split(':');
+            list = list.filter(e => {
+                if (system === 'bloodline') return e.badges.bloodline === tier;
+                if (system === 'boss')      return e.badges.bossReady === tier;
+                return true;
+            });
+        }
         const sorted = [...list];
         switch (sortMode) {
             case 'Mutations ↓':    sorted.sort((a,b) => b.muts - a.muts); break;
@@ -228,6 +296,16 @@
         }
         return sorted;
     });
+
+    const advancedFiltersActive = $derived(
+        filterMap !== 'any' || filterGender !== 'any' || filterHasMuts || filterBadge !== 'any'
+    );
+    function clearAdvancedFilters() {
+        filterMap = 'any';
+        filterGender = 'any';
+        filterHasMuts = false;
+        filterBadge = 'any';
+    }
 
     const totalMutationsAll = $derived(
         enriched.reduce((s, e) => s + e.muts, 0)
@@ -359,6 +437,56 @@
                 <button class="chip" class:active={activeFilter === 'resource'} onclick={() => activeFilter = 'resource'}>Resource <span class="count">{counts.resource}</span></button>
                 <button class="chip" class:active={activeFilter === 'boss'}     onclick={() => activeFilter = 'boss'}>Boss <span class="count">{counts.boss}</span></button>
             </div>
+        </div>
+
+        <!-- Advanced filters: Map / Gender / Has Mutations / Badge -->
+        <div class="toolbar-row advanced-filters">
+            <div class="adv-group">
+                <label class="adv-label" for="filter-map">Map</label>
+                <select id="filter-map" class="adv-select" bind:value={filterMap}>
+                    <option value="any">Any map</option>
+                    {#each allMaps as m (m)}
+                        <option value={m}>{m}</option>
+                    {/each}
+                </select>
+            </div>
+
+            <div class="adv-group">
+                <span class="adv-label">Gender</span>
+                <button class="adv-chip" class:active={filterGender === 'any'} onclick={() => filterGender = 'any'}>Any</button>
+                <button class="adv-chip" class:active={filterGender === 'male'} onclick={() => filterGender = 'male'}>♂ Male</button>
+                <button class="adv-chip" class:active={filterGender === 'female'} onclick={() => filterGender = 'female'}>♀ Female</button>
+            </div>
+
+            <div class="adv-group">
+                <label class="adv-check">
+                    <input type="checkbox" bind:checked={filterHasMuts} />
+                    Has Mutations
+                </label>
+            </div>
+
+            <div class="adv-group">
+                <label class="adv-label" for="filter-badge">Badge</label>
+                <select id="filter-badge" class="adv-select" bind:value={filterBadge}>
+                    <option value="any">Any badge</option>
+                    <optgroup label="Prize Bloodline">
+                        <option value="bloodline:bronze">Bronze Bloodline</option>
+                        <option value="bloodline:silver">Silver Bloodline</option>
+                        <option value="bloodline:gold">Gold Bloodline</option>
+                        <option value="bloodline:diamond">Diamond Bloodline</option>
+                    </optgroup>
+                    <optgroup label="Boss Ready">
+                        <option value="boss:gamma">Gamma Ready</option>
+                        <option value="boss:beta">Beta Ready</option>
+                        <option value="boss:alpha">Alpha Ready</option>
+                        <option value="boss:titan">Titan Slayer</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            {#if advancedFiltersActive}
+                <button class="adv-clear" onclick={clearAdvancedFilters}>Clear filters</button>
+            {/if}
         </div>
     </div>
 
@@ -758,6 +886,59 @@
     border-radius: 6px;
 }
 .chip.active .count { background: rgba(0,0,0,0.20); opacity: 0.7; }
+
+/* Advanced filters row — Map / Gender / Has Mutations / Badge */
+.advanced-filters { gap: 18px; flex-wrap: wrap; align-items: center; }
+.adv-group { display: flex; align-items: center; gap: 6px; }
+.adv-label {
+    font-family: var(--tek-mono); font-size: 0.66rem;
+    letter-spacing: 0.14em; color: var(--tek-text-faint);
+    text-transform: uppercase; margin-right: 2px;
+}
+.adv-select {
+    background: rgba(5,8,18,0.6); border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text); font-family: var(--tek-mono); font-size: 0.72rem;
+    letter-spacing: 0.06em; padding: 6px 26px 6px 10px;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    appearance: none; -webkit-appearance: none; cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--tek-blue) 50%), linear-gradient(135deg, var(--tek-blue) 50%, transparent 50%);
+    background-position: calc(100% - 12px) 50%, calc(100% - 7px) 50%;
+    background-size: 5px 5px; background-repeat: no-repeat;
+}
+.adv-select:focus { outline: none; border-color: var(--tek-blue); }
+.adv-select option { background: #0a1228; color: var(--tek-text); }
+.adv-select optgroup { background: #050812; color: var(--tek-text-dim); font-style: normal; }
+
+.adv-chip {
+    background: rgba(5,8,18,0.6); border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text-dim); font-family: var(--tek-mono); font-size: 0.66rem;
+    letter-spacing: 0.10em; padding: 5px 10px; cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.adv-chip:hover { color: var(--tek-text); border-color: var(--tek-blue-border); }
+.adv-chip.active { background: rgba(0,180,255,0.12); border-color: var(--tek-blue); color: var(--tek-blue); }
+
+.adv-check {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--tek-mono); font-size: 0.72rem;
+    letter-spacing: 0.06em; color: var(--tek-text-dim);
+    cursor: pointer;
+}
+.adv-check input { accent-color: var(--tek-blue); cursor: pointer; }
+.adv-check:hover { color: var(--tek-text); }
+
+.adv-clear {
+    margin-left: auto;
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+    color: #fca5a5; font-family: var(--tek-mono); font-size: 0.66rem;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 5px 11px; cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.adv-clear:hover { background: rgba(239,68,68,0.18); color: #ff8b8b; }
+
 .chip-divider {
     width: 1px;
     height: 18px;
