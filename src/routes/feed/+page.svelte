@@ -23,6 +23,8 @@
         activeSources[key] = !activeSources[key];
     }
 
+    import { RECOMMENDED_SOURCES } from '$lib/recommendedSources';
+
     type Friend = { nickname: string | null; discordName?: string | null; id?: number };
 
     function displayName(u: Friend) {
@@ -362,6 +364,34 @@
         return type.toUpperCase();
     }
 
+    // Recommended starter sources (curated list)
+    let bulkSubscribing = $state(false);
+    async function subscribeRecommended(rec: { type: string; url: string; label: string }) {
+        try {
+            const res = await fetch('/api/feed-sources', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: rec.type, url: rec.url, label: rec.label })
+            });
+            if (res.ok) {
+                const entry = await res.json();
+                mySources = [...mySources, entry];
+            }
+        } catch { /* swallow — user can retry */ }
+    }
+    async function subscribeAllRecommended() {
+        if (bulkSubscribing) return;
+        bulkSubscribing = true;
+        for (const rec of RECOMMENDED_SOURCES) {
+            if (mySources.some(s => s.url === rec.url)) continue;
+            await subscribeRecommended(rec);
+        }
+        bulkSubscribing = false;
+    }
+    const recommendedRemaining = $derived(
+        RECOMMENDED_SOURCES.filter(rec => !mySources.some(s => s.url === rec.url))
+    );
+
     onMount(() => {
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -596,9 +626,39 @@
                 {/if}
             </div>
 
+            <!-- Curated starter panel — shown when user has no saved sources yet -->
+            {#if mySources.length === 0 && recommendedRemaining.length > 0}
+                <div class="recommended-panel">
+                    <div class="recommended-head">
+                        <span class="rec-pip"></span>
+                        <span class="rec-title">Recommended for ASA survivors</span>
+                        <button class="rec-bulk-btn" onclick={subscribeAllRecommended} disabled={bulkSubscribing}>
+                            {bulkSubscribing ? 'Subscribing…' : '+ Subscribe to all'}
+                        </button>
+                    </div>
+                    <div class="recommended-list">
+                        {#each RECOMMENDED_SOURCES as rec (rec.url)}
+                            {@const subscribed = mySources.some(s => s.url === rec.url)}
+                            <div class="rec-row {rec.type}">
+                                <span class="rec-glyph">⬡</span>
+                                <div class="rec-info">
+                                    <div class="rec-label">{rec.label} <span class="rec-platform">· {platformLabel(rec.type)}</span></div>
+                                    <div class="rec-desc">{rec.description}</div>
+                                </div>
+                                {#if subscribed}
+                                    <span class="rec-subscribed">✓ Added</span>
+                                {:else}
+                                    <button class="rec-subscribe" onclick={() => subscribeRecommended(rec)}>+ Subscribe</button>
+                                {/if}
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+
             <!-- Your sources cards -->
             {#if mySources.length === 0}
-                <div class="sources-empty">No sources yet — add your first one above.</div>
+                <div class="sources-empty">No sources yet — paste a link above or pick from the recommended list.</div>
             {:else}
                 <div class="sources-grid">
                     {#each mySources as src (src.id)}
@@ -1408,5 +1468,101 @@
     .stage { padding: 60px 14px 80px; }
     .feed-event { grid-template-columns: 32px 1fr; }
     .feed-time { grid-column: 2; }
+}
+
+/* ── Recommended starter sources panel ───────────────────────────── */
+.recommended-panel {
+    background: linear-gradient(160deg, rgba(0,180,255,0.06) 0%, rgba(139,92,246,0.04) 100%);
+    border: 1px solid rgba(0,180,255,0.22);
+    clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    padding: 16px 18px;
+    margin-bottom: 18px;
+}
+.recommended-head {
+    display: flex; align-items: center; gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(0,180,255,0.10);
+    margin-bottom: 12px;
+}
+.rec-pip {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--tek-blue);
+    box-shadow: 0 0 7px var(--tek-blue-glow);
+}
+.rec-title {
+    font-family: var(--tek-mono);
+    font-size: 0.78rem; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--tek-text); flex: 1;
+}
+.rec-bulk-btn {
+    background: linear-gradient(135deg, #00c6ff 0%, #0086d4 100%);
+    color: #001a2e;
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; font-weight: 800;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 6px 12px; border: none; cursor: pointer;
+    clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+    filter: drop-shadow(0 0 6px rgba(0,180,255,0.35));
+    transition: filter 0.18s, transform 0.18s;
+}
+.rec-bulk-btn:hover:not(:disabled) { filter: drop-shadow(0 0 12px rgba(0,180,255,0.65)); transform: translateY(-1px); }
+.rec-bulk-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.recommended-list { display: flex; flex-direction: column; gap: 4px; }
+.rec-row {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 9px 12px;
+    background: rgba(0,0,0,0.20);
+    border-left: 2px solid rgba(0,180,255,0.30);
+    clip-path: polygon(4px 0%, 100% 0%, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0% 100%, 0% 4px);
+}
+.rec-row.youtube  { border-left-color: #ff0000; }
+.rec-row.twitter  { border-left-color: #1da1f2; }
+.rec-row.reddit   { border-left-color: #ff4500; }
+.rec-row.steam    { border-left-color: #66c0f4; }
+.rec-row.twitch   { border-left-color: #9146ff; }
+.rec-glyph { color: var(--tek-blue); font-size: 0.95rem; text-align: center; }
+.rec-info { min-width: 0; line-height: 1.35; }
+.rec-label {
+    font-family: var(--tek-mono);
+    font-size: 0.82rem;
+    color: var(--tek-text);
+    font-weight: 600;
+}
+.rec-platform { color: var(--tek-text-dim); font-weight: 400; }
+.rec-desc {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    color: var(--tek-text-dim);
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+}
+.rec-subscribe {
+    background: rgba(0,180,255,0.10);
+    border: 1px solid rgba(0,180,255,0.32);
+    color: var(--tek-blue);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem; font-weight: 700;
+    letter-spacing: 0.10em; text-transform: uppercase;
+    padding: 6px 11px; cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.rec-subscribe:hover { background: rgba(0,180,255,0.22); filter: drop-shadow(0 0 5px var(--tek-blue-glow)); }
+.rec-subscribed {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    color: #86efac;
+    background: rgba(16,185,129,0.10);
+    border: 1px solid rgba(16,185,129,0.35);
+    padding: 5px 9px;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    white-space: nowrap;
 }
 </style>
