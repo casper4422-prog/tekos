@@ -400,7 +400,7 @@
     const MAP_OPTIONS = [
         'The Island', 'Scorched Earth', 'Aberration', 'Extinction',
         'The Center', 'Genesis', 'Genesis 2', 'Ragnarok',
-        'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Lost Colony'
+        'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Lost Colony', 'Astreos'
     ];
 
     function detectMapFromName(name: string): string | null {
@@ -419,6 +419,7 @@
         if (n.includes('genesis')) return 'Genesis';
         if (n.includes('fjordur')) return 'Fjordur';
         if (n.includes('island')) return 'The Island';
+        if (n.includes('astreos')) return 'Astreos';
         return null;
     }
 
