@@ -8,16 +8,18 @@
  *       total = base + mutationLevels  (no ×2 multiplier)
  *   Example: Rex with base HP 70 and 10 mutation levels → 80 total HP.
  *
- * Three systems:
+ * Four systems:
  *  1. Prize Bloodline — base stats only (no mutations, no domestic levels),
  *     min of HP/STA/FOOD/WGT/MEL: Bronze 45 / Silver 50 / Gold 55 / Diamond 60
  *  2. Boss Ready — total = base + mutation levels, requires HP AND MEL:
  *     Gamma 75 / Beta 100 / Alpha 125 / Titan 150
- *  3. Role badges (use total = base + mutation levels):
- *     Tank: HP >= 175 (alone)
- *     DPS:  MEL >= 175 (alone)
- *     Bruiser: HP >= 125 AND WGT >= 125
- *     Runner: HP >= 100 AND SPD >= 150
+ *  3. Specialist Roles (total = base + mutation levels, ASA stats only):
+ *     Tank:       HP ≥ 175/200/225          (Standard/Elite/Apex)
+ *     DPS:        MEL ≥ 175/200/225
+ *     Bruiser:    HP ≥ 125/150/175 AND WGT ≥ 125/150/175
+ *     Vanguard:   HP ≥ 100/125/150 AND STA ≥ 125/150/175
+ *     Packmaster: WGT ≥ 175/200/225
+ *     Endurance:  STA ≥ 150/175/200
  *  4. Underdog (non-meta species, total = base + mutation levels):
  *     Champion 90 / Hero 115 / Legend 140 / Titan 160
  */
@@ -26,14 +28,15 @@ export type Stats = Record<string, number>;
 
 export type BloodlineTier  = 'diamond' | 'gold' | 'silver' | 'bronze' | null;
 export type BossTier       = 'titan' | 'alpha' | 'beta' | 'gamma' | null;
-export type RoleBadge      = 'tank' | 'dps' | 'bruiser' | 'runner';
+export type RoleKey        = 'tank' | 'dps' | 'bruiser' | 'vanguard' | 'packmaster' | 'endurance';
+export type RoleTier       = 'legendary' | 'apex' | 'elite' | 'standard';
 export type UnderdogTier   = 'titan' | 'legend' | 'hero' | 'champion' | null;
 export type UnderdogCategory = 'heavy' | 'tank' | 'aerial' | 'aquatic' | null;
 
 export type CreatureBadges = {
     bloodline: BloodlineTier;
     bossReady: BossTier;
-    roles:     RoleBadge[];
+    roles:     Partial<Record<RoleKey, RoleTier>>;
     underdog:  UnderdogTier;
 };
 
@@ -79,7 +82,6 @@ export function underdogCategoryFor(species: string): UnderdogCategory {
 
 function n(s: Stats | undefined, k: string) {
     if (!s) return 0;
-    // Stats can be stored as 'Health' or 'HP' depending on entry source — normalize.
     return s[k] ?? s[k.toLowerCase()] ?? 0;
 }
 
@@ -103,10 +105,69 @@ export function getStat(s: Stats | undefined, key: 'HP'|'STA'|'OXY'|'FOOD'|'WGT'
 }
 
 function totalStat(base: Stats | undefined, mut: Stats | undefined, key: Parameters<typeof getStat>[1]) {
-    // Mutations are stored as TOTAL mutation levels (already includes any per-event scaling).
-    // Survivors enter them manually from their UI — no multiplier needed here.
     return getStat(base, key) + getStat(mut, key);
 }
+
+// Specialist role tier thresholds — each role checked highest-to-lowest, first match wins.
+const ROLE_DEFS: Array<{
+    key: RoleKey;
+    tiers: Array<{ tier: RoleTier; reqs: Array<{ stat: Parameters<typeof getStat>[1]; min: number }> }>;
+}> = [
+    {
+        key: 'tank',
+        tiers: [
+            { tier: 'legendary', reqs: [{ stat: 'HP', min: 250 }] },
+            { tier: 'apex',      reqs: [{ stat: 'HP', min: 225 }] },
+            { tier: 'elite',     reqs: [{ stat: 'HP', min: 200 }] },
+            { tier: 'standard',  reqs: [{ stat: 'HP', min: 175 }] },
+        ]
+    },
+    {
+        key: 'dps',
+        tiers: [
+            { tier: 'legendary', reqs: [{ stat: 'MEL', min: 250 }] },
+            { tier: 'apex',      reqs: [{ stat: 'MEL', min: 225 }] },
+            { tier: 'elite',     reqs: [{ stat: 'MEL', min: 200 }] },
+            { tier: 'standard',  reqs: [{ stat: 'MEL', min: 175 }] },
+        ]
+    },
+    {
+        key: 'bruiser',
+        tiers: [
+            { tier: 'legendary', reqs: [{ stat: 'HP', min: 200 }, { stat: 'WGT', min: 200 }] },
+            { tier: 'apex',      reqs: [{ stat: 'HP', min: 175 }, { stat: 'WGT', min: 175 }] },
+            { tier: 'elite',     reqs: [{ stat: 'HP', min: 150 }, { stat: 'WGT', min: 150 }] },
+            { tier: 'standard',  reqs: [{ stat: 'HP', min: 125 }, { stat: 'WGT', min: 125 }] },
+        ]
+    },
+    {
+        key: 'vanguard',
+        tiers: [
+            { tier: 'legendary', reqs: [{ stat: 'HP', min: 175 }, { stat: 'STA', min: 200 }] },
+            { tier: 'apex',      reqs: [{ stat: 'HP', min: 150 }, { stat: 'STA', min: 175 }] },
+            { tier: 'elite',     reqs: [{ stat: 'HP', min: 125 }, { stat: 'STA', min: 150 }] },
+            { tier: 'standard',  reqs: [{ stat: 'HP', min: 100 }, { stat: 'STA', min: 125 }] },
+        ]
+    },
+    {
+        key: 'packmaster',
+        tiers: [
+            { tier: 'legendary', reqs: [{ stat: 'WGT', min: 250 }] },
+            { tier: 'apex',      reqs: [{ stat: 'WGT', min: 225 }] },
+            { tier: 'elite',     reqs: [{ stat: 'WGT', min: 200 }] },
+            { tier: 'standard',  reqs: [{ stat: 'WGT', min: 175 }] },
+        ]
+    },
+    {
+        key: 'endurance',
+        tiers: [
+            { tier: 'legendary', reqs: [{ stat: 'STA', min: 225 }] },
+            { tier: 'apex',      reqs: [{ stat: 'STA', min: 200 }] },
+            { tier: 'elite',     reqs: [{ stat: 'STA', min: 175 }] },
+            { tier: 'standard',  reqs: [{ stat: 'STA', min: 150 }] },
+        ]
+    },
+];
 
 export function computeBadges(base: Stats | undefined, mut: Stats | undefined, species?: string): CreatureBadges {
     // Bloodline (base only)
@@ -127,7 +188,7 @@ export function computeBadges(base: Stats | undefined, mut: Stats | undefined, s
     const tHP  = totalStat(base, mut, 'HP');
     const tMEL = totalStat(base, mut, 'MEL');
     const tWGT = totalStat(base, mut, 'WGT');
-    const tSPD = totalStat(base, mut, 'SPD');
+    const tSTA = totalStat(base, mut, 'STA');
     const minBoss = Math.min(tHP, tMEL);
     let bossReady: BossTier = null;
     if (minBoss >= 150) bossReady = 'titan';
@@ -135,12 +196,25 @@ export function computeBadges(base: Stats | undefined, mut: Stats | undefined, s
     else if (minBoss >= 100) bossReady = 'beta';
     else if (minBoss >= 75)  bossReady = 'gamma';
 
-    // Role badges
-    const roles: RoleBadge[] = [];
-    if (tHP >= 175) roles.push('tank');
-    if (tMEL >= 175) roles.push('dps');
-    if (tHP >= 125 && tWGT >= 125) roles.push('bruiser');
-    if (tHP >= 100 && tSPD >= 150) roles.push('runner');
+    // Specialist Roles — each role returns highest tier met, or undefined if none
+    const statCache: Partial<Record<Parameters<typeof getStat>[1], number>> = {
+        HP: tHP, MEL: tMEL, WGT: tWGT, STA: tSTA
+    };
+    function getTotal(stat: Parameters<typeof getStat>[1]): number {
+        if (stat in statCache) return statCache[stat]!;
+        const v = totalStat(base, mut, stat);
+        statCache[stat] = v;
+        return v;
+    }
+    const roles: Partial<Record<RoleKey, RoleTier>> = {};
+    for (const roleDef of ROLE_DEFS) {
+        for (const { tier, reqs } of roleDef.tiers) {
+            if (reqs.every(r => getTotal(r.stat) >= r.min)) {
+                roles[roleDef.key] = tier;
+                break; // highest tier matched first
+            }
+        }
+    }
 
     // Underdog (non-meta species only) — HP AND MEL both meet threshold
     let underdog: UnderdogTier = null;
@@ -158,7 +232,7 @@ export function computeBadges(base: Stats | undefined, mut: Stats | undefined, s
 /** Total badge count for a single creature (across all systems). */
 export function badgeCountForCreature(base: Stats | undefined, mut: Stats | undefined, species?: string): number {
     const b = computeBadges(base, mut, species);
-    return (b.bloodline ? 1 : 0) + (b.bossReady ? 1 : 0) + b.roles.length + (b.underdog ? 1 : 0);
+    return (b.bloodline ? 1 : 0) + (b.bossReady ? 1 : 0) + Object.keys(b.roles).length + (b.underdog ? 1 : 0);
 }
 
 /** Aggregate badge count across a Vault — counts UNIQUE badge x species combinations,
@@ -166,31 +240,37 @@ export function badgeCountForCreature(base: Stats | undefined, mut: Stats | unde
 export function aggregateBadgesByCategory(creatures: Array<{ species: string; baseStats?: Stats; mutations?: Stats }>) {
     const bloodline = new Map<string, BloodlineTier>();
     const bossReady = new Map<string, BossTier>();
-    const roles     = new Map<string, Set<RoleBadge>>();
+    // roles: species → roleKey → highest tier
+    const rolesMap  = new Map<string, Partial<Record<RoleKey, RoleTier>>>();
     const underdog  = new Map<string, UnderdogTier>();
+
+    const bloodlineOrder = { bronze: 1, silver: 2, gold: 3, diamond: 4 } as const;
+    const bossOrder      = { gamma: 1, beta: 2, alpha: 3, titan: 4 } as const;
+    const underdogOrder  = { champion: 1, hero: 2, legend: 3, titan: 4 } as const;
+    const roleTierOrder  = { standard: 1, elite: 2, apex: 3, legendary: 4 } as const;
 
     for (const c of creatures) {
         const b = computeBadges(c.baseStats, c.mutations, c.species);
         const sp = c.species || 'Unknown';
 
         if (b.bloodline) {
-            const order = { bronze: 1, silver: 2, gold: 3, diamond: 4 } as const;
             const cur = bloodline.get(sp);
-            if (!cur || order[b.bloodline] > order[cur as keyof typeof order]) bloodline.set(sp, b.bloodline);
+            if (!cur || bloodlineOrder[b.bloodline] > bloodlineOrder[cur as keyof typeof bloodlineOrder]) bloodline.set(sp, b.bloodline);
         }
         if (b.bossReady) {
-            const order = { gamma: 1, beta: 2, alpha: 3, titan: 4 } as const;
             const cur = bossReady.get(sp);
-            if (!cur || order[b.bossReady] > order[cur as keyof typeof order]) bossReady.set(sp, b.bossReady);
+            if (!cur || bossOrder[b.bossReady] > bossOrder[cur as keyof typeof bossOrder]) bossReady.set(sp, b.bossReady);
         }
         if (b.underdog) {
-            const order = { champion: 1, hero: 2, legend: 3, titan: 4 } as const;
             const cur = underdog.get(sp);
-            if (!cur || order[b.underdog] > order[cur as keyof typeof order]) underdog.set(sp, b.underdog);
+            if (!cur || underdogOrder[b.underdog] > underdogOrder[cur as keyof typeof underdogOrder]) underdog.set(sp, b.underdog);
         }
-        for (const role of b.roles) {
-            if (!roles.has(sp)) roles.set(sp, new Set());
-            roles.get(sp)!.add(role);
+        for (const [roleKey, roleTier] of Object.entries(b.roles) as Array<[RoleKey, RoleTier]>) {
+            if (!rolesMap.has(sp)) rolesMap.set(sp, {});
+            const cur = rolesMap.get(sp)![roleKey];
+            if (!cur || roleTierOrder[roleTier] > roleTierOrder[cur]) {
+                rolesMap.get(sp)![roleKey] = roleTier;
+            }
         }
     }
 
@@ -198,8 +278,8 @@ export function aggregateBadgesByCategory(creatures: Array<{ species: string; ba
         bloodline: Array.from(bloodline.entries()).map(([species, tier]) => ({ species, tier })),
         bossReady: Array.from(bossReady.entries()).map(([species, tier]) => ({ species, tier })),
         underdog:  Array.from(underdog.entries()).map(([species, tier]) => ({ species, tier })),
-        roles: Array.from(roles.entries()).flatMap(([species, set]) =>
-            Array.from(set).map(role => ({ species, role }))
+        roles: Array.from(rolesMap.entries()).flatMap(([species, tiersByRole]) =>
+            (Object.entries(tiersByRole) as Array<[RoleKey, RoleTier]>).map(([role, tier]) => ({ species, role, tier }))
         )
     };
 }
@@ -212,3 +292,6 @@ export function badgeCountByCreature(creatures: Array<{ id: number|string; speci
     }
     return out;
 }
+
+/** Exported role definitions for use in the UI. */
+export { ROLE_DEFS };

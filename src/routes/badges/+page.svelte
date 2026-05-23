@@ -2,11 +2,11 @@
     import { onMount } from 'svelte';
     import type { PageData } from './$types';
     import { MAP_BOSSES, MAP_NAMES, ULTIMATE_BADGES, SPECIAL_ACHIEVEMENTS, type MapId } from '$lib/mapBosses';
-    import { UNDERDOG_META_EXCLUDE, UNDERDOG_CATEGORIES } from '$lib/badges';
+    import { UNDERDOG_META_EXCLUDE, UNDERDOG_CATEGORIES, type RoleKey, type RoleTier } from '$lib/badges';
 
     let { data }: { data: PageData } = $props();
 
-    type SystemTab = 'boss' | 'underdog' | 'prize';
+    type SystemTab = 'boss' | 'specialist' | 'underdog' | 'prize';
     let sys = $state<SystemTab>('boss');
 
     let tekHexCanvas = $state<HTMLCanvasElement | null>(null);
@@ -82,6 +82,7 @@
     const bossEarnedCount = $derived(data.badgeWall.bossReady.length);
     const underdogEarnedCount = $derived((data.badgeWall.underdog ?? []).length);
     const bloodlineEarnedCount = $derived(data.badgeWall.bloodline.length);
+    const specialistEarnedCount = $derived((data.badgeWall.roles ?? []).length);
 
     const bossReadyTiers = [
         { tier: 'gamma', label: 'Gamma Ready', tagShort: 'Gamma · γ', glyph: 'γ', hp: 75,  mel: 75 },
@@ -90,18 +91,73 @@
         { tier: 'titan', label: 'Titan Slayer',tagShort: 'Titan',     glyph: '◆', hp: 150, mel: 150 }
     ] as const;
 
-    const roleDefs: Array<{
-        role: 'tank'|'dps'|'bruiser'|'runner';
+    // Specialist role definitions — 6 roles, 4 tiers each
+    const specialistRoles: Array<{
+        key: RoleKey;
         label: string;
-        reqA: string; reqAv: number;
-        reqB?: string; reqBv?: number;
-        suffix?: string;
+        flavor: string;
+        icon: string;
+        tiers: Array<{ tier: RoleTier; label: string; req: string }>;
     }> = [
-        { role: 'tank',    label: 'Boss Tank',    reqA: 'HP',  reqAv: 175, suffix: '(Health only)' },
-        { role: 'dps',     label: 'Boss DPS',     reqA: 'MEL', reqAv: 175, suffix: '(Melee only)' },
-        { role: 'bruiser', label: 'Boss Bruiser', reqA: 'HP',  reqAv: 125, reqB: 'WGT', reqBv: 125 },
-        { role: 'runner',  label: 'Boss Runner',  reqA: 'HP',  reqAv: 100, reqB: 'SPD', reqBv: 150 }
+        {
+            key: 'tank', label: 'Tank', icon: '🛡', flavor: 'Built to absorb — the shield wall of the boss fight.',
+            tiers: [
+                { tier: 'standard',  label: 'Standard',  req: 'HP ≥ 175' },
+                { tier: 'elite',     label: 'Elite',     req: 'HP ≥ 200' },
+                { tier: 'apex',      label: 'Apex',      req: 'HP ≥ 225' },
+                { tier: 'legendary', label: 'Legendary', req: 'HP ≥ 250' },
+            ]
+        },
+        {
+            key: 'dps', label: 'DPS', icon: '⚔', flavor: 'Maximum output — built to delete boss health bars.',
+            tiers: [
+                { tier: 'standard',  label: 'Standard',  req: 'MEL ≥ 175' },
+                { tier: 'elite',     label: 'Elite',     req: 'MEL ≥ 200' },
+                { tier: 'apex',      label: 'Apex',      req: 'MEL ≥ 225' },
+                { tier: 'legendary', label: 'Legendary', req: 'MEL ≥ 250' },
+            ]
+        },
+        {
+            key: 'bruiser', label: 'Bruiser', icon: '⚒', flavor: 'Fights and carries — the heavy dino that does it all.',
+            tiers: [
+                { tier: 'standard',  label: 'Standard',  req: 'HP ≥ 125 AND WGT ≥ 125' },
+                { tier: 'elite',     label: 'Elite',     req: 'HP ≥ 150 AND WGT ≥ 150' },
+                { tier: 'apex',      label: 'Apex',      req: 'HP ≥ 175 AND WGT ≥ 175' },
+                { tier: 'legendary', label: 'Legendary', req: 'HP ≥ 200 AND WGT ≥ 200' },
+            ]
+        },
+        {
+            key: 'vanguard', label: 'Vanguard', icon: '◈', flavor: 'Sustained frontliner — survives the long fights.',
+            tiers: [
+                { tier: 'standard',  label: 'Standard',  req: 'HP ≥ 100 AND STA ≥ 125' },
+                { tier: 'elite',     label: 'Elite',     req: 'HP ≥ 125 AND STA ≥ 150' },
+                { tier: 'apex',      label: 'Apex',      req: 'HP ≥ 150 AND STA ≥ 175' },
+                { tier: 'legendary', label: 'Legendary', req: 'HP ≥ 175 AND STA ≥ 200' },
+            ]
+        },
+        {
+            key: 'packmaster', label: 'Packmaster', icon: '⊞', flavor: 'Supply line specialist — carries the weight so others can fight.',
+            tiers: [
+                { tier: 'standard',  label: 'Standard',  req: 'WGT ≥ 175' },
+                { tier: 'elite',     label: 'Elite',     req: 'WGT ≥ 200' },
+                { tier: 'apex',      label: 'Apex',      req: 'WGT ≥ 225' },
+                { tier: 'legendary', label: 'Legendary', req: 'WGT ≥ 250' },
+            ]
+        },
+        {
+            key: 'endurance', label: 'Endurance', icon: '⟳', flavor: 'Never tires — the dino still standing at the end.',
+            tiers: [
+                { tier: 'standard',  label: 'Standard',  req: 'STA ≥ 150' },
+                { tier: 'elite',     label: 'Elite',     req: 'STA ≥ 175' },
+                { tier: 'apex',      label: 'Apex',      req: 'STA ≥ 200' },
+                { tier: 'legendary', label: 'Legendary', req: 'STA ≥ 225' },
+            ]
+        },
     ];
+
+    function specialistEarned(role: RoleKey, tier: RoleTier) {
+        return (data.badgeWall.roles ?? []).filter((r: { role: RoleKey; tier: RoleTier; species: string }) => r.role === role && r.tier === tier);
+    }
 
     const bloodlineTiers = [
         { tier: 'bronze',  label: 'Bronze Bloodline',  tagShort: 'Bronze',  thresh: 45, bonus: 'Solid genetics across the board' },
@@ -171,7 +227,7 @@
         </div>
         <h1 class="page-title">Badge Archive</h1>
         <div class="page-sub">
-            Every honor TekOS recognizes · Three systems · Wired to your Vault
+            Every honor TekOS recognizes · Four systems · Wired to your Vault
         </div>
     </div>
 
@@ -328,7 +384,7 @@
             <span class="how-rule"></span>
             <span class="how-hint">Auto-computed from your Vault — no manual claiming</span>
         </div>
-        <div class="how-grid">
+        <div class="how-grid how-grid-4">
             <div class="how-card boss">
                 <div class="how-card-tag">System 1</div>
                 <div class="how-card-name">⚔ Boss Ready</div>
@@ -336,15 +392,22 @@
                 <div class="how-card-formula">Total = <span class="key">base</span> + <span class="key">mutation levels</span></div>
                 <div class="how-card-example">e.g. Rex with 70 base HP and 10 mutation levels = 80 HP total → not yet Gamma (needs 75 on <em>both</em> HP and MEL)</div>
             </div>
-            <div class="how-card underdog">
+            <div class="how-card specialist">
                 <div class="how-card-tag">System 2</div>
+                <div class="how-card-name">◆ Specialist Roles</div>
+                <div class="how-card-desc">Rewards <strong>focused stat mastery</strong> in a specific combat role. Six roles — Tank, DPS, Bruiser, Vanguard, Packmaster, Endurance — each with four tiers.</div>
+                <div class="how-card-formula">Total = <span class="key">base</span> + <span class="key">mutation levels</span></div>
+                <div class="how-card-example">Each role focuses on 1–2 ASA stats. Standard → Elite → Apex → Legendary. No SPD — that's an ASE stat.</div>
+            </div>
+            <div class="how-card underdog">
+                <div class="how-card-tag">System 3</div>
                 <div class="how-card-name">🛡 Underdog</div>
                 <div class="how-card-desc">Same math as Boss Ready, but only <strong>non-meta species</strong> are eligible. Thresholds are higher because the achievement is bigger.</div>
                 <div class="how-card-formula">Total = <span class="key">base</span> + <span class="key">mutation levels</span></div>
                 <div class="how-card-example">Excluded species (Rex, Giga, Theri, Yuty, etc.) can't earn Underdog — they're already meta.</div>
             </div>
             <div class="how-card prize">
-                <div class="how-card-tag">System 3</div>
+                <div class="how-card-tag">System 4</div>
                 <div class="how-card-name">◈ Prize Bloodline</div>
                 <div class="how-card-desc">Rewards perfect genetics. Looks at <strong>base stats only</strong> across HP, STA, FOOD, WGT, MEL — the lowest one is your tier. Mutations and domestic levels are ignored.</div>
                 <div class="how-card-formula">Score = <span class="key">min</span>(HP, STA, FOOD, WGT, MEL) — base values only</div>
@@ -361,9 +424,10 @@
          SYSTEM TABS
          ═══════════════════════════════════════════════════════ -->
     <div class="sys-tabs">
-        <button class="sys-tab" class:active={sys === 'boss'}     onclick={() => setTab('boss')}>Boss Ready <span class="count">{bossEarnedCount}</span></button>
-        <button class="sys-tab" class:active={sys === 'underdog'} onclick={() => setTab('underdog')}>Underdog <span class="count">{underdogEarnedCount}</span></button>
-        <button class="sys-tab" class:active={sys === 'prize'}    onclick={() => setTab('prize')}>Prize Bloodline <span class="count">{bloodlineEarnedCount}</span></button>
+        <button class="sys-tab" class:active={sys === 'boss'}       onclick={() => setTab('boss')}>Boss Ready <span class="count">{bossEarnedCount}</span></button>
+        <button class="sys-tab" class:active={sys === 'specialist'} onclick={() => setTab('specialist')}>Specialist Roles <span class="count">{specialistEarnedCount}</span></button>
+        <button class="sys-tab" class:active={sys === 'underdog'}   onclick={() => setTab('underdog')}>Underdog <span class="count">{underdogEarnedCount}</span></button>
+        <button class="sys-tab" class:active={sys === 'prize'}      onclick={() => setTab('prize')}>Prize Bloodline <span class="count">{bloodlineEarnedCount}</span></button>
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
@@ -421,59 +485,6 @@
                                 <div class="badge-progress-line-bar"><div class="fill" style="width:{Math.min(100, (inProg.minStat / t.hp) * 100)}%;"></div></div>
                             </div>
                         {/if}
-                    </div>
-                {/each}
-            </div>
-        </div>
-
-        <!-- Specialist Roles (was its own tab; now lives inside Boss Ready) -->
-        <div class="subsection">
-            <div class="subsection-head">
-                <div class="subsection-title">Specialist Roles <span class="subsection-desc">— Focused single-stat or combo</span></div>
-                <div class="map-stat"><span class="earned-c">{data.badgeWall.roles.length}</span> EARNED</div>
-            </div>
-            <div class="badge-grid">
-                {#each roleDefs as r}
-                    {@const earned = data.badgeWall.roles.filter(x => x.role === r.role)}
-                    <div class="badge-card tier-role" class:earned={earned.length > 0} class:locked={earned.length === 0}>
-                        <div class="badge-card-head">
-                            <div class="badge-icon-frame">
-                                <svg viewBox="0 0 52 58">
-                                    <defs>
-                                        <linearGradient id="roleG-{r.role}" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" stop-color="#c4a3f8"/><stop offset="100%" stop-color="#8b5cf6"/>
-                                        </linearGradient>
-                                    </defs>
-                                    <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#roleG-{r.role})" stroke-width="2"/>
-                                    {#if r.role === 'tank'}
-                                        <path d="M 26 12 L 38 20 L 38 36 Q 26 46 26 46 Q 14 36 14 36 L 14 20 Z" fill="url(#roleG-{r.role})"/>
-                                    {:else if r.role === 'dps'}
-                                        <path d="M 22 12 L 30 12 L 32 38 L 26 44 L 20 38 Z" fill="url(#roleG-{r.role})"/>
-                                        <line x1="26" y1="14" x2="26" y2="32" stroke="#050812" stroke-width="1"/>
-                                    {:else if r.role === 'bruiser'}
-                                        <rect x="14" y="22" width="8" height="14" fill="url(#roleG-{r.role})"/>
-                                        <rect x="30" y="22" width="8" height="14" fill="url(#roleG-{r.role})"/>
-                                        <line x1="22" y1="29" x2="30" y2="29" stroke="url(#roleG-{r.role})" stroke-width="4"/>
-                                    {:else if r.role === 'runner'}
-                                        <path d="M 14 36 L 22 22 L 28 28 L 36 18 L 38 20 L 30 32 L 24 28 L 18 38 Z" fill="url(#roleG-{r.role})"/>
-                                    {/if}
-                                </svg>
-                            </div>
-                            <div class="badge-card-name-wrap">
-                                <div class="badge-tier-tag">Role</div>
-                                <div class="badge-card-name">{r.label}</div>
-                            </div>
-                        </div>
-                        <div class="badge-req">
-                            {r.reqA} ≥ <span class="req-key">{r.reqAv}</span>{#if r.reqB}<span class="req-and">AND</span>{r.reqB} ≥ <span class="req-key">{r.reqBv}</span>{:else if r.suffix} {r.suffix}{/if}
-                        </div>
-                        <div class="badge-status">
-                            {#if earned.length > 0}
-                                <div class="badge-earned-by">✓ {earned.length} {earned.length === 1 ? 'species' : 'species'}<span class="count">{earnedSpeciesList(earned)}</span></div>
-                            {:else}
-                                <div class="badge-earned-by" style="color:var(--tek-text-faint);">— No qualifying specimen</div>
-                            {/if}
-                        </div>
                     </div>
                 {/each}
             </div>
@@ -569,7 +580,89 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
-         SYSTEM 2: UNDERDOG
+         SYSTEM 2: SPECIALIST ROLES
+         ═══════════════════════════════════════════════════════ -->
+    <div class="sys-panel" class:active={sys === 'specialist'} id="sys-specialist">
+
+        <div class="specialist-intro">
+            <div class="spec-intro-rule"></div>
+            <div class="spec-intro-text">Six roles · Four tiers each · ASA stats only (HP, STA, WGT, MEL) · Highest tier per species tracked</div>
+            <div class="spec-intro-rule"></div>
+        </div>
+
+        {#each specialistRoles as role}
+            {@const roleTotal = (data.badgeWall.roles ?? []).filter((r: { role: RoleKey }) => r.role === role.key).length}
+            <div class="spec-role-block">
+                <div class="spec-role-head">
+                    <div class="spec-role-title">
+                        <span class="spec-role-icon">{role.icon}</span>
+                        <span class="spec-role-name">{role.label}</span>
+                    </div>
+                    <div class="spec-role-flavor">{role.flavor}</div>
+                    <div class="spec-role-count">{roleTotal} SPECIES</div>
+                </div>
+                <div class="spec-tier-grid">
+                    {#each role.tiers as t}
+                        {@const earned = specialistEarned(role.key, t.tier)}
+                        <div class="badge-card spec-tier-{t.tier}" class:earned={earned.length > 0} class:locked={earned.length === 0}>
+                            <div class="badge-card-head">
+                                <div class="badge-icon-frame">
+                                    <svg viewBox="0 0 52 58">
+                                        <defs>
+                                            <linearGradient id="spR-{role.key}-{t.tier}" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                {#if t.tier === 'standard'}<stop offset="0%" stop-color="#a0f0a0"/><stop offset="100%" stop-color="#10b981"/>{/if}
+                                                {#if t.tier === 'elite'}<stop offset="0%" stop-color="#a5d8ff"/><stop offset="100%" stop-color="#00b4ff"/>{/if}
+                                                {#if t.tier === 'apex'}<stop offset="0%" stop-color="#c4a3f8"/><stop offset="100%" stop-color="#8b5cf6"/>{/if}
+                                                {#if t.tier === 'legendary'}<stop offset="0%" stop-color="#fff8c0"/><stop offset="100%" stop-color="#ffd700"/>{/if}
+                                            </linearGradient>
+                                        </defs>
+                                        <polygon points="26,3 48,15 48,43 26,55 4,43 4,15" fill="rgba(10,18,44,0.85)" stroke="url(#spR-{role.key}-{t.tier})" stroke-width="2"/>
+                                        {#if role.key === 'tank'}
+                                            <path d="M 26 14 L 36 20 L 36 34 Q 26 42 26 42 Q 16 34 16 34 L 16 20 Z" fill="url(#spR-{role.key}-{t.tier})" opacity={t.tier === 'legendary' ? 1 : 0.85}/>
+                                        {:else if role.key === 'dps'}
+                                            <path d="M 22 14 L 30 14 L 32 38 L 26 44 L 20 38 Z" fill="url(#spR-{role.key}-{t.tier})" opacity="0.85"/>
+                                            <line x1="26" y1="16" x2="26" y2="34" stroke="#050812" stroke-width="1.5"/>
+                                        {:else if role.key === 'bruiser'}
+                                            <rect x="14" y="22" width="8" height="14" rx="1" fill="url(#spR-{role.key}-{t.tier})"/>
+                                            <rect x="30" y="22" width="8" height="14" rx="1" fill="url(#spR-{role.key}-{t.tier})"/>
+                                            <rect x="22" y="27" width="8" height="5" fill="url(#spR-{role.key}-{t.tier})"/>
+                                        {:else if role.key === 'vanguard'}
+                                            <polygon points="26,12 38,20 36,38 26,44 16,38 14,20" fill="none" stroke="url(#spR-{role.key}-{t.tier})" stroke-width="2.5"/>
+                                            <circle cx="26" cy="28" r="5" fill="url(#spR-{role.key}-{t.tier})" opacity="0.9"/>
+                                        {:else if role.key === 'packmaster'}
+                                            <rect x="14" y="20" width="24" height="18" rx="2" fill="none" stroke="url(#spR-{role.key}-{t.tier})" stroke-width="2"/>
+                                            <line x1="14" y1="27" x2="38" y2="27" stroke="url(#spR-{role.key}-{t.tier})" stroke-width="1.5"/>
+                                            <line x1="26" y1="20" x2="26" y2="38" stroke="url(#spR-{role.key}-{t.tier})" stroke-width="1.5"/>
+                                        {:else if role.key === 'endurance'}
+                                            <path d="M 26 12 A 14 14 0 1 1 25.9 12 Z" fill="none" stroke="url(#spR-{role.key}-{t.tier})" stroke-width="2.5" stroke-dasharray="44 88"/>
+                                            <path d="M 26 16 A 10 10 0 1 1 25.9 16 Z" fill="none" stroke="url(#spR-{role.key}-{t.tier})" stroke-width="2" stroke-dasharray="31 62" opacity="0.6"/>
+                                            <circle cx="26" cy="28" r="2.5" fill="url(#spR-{role.key}-{t.tier})"/>
+                                        {/if}
+                                    </svg>
+                                </div>
+                                <div class="badge-card-name-wrap">
+                                    <div class="badge-tier-tag">{t.label}</div>
+                                    <div class="badge-card-name">{role.label}</div>
+                                </div>
+                            </div>
+                            <div class="badge-req">{t.req}</div>
+                            <div class="badge-status">
+                                {#if earned.length > 0}
+                                    <div class="badge-earned-by">✓ {earned.length} species<span class="count">{earnedSpeciesList(earned)}</span></div>
+                                {:else}
+                                    <div class="badge-earned-by" style="color:var(--tek-text-faint);">— Not earned</div>
+                                {/if}
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        {/each}
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SYSTEM 3: UNDERDOG
          ═══════════════════════════════════════════════════════ -->
     <div class="sys-panel" class:active={sys === 'underdog'} id="sys-underdog">
 
@@ -690,7 +783,7 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
-         SYSTEM 3: PRIZE BLOODLINE
+         SYSTEM 4: PRIZE BLOODLINE
          ═══════════════════════════════════════════════════════ -->
     <div class="sys-panel" class:active={sys === 'prize'} id="sys-prize">
 
@@ -1940,6 +2033,112 @@
     margin-right: 6px;
 }
 .special-status.earned-status .pip { background: var(--tier-gold); box-shadow: 0 0 5px rgba(255,215,0,0.5); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   HOW BADGES WORK — 4-column variant
+   ═════════════════════════════════════════════════════════════════════════ */
+.how-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 1100px) { .how-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .how-grid-4 { grid-template-columns: 1fr; } }
+
+.how-card.specialist { --hc-rgb: 255, 215, 0; }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   SPECIALIST ROLES — System 2
+   ═════════════════════════════════════════════════════════════════════════ */
+.specialist-intro {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+}
+.spec-intro-rule {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,215,0,0.30), transparent);
+}
+.spec-intro-text { white-space: nowrap; color: var(--tek-text-faint); }
+
+.spec-role-block {
+    margin-bottom: 28px;
+    background: linear-gradient(160deg, rgba(10,18,44,0.50) 0%, rgba(4,8,20,0.80) 100%);
+    border: 1px solid rgba(255,215,0,0.10);
+    clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+    padding: 16px 18px 18px;
+    position: relative;
+}
+.spec-role-block::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 12px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, rgba(255,215,0,0.6), rgba(255,215,0,0.1));
+}
+
+.spec-role-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+.spec-role-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.spec-role-icon {
+    font-size: 1.1rem;
+    filter: drop-shadow(0 0 5px rgba(255,215,0,0.4));
+}
+.spec-role-name {
+    font-family: var(--tek-display);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--tier-gold);
+    text-shadow: 0 0 10px rgba(255,215,0,0.25);
+}
+.spec-role-flavor {
+    font-family: var(--tek-serif);
+    font-style: italic;
+    font-size: 0.86rem;
+    color: var(--tek-text-dim);
+    flex: 1;
+    min-width: 0;
+}
+.spec-role-count {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-dim);
+    border: 1px solid rgba(100,116,139,0.25);
+    padding: 2px 7px;
+    flex-shrink: 0;
+}
+
+.spec-tier-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+@media (max-width: 900px) { .spec-tier-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 500px) { .spec-tier-grid { grid-template-columns: 1fr; } }
+
+/* Tier color tokens for specialist roles */
+.spec-tier-standard  { --tier-rgb: 100, 220, 100; }
+.spec-tier-elite     { --tier-rgb: 100, 180, 255; }
+.spec-tier-apex      { --tier-rgb: 168,  85, 247; }
+.spec-tier-legendary { --tier-rgb: 255, 215,   0; }
 
 /* utilities */
 .btn-ghost-small {
