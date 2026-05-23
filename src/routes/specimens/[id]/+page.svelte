@@ -2,6 +2,7 @@
     import type { PageData } from './$types';
     import { onMount } from 'svelte';
     import { computeBadges, getStat, type Stats } from '$lib/badges';
+    import { copyCreatureLink, shareCreatureToDiscord } from '$lib/discordShare';
     import PinModal from '$lib/components/PinModal.svelte';
 
     let { data }: { data: PageData } = $props();
@@ -148,49 +149,33 @@
     }
 
     // ── Action handlers ────────────────────────────────────────────────
-    let showPartnerPicker = $state(false);
-    let partnerSearch     = $state('');
+    let shareMenuOpen = $state(false);
+    let shareToast = $state('');
     let pinModalOpen      = $state(false);
     let saving            = $state(false);
 
-    const oppositeGender = $derived(c.gender?.toLowerCase() === 'male' ? 'female' : 'male');
 
-    const partnerCandidates = $derived(
-        data.vault
-            .filter(v => v.gender?.toLowerCase() === oppositeGender && v.species === c.species)
-            .filter(v => !partnerSearch.trim() || v.name.toLowerCase().includes(partnerSearch.toLowerCase()))
-            .slice(0, 30)
-    );
-
-    const currentPartner = $derived(
-        c.partnerId ? data.vault.find(v => v.id === c.partnerId) ?? null : null
-    );
-
-    async function setPartner(partnerId: number | null) {
-        if (saving) return;
-        saving = true;
-        try {
-            const next: Record<string, unknown> = { ...data.rawData };
-            if (partnerId === null) delete next.partnerId; else next.partnerId = partnerId;
-            const res = await fetch(`/api/creatures/${c.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(next)
-            });
-            if (res.ok) {
-                showPartnerPicker = false;
-                location.reload();
-            }
-        } finally { saving = false; }
+    function flashShareToast(msg: string) {
+        shareToast = msg;
+        setTimeout(() => { if (shareToast === msg) shareToast = ''; }, 1800);
     }
-
-    function shareLink() {
-        const url = `${location.origin}/specimens/${c.id}`;
-        navigator.clipboard?.writeText(url).then(() => {
-            alert(`Link copied:\n${url}`);
-        }).catch(() => {
-            prompt('Copy this link', url);
+    async function doCopyLink() {
+        const ok = await copyCreatureLink(c.id);
+        shareMenuOpen = false;
+        flashShareToast(ok ? '✓ Link copied' : 'Copy failed');
+    }
+    async function doDiscordShare() {
+        const ok = await shareCreatureToDiscord({
+            name: c.name,
+            species: c.species,
+            gender: c.gender,
+            baseStats: c.baseStats,
+            mutations: c.mutations,
+            availableForBreeding: (data.rawData as Record<string, unknown> | undefined)?.availableForBreeding === true,
+            availableForTrade: (data.rawData as Record<string, unknown> | undefined)?.availableForTrade === true
         });
+        shareMenuOpen = false;
+        flashShareToast(ok ? '✓ Discord copy ready' : 'Copy failed');
     }
 
     async function retireSpecimen() {
@@ -265,6 +250,16 @@
 
     let hexCanvas: HTMLCanvasElement;
     let artifactEl: HTMLDivElement;
+
+    // Close share menu when clicking outside it
+    function onGlobalShareClick(e: MouseEvent) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.share-wrap')) shareMenuOpen = false;
+    }
+    onMount(() => {
+        document.addEventListener('click', onGlobalShareClick);
+        return () => document.removeEventListener('click', onGlobalShareClick);
+    });
 
     onMount(() => {
         // Hex canvas background
@@ -442,49 +437,21 @@
                 <div class="action-bar">
                     <a class="act-btn primary" href="/specimens/{c.id}/edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</a>
                     <button class="act-btn secondary" onclick={() => pinModalOpen = true}><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>Pin as Project</button>
-                    <button class="act-btn secondary" onclick={() => showPartnerPicker = !showPartnerPicker}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Set Partner</button>
-                    <button class="act-btn ghost" onclick={shareLink}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Share</button>
+                    <div class="share-wrap">
+                        <button class="act-btn ghost" onclick={(evt) => { evt.stopPropagation(); shareMenuOpen = !shareMenuOpen; }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share</button>
+                        {#if shareMenuOpen}
+                            <div class="share-menu">
+                                <button class="share-menu-item" onclick={doCopyLink}>📎 Copy Link</button>
+                                <button class="share-menu-item" onclick={doDiscordShare}>💬 Share to Discord</button>
+                            </div>
+                        {/if}
+                        {#if shareToast}
+                            <div class="share-toast">{shareToast}</div>
+                        {/if}
+                    </div>
                     <button class="act-btn danger" onclick={retireSpecimen} disabled={c.retired}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22a8 8 0 0 1 16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 2L18 6"/><path d="M18 2l4 4"/></svg>{c.retired ? 'Retired' : 'Retire'}</button>
                     <button class="act-btn danger" onclick={deleteSpecimen}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>Delete</button>
                 </div>
-
-                <!-- Set Partner inline picker (toggled by action bar) -->
-                {#if showPartnerPicker}
-                    <div class="partner-picker">
-                        <div class="partner-picker-head">
-                            <span class="partner-picker-title">Set Partner</span>
-                            <span class="partner-picker-meta">
-                                {#if currentPartner}
-                                    Current: <strong>"{currentPartner.name}"</strong>
-                                    <button class="partner-clear" onclick={() => setPartner(null)} disabled={saving}>Clear</button>
-                                {:else}
-                                    No partner set
-                                {/if}
-                            </span>
-                            <button class="partner-close" onclick={() => showPartnerPicker = false} aria-label="Close">✕</button>
-                        </div>
-                        <input
-                            type="text"
-                            class="partner-search"
-                            placeholder="Search {oppositeGender} {c.species}…"
-                            bind:value={partnerSearch}
-                        />
-                        <div class="partner-list">
-                            {#each partnerCandidates as p (p.id)}
-                                <button class="partner-row {genderClass(p.gender)}" onclick={() => setPartner(p.id)} disabled={saving}>
-                                    <span class="gender-glyph {genderClass(p.gender)}">{genderGlyph(p.gender)}</span>
-                                    <div class="partner-id">
-                                        <div class="partner-name">{p.species} <span class="nick">· "{p.name}"</span></div>
-                                        <div class="partner-meta">Lvl {p.level} · {mutTotal(p)} muts</div>
-                                    </div>
-                                    {#if p.id === c.partnerId}<span class="partner-flag">★ Current</span>{/if}
-                                </button>
-                            {:else}
-                                <div class="partner-empty">— No {oppositeGender} {c.species} in your vault</div>
-                            {/each}
-                        </div>
-                    </div>
-                {/if}
             {/if}
 
             <!-- PROJECT CALLOUT — only when this specimen is a pinned project -->
@@ -648,12 +615,6 @@
                 </div>
                 <div class="prov-grid">
                     <span class="key">Logged</span>     <span class="val">{loggedDateLong} by <a href="/survivors/{data.owner.id}" class="accent">{ownerName}</a></span>
-                    {#if c.server}
-                        <span class="key">Server</span>     <span class="val tribe">{c.server}{data.userTribeName ? ` (${data.userTribeName} Tribe)` : ''}</span>
-                    {/if}
-                    <span class="key">Imprint</span>    <span class="val">{c.imprint != null ? `${c.imprint}%` : '—'}</span>
-                    <span class="key">Wild Lvl</span>   <span class="val">{c.wildLevel != null ? `${c.wildLevel} (before tame)` : '—'}</span>
-                    <span class="key">Tamed Lvl</span>  <span class="val">{c.tamedLevel != null ? c.tamedLevel : c.level}</span>
                     <span class="key">Specimen ID</span> <span class="val">#{c.id}</span>
                 </div>
                 {#if c.notes}
@@ -1911,5 +1872,49 @@
     .artifact { width: 100%; max-width: 360px; height: 560px; }
     .ancestor { grid-template-columns: 18px 1fr auto; gap: 10px; padding: 7px 10px; }
     .ancestor-muts { display: none; }
+}
+
+/* ─── Share dropdown (in action bar) ───────────────────────────── */
+.share-wrap { position: relative; display: inline-flex; }
+.share-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background: linear-gradient(160deg, rgba(20,28,52,0.97), rgba(8,14,28,1));
+    border: 1px solid rgba(0,180,255,0.30);
+    clip-path: polygon(6px 0%, 100% 0%, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0% 100%, 0% 6px);
+    padding: 4px;
+    z-index: 50;
+    min-width: 180px;
+    filter: drop-shadow(0 8px 18px rgba(0,0,0,0.55));
+}
+.share-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--tek-text);
+    font-family: inherit;
+    font-size: 0.78rem;
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.share-menu-item:hover { background: rgba(0,180,255,0.12); color: var(--tek-blue); }
+
+.share-toast {
+    position: absolute;
+    top: -28px; left: 0;
+    background: linear-gradient(160deg, rgba(20,28,52,0.95), rgba(8,14,28,1));
+    border: 1px solid rgba(16,185,129,0.35);
+    color: #86efac;
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.10em;
+    padding: 4px 9px;
+    white-space: nowrap;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    z-index: 60;
 }
 </style>
