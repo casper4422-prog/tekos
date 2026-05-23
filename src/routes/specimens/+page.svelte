@@ -110,6 +110,8 @@
     let filterMap = $state<string>('any');
     let filterGender = $state<'any' | 'male' | 'female'>('any');
     let filterHasMuts = $state<boolean>(false);
+    let filterAvailBreeding = $state<boolean>(false);
+    let filterAvailTrade = $state<boolean>(false);
     // Badge filter value: 'any' | 'bloodline:bronze' | 'bloodline:silver' | … | 'boss:titan'
     let filterBadge = $state<string>('any');
 
@@ -278,6 +280,12 @@
         if (filterHasMuts) {
             list = list.filter(e => e.muts > 0);
         }
+        if (filterAvailBreeding) {
+            list = list.filter(e => e.ref.availableForBreeding === true);
+        }
+        if (filterAvailTrade) {
+            list = list.filter(e => e.ref.availableForTrade === true);
+        }
         if (filterBadge !== 'any') {
             const [system, tier] = filterBadge.split(':');
             list = list.filter(e => {
@@ -298,12 +306,15 @@
     });
 
     const advancedFiltersActive = $derived(
-        filterMap !== 'any' || filterGender !== 'any' || filterHasMuts || filterBadge !== 'any'
+        filterMap !== 'any' || filterGender !== 'any' || filterHasMuts
+            || filterAvailBreeding || filterAvailTrade || filterBadge !== 'any'
     );
     function clearAdvancedFilters() {
         filterMap = 'any';
         filterGender = 'any';
         filterHasMuts = false;
+        filterAvailBreeding = false;
+        filterAvailTrade = false;
         filterBadge = 'any';
     }
 
@@ -462,6 +473,20 @@
                 <label class="adv-check">
                     <input type="checkbox" bind:checked={filterHasMuts} />
                     Has Mutations
+                </label>
+            </div>
+
+            <div class="adv-group">
+                <label class="adv-check">
+                    <input type="checkbox" bind:checked={filterAvailBreeding} />
+                    Avail. Breeding
+                </label>
+            </div>
+
+            <div class="adv-group">
+                <label class="adv-check">
+                    <input type="checkbox" bind:checked={filterAvailTrade} />
+                    Avail. Trade
                 </label>
             </div>
 

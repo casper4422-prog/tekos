@@ -13,6 +13,8 @@ export type VaultCreature = {
     mutations: Stats;
     notes?: string;
     server?: string;
+    availableForBreeding?: boolean;
+    availableForTrade?: boolean;
 };
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -44,7 +46,9 @@ export const load: PageServerLoad = async ({ locals }) => {
             baseStats: (d.baseStats as Stats) ?? {},
             mutations: (d.mutations as Stats) ?? {},
             notes:     typeof d.notes === 'string' ? d.notes : undefined,
-            server:    typeof d.server === 'string' ? d.server : undefined
+            server:    typeof d.server === 'string' ? d.server : undefined,
+            availableForBreeding: d.availableForBreeding === true,
+            availableForTrade:    d.availableForTrade === true
         };
     });
 
