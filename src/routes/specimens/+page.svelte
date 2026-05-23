@@ -2,12 +2,63 @@
     import { onMount } from 'svelte';
     import type { PageData } from './$types';
     import { computeBadges, getStat } from '$lib/badges';
+    import { copyCreatureLink, shareCreatureToDiscord, type ShareableCreature } from '$lib/discordShare';
     import PinModal from '$lib/components/PinModal.svelte';
 
     let { data }: { data: PageData } = $props();
 
     let pinModalOpen = $state(false);
     let pinModalPreselectId = $state<number | null>(null);
+
+    // Card action state: only one share menu open at a time; toast lives per-card.
+    let openShareMenuId = $state<number | null>(null);
+    let actionToast = $state<{ id: number; msg: string } | null>(null);
+
+    function flashToast(id: number, msg: string) {
+        actionToast = { id, msg };
+        setTimeout(() => { if (actionToast?.id === id) actionToast = null; }, 1800);
+    }
+    function toggleShareMenu(id: number, evt?: MouseEvent) {
+        evt?.stopPropagation();
+        evt?.preventDefault();
+        openShareMenuId = openShareMenuId === id ? null : id;
+    }
+    async function doCopyLink(c: ShareableCreature & { id: number }, evt?: MouseEvent) {
+        evt?.stopPropagation(); evt?.preventDefault();
+        const ok = await copyCreatureLink(c.id);
+        openShareMenuId = null;
+        flashToast(c.id, ok ? '✓ Link copied' : 'Copy failed');
+    }
+    async function doDiscordShare(c: ShareableCreature & { id: number }, evt?: MouseEvent) {
+        evt?.stopPropagation(); evt?.preventDefault();
+        const ok = await shareCreatureToDiscord(c);
+        openShareMenuId = null;
+        flashToast(c.id, ok ? '✓ Discord copy ready' : 'Copy failed');
+    }
+    async function sendToTribeVault(c: { id: number }, evt?: MouseEvent) {
+        evt?.stopPropagation(); evt?.preventDefault();
+        try {
+            const res = await fetch('/api/tribe-creatures', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ creatureId: c.id })
+            });
+            const body = await res.json().catch(() => ({}));
+            flashToast(c.id, res.ok ? '✓ Sent to Tribe Vault' : (body?.error ?? 'Failed'));
+        } catch {
+            flashToast(c.id, 'Failed');
+        }
+    }
+
+    // Close any open share menu when clicking outside any card actions.
+    function onGlobalClick(e: MouseEvent) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.card-actions')) openShareMenuId = null;
+    }
+    onMount(() => {
+        document.addEventListener('click', onGlobalClick);
+        return () => document.removeEventListener('click', onGlobalClick);
+    });
 
     function openPinModal(id: number) {
         pinModalPreselectId = id;
@@ -109,9 +160,9 @@
     }
 
     function totalMuts(c: typeof data.creatures[0]): number {
-        // each mutation in mutations Stats = 2 levels; total muts = sum(mutLevels)/2
-        const totalMutLevels = STAT_KEYS.reduce((sum, s) => sum + getStat(c.mutations, s), 0);
-        return Math.round(totalMutLevels / 2);
+        // Mutations field stores TOTAL mutation LEVELS across the 7 stats.
+        // Survivors enter them manually from their UI — sum directly, no /2.
+        return STAT_KEYS.reduce((sum, s) => sum + getStat(c.mutations, s), 0);
     }
 
     function genderClass(g: string): string {
@@ -316,6 +367,34 @@
         Showing <span class="num">{filtered.length}</span> of <span class="num">{enriched.length}</span> · sorted by <span class="num">{sortLabel}</span>
     </div>
 
+    <!-- Shared per-card action bar (Share dropdown · Send to Tribe Vault · Pin Project) -->
+    {#snippet cardActions(item: { ref: typeof data.creatures[0] })}
+        <div class="card-actions">
+            <div class="share-wrap">
+                <button class="row-btn" onclick={(evt) => toggleShareMenu(item.ref.id, evt)} title="Share">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                </button>
+                {#if openShareMenuId === item.ref.id}
+                    <div class="share-menu">
+                        <button class="share-menu-item" onclick={(evt) => doCopyLink(item.ref, evt)}>📎 Copy Link</button>
+                        <button class="share-menu-item" onclick={(evt) => doDiscordShare(item.ref, evt)}>💬 Share to Discord</button>
+                    </div>
+                {/if}
+            </div>
+            {#if data.myTribeId}
+                <button class="row-btn" onclick={(evt) => sendToTribeVault(item.ref, evt)} title="Send to Tribe Vault">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </button>
+            {/if}
+            <button class="row-btn" onclick={(evt) => { evt.stopPropagation(); evt.preventDefault(); openPinModal(item.ref.id); }} title="Pin as Project">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+            </button>
+            {#if actionToast && actionToast.id === item.ref.id}
+                <div class="action-toast">{actionToast.msg}</div>
+            {/if}
+        </div>
+    {/snippet}
+
     <!-- ═══════════ LIST VIEW ═══════════ -->
     <div class="vault-list" class:hidden={view !== 'list'}>
         {#each filtered as e (e.ref.id)}
@@ -354,9 +433,7 @@
                         {/each}
                     </div>
                 </a>
-                <button class="list-pin-overlay" title="Pin as Project" onclick={() => openPinModal(e.ref.id)}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                </button>
+                {@render cardActions(e)}
             </div>
         {/each}
     </div>
@@ -396,9 +473,7 @@
                     </div>
                 </div>
                 </a>
-                <button class="grid-pin-overlay" title="Pin as Project" onclick={() => openPinModal(e.ref.id)}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                </button>
+                {@render cardActions(e)}
             </div>
         {/each}
 
@@ -935,34 +1010,83 @@
    (button inside <a> is invalid HTML and breaks event handling). */
 .list-row-wrap, .grid-card-wrap { position: relative; }
 
-.list-pin-overlay,
-.grid-pin-overlay {
+/* Per-card action bar (Share dropdown · Send to Tribe Vault · Pin Project) */
+.card-actions {
     position: absolute;
     z-index: 5;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 4px;
+    opacity: 0.7;
+    transition: opacity 0.18s;
+}
+.list-row-wrap > .card-actions { top: 50%; right: 14px; transform: translateY(-50%); }
+.grid-card-wrap > .card-actions { top: 10px; right: 10px; }
+.list-row-wrap:hover > .card-actions,
+.grid-card-wrap:hover > .card-actions { opacity: 1; }
+
+.card-actions .row-btn {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
     background: rgba(0, 180, 255, 0.10);
     border: 1px solid rgba(0, 180, 255, 0.32);
     color: var(--tek-blue);
     cursor: pointer;
     clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
     transition: all 0.18s;
-    opacity: 0.65;
+    padding: 0;
 }
-.list-pin-overlay { top: 50%; right: 14px; width: 26px; height: 26px; transform: translateY(-50%); }
-.grid-pin-overlay { top: 10px; right: 10px; width: 24px; height: 24px; }
-.list-row-wrap:hover .list-pin-overlay,
-.grid-card-wrap:hover .grid-pin-overlay { opacity: 1; }
-.list-pin-overlay:hover,
-.grid-pin-overlay:hover {
+.card-actions .row-btn:hover {
     background: rgba(0, 180, 255, 0.25);
     filter: drop-shadow(0 0 6px var(--tek-blue-glow));
 }
-.grid-pin-overlay:hover { transform: translateY(-1px); }
 
-/* Placeholder column inside the list-row to reserve space for the overlay button */
-.row-btn-placeholder { opacity: 0; pointer-events: none; }
+.share-wrap { position: relative; }
+.share-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: linear-gradient(160deg, rgba(20,28,52,0.97), rgba(8,14,28,1));
+    border: 1px solid rgba(0,180,255,0.30);
+    clip-path: polygon(6px 0%, 100% 0%, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0% 100%, 0% 6px);
+    padding: 4px;
+    z-index: 50;
+    min-width: 168px;
+    filter: drop-shadow(0 8px 18px rgba(0,0,0,0.55));
+}
+.share-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--tek-text);
+    font-family: inherit;
+    font-size: 0.78rem;
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.share-menu-item:hover { background: rgba(0,180,255,0.12); color: var(--tek-blue); }
+
+.action-toast {
+    position: absolute;
+    top: -28px; right: 0;
+    background: linear-gradient(160deg, rgba(20,28,52,0.95), rgba(8,14,28,1));
+    border: 1px solid rgba(16,185,129,0.35);
+    color: #86efac;
+    font-family: var(--tek-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.10em;
+    padding: 4px 9px;
+    white-space: nowrap;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    z-index: 60;
+}
+
+/* Placeholder column inside the list-row to reserve space for the action bar.
+   Width matches the action bar: 3 buttons (~26px each) + 2 gaps + breathing room. */
+.row-btn-placeholder { opacity: 0; pointer-events: none; width: 90px; }
 
 .grid-card {
     --cat-rgb: 0,180,255;

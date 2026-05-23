@@ -17,12 +17,20 @@ export type VaultCreature = {
 
 export const load: PageServerLoad = async ({ locals }) => {
     // Guest mode — empty vault, page uses localStorage client-side
-    if (!locals.user) return { creatures: [] as VaultCreature[] };
+    if (!locals.user) return { creatures: [] as VaultCreature[], myTribeId: null as number | null };
 
-    const rows = await db.creature.findMany({
-        where: { userId: locals.user.id },
-        orderBy: { createdAt: 'desc' }
-    });
+    const [rows, membership] = await Promise.all([
+        db.creature.findMany({
+            where: { userId: locals.user.id },
+            orderBy: { createdAt: 'desc' }
+        }),
+        // Drives the visibility of the per-card "Send to Tribe Vault" button —
+        // hidden entirely when the user isn't in a tribe.
+        db.tribeMembership.findFirst({
+            where: { userId: locals.user.id },
+            select: { tribeId: true }
+        })
+    ]);
 
     const creatures: VaultCreature[] = rows.map(r => {
         const d = r.data as Record<string, unknown>;
@@ -40,5 +48,5 @@ export const load: PageServerLoad = async ({ locals }) => {
         };
     });
 
-    return { creatures };
+    return { creatures, myTribeId: membership?.tribeId ?? null };
 };
