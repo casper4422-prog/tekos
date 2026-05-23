@@ -421,6 +421,17 @@
 	});
 
 	function ago(dt: string) { const d = new Date(dt); return d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }); }
+
+	// creaturesUsed stores either a plain array (old records) or { creatures, squad, duration } (new records).
+	type Receipt = { creatures: Record<string,unknown>[]; squad: {name:string;userId:number}[]; duration: number|null };
+	function parseReceipt(raw: unknown): Receipt {
+		if (Array.isArray(raw)) return { creatures: raw as Record<string,unknown>[], squad: [], duration: null };
+		if (raw && typeof raw === 'object') {
+			const r = raw as Record<string,unknown>;
+			return { creatures: (r.creatures as Record<string,unknown>[]) ?? [], squad: (r.squad as {name:string;userId:number}[]) ?? [], duration: (r.duration as number|null) ?? null };
+		}
+		return { creatures: [], squad: [], duration: null };
+	}
 </script>
 
 <canvas id="tekHexCanvas" bind:this={hexCanvas}></canvas>
@@ -565,8 +576,7 @@
 				<div class="boss-grid">
 					{#each records as r}
 						{@const rd = r as Record<string,unknown>}
-						{@const squad = (rd.squadMembers as {name:string;userId:number}[]) ?? []}
-						{@const usedCreatures = (rd.creaturesUsed as Record<string,unknown>[]) ?? []}
+						{@const receipt = parseReceipt(rd.creaturesUsed)}
 						<button class="boss-card {rd.outcome==='success'?'forest':'dragon'}" onclick={() => receiptRecord = rd}>
 							<div class="boss-top">
 								<div class="boss-glyph">
@@ -582,7 +592,7 @@
 							</div>
 							<div class="boss-status" style="border-top:none;padding-top:0">
 								<span class="status-badge {rd.outcome==='success'?'ready':'notready'}"><span class="status-pip"></span>{rd.outcome==='success'?'Victory':'Defeat'}</span>
-								<span class="boss-extra">{squad.length > 0 ? `${squad.length} survivors` : usedCreatures.length > 0 ? `${usedCreatures.length} tames` : 'View receipt'}</span>
+								<span class="boss-extra">{receipt.squad.length > 0 ? `${receipt.squad.length} survivors` : receipt.creatures.length > 0 ? `${receipt.creatures.length} tames` : 'View receipt'}</span>
 							</div>
 						</button>
 					{/each}
@@ -1097,8 +1107,10 @@
 <!-- ═════════ FIGHT RECEIPT MODAL ═════════ -->
 {#if receiptRecord}
 {@const rr = receiptRecord}
-{@const rrSquad = (rr.squadMembers as {name:string;userId:number}[]) ?? []}
-{@const rrCreatures = (rr.creaturesUsed as Record<string,unknown>[]) ?? []}
+{@const rrReceipt = parseReceipt(rr.creaturesUsed)}
+{@const rrSquad = rrReceipt.squad}
+{@const rrCreatures = rrReceipt.creatures}
+{@const rrDuration = rrReceipt.duration}
 {@const rrDate = new Date(String(rr.createdAt))}
 <div class="modal-overlay" role="dialog" aria-modal="true" tabindex="-1"
 	onclick={() => receiptRecord=null}
@@ -1125,7 +1137,7 @@
 					<div style="font-family:var(--tek-display);font-size:1.1rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:var(--tek-text)">{String(rr.bossName)}</div>
 					<div style="font-family:var(--tek-mono);font-size:0.72rem;color:#64748b;margin-top:4px">
 						{String(rr.difficulty ?? '').toUpperCase()}
-						{#if rr.duration} · {rr.duration} min{/if}
+						{#if rrDuration} · {rrDuration} min{/if}
 						· {rrDate.toLocaleDateString()} {rrDate.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
 					</div>
 					<div style="margin-top:6px">

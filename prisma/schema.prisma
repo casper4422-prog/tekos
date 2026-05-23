@@ -359,8 +359,6 @@ model BossRecord {
   outcome       String   @default("success")
   notes         String?
   creaturesUsed Json     @default("[]") @map("creatures_used")
-  squadMembers  Json     @default("[]") @map("squad_members")
-  duration      Int?
   createdAt     DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
