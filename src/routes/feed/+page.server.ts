@@ -131,6 +131,21 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 		} catch { /* skip */ }
 	}
 
+	// Steam items — single API hit (ASA app feed). If the user has ANY steam
+	// source saved, we fetch the Steam News feed once and surface it. v1
+	// ignores the actual URL; v2 can parse appids / group ids per source.
+	const hasSteamSource = feedSources.some(s => s.type === 'steam');
+	let steamItems: Json[] = [];
+	if (hasSteamSource) {
+		try {
+			const r = await fetch('/api/steam-feed');
+			if (r.ok) {
+				const data = await r.json();
+				if (Array.isArray((data as Json).items)) steamItems = (data as Json).items as Json[];
+			}
+		} catch { /* skip */ }
+	}
+
 	return {
 		events,
 		bossRecords,
@@ -145,6 +160,7 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 		eventsToday: eventsTodayCount,
 		survivorsActive,
 		newsItems,
-		youtubeItems
+		youtubeItems,
+		steamItems
 	};
 };

@@ -9,12 +9,12 @@
     // Single-dimension filter
     let scope = $state<'all' | 'following' | 'tribe' | 'server' | 'global' | 'news'>('all');
 
-    // News tab platform toggles (Twitter / YouTube / Reddit / etc.)
+    // News tab platform toggles (Twitter / YouTube / Reddit / Steam / etc.)
     let activeSources = $state<Record<string, boolean>>({
         twitter: true,
         youtube: true,
-        instagram: true,
         reddit: true,
+        steam: true,
         sta: true,
         wildcard: true,
         twitch: false
@@ -197,10 +197,10 @@
         return [...groups.values()];
     });
 
-    // News items — combine ark-news (Wildcard-tagged) + youtube videos, filter by platform-toggle state
+    // News items — combine ark-news (Wildcard-tagged) + youtube videos + steam, filter by platform-toggle state
     type NewsItem = {
         id: string;
-        platform: 'twitter' | 'youtube' | 'instagram' | 'reddit' | 'sta' | 'wildcard' | 'twitch';
+        platform: 'twitter' | 'youtube' | 'reddit' | 'steam' | 'sta' | 'wildcard' | 'twitch';
         glyph: string;
         author: string;
         title?: string;
@@ -239,6 +239,19 @@
                 videoLink: v.link as string
             });
         }
+        for (const s of (data.steamItems ?? [])) {
+            out.push({
+                id: (s.id as string) ?? `steam-${s.url}`,
+                platform: 'steam',
+                glyph: '◢',
+                author: (s.author as string) || (s.feedLabel as string) || 'Steam',
+                title: s.title as string,
+                excerpt: s.body as string,
+                link: s.url as string,
+                date: s.date as string,
+                platformName: 'Steam'
+            });
+        }
         out.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         return out.filter(n => activeSources[n.platform]);
     });
@@ -251,7 +264,7 @@
     let addSourceMsg = $state('');
     let addSourceErr = $state(false);
 
-    function detectPlatform(raw: string): { type: 'youtube'|'twitter'|'reddit'|'twitch'|null; label: string } {
+    function detectPlatform(raw: string): { type: 'youtube'|'twitter'|'reddit'|'twitch'|'steam'|null; label: string } {
         const url = raw.trim();
         if (!url) return { type: null, label: '' };
         const lower = url.toLowerCase();
@@ -282,6 +295,19 @@
             return { type: 'twitch', label: m?.[1] ?? '' };
         }
 
+        // Steam — match store, community, news, group, and announcement URLs.
+        // All Steam sources route through the ASA News API on the server side,
+        // so we just need to recognize the URL shape and pick a sensible label.
+        if (/(^|\/\/)(www\.)?(store\.steampowered\.com|steamcommunity\.com)/.test(lower)) {
+            // Try to pull a meaningful label: group name, app name segment, or "ARK Ascended"
+            const groupMatch = url.match(/steamcommunity\.com\/groups\/([\w-]+)/i);
+            const appMatch   = url.match(/(?:store\.steampowered\.com|steamcommunity\.com)\/(?:app|games)\/(\d+)(?:\/([^/?#]+))?/i);
+            let label = 'ARK Ascended';
+            if (groupMatch?.[1]) label = groupMatch[1];
+            else if (appMatch?.[2]) label = decodeURIComponent(appMatch[2]).replace(/_/g, ' ');
+            return { type: 'steam', label };
+        }
+
         return { type: null, label: '' };
     }
 
@@ -291,7 +317,7 @@
         const url = newSourceUrl.trim();
         if (!url) { addSourceErr = true; addSourceMsg = 'Paste a link to add'; return; }
         const { type, label } = detectPlatform(url);
-        if (!type) { addSourceErr = true; addSourceMsg = "Couldn't detect platform — try a YouTube, Twitter, Reddit, or Twitch link"; return; }
+        if (!type) { addSourceErr = true; addSourceMsg = "Couldn't detect platform — try a YouTube, Twitter, Reddit, Twitch, or Steam link"; return; }
         addingSource = true; addSourceMsg = ''; addSourceErr = false;
         try {
             const res = await fetch('/api/feed-sources', {
@@ -332,6 +358,7 @@
         if (type === 'twitter') return 'Twitter / X';
         if (type === 'reddit')  return 'Reddit';
         if (type === 'twitch')  return 'Twitch';
+        if (type === 'steam')   return 'Steam';
         return type.toUpperCase();
     }
 
@@ -516,8 +543,8 @@
             <span class="source-row-label">Active:</span>
             <button class="source-chip twitter" class:active={activeSources.twitter} onclick={() => toggleSource('twitter')}><span class="platform-dot"></span>Twitter / X</button>
             <button class="source-chip youtube" class:active={activeSources.youtube} onclick={() => toggleSource('youtube')}><span class="platform-dot"></span>YouTube</button>
-            <button class="source-chip instagram" class:active={activeSources.instagram} onclick={() => toggleSource('instagram')}><span class="platform-dot"></span>Instagram</button>
             <button class="source-chip reddit" class:active={activeSources.reddit} onclick={() => toggleSource('reddit')}><span class="platform-dot"></span>Reddit</button>
+            <button class="source-chip steam" class:active={activeSources.steam} onclick={() => toggleSource('steam')}><span class="platform-dot"></span>Steam</button>
             <button class="source-chip sta" class:active={activeSources.sta} onclick={() => toggleSource('sta')}><span class="platform-dot"></span>Survive The Ark</button>
             <button class="source-chip wildcard" class:active={activeSources.wildcard} onclick={() => toggleSource('wildcard')}><span class="platform-dot"></span>Wildcard</button>
             <button class="source-chip twitch" class:active={activeSources.twitch} onclick={() => toggleSource('twitch')}><span class="platform-dot"></span>Twitch</button>
@@ -539,8 +566,9 @@
                 <div class="add-source-examples">
                     <span class="ex-chip youtube"><span class="dot"></span>youtube.com/@channel</span>
                     <span class="ex-chip twitter"><span class="dot"></span>twitter.com/handle</span>
-                    <span class="ex-chip reddit"><span class="dot"></span>reddit.com/r/playark</span>
+                    <span class="ex-chip reddit"><span class="dot"></span>reddit.com/r/ARKSurvivalAscended</span>
                     <span class="ex-chip twitch"><span class="dot"></span>twitch.tv/channel</span>
+                    <span class="ex-chip steam"><span class="dot"></span>steampowered.com/app/2399830</span>
                 </div>
                 <div class="add-source-row">
                     <div class="add-input-wrap">
@@ -584,6 +612,8 @@
                                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0A12 12 0 1 0 12 24 12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12.0c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg>
                                 {:else if src.type === 'twitch'}
                                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></svg>
+                                {:else if src.type === 'steam'}
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.6 0 .3 4.9 0 11.2L6.5 14a3.4 3.4 0 0 1 1.8-.5h.2l2.9-4.2v-.1a4.5 4.5 0 1 1 4.5 4.5h-.1l-4.1 3v.2a3.4 3.4 0 0 1-6.7 1l-4.6-2A12 12 0 1 0 12 0zM7.5 18.2l-1.5-.6a2.5 2.5 0 0 0 4.7-1.4 2.5 2.5 0 0 0-2.5-2.5l1.5.6a1.8 1.8 0 1 1-1.4 3.4l-.8-.3zm11.5-7.3a3 3 0 1 0-6 0 3 3 0 0 0 6 0z"/></svg>
                                 {/if}
                             </div>
                             <div class="src-card-body">
@@ -1002,8 +1032,8 @@
 
 .source-chip.twitter .platform-dot   { background: #1da1f2; box-shadow: 0 0 5px rgba(29,161,242,0.6); }
 .source-chip.youtube .platform-dot   { background: #ff0000; box-shadow: 0 0 5px rgba(255,0,0,0.6); }
-.source-chip.instagram .platform-dot { background: #e1306c; box-shadow: 0 0 5px rgba(225,48,108,0.6); }
 .source-chip.reddit .platform-dot    { background: #ff4500; box-shadow: 0 0 5px rgba(255,69,0,0.6); }
+.source-chip.steam .platform-dot     { background: #66c0f4; box-shadow: 0 0 5px rgba(102,192,244,0.6); }
 .source-chip.sta .platform-dot       { background: #10b981; box-shadow: 0 0 5px rgba(16,185,129,0.6); }
 .source-chip.wildcard .platform-dot  { background: #8b5cf6; box-shadow: 0 0 5px rgba(139,92,246,0.6); }
 .source-chip.twitch .platform-dot    { background: #9146ff; box-shadow: 0 0 5px rgba(145,70,255,0.6); }
@@ -1059,6 +1089,7 @@
     clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
 }
 .ex-chip .dot { width: 6px; height: 6px; border-radius: 50%; }
+.ex-chip.steam   .dot { background: #66c0f4; box-shadow: 0 0 4px rgba(102,192,244,0.5); }
 .ex-chip.youtube .dot { background: #ff0000; box-shadow: 0 0 4px rgba(255,0,0,0.5); }
 .ex-chip.twitter .dot { background: #1da1f2; box-shadow: 0 0 4px rgba(29,161,242,0.5); }
 .ex-chip.reddit  .dot { background: #ff4500; box-shadow: 0 0 4px rgba(255,69,0,0.5); }
@@ -1116,6 +1147,7 @@
 .detected-pill.twitter .dot { background: #1da1f2; box-shadow: 0 0 4px rgba(29,161,242,0.6); }
 .detected-pill.reddit  .dot { background: #ff4500; box-shadow: 0 0 4px rgba(255,69,0,0.6); }
 .detected-pill.twitch  .dot { background: #9146ff; box-shadow: 0 0 4px rgba(145,70,255,0.6); }
+.detected-pill.steam   .dot { background: #66c0f4; box-shadow: 0 0 4px rgba(102,192,244,0.6); }
 .detected-label { color: var(--tek-text-dim); margin-left: 2px; font-weight: 500; letter-spacing: 0.04em; text-transform: none; }
 
 .add-src-btn {
