@@ -8,6 +8,7 @@
 	import { onMount } from 'svelte';
 	import type { LayoutData } from './$types';
 	import { page } from '$app/stores';
+	import SNTO from '$lib/components/SNTO.svelte';
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
@@ -165,6 +166,11 @@
 	<main id="appMainContent">
 		{@render children()}
 	</main>
+
+	<!-- SNTO guide drone — visible on every authed page (and to guests browsing
+	     the app). Hidden on the pre-auth landing/login flow per the outer
+	     {#if !data.user && !isGuest} branch above. -->
+	<SNTO />
 {/if}
 
 <style>

@@ -1,14 +1,9 @@
 import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-import { db } from '$lib/db';
 
-export const load: PageServerLoad = async ({ locals }) => {
-    if (!locals.user) throw redirect(302, '/login');
-    const user = await db.user.findUnique({
-        where: { id: locals.user.id },
-        select: { id: true, nickname: true, email: true, createdAt: true }
-    });
-    return {
-        displayName: user?.nickname ?? user?.email?.split('@')[0] ?? 'Survivor'
-    };
-};
+// /awakening used to be a 6-scene auto-advancing onboarding slideshow.
+// It's been replaced by SNTO — the resident guide drone — which lives in
+// the global layout and is available everywhere. The route stays as a 308
+// so old links and bookmarks land somewhere useful.
+export function load() {
+    throw redirect(308, '/dossier');
+}
