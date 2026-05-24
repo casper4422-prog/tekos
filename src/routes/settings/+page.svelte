@@ -439,13 +439,68 @@
         servers = servers.filter(s => s.id !== id);
         markDirty();
     }
+    // RCON credential validation + save. There's no live socket connector yet
+    // (Render's Node runtime can't reliably reach typical home-server RCON
+    // ports without a tunnel), so this checks each field is the right shape
+    // and persists the credentials to user.settings.cluster.rcon for when
+    // the live connector lands. The toast is explicit about that.
+    function validateRconHost(host: string): string | null {
+        if (!host) return 'Host required (hostname or IPv4).';
+        // Hostname (one or more labels separated by dots) OR plain IPv4
+        const isHostname = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/.test(host);
+        const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+        if (ipv4 && ipv4.slice(1).every(part => { const n = Number(part); return n >= 0 && n <= 255; })) return null;
+        if (isHostname) return null;
+        return 'Host should be a hostname or IPv4 address.';
+    }
+    function validateRconPort(raw: string): { port: number | null; error: string | null } {
+        const trimmed = raw.trim();
+        if (!trimmed) return { port: null, error: 'Port required.' };
+        if (!/^\d+$/.test(trimmed)) return { port: null, error: 'Port must be digits only.' };
+        const n = parseInt(trimmed, 10);
+        if (!Number.isFinite(n) || n < 1 || n > 65535) return { port: null, error: 'Port must be 1–65535.' };
+        return { port: n, error: null };
+    }
+
     async function testRcon() {
-        rconStatusMsg = 'Testing…'; rconStatusOk = false;
-        // No backend yet — simulate validation locally
-        const ok = rconHost.trim().length > 0 && /^\d+$/.test(rconPort.trim()) && rconPass.length > 0;
-        await new Promise(r => setTimeout(r, 350));
-        if (ok) { rconStatusMsg = 'Connected — listening for events.'; rconStatusOk = true; }
-        else    { rconStatusMsg = 'Host, port and password are all required.'; rconStatusOk = false; }
+        rconStatusMsg = ''; rconStatusOk = false;
+        const host = rconHost.trim();
+        const hostErr = validateRconHost(host);
+        if (hostErr) { rconStatusMsg = hostErr; return; }
+        const { port, error: portErr } = validateRconPort(rconPort);
+        if (portErr || port == null) { rconStatusMsg = portErr ?? 'Port required.'; return; }
+        if (port < 1024) { rconStatusMsg = 'Port below 1024 is unusual — double-check your server config.'; return; }
+        if (!rconPasswordSaved && (!rconPass || rconPass.length < 4)) {
+            rconStatusMsg = 'Password required (4+ characters).';
+            return;
+        }
+
+        rconStatusMsg = 'Saving credentials…'; rconStatusOk = false;
+        try {
+            const res = await fetch('/api/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    cluster: {
+                        rcon: {
+                            host,
+                            port: String(port),
+                            ...(rconPass ? { password: rconPass } : {})
+                        }
+                    }
+                })
+            });
+            if (res.ok) {
+                rconStatusMsg = '✓ Credentials saved. Live polling activates once the RCON connector ships.';
+                rconStatusOk = true;
+                rconPasswordSaved = true;
+                rconPass = '';
+            } else {
+                rconStatusMsg = 'Failed to save credentials.';
+            }
+        } catch {
+            rconStatusMsg = 'Network error while saving.';
+        }
     }
     async function saveCluster() {
         clusterSaving = true; clusterMsg = ''; clusterErr = false;
@@ -1449,20 +1504,20 @@
                         <div class="rcon-head">
                             <div class="rcon-title">▸ RCON Connection <span style="color:var(--tek-text-faint); font-weight:400;">— Admin only · Optional</span></div>
                             <div class="rcon-status" class:connected={rconStatusOk} class:unconfigured={!rconStatusOk}>
-                                <span class="dot"></span>{rconStatusOk ? 'CONNECTED · LISTENING' : 'NOT CONNECTED'}
+                                <span class="dot"></span>{rconStatusOk ? 'CREDENTIALS SAVED' : 'NOT CONFIGURED'}
                             </div>
                         </div>
                         <div class="rcon-desc">
-                            Required for the rich Server feed (chat, admin announcements, boss spawns, taming events). Without it, TekOS still polls server status and player count via Steam A2S — you just won't get the event stream below the cluster card.
+                            Used for the rich Server feed (chat, admin announcements, boss spawns, taming events). Enter your host, port, and admin password — they're stored on your account so the live RCON connector can use them once it ships. Without RCON, TekOS still polls server status and player count via Steam A2S; you just won't get the event stream.
                         </div>
                         <div class="rcon-inputs">
-                            <input class="input" bind:value={rconHost} oninput={markDirty} placeholder="Host or IP" />
-                            <input class="input" bind:value={rconPort} oninput={markDirty} placeholder="Port" />
-                            <input class="input" bind:value={rconPass} oninput={() => { rconPasswordSaved = false; markDirty(); }} type="password" placeholder={rconPasswordSaved ? 'Password saved (re-enter to change)' : 'Password'} />
+                            <input class="input" bind:value={rconHost} oninput={markDirty} placeholder="Host or IP (e.g. server.example.com)" />
+                            <input class="input" bind:value={rconPort} oninput={markDirty} placeholder="Port (default 27020)" />
+                            <input class="input" bind:value={rconPass} oninput={() => { rconPasswordSaved = false; markDirty(); }} type="password" placeholder={rconPasswordSaved ? 'Password saved (re-enter to change)' : 'Admin password'} />
                         </div>
                         <div class="rcon-actions">
-                            <button class="btn" onclick={testRcon}>TEST CONNECTION</button>
-                            <button class="btn ghost" onclick={() => { rconHost=''; rconPort='27020'; rconPass=''; rconStatusOk=false; rconStatusMsg=''; markDirty(); }}>DISCONNECT</button>
+                            <button class="btn" onclick={testRcon}>SAVE CREDENTIALS</button>
+                            <button class="btn ghost" onclick={() => { rconHost=''; rconPort='27020'; rconPass=''; rconPasswordSaved=false; rconStatusOk=false; rconStatusMsg=''; markDirty(); }}>CLEAR</button>
                         </div>
                         {#if rconStatusMsg}
                             <div class="result-msg" class:error={!rconStatusOk} style="margin-top:10px;">{rconStatusMsg}</div>
