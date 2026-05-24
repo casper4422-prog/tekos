@@ -81,6 +81,32 @@ export const load: PageServerLoad = async ({ locals }) => {
 		convos.push({ userId: otherId, nickname: other.nickname, discordName: other.discordName, lastMessage: m.message, lastAt: m.createdAt, unread });
 	}
 
+	// Open war-room sessions the survivor is a member of — surfaced inside the
+	// Messages tab so all active conversations live in one place.
+	const memberships = await db.arenaSessionMember.findMany({
+		where: { userId: uid, session: { status: 'open' } },
+		include: {
+			session: {
+				select: {
+					id: true,
+					bossName: true,
+					difficulty: true,
+					joinCode: true,
+					createdAt: true,
+					chats: { orderBy: { createdAt: 'desc' }, take: 1, select: { content: true, createdAt: true } }
+				}
+			}
+		}
+	});
+	const warRooms = memberships.map(m => ({
+		sessionId:   m.session.id,
+		bossName:    m.session.bossName,
+		difficulty:  m.session.difficulty ?? null,
+		joinCode:    m.session.joinCode,
+		lastMessage: m.session.chats[0]?.content ?? null,
+		lastAt:      m.session.chats[0]?.createdAt ?? m.session.createdAt
+	})).sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime());
+
 	return {
 		friends,
 		incoming: incoming.map(r => ({ id: r.id, fromId: r.userId, nickname: r.user.nickname, discordName: r.user.discordName })),
@@ -88,6 +114,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		suggested,
 		myTribe: myMembership?.tribe ?? null,
 		convos,
+		warRooms,
 		myId: uid
 	};
 };

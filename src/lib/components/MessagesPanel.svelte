@@ -21,7 +21,16 @@
     };
     type Partner = { id: number; nickname: string | null; discordName: string | null };
 
-    let { convos, myId }: { convos: Convo[]; myId: number } = $props();
+    type WarRoom = {
+        sessionId: number;
+        bossName: string;
+        difficulty: string | null;
+        joinCode: string;
+        lastMessage: string | null;
+        lastAt: string | Date;
+    };
+
+    let { convos, warRooms = [], myId }: { convos: Convo[]; warRooms?: WarRoom[]; myId: number } = $props();
 
     let activeFilter = $state<'all' | 'unread'>('all');
     let search = $state('');
@@ -149,6 +158,28 @@
         scrollToBottom();
     }
 
+    // Quietly refresh the active thread — used by the polling loop. Doesn't
+    // toggle loadingThread or reset activeMessages on failure so an open chat
+    // stays responsive even with a flaky connection.
+    async function refreshActiveThread() {
+        if (activeWith == null || sending) return;
+        try {
+            const res = await fetch(`/api/dms/${activeWith}`);
+            if (!res.ok) return;
+            const fresh = await res.json() as Message[];
+            if (fresh.length > activeMessages.length) {
+                const atBottom = threadEl
+                    ? threadEl.scrollHeight - threadEl.scrollTop - threadEl.clientHeight < 60
+                    : true;
+                activeMessages = fresh;
+                if (atBottom) {
+                    await tick();
+                    scrollToBottom();
+                }
+            }
+        } catch { /* swallow */ }
+    }
+
     function scrollToBottom() {
         if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
     }
@@ -219,7 +250,17 @@
     });
 
     onMount(() => {
-        // Initial URL deep-link is handled by the $effect above
+        // Initial URL deep-link is handled by the $effect above.
+        // Poll the active thread every 6s so incoming messages from the other
+        // survivor appear without requiring a manual refresh. Also re-fetch
+        // the convo list every 30s so unread badges + last-message previews
+        // stay current.
+        const threadTimer = setInterval(() => { void refreshActiveThread(); }, 6000);
+        const listTimer   = setInterval(() => { void invalidateAll(); }, 30000);
+        return () => {
+            clearInterval(threadTimer);
+            clearInterval(listTimer);
+        };
     });
 </script>
 
@@ -239,10 +280,47 @@
         </div>
 
         <div class="convo-list">
-            {#if filteredConvos.length === 0}
+            {#if warRooms.length > 0}
+                <div class="convo-section-head">
+                    <span class="section-pip"></span>
+                    War Rooms
+                    <span class="section-count">{warRooms.length}</span>
+                </div>
+                {#each warRooms as w (w.sessionId)}
+                    <a class="convo war-room" href="/overseer/{w.sessionId}">
+                        <div class="convo-avatar">
+                            <svg viewBox="0 0 100 110"><polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.20)" stroke="#f59e0b" stroke-width="2"/><text x="50" y="74" font-family="Orbitron" font-size="40" font-weight="900" text-anchor="middle" fill="#fcd34d">⚔</text></svg>
+                        </div>
+                        <div class="convo-body">
+                            <div class="convo-name">{w.bossName}</div>
+                            <div class="convo-preview">
+                                {#if w.lastMessage}{w.lastMessage}
+                                {:else}— Room open · code {w.joinCode}{/if}
+                            </div>
+                        </div>
+                        <div class="convo-right">
+                            <div class="convo-time">{relTime(w.lastAt)}</div>
+                            {#if w.difficulty}<div class="war-tier {w.difficulty.toLowerCase()}">{w.difficulty.toUpperCase()}</div>{/if}
+                        </div>
+                    </a>
+                {/each}
+                {#if filteredConvos.length > 0}
+                    <div class="convo-section-head">
+                        <span class="section-pip blue"></span>
+                        Direct Messages
+                        <span class="section-count">{filteredConvos.length}</span>
+                    </div>
+                {/if}
+            {/if}
+
+            {#if filteredConvos.length === 0 && warRooms.length === 0}
                 <div class="empty-state">
                     <div class="empty-title">No conversations</div>
                     <div class="empty-flavor">"Find a Survivor in the Survivors tab and tap message."</div>
+                </div>
+            {:else if filteredConvos.length === 0 && warRooms.length > 0}
+                <div class="empty-state small">
+                    <div class="empty-flavor">— No direct messages yet —</div>
                 </div>
             {:else}
                 {#each filteredConvos as c (c.userId)}
@@ -443,8 +521,57 @@
 .convo-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; background: var(--tek-blue); color: #001a2e; font-family: var(--tek-mono); font-size: 0.58rem; font-weight: 800; border-radius: 99px; padding: 0 5px; margin-top: 3px; box-shadow: 0 0 5px var(--tek-blue-glow); }
 
 .empty-state { padding: 40px 20px; text-align: center; }
+.empty-state.small { padding: 18px 20px; }
 .empty-title { font-family: var(--tek-display); font-size: 0.9rem; letter-spacing: 0.10em; color: var(--tek-text-dim); text-transform: uppercase; margin-bottom: 6px; }
 .empty-flavor { font-family: var(--tek-mono); font-size: 0.7rem; color: var(--tek-text-faint); font-style: italic; }
+
+/* Section heads inside the convo list (War Rooms / Direct Messages) */
+.convo-section-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px 6px;
+    font-family: var(--tek-mono);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: var(--tek-text-faint);
+    text-transform: uppercase;
+}
+.convo-section-head .section-pip {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--tek-amber);
+    box-shadow: 0 0 5px rgba(245,158,11,0.55);
+}
+.convo-section-head .section-pip.blue {
+    background: var(--tek-blue);
+    box-shadow: 0 0 5px var(--tek-blue-glow);
+}
+.convo-section-head .section-count {
+    margin-left: auto;
+    background: rgba(0,0,0,0.28);
+    padding: 0 6px;
+    border-radius: 99px;
+    font-size: 0.56rem;
+    color: var(--tek-text-dim);
+}
+
+/* War-room variant of the convo row */
+.convo.war-room {
+    text-decoration: none;
+    color: inherit;
+}
+.convo.war-room:hover { background: rgba(245,158,11,0.06); }
+.convo.war-room .convo-name { color: #fcd34d; }
+.war-tier {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--tek-mono); font-size: 0.54rem; font-weight: 700;
+    letter-spacing: 0.10em; padding: 1px 6px;
+    background: rgba(0,0,0,0.30); margin-top: 3px;
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+.war-tier.gamma { color: var(--tek-green); }
+.war-tier.beta  { color: var(--tek-blue); }
+.war-tier.alpha { color: var(--tek-pink); }
+.war-tier.titan { color: var(--tier-diamond); }
 
 /* ── THREAD PANE ─────────────────────────────────────────────── */
 .thread-head {
