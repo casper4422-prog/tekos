@@ -3,6 +3,7 @@
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
     import { computeBadges } from '$lib/badges';
+    import CreatureNotesFields from '$lib/components/CreatureNotesFields.svelte';
     import type { PageData } from './$types';
 
     let { data }: { data: PageData } = $props();
@@ -24,6 +25,14 @@
     let fMuts    = $state<Record<StatKey, number>>({ HP:0, STA:0, OXY:0, FOOD:0, WGT:0, MEL:0, CRA:0 });
 
     let founderOn = $state(false);
+
+    // New specimen-notes fields (parity with Edit form + Individual page)
+    let fRole          = $state('');
+    let fAvailBreed    = $state(false);
+    let fAvailTrade    = $state(false);
+    let fColorRegions  = $state<string[]>(['','','','','','']);
+    let fObtainedFrom  = $state('');
+    let fCryoLocation  = $state('');
 
     // ── Stat genealogy: per-stat founder attribution ────────────────────────
     let founderSources = $state<Record<StatKey, number | null>>({ HP:null, STA:null, OXY:null, FOOD:null, WGT:null, MEL:null, CRA:null });
@@ -587,7 +596,13 @@
                 Food: fMuts.FOOD, Weight: fMuts.WGT, Melee: fMuts.MEL, Crafting: fMuts.CRA
             },
             isFounder: founderOn,
-            statGenealogy: founderSources
+            statGenealogy: founderSources,
+            role: fRole || undefined,
+            availableForBreeding: fAvailBreed,
+            availableForTrade: fAvailTrade,
+            colorRegions: fColorRegions.some(s => s.trim()) ? fColorRegions : undefined,
+            obtainedFrom: fObtainedFrom.trim() || undefined,
+            cryoLocation: fCryoLocation.trim() || undefined
         };
 
         const res = await fetch('/api/creatures', {
@@ -604,6 +619,12 @@
                 fNotes = '';
                 fStats = { HP:0, STA:0, OXY:0, FOOD:0, WGT:0, MEL:0, CRA:0 };
                 fMuts  = { HP:0, STA:0, OXY:0, FOOD:0, WGT:0, MEL:0, CRA:0 };
+                fRole = '';
+                fAvailBreed = false;
+                fAvailTrade = false;
+                fColorRegions = ['','','','','',''];
+                fObtainedFrom = '';
+                fCryoLocation = '';
                 saving = false;
                 error = '';
             } else {
@@ -862,13 +883,29 @@
                     </div>
                 </div>
 
-                <!-- NOTES -->
+                <!-- SPECIMEN NOTES — role, availability, colors, origin, cryo (parity with Edit form) -->
+                <div class="form-section optional">
+                    <div class="form-section-head">
+                        <div class="form-section-title">Specimen Notes</div>
+                        <div class="optional-tag">Optional</div>
+                    </div>
+                    <CreatureNotesFields
+                        bind:role={fRole}
+                        bind:availableForBreeding={fAvailBreed}
+                        bind:availableForTrade={fAvailTrade}
+                        bind:colorRegions={fColorRegions}
+                        bind:obtainedFrom={fObtainedFrom}
+                        bind:cryoLocation={fCryoLocation}
+                    />
+                </div>
+
+                <!-- FREEFORM NOTES -->
                 <div class="form-section optional">
                     <div class="form-section-head">
                         <div class="form-section-title">Notes</div>
                         <div class="optional-tag">Optional</div>
                     </div>
-                    <textarea class="notes-area" bind:value={fNotes} placeholder="Color mutations, behavioral quirks, breeding plans, where you tamed them, who you bought from…"></textarea>
+                    <textarea class="notes-area" bind:value={fNotes} placeholder="Color mutations, behavioral quirks, breeding plans, anything else worth recording…"></textarea>
                 </div>
 
                 {#if error}

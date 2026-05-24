@@ -3,6 +3,7 @@
     import { goto } from '$app/navigation';
     import type { PageData } from './$types';
     import PageHeader from '$lib/components/PageHeader.svelte';
+    import CreatureNotesFields from '$lib/components/CreatureNotesFields.svelte';
     import { computeBadges } from '$lib/badges';
 
     let { data }: { data: PageData } = $props();
@@ -18,6 +19,10 @@
     const c = data.creature as Record<string, unknown> & { id: number };
     const bs = (c.baseStats as Record<string, number>) ?? {};
     const ms = (c.mutations as Record<string, number>) ?? {};
+    const initialColorRegions = Array.isArray(c.colorRegions)
+        ? [...(c.colorRegions as string[])]
+        : ['','','','','',''];
+    while (initialColorRegions.length < 6) initialColorRegions.push('');
 
     let saving = $state(false);
     let error  = $state('');
@@ -32,6 +37,12 @@
     );
     let fServer  = $state(String(c.server ?? ''));
     let fNotes   = $state(String(c.notes ?? ''));
+    let fRole          = $state(String(c.role ?? ''));
+    let fAvailBreed    = $state(c.availableForBreeding === true);
+    let fAvailTrade    = $state(c.availableForTrade === true);
+    let fColorRegions  = $state<string[]>(initialColorRegions);
+    let fObtainedFrom  = $state(String(c.obtainedFrom ?? ''));
+    let fCryoLocation  = $state(String(c.cryoLocation ?? ''));
     let fStats   = $state<Record<StatKey, number>>({
         HP: bs.Health ?? 0, STA: bs.Stamina ?? 0, OXY: bs.Oxygen ?? 0,
         FOOD: bs.Food ?? 0, WGT: bs.Weight ?? 0, MEL: bs.Melee ?? 0,
@@ -71,18 +82,33 @@
             mutations[LONG[k]] = fMuts[k];
         }
 
+        // Start from the existing data blob so unknown/related fields (statOrigins,
+        // isFounder, parents, etc.) round-trip cleanly. We then overwrite the
+        // form-controlled fields on top.
+        const merged: Record<string, unknown> = { ...c };
+        delete merged.id;
+        delete merged.createdAt;
+        Object.assign(merged, {
+            name: fName.trim(),
+            species: fSpecies.trim(),
+            level: fLevel,
+            gender: fGender,
+            server: fServer.trim() || undefined,
+            notes: fNotes.trim() || undefined,
+            baseStats,
+            mutations,
+            role: fRole || undefined,
+            availableForBreeding: fAvailBreed,
+            availableForTrade: fAvailTrade,
+            colorRegions: fColorRegions.some(s => s.trim()) ? fColorRegions : undefined,
+            obtainedFrom: fObtainedFrom.trim() || undefined,
+            cryoLocation: fCryoLocation.trim() || undefined
+        });
+
         const res = await fetch(`/api/creatures/${c.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                name: fName.trim(),
-                species: fSpecies.trim(),
-                level: fLevel,
-                gender: fGender,
-                server: fServer.trim() || undefined,
-                notes: fNotes.trim() || undefined,
-                baseStats, mutations
-            })
+            body: JSON.stringify(merged)
         });
         if (res.ok) {
             goto(`/specimens/${c.id}`);
@@ -157,7 +183,7 @@
                     <div class="form-section-title">Base Stats & Mutations</div>
                 </div>
                 <div class="form-section-hint">
-                    Each mutation adds <code>+2 levels</code>. Total updates live.
+                    Enter total mutation levels per stat (what the in-game UI shows). Total = base + mutations.
                 </div>
                 <div class="stats-grid">
                     <div class="stats-head">Stat</div>
@@ -174,14 +200,30 @@
                 </div>
             </div>
 
-            <!-- Notes -->
+            <!-- Specimen Notes (role / availability / colors / origin / cryo) -->
+            <div class="form-section optional">
+                <div class="form-section-head">
+                    <div class="form-section-title">Specimen Notes</div>
+                    <div class="optional-tag">Optional</div>
+                </div>
+                <CreatureNotesFields
+                    bind:role={fRole}
+                    bind:availableForBreeding={fAvailBreed}
+                    bind:availableForTrade={fAvailTrade}
+                    bind:colorRegions={fColorRegions}
+                    bind:obtainedFrom={fObtainedFrom}
+                    bind:cryoLocation={fCryoLocation}
+                />
+            </div>
+
+            <!-- Freeform notes -->
             <div class="form-section optional">
                 <div class="form-section-head">
                     <div class="form-section-title">Notes</div>
                     <div class="optional-tag">Optional</div>
                 </div>
                 <textarea class="notes-area" bind:value={fNotes}
-                    placeholder="Color mutations, breeding plans, where you tamed, who you bought from…"></textarea>
+                    placeholder="Color mutations, breeding plans, behavioral quirks…"></textarea>
             </div>
 
             {#if error}

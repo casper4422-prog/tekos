@@ -568,11 +568,6 @@
                             <div class="list-level-val">{e.lvl}</div>
                             <div class="list-level-lbl">Total Lvl</div>
                         </div>
-                        <div class="list-actions" aria-hidden="true">
-                            <span class="row-btn row-btn-placeholder">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                            </span>
-                        </div>
                     </div>
                     <div class="list-row-stats">
                         {#each STAT_KEYS as k}
@@ -1031,7 +1026,7 @@
 .list-row { display: block; padding: 0; }
 .list-row-main {
     display: grid;
-    grid-template-columns: auto auto 1fr auto auto auto;
+    grid-template-columns: auto auto 1fr auto auto;
     gap: 16px;
     align-items: center;
     padding: 12px 18px 12px 22px;
@@ -1132,11 +1127,6 @@
     margin-top: 2px;
 }
 
-.list-actions {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-}
 .row-btn {
     width: 28px; height: 28px;
     display: flex; align-items: center; justify-content: center;
@@ -1213,23 +1203,46 @@
 @media (max-width: 560px) { .vault-grid { grid-template-columns: 1fr; } }
 
 /* Pin overlay buttons — siblings of the card anchor to keep <a> spec-compliant
-   (button inside <a> is invalid HTML and breaks event handling). */
-.list-row-wrap, .grid-card-wrap { position: relative; }
+   (button inside <a> is invalid HTML and breaks event handling).
+   List view: actions sit OUTSIDE the row as a flex sibling so they never
+   overlap the row's content columns. Grid view: actions hover at the
+   top-right of the wrapper with their own backdrop so the species name
+   doesn't sit underneath them. */
+.list-row-wrap {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+}
+.list-row-wrap > .list-row { flex: 1; min-width: 0; }
 
-/* Per-card action bar (Share dropdown · Send to Tribe Vault · Pin Project) */
+.grid-card-wrap { position: relative; }
+
 .card-actions {
-    position: absolute;
-    z-index: 5;
     display: flex;
     align-items: center;
     gap: 4px;
-    opacity: 0.7;
-    transition: opacity 0.18s;
+    z-index: 5;
 }
-.list-row-wrap > .card-actions { top: 50%; right: 14px; transform: translateY(-50%); }
-.grid-card-wrap > .card-actions { top: 10px; right: 10px; }
-.list-row-wrap:hover > .card-actions,
-.grid-card-wrap:hover > .card-actions { opacity: 1; }
+
+/* List variant — static sibling, vertically centered, always visible */
+.list-row-wrap > .card-actions {
+    position: static;
+    flex: 0 0 auto;
+    align-self: center;
+    padding-right: 6px;
+}
+
+/* Grid variant — absolute top-right with backdrop for contrast */
+.grid-card-wrap > .card-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 4px 6px;
+    background: rgba(5,8,18,0.72);
+    border: 1px solid rgba(0,180,255,0.18);
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    backdrop-filter: blur(6px);
+}
 
 .card-actions .row-btn {
     width: 26px; height: 26px;
@@ -1290,9 +1303,6 @@
     z-index: 60;
 }
 
-/* Placeholder column inside the list-row to reserve space for the action bar.
-   Width matches the action bar: 3 buttons (~26px each) + 2 gaps + breathing room. */
-.row-btn-placeholder { opacity: 0; pointer-events: none; width: 90px; }
 
 .grid-card {
     --cat-rgb: 0,180,255;
@@ -1343,6 +1353,9 @@
     margin-bottom: 12px;
     position: relative;
     z-index: 2;
+    /* Reserve room on the right so .card-actions (absolute, top:12px right:12px)
+       doesn't sit on top of the cat-mini label. */
+    padding-right: 96px;
 }
 .grid-tier {
     font-family: var(--tek-mono);
@@ -1497,8 +1510,9 @@
 }
 
 @media (max-width: 720px) {
-    .list-row { grid-template-columns: auto 1fr auto auto; gap: 12px; padding: 10px 14px 10px 18px; }
-    .list-row .cat-pill, .list-row .list-stat, .list-row .list-actions { display: none; }
+    .list-row-main { grid-template-columns: auto 1fr auto auto; gap: 12px; padding: 10px 14px 10px 18px; }
+    .list-row .cat-pill, .list-row .list-stat { display: none; }
+    .list-row-wrap > .card-actions { padding-right: 4px; }
     .vault-header { align-items: flex-start; }
     .btn-add { font-size: 0.7rem; padding: 9px 14px; }
     .stage { padding: 60px 14px 80px; }
