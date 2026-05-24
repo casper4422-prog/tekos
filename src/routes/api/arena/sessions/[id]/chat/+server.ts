@@ -16,7 +16,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const msgs = await db.arenaChat.findMany({
 		where: { sessionId },
 		orderBy: { createdAt: 'asc' }, take: 200,
-		include: { user: { select: { nickname: true, discordName: true } } }
+		// `email` is included as a last-resort fallback for users who haven't set a nickname
+		// or linked Discord — the client renders the local-part before @.
+		include: { user: { select: { nickname: true, discordName: true, email: true } } }
 	});
 	return json(msgs);
 };

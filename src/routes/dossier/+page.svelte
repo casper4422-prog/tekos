@@ -15,13 +15,14 @@
     async function copyProfileLink() {
         if (!data.profile?.id) return;
         const url = `${window.location.origin}/survivors/${data.profile.id}`;
+        const name = data.profile.nickname ?? data.profile.discordName ?? 'your dossier';
         try {
             await navigator.clipboard.writeText(url);
-            shareLabel = 'Copied!';
+            shareLabel = `Copied ${name}`;
         } catch {
             shareLabel = 'Copy failed';
         }
-        setTimeout(() => { shareLabel = 'Share'; }, 1800);
+        setTimeout(() => { shareLabel = 'Share'; }, 2200);
     }
 
     function openProject(creatureId: number, e?: KeyboardEvent | MouseEvent) {

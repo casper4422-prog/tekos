@@ -6,7 +6,7 @@
 	type BossKind = 'killable' | 'tame' | 'world' | 'soon';
 	type Boss    = { id:string; name:string; map:string; difficulties:string[]; kind:BossKind; description:string; tribute?:string };
 	type Session = Record<string,unknown>;
-	type ChatMsg = { id:number; content:string; createdAt:string; user:{ nickname:string|null; email:string } };
+	type ChatMsg = { id:number; content:string; createdAt:string; user:{ nickname:string|null; discordName:string|null; email:string|null } };
 
 	// ASA boss roster verified against ark.wiki.gg (May 2026).
 	// kind: 'killable' = standard tier kill, 'tame' = field-tame titan, 'world' = roaming/dungeon boss without tier summon, 'soon' = unreleased map teaser
@@ -294,7 +294,15 @@
 		return Object.entries(r);
 	}
 
-	function display(u: Record<string,unknown>) { return (u.nickname ?? u.discordName ?? 'Unknown') as string; }
+	function display(u: Record<string,unknown>) {
+		const nick = u.nickname as string | null | undefined;
+		const dn   = u.discordName as string | null | undefined;
+		const em   = u.email as string | null | undefined;
+		if (nick) return nick;
+		if (dn) return dn;
+		if (em) return em.split('@')[0];
+		return 'Survivor';
+	}
 
 	async function loadSession(id: number) {
 		const res = await fetch(`/api/arena/sessions/${id}`);
@@ -337,7 +345,7 @@
 		const res = await fetch(`/api/arena/sessions/${activeSession.id}/chat`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ content:draft.trim(), messageType:'text' }) });
 		if (res.ok) {
 			const msg = await res.json();
-			messages = [...messages, { ...msg, user:{ nickname:null, email:'You' } }];
+			messages = [...messages, { ...msg, user:{ nickname:'You', discordName:null, email:null } }];
 			draft = '';
 			setTimeout(() => bottom?.scrollIntoView({ behavior:'smooth' }), 50);
 		}
@@ -346,7 +354,7 @@
 	async function addCreature(c: Record<string,unknown>) {
 		if (!activeSession) return;
 		const res = await fetch(`/api/arena/sessions/${activeSession.id}/creatures/${c.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ creatureId:c.id, creatureData:c }) });
-		if (res.ok) { sessionCreatures = [...sessionCreatures, { ...await res.json(), user:{ nickname:null, email:'You' } }]; addOpen=false; }
+		if (res.ok) { sessionCreatures = [...sessionCreatures, { ...await res.json(), user:{ nickname:'You', discordName:null, email:null } }]; addOpen=false; }
 	}
 
 	async function removeCreature(cid: number) {

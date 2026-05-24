@@ -396,49 +396,16 @@
     // ═══════════════════════════════════════════════════════════════════════
     // CLUSTER
     // ═══════════════════════════════════════════════════════════════════════
-    type ServerEntry = { id: string; name: string; map: string; role: 'admin' | 'member'; online: boolean; password?: string };
-    const MAP_OPTIONS = [
-        'The Island', 'Scorched Earth', 'Aberration', 'Extinction',
-        'The Center', 'Genesis', 'Genesis 2', 'Ragnarok',
-        'Valguero', 'Crystal Isles', 'Lost Island', 'Fjordur', 'Lost Colony', 'Astraeos', 'Svartalfheim'
-    ];
-
-    function detectMapFromName(name: string): string | null {
-        const n = name.toLowerCase();
-        if (n.includes('lost colony') || n.includes('lostcolony') || n.includes('lost_colony')) return 'Lost Colony';
-        if (n.includes('genesis 2') || n.includes('genesis2') || n.includes('gen2') || n.includes('genesis part 2')) return 'Genesis 2';
-        if (n.includes('crystal isles') || n.includes('crystalisles') || n.includes('crystal_isles')) return 'Crystal Isles';
-        if (n.includes('lost island') || n.includes('lostisland') || n.includes('lost_island')) return 'Lost Island';
-        if (n.includes('scorched earth') || n.includes('scorchedearth') || n.includes('scorched_earth') || n.includes('scorched')) return 'Scorched Earth';
-        if (n.includes('aberration') || n.includes('abberation')) return 'Aberration';
-        if (n.includes('extinction')) return 'Extinction';
-        if (n.includes('the center') || n.includes('thecenter') || n.includes('the_center')) return 'The Center';
-        if (n.includes('the island') || n.includes('theisland') || n.includes('the_island')) return 'The Island';
-        if (n.includes('ragnarok')) return 'Ragnarok';
-        if (n.includes('valguero')) return 'Valguero';
-        if (n.includes('genesis')) return 'Genesis';
-        if (n.includes('fjordur')) return 'Fjordur';
-        if (n.includes('island')) return 'The Island';
-        if (n.includes('astraeos') || n.includes('astreos')) return 'Astraeos';
-        if (n.includes('svartalfheim') || n.includes('svartelheim')) return 'Svartalfheim';
-        return null;
-    }
+    // `map` kept optional so legacy entries that had a map saved still load cleanly.
+    type ServerEntry = { id: string; name: string; map?: string; role: 'admin' | 'member'; online: boolean; password?: string };
 
     const seededServers = (SERVER_SETTINGS.cluster?.servers ?? SERVER_SETTINGS.servers ?? []) as ServerEntry[];
     let servers = $state<ServerEntry[]>(Array.isArray(seededServers) ? seededServers : []);
     let newServerName      = $state('');
-    let newServerMap       = $state(MAP_OPTIONS[0]);
     let newServerPass      = $state('');
-    let mapAutoDetected    = $state(false);
     let clusterSaving      = $state(false);
     let clusterMsg         = $state('');
     let clusterErr         = $state(false);
-
-    function autoDetectMap() {
-        const detected = detectMapFromName(newServerName);
-        if (detected) { newServerMap = detected; mapAutoDetected = true; }
-        else mapAutoDetected = false;
-    }
 
     // RCON (single shared block per audit; admin-only in spirit — we keep the UI but the values are user-stored)
     const initialRcon = (SERVER_SETTINGS.cluster?.rcon ?? {}) as { host?: string; port?: string | number; password?: string };
@@ -461,7 +428,6 @@
         servers = [...servers, {
             id: crypto.randomUUID(),
             name,
-            map: newServerMap,
             role: 'member',
             online: true,
             password: newServerPass.trim() || undefined
@@ -1423,7 +1389,7 @@
                             {#each servers as s}
                                 <div class="server-chip" class:offline={!s.online}>
                                     <span class="pip"></span>
-                                    <span class="name">{s.name} <span style="color:var(--tek-text-faint);font-size:0.7em;">· {s.map}{s.role === 'admin' ? ' · ADMIN' : ''}</span></span>
+                                    <span class="name">{s.name}{#if s.map || s.role === 'admin'} <span style="color:var(--tek-text-faint);font-size:0.7em;">{s.map ? `· ${s.map}` : ''}{s.role === 'admin' ? ' · ADMIN' : ''}</span>{/if}</span>
                                     <button type="button" class="x" onclick={() => removeServer(s.id)} title="Remove" aria-label="Remove server">✕</button>
                                 </div>
                             {/each}
@@ -1435,17 +1401,7 @@
                     {/if}
 
                     <div class="add-server-row" style="flex-wrap:wrap; gap:8px;">
-                        <input class="input" bind:value={newServerName} oninput={() => { markDirty(); autoDetectMap(); }} placeholder="Server name (e.g. Ragnarok·07)" style="flex:1; min-width:200px;" />
-                        <div style="display:flex; flex-direction:column; gap:3px; min-width:160px;">
-                            <select class="select" bind:value={newServerMap} onchange={() => { markDirty(); mapAutoDetected = false; }} style="width:100%;">
-                                {#each MAP_OPTIONS as m}
-                                    <option value={m}>{m}</option>
-                                {/each}
-                            </select>
-                            {#if mapAutoDetected}
-                                <div style="font-family:var(--tek-mono); font-size:0.58rem; letter-spacing:0.12em; color:var(--tek-green); text-transform:uppercase;">⟳ auto-detected</div>
-                            {/if}
-                        </div>
+                        <input class="input" bind:value={newServerName} oninput={markDirty} placeholder="Server name (e.g. Ragnarok·07)" style="flex:1; min-width:200px;" />
                         <input class="input" bind:value={newServerPass} placeholder="Password (optional)" type="password" style="min-width:160px;" />
                         <button class="btn" onclick={addServer}>＋ ADD SERVER</button>
                     </div>

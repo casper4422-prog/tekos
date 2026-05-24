@@ -5,7 +5,7 @@
 	let { data }: { data: PageData } = $props();
 
 	type Session = Record<string,unknown>;
-	type ChatMsg = { id:number; content:string; messageType:string; createdAt:string; user:{ nickname:string|null; email:string } };
+	type ChatMsg = { id:number; content:string; messageType:string; createdAt:string; user:{ nickname:string|null; discordName:string|null; email:string|null } };
 	type Creature = Record<string,unknown> & { id:number };
 
 	const session     = data.session as Session;
@@ -141,7 +141,15 @@
 		logOpen = false; alert('Fight recorded!');
 	}
 
-	function display(u: Record<string,unknown>) { return (u.nickname ?? u.discordName ?? 'Unknown') as string; }
+	function display(u: Record<string,unknown>) {
+		const nick = u.nickname as string | null | undefined;
+		const dn   = u.discordName as string | null | undefined;
+		const em   = u.email as string | null | undefined;
+		if (nick) return nick;
+		if (dn) return dn;
+		if (em) return em.split('@')[0];
+		return 'Survivor';
+	}
 	function ago(dt: string) {
 		const d = new Date(dt);
 		return d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
@@ -153,7 +161,7 @@
 		const res = await fetch(`/api/arena/sessions/${session.id}/chat`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ content:draft.trim(), messageType:'text' }) });
 		if (res.ok) {
 			const msg = await res.json();
-			messages = [...messages, { ...msg, user:{ nickname:null, email:'You' } }];
+			messages = [...messages, { ...msg, user:{ nickname:'You', discordName:null, email:null } }];
 			draft = '';
 			setTimeout(() => bottom?.scrollIntoView({ behavior:'smooth' }), 50);
 		}
@@ -162,7 +170,7 @@
 
 	async function addCreature(c: Creature) {
 		const res = await fetch(`/api/arena/sessions/${session.id}/creatures/${c.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ creatureId:c.id, creatureData:c }) });
-		if (res.ok) { const row = await res.json(); creatures = [...creatures, { ...row, user:{ nickname:null, email:'You' } }]; addOpen = false; }
+		if (res.ok) { const row = await res.json(); creatures = [...creatures, { ...row, user:{ nickname:'You', discordName:null, email:null } }]; addOpen = false; }
 	}
 
 	async function removeCreature(id: number) {
