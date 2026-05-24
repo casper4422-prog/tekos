@@ -121,25 +121,25 @@ export const MAP_BOSSES: MapBoss[] = [
 
 export const ULTIMATE_BADGES = [
     { id:'overseer',  map:'island'  as MapId|null, name:'Overseer Challenger',
-      description:'Beat the Overseer at Alpha after all three Island guardians', iconColor:'#ffd700' },
+      description:'Took the Overseer down at Alpha — after all three Island guardians fell first.', iconColor:'#ffd700' },
     { id:'ascension', map:null as MapId|null, name:'Ascension Master',
-      description:'All released story-map bosses cleared (Island, Scorched, Aberration, Extinction)', iconColor:'#ffd700' },
+      description:'Story arc finished. Every released map\'s final boss has your name on it.', iconColor:'#ffd700' },
     { id:'world',     map:null, name:'World Conqueror',
-      description:'All released map bosses across every map cleared', iconColor:'#ffd700' },
+      description:'Every released boss on every map. The roster doesn\'t scare you anymore.', iconColor:'#ffd700' },
     { id:'perfect',   map:null, name:'Perfect Breeder',
-      description:'Alpha tier kills on 10+ different species', iconColor:'#ffd700' },
+      description:'Alpha-tier kills logged on ten different species. You don\'t main one dino, you build the whole lineup.', iconColor:'#ffd700' },
     { id:'frostbite', map:'ragnarok' as MapId|null, name:'Frostbite Champion',
-      description:'Alpha-tier Nunatak kill', iconColor:'#00b4ff' },
+      description:'Nunatak down at Alpha. The ice didn\'t hold.', iconColor:'#00b4ff' },
     { id:'ragnarok',  map:'ragnarok' as MapId|null, name:'Ragnarok Ascended',
-      description:'Defeat Nunatak using cold-vulnerable creatures only', iconColor:'#ffd700' }
+      description:'Took Nunatak with cold-vulnerable tames only. Stripped the meta and won anyway.', iconColor:'#ffd700' }
 ];
 
 export const SPECIAL_ACHIEVEMENTS = [
-    { id:'diversity',  name:'Diversity Master',   description:'Earn Boss Ready badges across 10+ different species', target:10 },
-    { id:'speedrun',   name:'Speedrun Champion',  description:'Clear any map\'s Alpha boss within 30 days of account creation', target:1 },
-    { id:'collection', name:'Perfect Collection', description:'Diamond Bloodline on 5+ species', target:5 },
-    { id:'underdog',   name:'Underdog Victory',   description:'Defeat any Alpha boss using only Underdog-eligible species', target:1 },
-    { id:'community',  name:'Community Hero',     description:'Help 10+ other Survivors earn their first Boss Ready badge', target:10 }
+    { id:'diversity',  name:'Diversity Master',   description:'Boss Ready earned on ten different species. You don\'t play one tame, you play the roster.', target:10 },
+    { id:'speedrun',   name:'Speedrun Champion',  description:'Cleared an Alpha boss within thirty days of awakening. Welcome to the deep end.', target:1 },
+    { id:'collection', name:'Perfect Collection', description:'Diamond Bloodline on five species. The whole vault breathes pedigree.', target:5 },
+    { id:'underdog',   name:'Underdog Victory',   description:'Took down an Alpha boss with non-meta tames only. The wild remembers.', target:1 },
+    { id:'community',  name:'Community Hero',     description:'Helped ten other survivors earn their first Boss Ready badge. The tribe carries the tribe.', target:10 }
 ];
 
 /** Computes which map-boss badges a survivor has earned, based on their BossRecord wins

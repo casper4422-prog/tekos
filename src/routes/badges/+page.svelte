@@ -12,14 +12,14 @@
     let tekHexCanvas = $state<HTMLCanvasElement | null>(null);
 
     const rankFlavor: Record<string, string> = {
-        beach_bob:       '"You woke up on the beach with nothing. You tamed something. That\'s a start."',
-        primitive_tamer: '"Five species. You\'re not just surviving anymore — you\'re building something."',
-        vault_keeper:    '"Your first Silver line. The vault is starting to mean something."',
-        mutation_hunter: '"Five Silver lines. You know what you\'re looking for. The mutations are coming."',
-        alpha_line:      '"Gold. The tribe notices. Your tames are no longer just tools."',
-        element_forged:  '"Five Gold lines. Element-tier dedication. The ARK remembers breeders like you."',
-        ascendant:       '"A Diamond bloodline. Ascendant quality — the same standard as the best gear in the game."',
-        homo_deus:       '"Five Diamonds. You didn\'t just survive the ARK — you mastered it. Homo Deus."'
+        beach_bob:       '"Woke up on the beach with nothing. Tamed something. That\'s a start, survivor."',
+        primitive_tamer: '"Five species at Bronze. You\'re not just surviving anymore — you\'re building."',
+        vault_keeper:    '"First Silver line. Your vault\'s starting to mean something."',
+        mutation_hunter: '"Silver on five species. You know what you\'re hunting now."',
+        alpha_line:      '"Gold. The tribe notices when your dino walks past."',
+        element_forged:  '"Five Gold lines. The kind of patience that makes new breeders nervous."',
+        ascendant:       '"A Diamond bloodline. Ascendant quality — and you bred it yourself."',
+        homo_deus:       '"Five Diamonds. You didn\'t just survive the ARK. You shaped it. Homo Deus."'
     };
 
     function setTab(t: SystemTab) { sys = t; }
@@ -100,7 +100,7 @@
         tiers: Array<{ tier: RoleTier; label: string; req: string }>;
     }> = [
         {
-            key: 'tank', label: 'Tank', icon: '🛡', flavor: 'Built to absorb — the shield wall of the boss fight.',
+            key: 'tank', label: 'Tank', icon: '🛡', flavor: 'Soaks the boss. Pure HP, nothing flashy — the line stays alive because this one held.',
             tiers: [
                 { tier: 'standard',  label: 'Standard',  req: 'HP ≥ 175' },
                 { tier: 'elite',     label: 'Elite',     req: 'HP ≥ 200' },
@@ -109,7 +109,7 @@
             ]
         },
         {
-            key: 'dps', label: 'DPS', icon: '⚔', flavor: 'Maximum output — built to delete boss health bars.',
+            key: 'dps', label: 'DPS', icon: '⚔', flavor: 'The damage stick. Melee stacked to delete health bars before the timer does it for you.',
             tiers: [
                 { tier: 'standard',  label: 'Standard',  req: 'MEL ≥ 175' },
                 { tier: 'elite',     label: 'Elite',     req: 'MEL ≥ 200' },
@@ -118,7 +118,7 @@
             ]
         },
         {
-            key: 'bruiser', label: 'Bruiser', icon: '⚒', flavor: 'Fights and carries — the heavy dino that does it all.',
+            key: 'bruiser', label: 'Bruiser', icon: '⚒', flavor: 'Half tank, half pack mule. Hits hard, hauls the loot back. Survivor favorite.',
             tiers: [
                 { tier: 'standard',  label: 'Standard',  req: 'HP ≥ 125 AND WGT ≥ 125' },
                 { tier: 'elite',     label: 'Elite',     req: 'HP ≥ 150 AND WGT ≥ 150' },
@@ -127,7 +127,7 @@
             ]
         },
         {
-            key: 'vanguard', label: 'Vanguard', icon: '◈', flavor: 'Sustained frontliner — survives the long fights.',
+            key: 'vanguard', label: 'Vanguard', icon: '◈', flavor: 'Tanks the front line without running out of breath. The dino still swinging at minute fifteen.',
             tiers: [
                 { tier: 'standard',  label: 'Standard',  req: 'HP ≥ 100 AND STA ≥ 125' },
                 { tier: 'elite',     label: 'Elite',     req: 'HP ≥ 125 AND STA ≥ 150' },
@@ -136,7 +136,7 @@
             ]
         },
         {
-            key: 'packmaster', label: 'Packmaster', icon: '⊞', flavor: 'Supply line specialist — carries the weight so others can fight.',
+            key: 'packmaster', label: 'Packmaster', icon: '⊞', flavor: 'Hauls so the rest of the tribe can fight light. Weight first, nothing else matters.',
             tiers: [
                 { tier: 'standard',  label: 'Standard',  req: 'WGT ≥ 175' },
                 { tier: 'elite',     label: 'Elite',     req: 'WGT ≥ 200' },
@@ -145,7 +145,7 @@
             ]
         },
         {
-            key: 'endurance', label: 'Endurance', icon: '⟳', flavor: 'Never tires — the dino still standing at the end.',
+            key: 'endurance', label: 'Endurance', icon: '⟳', flavor: 'Doesn\'t gas out. Long fights, long flights, long retreats — last one upright.',
             tiers: [
                 { tier: 'standard',  label: 'Standard',  req: 'STA ≥ 150' },
                 { tier: 'elite',     label: 'Elite',     req: 'STA ≥ 175' },
@@ -160,10 +160,10 @@
     }
 
     const bloodlineTiers = [
-        { tier: 'bronze',  label: 'Bronze Bloodline',  tagShort: 'Bronze',  thresh: 45, bonus: 'Solid genetics across the board' },
-        { tier: 'silver',  label: 'Silver Bloodline',  tagShort: 'Silver',  thresh: 50, bonus: 'Impressive stat consistency' },
-        { tier: 'gold',    label: 'Gold Bloodline',    tagShort: 'Gold',    thresh: 55, bonus: 'Absolute breeding perfection' },
-        { tier: 'diamond', label: 'Diamond Bloodline', tagShort: 'Diamond', thresh: 60, bonus: 'Genetic perfection beyond compare' }
+        { tier: 'bronze',  label: 'Bronze Bloodline',  tagShort: 'Bronze',  thresh: 45, bonus: 'Five clean stat rolls — proof you read the dossier before mating these two.' },
+        { tier: 'silver',  label: 'Silver Bloodline',  tagShort: 'Silver',  thresh: 50, bonus: 'Five stats above 50 base. This took deliberate culling.' },
+        { tier: 'gold',    label: 'Gold Bloodline',    tagShort: 'Gold',    thresh: 55, bonus: 'Five stats above 55. Generations of pairings, not luck.' },
+        { tier: 'diamond', label: 'Diamond Bloodline', tagShort: 'Diamond', thresh: 60, bonus: 'Every stat above 60 base. The end-state of breeding this species.' }
     ] as const;
 
     // Underdog tier ladder (stricter than Boss Ready, requires HP AND MEL both)
@@ -227,7 +227,7 @@
         </div>
         <h1 class="page-title">Badge Archive</h1>
         <div class="page-sub">
-            Every honor TekOS recognizes · Four systems · Wired to your Vault
+            Earned on your tames, not claimed. Four systems, all running off your Vault.
         </div>
     </div>
 
@@ -278,7 +278,7 @@
                 {/if}
             </div>
             <div class="rank-flavor">
-                {data.rank.current ? rankFlavor[data.rank.current.id] : '"Your first Bloodline awaits. The wild keeps score."'}
+                {data.rank.current ? rankFlavor[data.rank.current.id] : '"No bloodline yet. Tame something. Pair it with something. Try again."'}
             </div>
 
             {#if data.rank.next}
@@ -388,35 +388,35 @@
             <div class="how-card boss">
                 <div class="how-card-tag">System 1</div>
                 <div class="how-card-name">⚔ Boss Ready</div>
-                <div class="how-card-desc">Recognises creatures bred for the boss arena. Looks at <strong>HP + MEL combined</strong> (base + mutation levels). Both stats must meet the tier threshold.</div>
+                <div class="how-card-desc">The "can this tame survive the arena?" check. Both <strong>HP and Melee</strong> have to clear the tier, total = base + mutation levels. Per species — your best HP×MEL Rex sets your Rex tier.</div>
                 <div class="how-card-formula">Total = <span class="key">base</span> + <span class="key">mutation levels</span></div>
-                <div class="how-card-example">e.g. Rex with 70 base HP and 10 mutation levels = 80 HP total → not yet Gamma (needs 75 on <em>both</em> HP and MEL)</div>
+                <div class="how-card-example">Rex with 70 base HP + 10 mutation levels = 80 HP total. Still short of Gamma (needs 75 on both HP <em>and</em> MEL). Keep breeding.</div>
             </div>
             <div class="how-card specialist">
                 <div class="how-card-tag">System 2</div>
                 <div class="how-card-name">◆ Specialist Roles</div>
-                <div class="how-card-desc">Rewards <strong>focused stat mastery</strong> in a specific combat role. Six roles — Tank, DPS, Bruiser, Vanguard, Packmaster, Endurance — each with four tiers.</div>
+                <div class="how-card-desc">Recognises a tame built for one job. Six roles — Tank, DPS, Bruiser, Vanguard, Packmaster, Endurance — each gated on 1–2 stats. Hits Standard at the floor, then Elite, Apex, Legendary.</div>
                 <div class="how-card-formula">Total = <span class="key">base</span> + <span class="key">mutation levels</span></div>
-                <div class="how-card-example">Each role focuses on 1–2 ASA stats. Standard → Elite → Apex → Legendary. No SPD — that's an ASE stat.</div>
+                <div class="how-card-example">ASA stats only. No Speed — Movement Speed doesn't wild-level on tames here, so it's left out.</div>
             </div>
             <div class="how-card underdog">
                 <div class="how-card-tag">System 3</div>
                 <div class="how-card-name">🛡 Underdog</div>
-                <div class="how-card-desc">Same math as Boss Ready, but only <strong>non-meta species</strong> are eligible. Thresholds are higher because the achievement is bigger.</div>
+                <div class="how-card-desc">Same math as Boss Ready, but the meta picks are locked out. Means the Carno you bled for actually gets the credit. Thresholds run higher — the point is the species, not the math.</div>
                 <div class="how-card-formula">Total = <span class="key">base</span> + <span class="key">mutation levels</span></div>
-                <div class="how-card-example">Excluded species (Rex, Giga, Theri, Yuty, etc.) can't earn Underdog — they're already meta.</div>
+                <div class="how-card-example">Rex, Giga, Theri, Yuty, Shadowmane, Reaper — meta. They earn Boss Ready, not Underdog. Carno / Sabertooth / Direwolf / Pteranodon all qualify.</div>
             </div>
             <div class="how-card prize">
                 <div class="how-card-tag">System 4</div>
                 <div class="how-card-name">◈ Prize Bloodline</div>
-                <div class="how-card-desc">Rewards perfect genetics. Looks at <strong>base stats only</strong> across HP, STA, FOOD, WGT, MEL — the lowest one is your tier. Mutations and domestic levels are ignored.</div>
+                <div class="how-card-desc">The genetics-only badge. Five core stats (HP, STA, FOOD, WGT, MEL), base only — mutations and domestic levels don't count. Your weakest stat is your tier. One soft roll kills the line.</div>
                 <div class="how-card-formula">Score = <span class="key">min</span>(HP, STA, FOOD, WGT, MEL) — base values only</div>
-                <div class="how-card-example">e.g. 45/52/48/40/55 base → score 40 → no badge yet (Bronze needs all 5 at ≥45)</div>
+                <div class="how-card-example">45 / 52 / 48 / 40 / 55 → score 40 → no badge. Bronze needs all five at 45 or above. This one rewards clean breeding, not stacking.</div>
             </div>
         </div>
         <div class="how-foot">
-            <strong>Mutation levels = the total mutation contribution to a stat</strong> (what TekOS shows in your specimen edit screen).
-            Enter them manually from your in-game UI; no multiplier is applied.
+            <strong>Mutation levels = the running total your in-game UI shows</strong> — not the count of mutation events.
+            TekOS adds them straight onto base. No ×2 multiplier here.
         </div>
     </div>
 
@@ -757,10 +757,10 @@
             </div>
         </div>
 
-        <!-- Underdog profile title hook -->
+        <!-- Underdog Master milestone -->
         <div class="subsection">
             <div class="subsection-head">
-                <div class="subsection-title">Profile Title Unlock</div>
+                <div class="subsection-title">Milestone</div>
             </div>
             <div class="special-card" class:earned={underdogEarnedCount >= 5}>
                 <div class="special-icon">
@@ -772,7 +772,7 @@
                 </div>
                 <div class="special-info">
                     <div class="special-name">Underdog Master</div>
-                    <div class="special-desc">Milestone for Survivors who earn 5+ Underdog badges across non-meta species. A nod to the unconventional.</div>
+                    <div class="special-desc">Five Underdog badges earned on five different non-meta species. The survivor who proves a Carno can do what a Rex does.</div>
                 </div>
                 <div class="special-status" class:earned-status={underdogEarnedCount >= 5}>
                     <span class="pip"></span>{underdogMasterProgress} / 5 underdog badges
@@ -812,8 +812,8 @@
                 </div>
                 <div>
                     <div class="diamond-feature-title">Diamond Bloodline</div>
-                    <div class="diamond-feature-flavor">"Genetic perfection beyond compare. The bloodline ends here, or begins again."</div>
-                    <div class="diamond-feature-req">ALL 5 stats ≥ <span class="key">60 base</span> — the rarest Bloodline badge on TekOS</div>
+                    <div class="diamond-feature-flavor">"All five stats above 60 base. There's nowhere left to climb on this line — pass it forward."</div>
+                    <div class="diamond-feature-req">ALL 5 stats ≥ <span class="key">60 base</span> — the rarest Bloodline tier on TekOS</div>
                 </div>
                 <div class="diamond-feature-stat">
                     <div class="diamond-feature-stat-val">{data.badgeWall.bloodline.filter(b => b.tier === 'diamond').length}</div>
