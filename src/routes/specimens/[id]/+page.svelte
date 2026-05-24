@@ -11,7 +11,7 @@
     const STATS = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'] as const;
     type StatKey = typeof STATS[number];
 
-    const badges = $derived(computeBadges(c.baseStats, c.mutations));
+    const badges = $derived(computeBadges(c.baseStats, c.mutations, c.species));
 
     function totalLevel(s: StatKey) {
         return getStat(c.baseStats, s) + getStat(c.mutations, s);
@@ -823,7 +823,7 @@
             <div class="offspring-grid">
                 {#each data.offspring as o (o.id)}
                     {@const oCat = categoryFor(o.species)}
-                    {@const oBadges = computeBadges(o.baseStats, o.mutations)}
+                    {@const oBadges = computeBadges(o.baseStats, o.mutations, o.species)}
                     {@const tierLabel = oBadges.bossReady ? oBadges.bossReady.charAt(0).toUpperCase() + oBadges.bossReady.slice(1) : oBadges.bloodline ? oBadges.bloodline.charAt(0).toUpperCase() + oBadges.bloodline.slice(1) : 'Standard'}
                     <a class="offspring-card {oCat}" href="/specimens/{o.id}">
                         <div class="offspring-top"><span>{genderGlyph(o.gender)} {tierLabel}</span><span>{relTime(o.createdAt)}</span></div>

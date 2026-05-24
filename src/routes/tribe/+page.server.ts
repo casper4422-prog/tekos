@@ -42,11 +42,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		]);
 	}
 
-	const allTribes = await db.tribe.findMany({
+	const allTribesRaw = await db.tribe.findMany({
 		where: membership ? { NOT: { id: membership.tribe.id } } : {},
 		orderBy: { createdAt: 'desc' },
 		include: { _count: { select: { members: true } } }
 	});
+	const allTribes = allTribesRaw.map(t => ({ ...t, memberCount: t._count.members }));
 
 	return { membership, myId: uid, allTribes, activity, warRooms };
 };

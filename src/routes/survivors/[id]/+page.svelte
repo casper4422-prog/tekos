@@ -25,7 +25,7 @@
         await fetch('/api/friends', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ friendId: data.profile.id })
+            body: JSON.stringify({ toUserId: data.profile.id })
         });
         actionLoading = false;
         window.location.reload();

@@ -171,7 +171,7 @@
         { tier: 'champion', label: 'Underdog Champion', tagShort: 'Bronze',  thresh: 90,  tierClass: 'tier-champion' },
         { tier: 'hero',     label: 'Underdog Hero',     tagShort: 'Silver',  thresh: 115, tierClass: 'tier-hero'     },
         { tier: 'legend',   label: 'Underdog Legend',   tagShort: 'Gold',    thresh: 140, tierClass: 'tier-legend'   },
-        { tier: 'titan',    label: 'Underdog Titan',    tagShort: 'Diamond', thresh: 160, tierClass: 'tier-titand'   }
+        { tier: 'titan',    label: 'Underdog Titan',    tagShort: 'Diamond', thresh: 160, tierClass: 'tier-titan'    }
     ] as const;
 
     type MapBoss = typeof MAP_BOSSES[number];
@@ -1859,7 +1859,6 @@
 .tier-champion { --tier-rgb: 205, 127, 50; }
 .tier-hero     { --tier-rgb: 200, 200, 210; }
 .tier-legend   { --tier-rgb: 255, 215, 0; }
-.tier-titand   { --tier-rgb: 0, 180, 255; }
 
 /* Per-badge progress line (shown on locked tier cards with in-progress specimen) */
 .badge-progress-line { margin-top: 10px; }

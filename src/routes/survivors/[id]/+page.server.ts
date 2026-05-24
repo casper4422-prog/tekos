@@ -60,7 +60,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         : null;
 
     const badgeWall = aggregateBadgesByCategory(creatures);
-    const totalBadges = badgeWall.bloodline.length + badgeWall.bossReady.length + badgeWall.roles.length;
+    const totalBadges = badgeWall.bloodline.length + badgeWall.bossReady.length + badgeWall.roles.length + badgeWall.underdog.length;
 
     const now = Date.now();
     const isOnline = user.lastSeen ? (now - new Date(user.lastSeen).getTime()) < 5 * 60 * 1000 : false;

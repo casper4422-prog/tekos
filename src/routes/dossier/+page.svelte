@@ -140,7 +140,10 @@
         return role === 'tank' ? 'TANK'
             : role === 'dps' ? 'DPS'
             : role === 'bruiser' ? 'BRUISER'
-            : 'RUNNER';
+            : role === 'vanguard' ? 'VANGUARD'
+            : role === 'packmaster' ? 'PACKMASTER'
+            : role === 'endurance' ? 'ENDURANCE'
+            : role.toUpperCase();
     }
 
     // For a badge wall chip (Boss Ready / Bloodline / Role / Underdog), find the
@@ -153,7 +156,7 @@
             const b = computeBadges(c.baseStats, c.mutations, c.species);
             if (kind === 'bloodline' && b.bloodline === value) return c.id;
             if (kind === 'bossReady' && b.bossReady === value) return c.id;
-            if (kind === 'role' && b.roles.includes(value as 'tank'|'dps'|'bruiser'|'runner')) return c.id;
+            if (kind === 'role' && value in b.roles) return c.id;
             if (kind === 'underdog' && b.underdog === value) return c.id;
         }
         return null;
@@ -418,7 +421,7 @@
                 </div>
             {/if}
 
-            <!-- UNDERDOG / ROLES -->
+            <!-- SPECIALIST ROLES -->
             {#if data.badgeWall.roles.length}
                 <div class="badge-cat">
                     <div class="badge-cat-header">
@@ -426,7 +429,7 @@
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                             <path d="M9 12l2 2 4-4"/>
                         </svg>
-                        <span class="badge-cat-name">Underdog</span>
+                        <span class="badge-cat-name">Specialist Roles</span>
                         <span class="badge-cat-count">{data.badgeWall.roles.length} earned</span>
                     </div>
                     <div class="badge-cat-chips">

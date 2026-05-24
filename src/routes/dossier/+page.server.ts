@@ -119,7 +119,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     const totalBadges =
         badgeWall.bloodline.length +
         badgeWall.bossReady.length +
-        badgeWall.roles.length;
+        badgeWall.roles.length +
+        badgeWall.underdog.length;
 
     // Pinned creature ids — supports both legacy number[] and new object[] formats
     let pinnedIds: number[] = [];

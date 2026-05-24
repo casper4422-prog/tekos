@@ -34,11 +34,11 @@
 	type Activity   = { id:number; eventType:string; metadata:Record<string,unknown>; createdAt:string; user:{ id:number; nickname:string|null; email:string }|null };
 	type WarRoom    = { id:number; bossName:string; difficulty:string|null; scheduledAt:string; notes:string|null; status:string; createdBy:{ id:number; nickname:string|null; email:string } };
 
-	let membership  = $state(data.membership as { role:string; tribe:Tribe } | null);
-	const myId      = data.myId as number;
-	let allTribes   = $state(data.allTribes as AllTribe[] | null);
-	let activity    = $state(data.activity as Activity[]);
-	let warRooms    = $state(data.warRooms as WarRoom[]);
+	const membership = $derived(data.membership as { role:string; tribe:Tribe } | null);
+	const myId       = data.myId as number;
+	const allTribes  = $derived(data.allTribes as AllTribe[] | null);
+	const activity   = $derived(data.activity as Activity[]);
+	const warRooms   = $derived(data.warRooms as WarRoom[]);
 
 	let blacklist     = $state<BlackEntry[]>([]);
 	let alliances     = $state<Record<string,unknown>[]>([]);

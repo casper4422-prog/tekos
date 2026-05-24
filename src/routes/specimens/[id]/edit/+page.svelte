@@ -52,10 +52,12 @@
 
     const badges = $derived(computeBadges(
         { Health: fStats.HP, Stamina: fStats.STA, Oxygen: fStats.OXY, Food: fStats.FOOD, Weight: fStats.WGT, Melee: fStats.MEL, Crafting: fStats.CRA },
-        { Health: fMuts.HP, Stamina: fMuts.STA, Oxygen: fMuts.OXY, Food: fMuts.FOOD, Weight: fMuts.WGT, Melee: fMuts.MEL, Crafting: fMuts.CRA }
+        { Health: fMuts.HP, Stamina: fMuts.STA, Oxygen: fMuts.OXY, Food: fMuts.FOOD, Weight: fMuts.WGT, Melee: fMuts.MEL, Crafting: fMuts.CRA },
+        fSpecies.trim()
     ));
 
-    function totalLevel(s: StatKey) { return fStats[s] + fMuts[s] * 2; }
+    // Mutations store TOTAL mutation levels, not events — no ×2 multiplier.
+    function totalLevel(s: StatKey) { return fStats[s] + fMuts[s]; }
 
     async function save() {
         if (!fName.trim()) { error = 'Specimen name required.'; return; }
@@ -247,14 +249,23 @@
                                  'γ GAMMA READY'}
                             </div>
                         {/if}
-                        {#each badges.roles as role}
+                        {#each Object.entries(badges.roles) as [role, tier]}
                             <div class="pv-badge role">
-                                {role === 'tank' ? '▣ BOSS TANK' :
-                                 role === 'dps' ? '⚔ BOSS DPS' :
-                                 role === 'bruiser' ? '⚒ BOSS BRUISER' : '⤳ BOSS RUNNER'}
+                                {role === 'tank' ? '▣ TANK' :
+                                 role === 'dps' ? '⚔ DPS' :
+                                 role === 'bruiser' ? '⚒ BRUISER' :
+                                 role === 'vanguard' ? '⤳ VANGUARD' :
+                                 role === 'packmaster' ? '⚖ PACKMASTER' :
+                                 role === 'endurance' ? '⟁ ENDURANCE' :
+                                 role.toUpperCase()} · {tier?.toUpperCase()}
                             </div>
                         {/each}
-                        {#if !badges.bloodline && !badges.bossReady && badges.roles.length === 0}
+                        {#if badges.underdog}
+                            <div class="pv-badge {badges.underdog}">
+                                ⬡ {badges.underdog.toUpperCase()} UNDERDOG
+                            </div>
+                        {/if}
+                        {#if !badges.bloodline && !badges.bossReady && Object.keys(badges.roles).length === 0 && !badges.underdog}
                             <div class="pv-badges-empty">No badges yet — keep breeding.</div>
                         {/if}
                     </div>

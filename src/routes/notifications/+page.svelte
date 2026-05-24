@@ -149,13 +149,13 @@
             case 'dm': {
                 const userId = (p.fromUserId ?? p.userId ?? p.actorUserId) as string | number | undefined;
                 if (userId != null) return { label: 'Reply', href: `/messages/${userId}` };
-                return { label: 'Open Messages', href: '/messages' };
+                return { label: 'Open Messages', href: '/network?tab=messages' };
             }
             case 'trade_offer':
             case 'trade_accepted':
             case 'trade_completed': {
                 const listingId = (p.listingId ?? p.tradeId) as string | number | undefined;
-                if (listingId != null) return { label: 'View Trade', href: `/marketplace/${listingId}` };
+                if (listingId != null) return { label: 'View Trade', href: `/marketplace?trade=${listingId}` };
                 return { label: 'View Trade', href: '/marketplace' };
             }
             case 'badge_earned': {
@@ -168,12 +168,12 @@
             }
             case 'friend_accepted': {
                 const userId = (p.actorUserId ?? p.fromUserId) as string | number | undefined;
-                if (userId != null) return { label: 'Open Profile', href: `/profile/${userId}` };
+                if (userId != null) return { label: 'Open Profile', href: `/survivors/${userId}` };
                 return null;
             }
         }
         if (n.type.includes('breeding') || n.type.includes('mutation') || n.type.includes('hatch')) {
-            return { label: 'Open Project', href: '/breeding' };
+            return { label: 'Open Project', href: '/dossier' };
         }
         return null;
     }
