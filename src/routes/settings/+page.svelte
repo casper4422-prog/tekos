@@ -714,52 +714,53 @@
         sw1: string; sw2: string; sw3: string;
     };
     let themeMode = $state<'dark' | 'light'>('dark');
-    // Light-mode bg values intentionally toned down from pure-white tints to
-    // softer parchment / faded-tonal equivalents. Pure #fff8e8 etc. were
-    // blinding because the dark glow layers stayed on top of them.
+    // Light-mode bg values are mid-tones (RGB 140-180), not white. The Tek
+    // aesthetic relies on cyan glows and atmospheric drop-shadows that
+    // disappear on bright backgrounds — a dimmed "schematic" background
+    // reads as a worn blueprint instead of a hospital wall.
     const PALETTES: MapPalette[] = [
         { id: 'island',     name: 'The Island',     tag: 'CYAN · DEFAULT',
-          primary: '#00b4ff', accent: '#8b5cf6', bg: '#050812', lightBg: '#dde5f0',
+          primary: '#00b4ff', accent: '#8b5cf6', bg: '#050812', lightBg: '#8a98ad',
           prvBg: '#050812', prvLine: 'rgba(0,180,255,0.18)',
           prvGlow1: 'rgba(0,180,255,0.40)', prvGlow2: 'rgba(139,92,246,0.30)',
           sw1: '#00b4ff', sw2: '#8b5cf6', sw3: '#0a1228' },
         { id: 'aberration', name: 'Aberration',     tag: 'BIO · PURPLE/GREEN',
-          primary: '#a855f7', accent: '#10b981', bg: '#0c0418', lightBg: '#e2d8ec',
+          primary: '#a855f7', accent: '#10b981', bg: '#0c0418', lightBg: '#8c80a0',
           prvBg: '#0c0418', prvLine: 'rgba(168,85,247,0.20)',
           prvGlow1: 'rgba(168,85,247,0.45)', prvGlow2: 'rgba(16,185,129,0.35)',
           sw1: '#a855f7', sw2: '#10b981', sw3: '#180a28' },
         { id: 'scorched',   name: 'Scorched Earth', tag: 'DESERT · AMBER/RED',
-          primary: '#f59e0b', accent: '#ef4444', bg: '#1a0a04', lightBg: '#f0e6d0',
+          primary: '#f59e0b', accent: '#ef4444', bg: '#1a0a04', lightBg: '#a08a6d',
           prvBg: '#1a0a04', prvLine: 'rgba(245,158,11,0.20)',
           prvGlow1: 'rgba(245,158,11,0.45)', prvGlow2: 'rgba(239,68,68,0.35)',
           sw1: '#f59e0b', sw2: '#ef4444', sw3: '#2a1408' },
         { id: 'genesis',    name: 'Genesis',        tag: 'SIM · TEAL/MAGENTA',
-          primary: '#22d3ee', accent: '#d946ef', bg: '#040818', lightBg: '#d8e6e8',
+          primary: '#22d3ee', accent: '#d946ef', bg: '#040818', lightBg: '#7d9295',
           prvBg: '#040818', prvLine: 'rgba(34,211,238,0.20)',
           prvGlow1: 'rgba(34,211,238,0.45)', prvGlow2: 'rgba(217,70,239,0.30)',
           sw1: '#22d3ee', sw2: '#d946ef', sw3: '#091230' },
         { id: 'extinction', name: 'Extinction',     tag: 'RUIN · ORANGE/TEAL',
-          primary: '#fb923c', accent: '#14b8a6', bg: '#180a04', lightBg: '#eddccb',
+          primary: '#fb923c', accent: '#14b8a6', bg: '#180a04', lightBg: '#9d846a',
           prvBg: '#180a04', prvLine: 'rgba(251,146,60,0.20)',
           prvGlow1: 'rgba(251,146,60,0.45)', prvGlow2: 'rgba(20,184,166,0.35)',
           sw1: '#fb923c', sw2: '#14b8a6', sw3: '#2a1208' },
         { id: 'ragnarok',   name: 'Ragnarok',       tag: 'NORDIC · BLUE/GOLD',
-          primary: '#60a5fa', accent: '#fcd34d', bg: '#040818', lightBg: '#d8dfeb',
+          primary: '#60a5fa', accent: '#fcd34d', bg: '#040818', lightBg: '#88909e',
           prvBg: '#040818', prvLine: 'rgba(96,165,250,0.20)',
           prvGlow1: 'rgba(96,165,250,0.45)', prvGlow2: 'rgba(252,211,77,0.30)',
           sw1: '#60a5fa', sw2: '#fcd34d', sw3: '#08142d' },
         { id: 'alpha', name: 'Alpha Survivor', tag: 'GOLD',
-          primary: '#d97706', accent: '#92400e', bg: '#0c0a02', lightBg: '#ede4c4',
+          primary: '#d97706', accent: '#92400e', bg: '#0c0a02', lightBg: '#9c8e6a',
           prvBg: '#0c0a02', prvLine: 'rgba(250,204,21,0.20)',
           prvGlow1: 'rgba(250,204,21,0.45)', prvGlow2: 'rgba(255,255,255,0.20)',
           sw1: '#fcd34d', sw2: '#ffffff', sw3: '#1a1408' },
         { id: 'tek-proto', name: 'Tek Prototype', tag: 'BLUEPRINT',
-          primary: '#2dd4bf', accent: '#a5f3fc', bg: '#020c0c', lightBg: '#d6e8e3',
+          primary: '#2dd4bf', accent: '#a5f3fc', bg: '#020c0c', lightBg: '#7d9590',
           prvBg: '#020c0c', prvLine: 'rgba(45,212,191,0.25)',
           prvGlow1: 'rgba(45,212,191,0.50)', prvGlow2: 'rgba(165,243,252,0.30)',
           sw1: '#2dd4bf', sw2: '#a5f3fc', sw3: '#021818' },
         { id: 'corrupted', name: 'Element Corrupted', tag: 'CORRUPTION',
-          primary: '#d946ef', accent: '#f472b6', bg: '#100214', lightBg: '#ebdce3',
+          primary: '#d946ef', accent: '#f472b6', bg: '#100214', lightBg: '#988090',
           prvBg: '#100214', prvLine: 'rgba(217,70,239,0.25)',
           prvGlow1: 'rgba(217,70,239,0.50)', prvGlow2: 'rgba(244,114,182,0.30)',
           sw1: '#d946ef', sw2: '#f472b6', sw3: '#200628' }

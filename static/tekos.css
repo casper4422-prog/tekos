@@ -99,37 +99,41 @@ body::before {
    future per-page audit. Atmospheric + sidebar are the loud offenders
    and they swap correctly here. */
 [data-theme-mode="light"] {
-    --tek-bg:           #efe8d6;
-    --tek-sidebar:      rgba(255,253,247,0.92);
-    --tek-surface:      rgba(255,253,247,0.85);
-    --tek-surface-alt:  rgba(252,248,238,0.92);
-    --tek-surface-hover:rgba(255,253,247,0.96);
-    --tek-text:         #1a2438;
-    --tek-text-dim:     #3d4f6b;
-    --tek-text-faint:   #7a8aa3;
-    --tek-blue-dim:     rgba(0,180,255,0.10);
-    --tek-blue-border:  rgba(0,180,255,0.35);
-    --tek-blue-glow:    rgba(0,180,255,0.20);
-    --tek-purple-dim:   rgba(139,92,246,0.10);
-    --tek-purple-border:rgba(139,92,246,0.35);
-    --tek-border:       rgba(0,180,255,0.28);
-    --tek-border-active:rgba(0,180,255,0.55);
-    --tek-glow-sm:      0 0 8px rgba(0,180,255,0.15);
-    --tek-glow-md:      0 0 14px rgba(0,180,255,0.18);
-    --tek-glow-lg:      0 0 28px rgba(0,180,255,0.16);
-    --tek-card-bg:      linear-gradient(160deg, rgba(255,253,247,0.94) 0%, rgba(248,243,232,0.97) 100%);
-    --tek-card-shadow:  inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -1px 0 rgba(0,0,0,0.06), 0 2px 16px rgba(0,30,80,0.10);
-    --tek-card-shadow-hover: inset 0 1px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(0,0,0,0.06), 0 6px 24px rgba(0,30,80,0.14);
+    /* Mid-tone slate base — NOT white/cream. The cyan + glow design
+       language fights bright backgrounds, so "light" mode here is a
+       dimmed-daylight schematic, more like a worn blueprint than a
+       hospital wall. RGB sits in the 140-175 range across palettes. */
+    --tek-bg:           #9aa7b8;
+    --tek-sidebar:      rgba(160,170,190,0.92);
+    --tek-surface:      rgba(180,190,208,0.78);
+    --tek-surface-alt:  rgba(170,180,198,0.85);
+    --tek-surface-hover:rgba(190,200,218,0.88);
+    --tek-text:         #0d1424;
+    --tek-text-dim:     #2a3550;
+    --tek-text-faint:   #4a5670;
+    --tek-blue-dim:     rgba(0,90,140,0.14);
+    --tek-blue-border:  rgba(0,90,140,0.42);
+    --tek-blue-glow:    rgba(0,120,170,0.30);
+    --tek-purple-dim:   rgba(80,50,130,0.14);
+    --tek-purple-border:rgba(80,50,130,0.42);
+    --tek-border:       rgba(0,90,140,0.32);
+    --tek-border-active:rgba(0,120,170,0.55);
+    --tek-glow-sm:      0 0 8px rgba(0,90,140,0.20);
+    --tek-glow-md:      0 0 14px rgba(0,90,140,0.22);
+    --tek-glow-lg:      0 0 28px rgba(0,90,140,0.20);
+    --tek-card-bg:      linear-gradient(160deg, rgba(180,190,210,0.88) 0%, rgba(160,170,190,0.93) 100%);
+    --tek-card-shadow:  inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(0,0,0,0.12), 0 2px 14px rgba(0,30,60,0.18);
+    --tek-card-shadow-hover: inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(0,0,0,0.12), 0 6px 22px rgba(0,30,60,0.22);
 }
 
 [data-theme-mode="light"] body::before {
     background-image:
-        radial-gradient(ellipse 70% 50% at 15% 8%,  rgba(0,180,255,0.045) 0%, transparent 55%),
-        radial-gradient(ellipse 55% 45% at 85% 85%, rgba(139,92,246,0.04) 0%, transparent 50%);
+        radial-gradient(ellipse 70% 50% at 15% 8%,  rgba(0,90,140,0.06) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 45% at 85% 85%, rgba(80,50,130,0.05) 0%, transparent 50%);
 }
 
 [data-theme-mode="light"] #tekHexCanvas {
-    opacity: 0.45;
+    opacity: 0.32;
     mix-blend-mode: multiply;
 }
 
