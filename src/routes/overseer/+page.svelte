@@ -22,12 +22,12 @@
 		  description:'Immune to fire. Therizinosaur is META — fire-resistant and high damage.',
 		  tribute:'Artifacts of Massive, Strong, Skylord · Trophies: Argentavis Talon, Sarcosuchus Skin, Megalania Toxin, Titanoboa Venom, Allosaurus Brain' },
 		{ id:'overseer', name:'Overseer', map:'The Island', kind:'killable', difficulties:['gamma','beta','alpha'],
-		  description:'Final Island boss. Shifts between Broodmother, Megapithecus, and Dragon drone forms.',
-		  tribute:'Defeat all three Island guardians, then traverse the Tek Cave to the Ascension chamber.' },
+		  description:'Final Island boss. Cycles through Broodmother / Megapithecus / Dragon avatars in phases. META: Theri rotation with Daeodon heal-passive.',
+		  tribute:'Defeat all three Island guardians at the matching tier, then traverse the Tek Cave to the Ascension chamber.' },
 
 		// ─── Scorched Earth (Apr 2024) ───
 		{ id:'manticore', name:'Manticore', map:'Scorched Earth', kind:'killable', difficulties:['gamma','beta','alpha'],
-		  description:'Flying phase is immune. Alternates with landing phase — burst damage during landings.',
+		  description:'Flying phase is immune. Burst damage during landings. META: Rex/Theri frontline with a Yutyrannus courage buff.',
 		  tribute:'Artifacts of Crag, Destroyer, Gatekeeper · Trophies: Argentavis Talon, Sauropod Vertebra, Tusoteuthis Tentacle, Deathworm Horn' },
 
 		// ─── The Center (Jun 2024) — single combined arena, NOT 3 separate bosses ───
@@ -51,8 +51,8 @@
 		  description:'Flying titan raining lightning. Tame as a massive flying platform.',
 		  tribute:'No tribute — locate in the wild (Desert biome).' },
 		{ id:'king_titan', name:'King Titan', map:'Extinction', kind:'killable', difficulties:['gamma','beta','alpha'],
-		  description:'Alpha requires all three field Titans tamed first. Target corruption nodes on its body.',
-		  tribute:'Corrupt Heart — obtained by defeating/taming the three field Titans.' },
+		  description:'Open-arena fight at the Forbidden Zone. Target the corruption nodes on its body. Alpha tier requires all three field Titans tamed.',
+		  tribute:'Summoned at the King Titan Terminal — Corrupted Heart and tier-scaling Element costs.' },
 
 		// ─── Astraeos (Feb 2025, premium partner) ───
 		{ id:'hydraskos', name:'Hydraskos, The Unbroken', map:'Astraeos', kind:'killable', difficulties:['gamma','beta','alpha'],
@@ -87,7 +87,7 @@
 
 		// ─── Valguero (ASA, Oct 2025) — Grendel replaces ASE Forsaken Oasis triple ───
 		{ id:'grendel', name:'Grendel', map:'Valguero', kind:'killable', difficulties:['gamma','beta','alpha'],
-		  description:'Massive Megaraptor-type. Bleed damage is the main threat. Fog phase requires lighting the arena. META: armored tanks + bleed-resistant healers.',
+		  description:'Massive Megaraptor-type. Bleed damage is the main threat. Fog phase requires lighting the arena braziers. META: Therizinosaur DPS, Daeodon heal-passive, Yutyrannus courage buff.',
 		  tribute:'Gamma: Artifacts of Devourer, Pack, Skylord · 5× ea Allosaurus Brain, Argentavis Talon, Sarco Skin, Sauropod Vertebra, Titanoboa Venom. Beta+: Artifacts of Cunning, Immune, Strong + Rex Arms.' },
 
 		// ─── Lost Colony (Dec 2025) — chained encounter, single Red-Handed mission ───
@@ -100,7 +100,7 @@
 
 		// ─── COMING SOON — confirmed in ASA pipeline but not yet released ───
 		{ id:'soon_genesis1', name:'Genesis: Part 1 (Ascended)', map:'Genesis: Part 1', kind:'soon', difficulties:[],
-		  description:'Expected June 2026 — free release. Will include Moeder (Ocean biome) and the Corrupted Master Controller (final).',
+		  description:'Expected June 2026 — release window opens next month. Includes Moeder (Ocean biome) and the Corrupted Master Controller multi-phase finale.',
 		  tribute:'Release pending.' },
 		{ id:'soon_genesis2', name:'Genesis: Part 2 (Ascended)', map:'Genesis: Part 2', kind:'soon', difficulties:[],
 		  description:'Expected Q2 2027 — free release. Will include Rockwell Prime as the multi-phase finale.',
