@@ -9,7 +9,6 @@
 	let wlAdded  = $state(false);
 	let wlSaving = $state(false);
 	let artifactEl: HTMLDivElement | null = $state(null);
-	let canvasEl: HTMLCanvasElement | null = $state(null);
 
 	const STAT_LABEL: Record<string,string> = {
 		Health: 'HP',
@@ -71,55 +70,6 @@
 		const db = (window as unknown as { EXPANDED_SPECIES_DATABASE?: Record<string, SpeciesData> }).EXPANDED_SPECIES_DATABASE;
 		species = db?.[name] ?? null;
 
-		/* Hex grid background */
-		const canvas = canvasEl;
-		let rafId = 0;
-		let resizeFn: (() => void) | null = null;
-		if (canvas) {
-			const ctx = canvas.getContext('2d');
-			if (ctx) {
-				const R = 32, W = R * Math.sqrt(3), H = R * 2;
-				let phase = 0;
-				function drawHex(x: number, y: number, opacity: number) {
-					if (!ctx) return;
-					ctx.beginPath();
-					for (let i = 0; i < 6; i++) {
-						const a = (Math.PI / 3) * i - Math.PI / 6;
-						const px = x + (R - 1) * Math.cos(a);
-						const py = y + (R - 1) * Math.sin(a);
-						i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-					}
-					ctx.closePath();
-					ctx.strokeStyle = `rgba(0,180,255,${opacity})`;
-					ctx.lineWidth = 1;
-					ctx.stroke();
-				}
-				function draw() {
-					if (!ctx || !canvas) return;
-					ctx.clearRect(0, 0, canvas.width, canvas.height);
-					const cw = canvas.width, ch = canvas.height;
-					const cols = Math.ceil(cw / W) + 3;
-					const rows = Math.ceil(ch / (H * 0.75)) + 3;
-					for (let row = -1; row < rows; row++) {
-						for (let col = -1; col < cols; col++) {
-							const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
-							const y = row * H * 0.75;
-							const dx = x - cw * 0.5, dy = y - ch * 0.5;
-							const dist = Math.sqrt(dx * dx + dy * dy);
-							const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
-							drawHex(x, y, 0.07 + wave * 0.09);
-						}
-					}
-					phase += 0.005;
-					rafId = requestAnimationFrame(draw);
-				}
-				resizeFn = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
-				window.addEventListener('resize', resizeFn);
-				resizeFn();
-				draw();
-			}
-		}
-
 		/* 3D parallax tilt on the artifact card */
 		const card = artifactEl;
 		let onMove: ((e: MouseEvent) => void) | null = null;
@@ -151,8 +101,6 @@
 		}
 
 		return () => {
-			if (rafId) cancelAnimationFrame(rafId);
-			if (resizeFn) window.removeEventListener('resize', resizeFn);
 			if (stage && onMove) stage.removeEventListener('mousemove', onMove);
 			if (stage && onLeave) stage.removeEventListener('mouseleave', onLeave);
 		};
@@ -169,8 +117,6 @@
 		wlSaving = false;
 	}
 </script>
-
-<canvas id="tekHexCanvas" bind:this={canvasEl}></canvas>
 
 <div class="stage">
 
@@ -402,7 +348,6 @@
 	pointer-events: none;
 	z-index: 0;
 }
-#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
 
 .stage {
 	position: relative; z-index: 2;

@@ -496,57 +496,11 @@
     let saving = $state(false);
     let error  = $state('');
 
-    let canvasEl: HTMLCanvasElement | null = $state(null);
 
     onMount(() => {
         // Species autocomplete from global DB
         const db = (window as unknown as { EXPANDED_SPECIES_DATABASE?: Record<string, unknown> }).EXPANDED_SPECIES_DATABASE;
         if (db) speciesList = Object.keys(db).sort();
-
-        // Hex canvas background
-        const canvas = canvasEl;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        let w = 0, h = 0, hexes: { x: number; y: number; size: number }[] = [];
-        let raf = 0;
-        function resize() {
-            w = canvas!.width = window.innerWidth;
-            h = canvas!.height = window.innerHeight;
-            hexes = [];
-            const size = 36, hSpace = size * 1.5, vSpace = size * Math.sqrt(3);
-            for (let y = -size; y < h + size; y += vSpace) {
-                for (let x = -size; x < w + size; x += hSpace) {
-                    const offsetY = (Math.floor(x / hSpace) % 2) * vSpace / 2;
-                    hexes.push({ x, y: y + offsetY, size });
-                }
-            }
-        }
-        function draw() {
-            ctx!.clearRect(0, 0, w, h);
-            const t = Date.now() / 4000;
-            hexes.forEach((hex, i) => {
-                const phase = (Math.sin(t + i * 0.3) + 1) / 2;
-                ctx!.strokeStyle = `rgba(0,180,255,${0.03 + phase * 0.04})`;
-                ctx!.lineWidth = 1;
-                ctx!.beginPath();
-                for (let a = 0; a < 6; a++) {
-                    const angle = (Math.PI / 3) * a;
-                    const px = hex.x + hex.size * Math.cos(angle);
-                    const py = hex.y + hex.size * Math.sin(angle);
-                    if (a === 0) ctx!.moveTo(px, py); else ctx!.lineTo(px, py);
-                }
-                ctx!.closePath();
-                ctx!.stroke();
-            });
-            raf = requestAnimationFrame(draw);
-        }
-        window.addEventListener('resize', resize);
-        resize(); draw();
-        return () => {
-            window.removeEventListener('resize', resize);
-            cancelAnimationFrame(raf);
-        };
     });
 
     // ── Live preview derived ────────────────────────────────────────────────
@@ -644,8 +598,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&family=Crimson+Pro:ital,wght@1,400&display=swap" rel="stylesheet" />
 </svelte:head>
-
-<canvas id="tekHexCanvas" bind:this={canvasEl}></canvas>
 
 <div class="stage">
 
@@ -1047,7 +999,6 @@
     pointer-events: none;
     z-index: 0;
 }
-#tekHexCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
 
 .stage {
     position: relative; z-index: 2;

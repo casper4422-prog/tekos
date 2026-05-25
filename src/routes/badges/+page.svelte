@@ -9,7 +9,6 @@
     type SystemTab = 'boss' | 'specialist' | 'underdog' | 'prize';
     let sys = $state<SystemTab>('boss');
 
-    let tekHexCanvas = $state<HTMLCanvasElement | null>(null);
 
     const rankFlavor: Record<string, string> = {
         beach_bob:       '"Woke up on the beach with nothing. Tamed something. That\'s a start, survivor."',
@@ -24,52 +23,6 @@
 
     function setTab(t: SystemTab) { sys = t; }
 
-    onMount(() => {
-        const canvas = tekHexCanvas;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        let w = 0, h = 0;
-        let hexes: Array<{ x: number; y: number; size: number; glow: number }> = [];
-        let raf = 0;
-        function resize() {
-            w = canvas!.width = window.innerWidth;
-            h = canvas!.height = window.innerHeight;
-            hexes = [];
-            const size = 36, hSpace = size * 1.5, vSpace = size * Math.sqrt(3);
-            for (let y = -size; y < h + size; y += vSpace) {
-                for (let x = -size; x < w + size; x += hSpace) {
-                    const offsetY = (Math.floor(x / hSpace) % 2) * vSpace / 2;
-                    hexes.push({ x, y: y + offsetY, size, glow: Math.random() });
-                }
-            }
-        }
-        function draw() {
-            ctx!.clearRect(0, 0, w, h);
-            const t = Date.now() / 4000;
-            hexes.forEach((hex, i) => {
-                const phase = (Math.sin(t + i * 0.3) + 1) / 2;
-                ctx!.strokeStyle = `rgba(0,180,255,${0.03 + phase * 0.04})`;
-                ctx!.lineWidth = 1;
-                ctx!.beginPath();
-                for (let a = 0; a < 6; a++) {
-                    const angle = (Math.PI / 3) * a;
-                    const px = hex.x + hex.size * Math.cos(angle);
-                    const py = hex.y + hex.size * Math.sin(angle);
-                    if (a === 0) ctx!.moveTo(px, py); else ctx!.lineTo(px, py);
-                }
-                ctx!.closePath();
-                ctx!.stroke();
-            });
-            raf = requestAnimationFrame(draw);
-        }
-        window.addEventListener('resize', resize);
-        resize(); draw();
-        return () => {
-            cancelAnimationFrame(raf);
-            window.removeEventListener('resize', resize);
-        };
-    });
 
     // Earned-by helpers
     function earnedSpeciesList(arr: Array<{ species: string }>, max = 3): string {
@@ -215,8 +168,6 @@
 <svelte:head>
     <title>⬡ TEKOS — Badges</title>
 </svelte:head>
-
-<canvas id="tekHexCanvas" bind:this={tekHexCanvas}></canvas>
 
 <div class="stage">
 

@@ -799,57 +799,12 @@
         }
     }
 
-    // ── Hex canvas ──────────────────────────────────────────────────────────
-    let hexCanvas: HTMLCanvasElement;
-
     onMount(() => {
         // Allow deep-linking to a specific section via ?tab=cluster (etc.)
         const paramTab = new URLSearchParams(window.location.search).get('tab');
         const TAB_IDS: SectionId[] = ['account','privacy','notifications','themes','cluster','data','integrations'];
         if (paramTab && (TAB_IDS as string[]).includes(paramTab)) {
             activeSection = paramTab as SectionId;
-        }
-
-        // Hex canvas background
-        const canvas = hexCanvas;
-        if (canvas) {
-            const ctx = canvas.getContext('2d')!;
-            let w: number, h: number;
-            let hexes: { x: number; y: number; size: number; glow: number }[] = [];
-            let rafId: number;
-            function resize() {
-                w = canvas.width = window.innerWidth;
-                h = canvas.height = window.innerHeight;
-                hexes = [];
-                const size = 36, hSpace = size * 1.5, vSpace = size * Math.sqrt(3);
-                for (let y = -size; y < h + size; y += vSpace) {
-                    for (let x = -size; x < w + size; x += hSpace) {
-                        const offsetY = (Math.floor(x / hSpace) % 2) * vSpace / 2;
-                        hexes.push({ x, y: y + offsetY, size, glow: Math.random() });
-                    }
-                }
-            }
-            function draw() {
-                ctx.clearRect(0, 0, w, h);
-                ctx.lineWidth = 1;
-                const t = Date.now() / 4000;
-                hexes.forEach((hex, i) => {
-                    const phase = (Math.sin(t + i * 0.3) + 1) / 2;
-                    ctx.strokeStyle = `rgba(0,180,255,${0.03 + phase * 0.04})`;
-                    ctx.beginPath();
-                    for (let a = 0; a < 6; a++) {
-                        const angle = (Math.PI / 3) * a;
-                        const px = hex.x + hex.size * Math.cos(angle);
-                        const py = hex.y + hex.size * Math.sin(angle);
-                        if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-                    }
-                    ctx.closePath();
-                    ctx.stroke();
-                });
-                rafId = requestAnimationFrame(draw);
-            }
-            window.addEventListener('resize', resize);
-            resize(); draw();
         }
 
         // Hydrate palette + voice + tab payloads from /api/settings
@@ -911,8 +866,6 @@
 <svelte:head>
     <title>⬡ TEKOS — Settings</title>
 </svelte:head>
-
-<canvas id="tekHexCanvas" bind:this={hexCanvas}></canvas>
 
 <div class="stage">
 

@@ -18,8 +18,6 @@
     let bootExiting = $state(false);
     let heroVisible = $state(false);
 
-    let canvasEl: HTMLCanvasElement;
-
     function revealHero() {
         if (heroVisible) return;
         bootExiting = true;
@@ -32,54 +30,6 @@
     }
 
     onMount(() => {
-        // Hex canvas (preview's animated grid)
-        let raf = 0;
-        let phase = 0;
-        const R = 32, W = R * Math.sqrt(3), H = R * 2;
-        const ctx = canvasEl.getContext('2d');
-
-        function drawHex(x: number, y: number, opacity: number) {
-            if (!ctx) return;
-            ctx.beginPath();
-            for (let i = 0; i < 6; i++) {
-                const a = (Math.PI / 3) * i - Math.PI / 6;
-                const px = x + (R - 1) * Math.cos(a);
-                const py = y + (R - 1) * Math.sin(a);
-                if (i === 0) ctx.moveTo(px, py);
-                else ctx.lineTo(px, py);
-            }
-            ctx.closePath();
-            ctx.strokeStyle = `rgba(0,180,255,${opacity})`;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-        function draw() {
-            if (!ctx) return;
-            ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-            const cw = canvasEl.width, ch = canvasEl.height;
-            const cols = Math.ceil(cw / W) + 3;
-            const rows = Math.ceil(ch / (H * 0.75)) + 3;
-            for (let row = -1; row < rows; row++) {
-                for (let col = -1; col < cols; col++) {
-                    const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
-                    const y = row * H * 0.75;
-                    const dx = x - cw * 0.5, dy = y - ch * 0.5;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
-                    drawHex(x, y, 0.07 + wave * 0.09);
-                }
-            }
-            phase += 0.005;
-            raf = requestAnimationFrame(draw);
-        }
-        function resize() {
-            canvasEl.width = window.innerWidth;
-            canvasEl.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resize);
-        resize();
-        draw();
-
         // Boot sequence
         const timeouts: ReturnType<typeof setTimeout>[] = [];
         let alreadySeen = false;
@@ -98,19 +48,13 @@
             timeouts.push(setTimeout(revealHero, BOOT_END));
         }
 
-        return () => {
-            timeouts.forEach(clearTimeout);
-            window.removeEventListener('resize', resize);
-            cancelAnimationFrame(raf);
-        };
+        return () => timeouts.forEach(clearTimeout);
     });
 </script>
 
 <svelte:head>
     <title>⬡ TekOS — The Survivor Network</title>
 </svelte:head>
-
-<canvas bind:this={canvasEl} id="tekHexCanvas"></canvas>
 
 {#if !heroVisible}
     <button class="skip-btn" class:hidden={bootExiting} onclick={revealHero}>SKIP ▸</button>
@@ -204,13 +148,6 @@
         radial-gradient(ellipse 55% 45% at 85% 85%, rgba(139,92,246,0.06) 0%, transparent 50%);
     pointer-events: none;
     z-index: 0;
-}
-
-#tekHexCanvas {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
 }
 
 .stage {

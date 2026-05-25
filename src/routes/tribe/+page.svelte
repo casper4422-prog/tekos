@@ -161,53 +161,6 @@
 
 	onMount(() => {
 		if (membership) { loadBlacklist(); loadAlliances(); }
-
-		// Hex canvas animation
-		const canvas = document.getElementById('tekHexCanvas') as HTMLCanvasElement | null;
-		if (!canvas) return;
-		const ctx = canvas.getContext('2d');
-		if (!ctx) return;
-		const R = 32, W = R * Math.sqrt(3), H = R * 2;
-		let phase = 0;
-		let raf = 0;
-		function drawHex(x: number, y: number, opacity: number) {
-			ctx!.beginPath();
-			for (let i = 0; i < 6; i++) {
-				const a = (Math.PI / 3) * i - Math.PI / 6;
-				const px = x + (R - 1) * Math.cos(a);
-				const py = y + (R - 1) * Math.sin(a);
-				i === 0 ? ctx!.moveTo(px, py) : ctx!.lineTo(px, py);
-			}
-			ctx!.closePath();
-			ctx!.strokeStyle = `rgba(0,180,255,${opacity})`;
-			ctx!.lineWidth = 1;
-			ctx!.stroke();
-		}
-		function draw() {
-			ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
-			const cw = canvas!.width, ch = canvas!.height;
-			const cols = Math.ceil(cw / W) + 3;
-			const rows = Math.ceil(ch / (H * 0.75)) + 3;
-			for (let row = -1; row < rows; row++) {
-				for (let col = -1; col < cols; col++) {
-					const x = col * W + (row % 2 !== 0 ? W / 2 : 0);
-					const y = row * H * 0.75;
-					const dx = x - cw * 0.5, dy = y - ch * 0.5;
-					const dist = Math.sqrt(dx * dx + dy * dy);
-					const wave = Math.sin(phase - dist * 0.01) * 0.5 + 0.5;
-					drawHex(x, y, 0.07 + wave * 0.09);
-				}
-			}
-			phase += 0.005;
-			raf = requestAnimationFrame(draw);
-		}
-		function resize() { canvas!.width = window.innerWidth; canvas!.height = window.innerHeight; }
-		window.addEventListener('resize', resize);
-		resize(); draw();
-		return () => {
-			cancelAnimationFrame(raf);
-			window.removeEventListener('resize', resize);
-		};
 	});
 
 	async function createTribe() {
@@ -350,8 +303,6 @@
 		await loadBlacklist();
 	}
 </script>
-
-<canvas id="tekHexCanvas"></canvas>
 
 <div class="stage">
 {#if membership}
