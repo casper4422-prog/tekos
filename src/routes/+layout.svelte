@@ -42,36 +42,24 @@
 		if (!res.ok) return;
 		const settings = await res.json() as Record<string, unknown>;
 		const theme = settings.theme as { primary?: string; accent?: string; bg?: string } | undefined;
-		const themeMode = settings.themeMode as 'dark' | 'light' | undefined;
-		const root = document.documentElement;
-
-		// Light mode toggles the data-theme-mode attribute so the global
-		// [data-theme-mode="light"] block in tekos.css can swap the dark
-		// palette, atmospheric gradient, and hex canvas blend mode.
-		if (themeMode === 'light') {
-			root.setAttribute('data-theme-mode', 'light');
-		} else {
-			root.removeAttribute('data-theme-mode');
-		}
-
+		// Light mode is retired — if a user has a stale themeMode:'light' saved,
+		// ignore the saved theme.bg (which would be a slate value) and let the
+		// palette's dark bg flow from the CSS default until they re-pick.
+		const wasLight = settings.themeMode === 'light';
 		if (!theme) return;
+		const root = document.documentElement;
 		const hexToRgb = (h: string) => {
 			const r=parseInt(h.slice(1,3),16), g=parseInt(h.slice(3,5),16), b=parseInt(h.slice(5,7),16);
 			return `${r},${g},${b}`;
 		};
 		if (theme.primary) {
 			root.style.setProperty('--tek-blue', theme.primary);
-			// Light mode wants slightly different opacities so the cyan tokens
-			// don't bloom out on a cream background.
-			const dimAlpha    = themeMode === 'light' ? 0.10 : 0.12;
-			const borderAlpha = themeMode === 'light' ? 0.35 : 0.22;
-			const glowAlpha   = themeMode === 'light' ? 0.20 : 0.35;
-			root.style.setProperty('--tek-blue-dim',    `rgba(${hexToRgb(theme.primary)},${dimAlpha})`);
-			root.style.setProperty('--tek-blue-border', `rgba(${hexToRgb(theme.primary)},${borderAlpha})`);
-			root.style.setProperty('--tek-blue-glow',   `rgba(${hexToRgb(theme.primary)},${glowAlpha})`);
+			root.style.setProperty('--tek-blue-dim',    `rgba(${hexToRgb(theme.primary)},0.12)`);
+			root.style.setProperty('--tek-blue-border', `rgba(${hexToRgb(theme.primary)},0.22)`);
+			root.style.setProperty('--tek-blue-glow',   `rgba(${hexToRgb(theme.primary)},0.35)`);
 		}
 		if (theme.accent) root.style.setProperty('--tek-purple', theme.accent);
-		if (theme.bg)     root.style.setProperty('--tek-bg', theme.bg);
+		if (theme.bg && !wasLight) root.style.setProperty('--tek-bg', theme.bg);
 	});
 
 	const SOCIAL_OPS = ['feed','network','tribe','settings','marketplace','overseer','notifications','badges'];

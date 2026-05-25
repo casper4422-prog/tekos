@@ -709,58 +709,53 @@
     // ── Theme palettes ──────────────────────────────────────────────────────
     type MapPalette = {
         id: string; name: string; tag: string;
-        primary: string; accent: string; bg: string; lightBg: string;
+        primary: string; accent: string; bg: string;
         prvBg: string; prvLine: string; prvGlow1: string; prvGlow2: string;
         sw1: string; sw2: string; sw3: string;
     };
-    let themeMode = $state<'dark' | 'light'>('dark');
-    // Light-mode bg values are mid-tones (RGB 140-180), not white. The Tek
-    // aesthetic relies on cyan glows and atmospheric drop-shadows that
-    // disappear on bright backgrounds — a dimmed "schematic" background
-    // reads as a worn blueprint instead of a hospital wall.
     const PALETTES: MapPalette[] = [
         { id: 'island',     name: 'The Island',     tag: 'CYAN · DEFAULT',
-          primary: '#00b4ff', accent: '#8b5cf6', bg: '#050812', lightBg: '#8a98ad',
+          primary: '#00b4ff', accent: '#8b5cf6', bg: '#050812',
           prvBg: '#050812', prvLine: 'rgba(0,180,255,0.18)',
           prvGlow1: 'rgba(0,180,255,0.40)', prvGlow2: 'rgba(139,92,246,0.30)',
           sw1: '#00b4ff', sw2: '#8b5cf6', sw3: '#0a1228' },
         { id: 'aberration', name: 'Aberration',     tag: 'BIO · PURPLE/GREEN',
-          primary: '#a855f7', accent: '#10b981', bg: '#0c0418', lightBg: '#8c80a0',
+          primary: '#a855f7', accent: '#10b981', bg: '#0c0418',
           prvBg: '#0c0418', prvLine: 'rgba(168,85,247,0.20)',
           prvGlow1: 'rgba(168,85,247,0.45)', prvGlow2: 'rgba(16,185,129,0.35)',
           sw1: '#a855f7', sw2: '#10b981', sw3: '#180a28' },
         { id: 'scorched',   name: 'Scorched Earth', tag: 'DESERT · AMBER/RED',
-          primary: '#f59e0b', accent: '#ef4444', bg: '#1a0a04', lightBg: '#a08a6d',
+          primary: '#f59e0b', accent: '#ef4444', bg: '#1a0a04',
           prvBg: '#1a0a04', prvLine: 'rgba(245,158,11,0.20)',
           prvGlow1: 'rgba(245,158,11,0.45)', prvGlow2: 'rgba(239,68,68,0.35)',
           sw1: '#f59e0b', sw2: '#ef4444', sw3: '#2a1408' },
         { id: 'genesis',    name: 'Genesis',        tag: 'SIM · TEAL/MAGENTA',
-          primary: '#22d3ee', accent: '#d946ef', bg: '#040818', lightBg: '#7d9295',
+          primary: '#22d3ee', accent: '#d946ef', bg: '#040818',
           prvBg: '#040818', prvLine: 'rgba(34,211,238,0.20)',
           prvGlow1: 'rgba(34,211,238,0.45)', prvGlow2: 'rgba(217,70,239,0.30)',
           sw1: '#22d3ee', sw2: '#d946ef', sw3: '#091230' },
         { id: 'extinction', name: 'Extinction',     tag: 'RUIN · ORANGE/TEAL',
-          primary: '#fb923c', accent: '#14b8a6', bg: '#180a04', lightBg: '#9d846a',
+          primary: '#fb923c', accent: '#14b8a6', bg: '#180a04',
           prvBg: '#180a04', prvLine: 'rgba(251,146,60,0.20)',
           prvGlow1: 'rgba(251,146,60,0.45)', prvGlow2: 'rgba(20,184,166,0.35)',
           sw1: '#fb923c', sw2: '#14b8a6', sw3: '#2a1208' },
         { id: 'ragnarok',   name: 'Ragnarok',       tag: 'NORDIC · BLUE/GOLD',
-          primary: '#60a5fa', accent: '#fcd34d', bg: '#040818', lightBg: '#88909e',
+          primary: '#60a5fa', accent: '#fcd34d', bg: '#040818',
           prvBg: '#040818', prvLine: 'rgba(96,165,250,0.20)',
           prvGlow1: 'rgba(96,165,250,0.45)', prvGlow2: 'rgba(252,211,77,0.30)',
           sw1: '#60a5fa', sw2: '#fcd34d', sw3: '#08142d' },
         { id: 'alpha', name: 'Alpha Survivor', tag: 'GOLD',
-          primary: '#d97706', accent: '#92400e', bg: '#0c0a02', lightBg: '#9c8e6a',
+          primary: '#d97706', accent: '#92400e', bg: '#0c0a02',
           prvBg: '#0c0a02', prvLine: 'rgba(250,204,21,0.20)',
           prvGlow1: 'rgba(250,204,21,0.45)', prvGlow2: 'rgba(255,255,255,0.20)',
           sw1: '#fcd34d', sw2: '#ffffff', sw3: '#1a1408' },
         { id: 'tek-proto', name: 'Tek Prototype', tag: 'BLUEPRINT',
-          primary: '#2dd4bf', accent: '#a5f3fc', bg: '#020c0c', lightBg: '#7d9590',
+          primary: '#2dd4bf', accent: '#a5f3fc', bg: '#020c0c',
           prvBg: '#020c0c', prvLine: 'rgba(45,212,191,0.25)',
           prvGlow1: 'rgba(45,212,191,0.50)', prvGlow2: 'rgba(165,243,252,0.30)',
           sw1: '#2dd4bf', sw2: '#a5f3fc', sw3: '#021818' },
         { id: 'corrupted', name: 'Element Corrupted', tag: 'CORRUPTION',
-          primary: '#d946ef', accent: '#f472b6', bg: '#100214', lightBg: '#988090',
+          primary: '#d946ef', accent: '#f472b6', bg: '#100214',
           prvBg: '#100214', prvLine: 'rgba(217,70,239,0.25)',
           prvGlow1: 'rgba(217,70,239,0.50)', prvGlow2: 'rgba(244,114,182,0.30)',
           sw1: '#d946ef', sw2: '#f472b6', sw3: '#200628' }
@@ -776,33 +771,13 @@
     }
     function applyThemeToDom(p: MapPalette) {
         const root = document.documentElement;
+        root.removeAttribute('data-theme-mode');
         root.style.setProperty('--tek-blue', p.primary);
         root.style.setProperty('--tek-purple', p.accent);
-        // Light mode: just set bg + the data-theme-mode flag; tekos.css's
-        // [data-theme-mode="light"] block handles text/glow/atmospheric tokens
-        // so they stay consistent across palette swaps.
-        if (themeMode === 'light') {
-            root.setAttribute('data-theme-mode', 'light');
-            root.style.setProperty('--tek-bg', p.lightBg);
-            // Cyan-tinted tokens should derive from the palette's primary in
-            // both modes — JS computes the rgba forms once per swap.
-            root.style.setProperty('--tek-blue-dim',    `rgba(${hexToRgb(p.primary)},0.10)`);
-            root.style.setProperty('--tek-blue-border', `rgba(${hexToRgb(p.primary)},0.35)`);
-            root.style.setProperty('--tek-blue-glow',   `rgba(${hexToRgb(p.primary)},0.20)`);
-            // Text tokens are handled by CSS — clear any earlier JS overrides.
-            root.style.removeProperty('--tek-text');
-            root.style.removeProperty('--tek-text-dim');
-            root.style.removeProperty('--tek-text-faint');
-        } else {
-            root.removeAttribute('data-theme-mode');
-            root.style.setProperty('--tek-bg', p.bg);
-            root.style.setProperty('--tek-blue-dim',    `rgba(${hexToRgb(p.primary)},0.12)`);
-            root.style.setProperty('--tek-blue-border', `rgba(${hexToRgb(p.primary)},0.30)`);
-            root.style.setProperty('--tek-blue-glow',   `rgba(${hexToRgb(p.primary)},0.50)`);
-            root.style.removeProperty('--tek-text');
-            root.style.removeProperty('--tek-text-dim');
-            root.style.removeProperty('--tek-text-faint');
-        }
+        root.style.setProperty('--tek-bg', p.bg);
+        root.style.setProperty('--tek-blue-dim',    `rgba(${hexToRgb(p.primary)},0.12)`);
+        root.style.setProperty('--tek-blue-border', `rgba(${hexToRgb(p.primary)},0.30)`);
+        root.style.setProperty('--tek-blue-glow',   `rgba(${hexToRgb(p.primary)},0.50)`);
     }
     async function selectPalette(p: MapPalette) {
         activePaletteId = p.id;
@@ -811,7 +786,7 @@
         try {
             const res = await fetch('/api/settings', {
                 method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mapPalette: p.id, themeMode, theme: { primary: p.primary, accent: p.accent, bg: themeMode === 'light' ? p.lightBg : p.bg } })
+                body: JSON.stringify({ mapPalette: p.id, theme: { primary: p.primary, accent: p.accent, bg: p.bg } })
             });
             if (res.ok) {
                 themeMsg = '✓ Palette saved';
@@ -822,17 +797,6 @@
         } catch {
             themeMsg = 'Network error'; themeErr = true;
         }
-    }
-    async function selectThemeMode(mode: 'dark' | 'light') {
-        themeMode = mode;
-        const p = PALETTES.find(x => x.id === activePaletteId) ?? PALETTES[0];
-        applyThemeToDom(p);
-        try {
-            await fetch('/api/settings', {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ themeMode: mode })
-            });
-        } catch {}
     }
 
     // ── Hex canvas ──────────────────────────────────────────────────────────
@@ -937,11 +901,6 @@
                         rumbleChannel  = body.integrations.rumbleChannel ?? '';
                         tiktokHandle   = body.integrations.tiktokHandle ?? '';
                         twitterHandle  = body.integrations.twitterHandle ?? '';
-                    }
-                    if (body.themeMode === 'light') {
-                        themeMode = 'light';
-                        const matched2 = PALETTES.find(p => p.id === (body.mapPalette ?? activePaletteId));
-                        if (matched2) applyThemeToDom(matched2);
                     }
                 }
             } catch {}
@@ -1385,21 +1344,6 @@
                 <div class="section-header">
                     <div class="section-title">Themes</div>
                     <div class="section-desc">Recolor your TekOS instance to match your home map · unlock more by earning badges</div>
-                </div>
-
-                <div class="group">
-                    <div class="group-label">Brightness</div>
-                    <div class="theme-mode-row">
-                        <button type="button" class="theme-mode-btn" class:active={themeMode === 'dark'} onclick={() => selectThemeMode('dark')}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-                            Dark
-                        </button>
-                        <button type="button" class="theme-mode-btn" class:active={themeMode === 'light'} onclick={() => selectThemeMode('light')}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                            Light
-                        </button>
-                        <span style="font-family:var(--tek-mono); font-size:0.68rem; color:var(--tek-text-faint); margin-left:8px;">Light mode uses softer backgrounds while keeping your palette accent colors.</span>
-                    </div>
                 </div>
 
                 <div class="group">
@@ -2944,41 +2888,6 @@
     font-size: 0.52rem;
 }
 
-/* ─── Theme mode toggle ─────────────────────────────────────────────────── */
-.theme-mode-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding: 4px 0 8px;
-}
-.theme-mode-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(100,116,139,0.10);
-    border: 1px solid rgba(100,116,139,0.25);
-    color: var(--tek-text-dim);
-    font-family: var(--tek-mono);
-    font-size: 0.74rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 8px 16px;
-    cursor: pointer;
-    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
-    transition: all 0.15s;
-}
-.theme-mode-btn.active {
-    background: rgba(0,180,255,0.12);
-    border-color: var(--tek-blue-border);
-    color: var(--tek-blue);
-    box-shadow: 0 0 10px rgba(0,180,255,0.20);
-}
-.theme-mode-btn:hover:not(.active) {
-    border-color: rgba(100,116,139,0.45);
-    color: var(--tek-text);
-}
-
 /* ─── Sublabel inside groups ──────────────────────────────────────────── */
 .group-sublabel {
     font-family: var(--tek-mono);
@@ -3020,18 +2929,4 @@
     clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
 }
 
-/* ─── Global light-mode overrides ─────────────────────────────────────── */
-:global([data-theme-mode="light"]) {
-    background-color: var(--tek-bg) !important;
-    color: var(--tek-text) !important;
-}
-:global([data-theme-mode="light"] body) {
-    background-color: var(--tek-bg) !important;
-    color: var(--tek-text) !important;
-}
-:global([data-theme-mode="light"] .stage),
-:global([data-theme-mode="light"] .panel),
-:global([data-theme-mode="light"] .side-nav) {
-    background-color: var(--tek-bg) !important;
-}
 </style>
