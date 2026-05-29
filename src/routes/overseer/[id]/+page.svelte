@@ -19,15 +19,13 @@
 
 	let activeTab   = $state<'chat'|'roster'|'members'|'tips'>('chat');
 
-	// Boss tips database — covers all ASA bosses
+	// Boss tips database — every entry researched against ark.wiki.gg (ASA).
+	// NO default fallback. Bosses without an entry render an explicit
+	// "no tips logged yet" state so we never show generic-wrong advice
+	// (the previous default told players to skip flyers, which is
+	// catastrophically wrong for field-tame Titans).
 	type BossTip = { creatures:string[]; consumables:string[]; tips:string[]; avoid:string[] };
 	const BOSS_TIPS: Record<string, BossTip> = {
-		default: {
-			creatures:['Rex (high HP + Melee)','Yutyrannus (courage buff)','Daeodon (passive healing)'],
-			consumables:['Focal Chili (player movement)','Lazarus Chowder (water saving)','Battle Tartare (player damage)'],
-			tips:['Bring a Yutyrannus for the +25% courage buff','Place Daeodon on passive — it will auto-heal nearby dinos','Put your best creatures on passive until you need them','Saddle armor matters more than creature level for survival'],
-			avoid:['Flyers (arenas are closed)','Creatures with low saddle armor','Overloading too many creatures — quality over quantity']
-		},
 		broodmother: {
 			creatures:['Megatherium (gets huge buff vs insects — BEST pick)','Rex','Yutyrannus','Daeodon'],
 			consumables:['Bug Repellant (reduces aggro from Araneo swarms)','Focal Chili','Mushroom Brew (Aberration)'],
@@ -69,12 +67,123 @@
 			consumables:['Medical Brew (you\'ll need it)','Battle Tartare'],
 			tips:['The Lost Queen\'s healing beam must be broken or she regenerates to full','Assign 2-3 tribe members to focus exclusively on breaking the beam','She has two phases — the second phase is more aggressive','This fight directly follows Lost King — prepare before entering the palace'],
 			avoid:['Letting the healing beam complete (she will reach 100% HP)','Splitting too much focus between her and the beam — beam break is priority']
+		},
+
+		// ─── Field-tame Titans (Extinction) ───
+		desert_titan: {
+			creatures:['Quetzal with enclosed platform saddle (lightning shelter — META)','Lightning Wyvern (mobile DPS between strikes)','Bladewasp Hive (ASA-specific — trivializes the fight at scale)'],
+			consumables:['Tek Rifle / fabricated sniper (corruption node DPS)','Medical Brews (constant flock chip damage)','Tek Boots or Glider Suit (you WILL fall)'],
+			tips:['Field tame — claim it on the ground after every corruption node is destroyed','Node order matters: wings cleanse before the tail node can be struck','Deal as little damage to the Titan itself as possible — every point hurts post-tame HP','After the first node dies, the tail-slap starts. Watch the tail lift, that\'s the tell'],
+			avoid:['Skipping flyers — they\'re MANDATORY here, the boss IS a platform','Burning the Titan down for speed (you keep what damage you didn\'t deal)','Landing on its back mid-flight (animation bug = dismount + death)']
+		},
+		ice_titan: {
+			creatures:['Mek with M.R.L.M. or M.S.C.M. saddle (jump clears the freeze radius — META)','Yutyrannus (courage roar offsets the fear+freeze stack)','Carcharodontosaurus (knockback windows during stagger)','Giga (raw damage between freezes — bring backup)'],
+			consumables:['Fria Curry (player cold protection in the Snow Dome)','Medical Brews (freezes lock you in attack range — high volume)','Battle Tartare (DPS windows between ice breaths)'],
+			tips:['Field tame — destroy three corruption nodes in order: right ankle, right shoulder, chest','Spawn via the Ice Titan Terminal in the Snow Dome — bring tributes','Stay mobile — anything frozen takes 50% more damage from its next hit','Mek jump packs reset positioning when the freeze breath telegraphs'],
+			avoid:['Standing still through the freeze breath (instant lockdown into 50%-bonus hits)','Bringing creatures that can\'t escape the trample (300 dmg per walk-over)','Burning it down for speed — post-tame HP is what you didn\'t take']
+		},
+		forest_titan: {
+			creatures:['Mek with M.R.L.M. or M.S.C.M. saddle (expensive but reliable — META)','Velonasaur (rapid-fire ranged — 1 damage per shot but that IS the cap)','Burrowed Purlovia / Basilisk / Reaper King (infinite distraction underground)'],
+			consumables:['Fabricated Sniper Rifle with stockpiled ammo (rapid clicks beat raw damage)','Medical Brews (vine grab is a 15k damage one-shot risk)','Battle Tartare (only attack-speed matters but every bit helps)'],
+			tips:['Field tame — destroy both shoulder nodes first, THEN the chin node spawns','Summon at the Forest Titan Terminal (Forest Cave, north of the crater)','Damage caps at 1 per hit on corruption nodes — attack speed is everything','Burrowed tames make the fight trivial — Titans can\'t target underground'],
+			avoid:['Standing on ground after the first node dies — vine grab yanks you out of your Mek','Bringing high-damage weapons expecting big numbers (cap is 1 per hit)','Forgetting tributes at the terminal']
+		},
+
+		// ─── Released but previously falling back to default ───
+		overseer: {
+			creatures:['Therizinosaurus (high DPS, small footprint — META across all three avatars)','Yutyrannus (courage roar through every phase)','Daeodon (passive healing for the long fight)'],
+			consumables:['Sweet Vegetable Cakes (Theri regen between phases)','Medical Brews (multiple — this is a marathon)','Cold-resistance gear (the arena is freezing before Ascension)'],
+			tips:['Three avatars in sequence: Broodmother → Megapithecus → Dragon. Each must die completely before the next','Kill Defense Units first when they spawn — they\'ll overwhelm a focused group','Use arena pillars as cover against the stun beams','Stay mounted — dismount attacks land hard during phase transitions'],
+			avoid:['Bringing Rexes (Dragon phase fire damage shreds them)','Skipping ascendant saddles (lower tiers won\'t survive the fight length)','Forgetting cold protection — Ascension trigger is a brutal cold spike']
+		},
+		manticore: {
+			creatures:['Rex (high HP/Melee — wait for it to land)','Yutyrannus (courage buff, no Yuti shoulder pet though)','Mantis groups with high-damage swords (paired with tanks)'],
+			consumables:['Stimulants and water FOR YOU (the tail-spike torpor lands on the rider)','Medical Brews','Battle Tartare'],
+			tips:['Boss only lands every few minutes when there are NO flyers and NO shoulder pets in the arena','Keep tames grouped tight — scattered positioning prevents it from landing','Burst damage during the brief landing windows is the whole fight','Stim yourself between volleys — torpor stacks fast on the rider'],
+			avoid:['Bringing ANY flyer or shoulder pet (Glowtail, Featherlight, Bulbdog) — boss bugs into permanent flight mode','Spreading tames across the arena (boss won\'t descend)','Trying to stim your tames — tail-spike torpor only stims off you, not them']
+		},
+		center_combo: {
+			creatures:['Megatherium (insect buff for Broodmother side)','Rex squad (general DPS)','Yutyrannus (courage across both fights)','Daeodon (constant healing)'],
+			consumables:['Battle Tartare','Focal Chili','Medical Brews (this is a two-front war)'],
+			tips:['Both bosses spawn AT THE SAME TIME — not sequential like other arenas','25-minute timer. Past that, every player, dino, and item in the arena is destroyed','Split the squad: dedicate Megatheriums to the Broodmother, Rexes to the Megapithecus','Yuti and Daeodon work for both halves — keep them centered between the two fights'],
+			avoid:['Treating it like a solo Broodmother fight (Mega rocks will wipe a grouped squad)','Letting the timer run out (no loot, total wipe)','Splitting too evenly — one side needs to close out first or you run the clock']
+		},
+		nunatak: {
+			creatures:['Rex (high HP — flyers and climbers are banned in this arena)','Yutyrannus (courage roar offsets the cold + minion stress)','Daeodon (healing is mandatory against Iceworm chip damage)','Pyromane (fire AoE clears Iceworm waves)'],
+			consumables:['Fria Curry (player cold protection — arena is hazardous on its own)','Medical Brews (high volume)','Battle Tartare'],
+			tips:['Nunatak can ONLY summon Iceworms while airborne — burn it down while it\'s grounded','Iceworm waves are the real threat, not the boss itself — keep AoE clear ready','Alpha has over a million HP — bring extra brews, this is a long fight','Movement-slow from the Ice Breath stacks with the cold debuff — stay positioned'],
+			avoid:['Flyers and climbers (banned in the arena — Wyverns, Drakes, Bulbdogs all locked out)','Letting Iceworm waves stack while focusing the Wyvern','Going in without cold protection — the arena chips you outside of attacks']
+		},
+		grendel: {
+			creatures:['Therizinosaurus (top DPS pick, durable)','Deinotherium (tank-DPS hybrid)','Stegosaurus with Veggie Cake (sustained tank)','Yutyrannus lead (courage buff)'],
+			consumables:['Sweet Vegetable Cakes (Theri/Stego sustain)','Medical Brews','Battle Tartare'],
+			tips:['Forsaken Oasis arena on Valguero — Grendel replaces the legacy Megapithecus/Dragon/Manticore trio','Theri + Yuti + Daeodon stack is the proven comp','Stego eats Veggie Cake on autopilot — set it before the gate','Grendel telegraphs hits — use the windups to reposition behind it'],
+			avoid:['Bringing only DPS with no healer — fight runs long','Standing in front of the wind-up animation','Spreading damage across many low-HP tames — Grendel cleaves through soft squads']
+		},
+
+		// ─── Astraeos (Feb 2025) ───
+		hydraskos: {
+			creatures:['Stegosaurus (high-HP tank for the front)','Deinonychus (bleed stacking from the rear — META)','Therizinosaurus (28k+ HP, 700+ melee for direct DPS)','Daeodon (healing required)','Yutyrannus (courage)'],
+			consumables:['Sweet Vegetable Cakes (Stego/Theri sustain)','Medical Brews','Extinguisher Grenades (drop the fire breath\'s burn DoT)'],
+			tips:['Five heads = five simultaneous elemental breaths (fire, ice, dark, lightning, poison). Stay behind the body','Deinonychus rear-attack bleed stacks the boss faster than anything frontal','Stego tanks the front while DPS works the tail end','Wear elemental-mixed saddles — no single resist covers all five breaths'],
+			avoid:['Engaging from the front — all five breaths land at once','Splitting attention across multiple heads (focus the body)','Going in without a healer — the chip damage compounds across the squad']
+		},
+		natrix: {
+			creatures:['Spinosaurus (water buff + knockback in the swamp arena)','Rex (standard rush)','Deinosuchus (huge bite, strong stats)','Yutyrannus (courage)','Daeodon (healing for minion chip)'],
+			consumables:['Lesser Antidote (Onyc disease + Titanoboa torpor land on you)','Medical Brews','Battle Tartare'],
+			tips:['Minions (Araneo, Titanoboa, Onyc) do more damage than Natrix herself — clear them first','Snake-hair stun has a wind-up — break line of sight when you see it telegraph','Spinos get the swamp-water damage buff in this arena — bring at least one','Stay back, support the tames — getting stunned in the minion pile is how survivors die'],
+			avoid:['Clustering tames where the minion waves spawn','Engaging at melee range as the rider (stun + minions = dead)','Skipping antidote — the disease + torpor combo locks you out fast']
+		},
+		thodes: {
+			creatures:['Acrocanthosaurus (damage-reduction stance is gold against the club swings)','Rex','Yutyrannus (courage)','Daeodon (healer)','Equus (speed for dodging — niche but works)'],
+			consumables:['Fabricated Rifle / Sniper (you NEED ranged to hit the eye)','Medical Brews','Battle Tartare'],
+			tips:['Damage reduction is active until the eye pulses with energy — shoot the eye to enter the weak window','Weak window shows as a red mist around the boss — burn DPS during this state','Club has wide AoE that cleaves grouped tames — spread slightly between hits','Long attrition fight, especially on Alpha — bring extra brews'],
+			avoid:['Going in without ranged weapons — without eye hits, damage is heavily reduced','Stacking all tames in one spot (club AoE wipes clusters)','Underestimating Alpha HP scaling — the fight is endurance']
+		},
+		thanatos: {
+			creatures:['Giganotosaurus (rush burst)','Carcharodontosaurus (rush burst)','Dreadnoughtus (terrain advantage in Therokis)','Wyverns (mobility + breath attack)'],
+			consumables:['Medical Brews (heavy)','Battle Tartare','Cooked Lamb Chops (sustain for the rush squad)'],
+			tips:['World boss — roams Therokis, spawns for a short window, no tribute required','15-minute time limit once engaged — burst comp wins, slow fights lose','Lava rivers crisscross the arena — position around them, never inside','Weaker than King Titan and can\'t summon Lightning Creatures — the bones of the fight are simpler'],
+			avoid:['Slow comp / attrition strategy (timer runs out before you finish)','Standing in or crossing lava rivers mid-fight','Forgetting to scout the spawn window — it\'s temporary, not persistent']
+		},
+		iceworm_queen: {
+			creatures:['Mate-boosted Baryonyx pair (proven cheese — wins easily)','Or: one shield-tanking player + ranged DPS behind'],
+			consumables:['Fria Curry (the dungeon path is frozen)','Medical Brews','Stimberries (stim yourself out of stun states)'],
+			tips:['Dungeon clear, not a tiered arena — Ice Queen Labyrinth under the Frozen Dungeon (Ragnarok)','Boss level scales with player count: floor of 10, +10 per challenger','Mate-boosted Baryonyx makes this trivial — official-recommended cheese','Queen is stationary when engaged — first strike is hers, so pre-position behind cover'],
+			avoid:['Walking up to her at melee range — large hitbox guarantees she lands the first hit','Going in with one squishy DPS comp — bring at least one tank','Forgetting cold gear for the dungeon approach']
+		},
+
+		// ─── Coming Soon — stubs so the no-fallback path doesn't surprise anyone ───
+		soon_genesis1: {
+			creatures:[], consumables:[],
+			tips:['Not yet released. Genesis Part 1 (Ascended) is on the roadmap — tips will land when it ports to ASA.'],
+			avoid:[]
+		},
+		soon_genesis2: {
+			creatures:[], consumables:[],
+			tips:['Not yet released. Genesis Part 2 (Ascended) is on the long-term roadmap — tips will land closer to launch.'],
+			avoid:[]
+		},
+		soon_lost_island: {
+			creatures:[], consumables:[],
+			tips:['Not yet released. Dinopithecus King returns when Lost Island ports to ASA — tips will land then.'],
+			avoid:[]
+		},
+		soon_crystal: {
+			creatures:[], consumables:[],
+			tips:['Not yet released. Crystal Wyvern Queen returns when Crystal Isles ports to ASA — tips will land then.'],
+			avoid:[]
+		},
+		soon_fjordur: {
+			creatures:[], consumables:[],
+			tips:['Not yet released. Fenrisúlfr is currently deprioritized for ASA — tips will land if/when Fjordur is ported.'],
+			avoid:[]
 		}
 	};
 
-	function getBossTips(): BossTip {
+	function getBossTips(): BossTip | null {
 		const bossId = String(session.bossId ?? '');
-		return BOSS_TIPS[bossId] ?? BOSS_TIPS.default;
+		return BOSS_TIPS[bossId] ?? null;
 	}
 	let draft        = $state('');
 	let addOpen      = $state(false);
@@ -279,29 +388,46 @@
 	{:else}
 		<!-- Tips & Gear tab -->
 		{@const tips = getBossTips()}
-		<div class="war-tips">
-			<div class="war-tips-grid">
-				<!-- Recommended creatures -->
-				<div class="war-tip-card">
-					<div class="war-tip-title">Recommended Creatures</div>
-					{#each tips.creatures as c}
-						<div class="war-tip-item war-tip-creature">
-							<span class="war-tip-bullet" style="background:rgba(34,197,94,0.6)"></span>{c}
-						</div>
-					{/each}
-				</div>
-
-				<!-- Consumables -->
-				<div class="war-tip-card">
-					<div class="war-tip-title">Consumables & Gear</div>
-					{#each tips.consumables as c}
-						<div class="war-tip-item">
-							<span class="war-tip-bullet" style="background:rgba(59,130,246,0.6)"></span>{c}
-						</div>
-					{/each}
+		{#if !tips}
+			<div class="war-tips">
+				<div class="war-tip-card war-tip-full">
+					<div class="war-tip-title">No tips logged yet</div>
+					<div class="war-tip-item" style="color: var(--tek-text-dim)">
+						This boss doesn't have a researched tips entry yet. We don't show generic advice here — wrong tips on a specific boss are worse than none. Check ark.wiki.gg for now, and the entry will land soon.
+					</div>
 				</div>
 			</div>
+		{:else}
+		<div class="war-tips">
+			{#if tips.creatures.length > 0 || tips.consumables.length > 0}
+				<div class="war-tips-grid">
+					{#if tips.creatures.length > 0}
+					<!-- Recommended creatures -->
+					<div class="war-tip-card">
+						<div class="war-tip-title">Recommended Creatures</div>
+						{#each tips.creatures as c}
+							<div class="war-tip-item war-tip-creature">
+								<span class="war-tip-bullet" style="background:rgba(34,197,94,0.6)"></span>{c}
+							</div>
+						{/each}
+					</div>
+					{/if}
 
+					{#if tips.consumables.length > 0}
+					<!-- Consumables -->
+					<div class="war-tip-card">
+						<div class="war-tip-title">Consumables & Gear</div>
+						{#each tips.consumables as c}
+							<div class="war-tip-item">
+								<span class="war-tip-bullet" style="background:rgba(59,130,246,0.6)"></span>{c}
+							</div>
+						{/each}
+					</div>
+					{/if}
+				</div>
+			{/if}
+
+			{#if tips.tips.length > 0}
 			<!-- Strategy tips -->
 			<div class="war-tip-card war-tip-full">
 				<div class="war-tip-title">Strategy</div>
@@ -311,7 +437,9 @@
 					</div>
 				{/each}
 			</div>
+			{/if}
 
+			{#if tips.avoid.length > 0}
 			<!-- What to avoid -->
 			<div class="war-tip-card war-tip-full war-tip-danger">
 				<div class="war-tip-title">What to Avoid</div>
@@ -321,7 +449,9 @@
 					</div>
 				{/each}
 			</div>
+			{/if}
 		</div>
+		{/if}
 	{/if}
 </div>
 
