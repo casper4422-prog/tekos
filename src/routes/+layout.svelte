@@ -9,8 +9,11 @@
 	import type { LayoutData } from './$types';
 	import { page } from '$app/stores';
 	import SNTO from '$lib/components/SNTO.svelte';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
+
+	let feedbackOpen = $state(false);
 
 	const NAV = [
 		{ section:'Personal', color:'beta', items:[
@@ -90,13 +93,12 @@
 		{/if}
 
 		<div class="tek-nav">
-			<!-- Beta feedback link -->
+			<!-- Feedback trigger — opens in-app modal that fires a Discord webhook -->
 			{#if data.user}
-				{@const feedbackName = encodeURIComponent(data.user.nickname ?? data.user.email)}
-				<a class="feedback-btn" href="https://casper4422-prog.github.io/tekos-feedback?name={feedbackName}" target="_blank" rel="noopener">
+				<button class="feedback-btn" type="button" onclick={() => feedbackOpen = true}>
 					<Flag size={13} strokeWidth={1.75} />
-					Report Test Issue
-				</a>
+					Report Issue
+				</button>
 			{/if}
 
 			{#each NAV as group}
@@ -159,6 +161,13 @@
 	     the app). Hidden on the pre-auth landing/login flow per the outer
 	     {#if !data.user && !isGuest} branch above. -->
 	<SNTO />
+
+	<!-- Feedback modal — opened from the "Report Issue" button in the sidebar.
+	     Guests are gated out at the trigger (sidebar button only renders for
+	     data.user) AND at the API level. -->
+	{#if data.user}
+		<FeedbackModal bind:open={feedbackOpen} user={data.user} />
+	{/if}
 {/if}
 
 <style>
