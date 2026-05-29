@@ -56,6 +56,7 @@ model User {
   bossPlanner          BossPlanner?
   tribalActivity       TribalActivity[]     @relation("TribalActivityUser")
   warRoomsCreated      WarRoom[]            @relation("WarRoomCreator")
+  breedingProjects     BreedingProject[]
 
   @@map("users")
 }
@@ -66,12 +67,37 @@ model Creature {
   data      Json
   createdAt DateTime @default(now()) @map("created_at")
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trades         Trade[]
-  arenaCreatures ArenaCreature[]
-  tribeCreatures TribeCreature[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades           Trade[]
+  arenaCreatures   ArenaCreature[]
+  tribeCreatures   TribeCreature[]
+  breedingProjects BreedingProject[]
 
   @@map("creatures")
+}
+
+// BreedingProject — pinned breeding goals shown on the Dossier's
+// "Active Breeding Projects" lane. One row per (user, creature, focus stat),
+// so a survivor can breed the same Theri for both HP and Melee and have
+// each goal render as its own card with its own bump counter.
+//
+// Replaces the legacy User.pinnedCreatures JSON array (kept around as a
+// migration source — the post-migrate seed script reads it once, then it's
+// dead data we can drop in a later cleanup).
+model BreedingProject {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user_id")
+  creatureId      Int      @map("creature_id")
+  focusStat       String   @map("focus_stat")
+  targetMutations Int      @default(0) @map("target_mutations")
+  pinnedAt        DateTime @default(now()) @map("pinned_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creature Creature @relation(fields: [creatureId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, creatureId, focusStat])
+  @@index([userId])
+  @@map("breeding_projects")
 }
 
 model Friendship {

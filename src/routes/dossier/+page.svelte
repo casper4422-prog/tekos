@@ -49,27 +49,28 @@
             : '—'
     );
 
-    // Map each pinned creature to its breeding project info (focus stat + target).
-    // Project info comes from data.pinnedProjects (server-side joined from
-    // user.pinnedCreatures); new pins always have focusStat, legacy pins may not.
+    // Each pinned project maps to a (creature, focus stat) pair — a survivor
+    // breeding the same Theri for HP and Melee gets two separate cards here,
+    // each bumping only its own stat. The HARD_MAX cap in the API limits
+    // the total to 6 across all stats and all creatures.
     type Pinned = (typeof data.creatures)[number] & {
-        focusStat: 'HP'|'STA'|'OXY'|'FOOD'|'WGT'|'MEL'|'CRA'|null;
+        projectId: number;
+        focusStat: 'HP'|'STA'|'OXY'|'FOOD'|'WGT'|'MEL'|'CRA'|'SPD';
         targetMutations: number;
     };
     const pinned = $derived<Pinned[]>(
-        data.pinnedIds
-            .map(id => {
-                const creature = data.creatures.find(c => c.id === id);
+        data.breedingProjects
+            .map(p => {
+                const creature = data.creatures.find(c => c.id === p.creatureId);
                 if (!creature) return null;
-                const project = (data.pinnedProjects ?? []).find(p => p.creatureId === id);
                 return {
                     ...creature,
-                    focusStat: (project?.focusStat ?? null) as Pinned['focusStat'],
-                    targetMutations: project?.targetMutations ?? 0
+                    projectId: p.id,
+                    focusStat: p.focusStat as Pinned['focusStat'],
+                    targetMutations: p.targetMutations
                 };
             })
             .filter((x): x is Pinned => !!x)
-            .slice(0, 3)
     );
 
     // Short stat key ↔ full key as stored on creature.baseStats/mutations
@@ -80,39 +81,45 @@
 
     function getStatValue(stats: Record<string, number> | undefined, key: Pinned['focusStat']): number {
         if (!stats || !key) return 0;
-        const long = STAT_LONG[key];
-        return Number(stats[key] ?? stats[key.toLowerCase()] ?? stats[long] ?? stats[long.toLowerCase()] ?? 0);
+        const long = (STAT_LONG as Record<string, string>)[key];
+        return Number(stats[key] ?? stats[key.toLowerCase()] ?? (long && stats[long]) ?? (long && stats[long.toLowerCase()]) ?? 0);
     }
 
-    // Mutations counter state, keyed by creature id — tracks ONLY the focus stat's
-    // mutation count. Effect must not read mutationCounts inside the same write
-    // (Svelte 5 effect_update_depth_exceeded). Initialize from creature's stored
-    // focus-stat mutations on each pinned-change; manual bumps persist client-side
-    // until next reload.
+    // Mutations counter state, keyed by projectId — each (creature, stat) pair
+    // gets its own counter so two projects on the same Theri (HP + MEL) don't
+    // collide. Effect must not read mutationCounts inside the same write
+    // (Svelte 5 effect_update_depth_exceeded). Initialize from each project's
+    // stored focus-stat mutations on every pinned-change.
     let mutationCounts = $state<Record<number, number>>({});
 
     $effect(() => {
         const next: Record<number, number> = {};
-        for (const c of pinned) {
-            next[c.id] = getStatValue(c.mutations, c.focusStat);
+        for (const p of pinned) {
+            next[p.projectId] = getStatValue(p.mutations, p.focusStat);
         }
         mutationCounts = next;
     });
 
-    async function bump(id: number, delta: number) {
-        const project = (data.pinnedProjects ?? []).find(p => p.creatureId === id);
-        const focusStat = project?.focusStat;
-        if (!focusStat) return;
-        const cur = mutationCounts[id] ?? 0;
+    async function unpinProject(p: Pinned) {
+        if (!confirm(`Unpin the ${p.focusStat} project for "${p.name}"?`)) return;
+        // ?id is the creatureId, ?focusStat scopes the delete to this one project
+        // (without focusStat the API removes ALL projects for that creature).
+        const params = new URLSearchParams({ id: String(p.id), focusStat: p.focusStat });
+        await fetch(`/api/pinned-projects?${params}`, { method: 'DELETE' });
+        window.location.reload();
+    }
+
+    async function bump(p: Pinned, delta: number) {
+        const cur = mutationCounts[p.projectId] ?? 0;
         const next = Math.max(0, cur + delta);
-        mutationCounts[id] = next;
+        mutationCounts[p.projectId] = next;
         // Persist to creature.mutations[focusStat] via PATCH so the Individual
-        // page reads the same count next render.
+        // page and any other project on the same creature read the latest count.
         try {
-            await fetch(`/api/creatures/${id}`, {
+            await fetch(`/api/creatures/${p.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mutations: { [focusStat]: next } })
+                body: JSON.stringify({ mutations: { [p.focusStat]: next } })
             });
         } catch { /* keep optimistic UI value on failure */ }
     }
@@ -432,8 +439,11 @@
         <div class="section-header">
             <span class="pip"></span>
             Active Breeding Projects
+            {#if pinned.length > 0}
+                <span class="count">{pinned.length} / 6</span>
+            {/if}
             <span class="rule"></span>
-            <button type="button" class="action" onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Project <span class="arrow">▸</span></button>
+            <button type="button" class="action" disabled={pinned.length >= 6} onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Project <span class="arrow">▸</span></button>
         </div>
         {#if pinned.length === 0}
             <div class="pinned-empty">
@@ -448,14 +458,17 @@
                     {@const cat = categoryForSpecies(c.species)}
                     {@const badges = computeBadges(c.baseStats, c.mutations)}
                     {@const tierLabel = badges.bossReady ? `Boss · ${badges.bossReady}` : badges.bloodline ? `${badges.bloodline.charAt(0).toUpperCase() + badges.bloodline.slice(1)} Bloodline` : 'Standard'}
-                    {@const focusBase = c.focusStat ? getStatValue(c.baseStats, c.focusStat) : 0}
-                    {@const focusLabel = c.focusStat ?? '—'}
-                    {@const currentMut = mutationCounts[c.id] ?? 0}
+                    {@const focusBase = getStatValue(c.baseStats, c.focusStat)}
+                    {@const focusLabel = c.focusStat}
+                    {@const currentMut = mutationCounts[c.projectId] ?? 0}
                     {@const targetMut = c.targetMutations ?? 0}
                     <div class="pin-card {cat}" role="link" tabindex="0" onclick={() => openProject(c.id)} onkeydown={(e) => openProject(c.id, e)}>
                         <div class="pin-top">
                             <span class="pin-tier">⬢ {tierLabel}</span>
-                            <svg class="pin-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <button class="pin-unpin" title="Unpin this {focusLabel} project" aria-label="Unpin {focusLabel} project for {c.name}" onclick={(e) => { e.stopPropagation(); unpinProject(c); }}>×</button>
+                                <svg class="pin-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                            </div>
                         </div>
                         <div class="pin-species">{c.species}</div>
                         <div class="pin-nick">"{c.name}"</div>
@@ -465,16 +478,16 @@
                             <span class="cat">{categoryLabel(cat)}</span>
                         </div>
                         <div class="project-focus">
-                            <div class="project-focus-label">{focusLabel === '—' ? 'No Focus' : focusLabel} Base</div>
+                            <div class="project-focus-label">{focusLabel} Base</div>
                             <div class="project-focus-stat">{focusBase}</div>
                         </div>
                         <div class="project-counter">
-                            <button class="project-btn minus" title="Decrement {focusLabel} mutations" onclick={(e) => { e.stopPropagation(); bump(c.id, -1); }} disabled={!c.focusStat}>−</button>
+                            <button class="project-btn minus" title="Decrement {focusLabel} mutations" onclick={(e) => { e.stopPropagation(); bump(c, -1); }}>−</button>
                             <div class="project-counter-center">
                                 <div class="project-counter-num">{currentMut}{targetMut > 0 ? ` / ${targetMut}` : ''}</div>
-                                <div class="project-counter-lbl">{focusLabel === '—' ? 'Mutations' : `${focusLabel} Mutations`}</div>
+                                <div class="project-counter-lbl">{focusLabel} Mutations</div>
                             </div>
-                            <button class="project-btn plus" title="Increment {focusLabel} mutations — new baby with +1" onclick={(e) => { e.stopPropagation(); bump(c.id, 1); }} disabled={!c.focusStat}>+</button>
+                            <button class="project-btn plus" title="Increment {focusLabel} mutations — new baby with +1" onclick={(e) => { e.stopPropagation(); bump(c, 1); }}>+</button>
                         </div>
                         <div class="project-meta">
                             <div class="project-meta-row"><span class="key">Last bred</span><span class="val">{relativeTime(c.createdAt)}</span></div>
@@ -645,7 +658,7 @@
 
 <div class="bottom-note">⬡ ARK SURVIVAL ASCENDED · COMMUNITY PROJECT · NOT AFFILIATED WITH STUDIO WILDCARD</div>
 
-<PinModal bind:open={pinModalOpen} creatures={data.creatures} mode={pinModalMode} pinned={data.pinnedIds} onSave={savePin} />
+<PinModal bind:open={pinModalOpen} creatures={data.creatures} mode={pinModalMode} existingProjects={data.breedingProjects.map(p => ({ creatureId: p.creatureId, focusStat: p.focusStat }))} onSave={savePin} />
 
 <style>
 :global(:root) {
@@ -1250,6 +1263,28 @@
     width: 16px; height: 16px;
     color: var(--tek-blue);
     filter: drop-shadow(0 0 4px var(--tek-blue-glow));
+}
+.pin-unpin {
+    background: transparent;
+    border: 1px solid rgba(239,68,68,0.20);
+    color: rgba(239,68,68,0.65);
+    font-family: var(--tek-mono);
+    font-size: 0.85rem;
+    line-height: 1;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.pin-unpin:hover {
+    background: rgba(239,68,68,0.12);
+    border-color: rgba(239,68,68,0.45);
+    color: #ef4444;
 }
 
 .pin-species {

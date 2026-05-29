@@ -93,7 +93,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     const row = await db.creature.findUnique({
         where: { id },
-        include: { user: { select: { id: true, nickname: true, discordName: true, pinnedCreatures: true } } }
+        include: { user: { select: { id: true, nickname: true, discordName: true } } }
     });
     if (!row) throw error(404, 'Specimen not found');
 
@@ -214,30 +214,35 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         userTribeName = membership?.tribe?.name ?? null;
     }
 
-    // -- Pinned project lookup (if creature is in user.pinnedCreatures)
-    // pinnedCreatures is either an array of ids (legacy) or an array/object of entries with focus/targetMutations.
+    // -- Pinned breeding projects for the owner.
+    // breedingProjects: all of this user's projects (used by the PinModal to
+    // disable (creature, stat) pairs that are already pinned).
+    // pinnedProject: the FIRST project for THIS creature, if any — drives the
+    // page's "Active Project" header card. With multi-stat support a creature
+    // may have several projects; this page still shows one at a time, but
+    // adding another stat is a fresh modal interaction.
+    let breedingProjects: Array<{ creatureId: number; focusStat: string; targetMutations: number }> = [];
     let pinnedProject: PinnedProject | null = null;
-    const existingPinIds: number[] = [];
-    const rawPinned = row.user.pinnedCreatures;
-    if (Array.isArray(rawPinned)) {
-        for (const entry of rawPinned as unknown[]) {
-            if (typeof entry === 'number') {
-                existingPinIds.push(entry);
-                if (entry === id) pinnedProject = { creatureId: id };
-            } else if (entry && typeof entry === 'object') {
-                const e = entry as Record<string, unknown>;
-                const eid = typeof e.creatureId === 'number' ? e.creatureId : (typeof e.id === 'number' ? e.id : null);
-                if (eid != null) {
-                    existingPinIds.push(eid);
-                    if (eid === id) {
-                        pinnedProject = {
-                            creatureId: id,
-                            focusStat: typeof e.focusStat === 'string' ? e.focusStat : (typeof e.focus === 'string' ? e.focus : undefined),
-                            targetMutations: typeof e.targetMutations === 'number' ? e.targetMutations : undefined
-                        };
-                    }
-                }
-            }
+    let projectCountForThis = 0;
+    if (locals.user?.id === row.userId) {
+        const rows = await db.breedingProject.findMany({
+            where: { userId: row.userId },
+            orderBy: { pinnedAt: 'asc' },
+            select: { creatureId: true, focusStat: true, targetMutations: true }
+        });
+        breedingProjects = rows.map(r => ({
+            creatureId: r.creatureId,
+            focusStat: r.focusStat,
+            targetMutations: r.targetMutations
+        }));
+        const forThis = breedingProjects.filter(p => p.creatureId === id);
+        projectCountForThis = forThis.length;
+        if (forThis.length > 0) {
+            pinnedProject = {
+                creatureId: id,
+                focusStat: forThis[0].focusStat,
+                targetMutations: forThis[0].targetMutations
+            };
         }
     }
 
@@ -263,7 +268,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         events,
         userTribeName,
         pinnedProject,
-        existingPinIds,
+        breedingProjects,
+        projectCountForThis,
         vault: vaultLite,
         totalMuts: totalMutCount(creature.mutations),
         obtainedFromUser

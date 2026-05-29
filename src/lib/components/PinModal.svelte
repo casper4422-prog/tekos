@@ -52,7 +52,11 @@
         existingProjectId?: number | null;
         /** project-mode: existing project being edited (focusStat + targetMutations prefill). */
         existingProject?: { creatureId: number; focusStat: StatKey | null; targetMutations: number } | null;
-        /** project-mode: max active projects. Default 3. */
+        /** project-mode: all existing projects for the user — used to disable
+         *  (creature, stat) pairs that are already pinned so the user can't
+         *  double-pin the same combo. Shape: { creatureId, focusStat }[]. */
+        existingProjects?: Array<{ creatureId: number; focusStat: string }>;
+        /** project-mode: max active projects. Default 6. */
         maxProjects?: number;
         /** featured-mode: max selections. Default 4. */
         maxFeatured?: number;
@@ -66,7 +70,8 @@
         pinned = [],
         existingProjectId = null,
         existingProject = null,
-        maxProjects = 3,
+        existingProjects = [],
+        maxProjects = 6,
         maxFeatured = 4,
         onSave
     }: Props = $props();
@@ -115,6 +120,21 @@
     // creature card), the picker is locked to that creature. User can unlock with the
     // "Change" link if they want to pick a different one.
     let pickerLocked = $state(mode === 'project' && existingProjectId != null);
+
+    // Disabled focus stats for the currently-selected creature. If a user
+    // already pinned the Theri for MEL, the MEL chip is disabled until they
+    // delete that project. The currently-edited project (if any) is exempt
+    // so re-saving with the same focus stat doesn't lock itself out.
+    const disabledStatsForSelected = $derived<Set<string>>(
+        new Set(
+            (existingProjects ?? [])
+                .filter(p =>
+                    p.creatureId === selectedCreatureId &&
+                    !(existingProject && existingProject.creatureId === p.creatureId && existingProject.focusStat === p.focusStat)
+                )
+                .map(p => p.focusStat)
+        )
+    );
 
     // Re-sync on (re)open — `lastOpen` is a plain (non-reactive) closure variable.
     // If it were $state, reading + writing it inside this effect would form a
@@ -450,15 +470,19 @@
                             <div class="stat-pick stat-picker">
                                 {#each STATS as s}
                                     {@const m = mutsForStat(selectedCreature, s)}
+                                    {@const alreadyPinned = disabledStatsForSelected.has(s)}
                                     <button
                                         type="button"
                                         class="stat-pick-cell stat-btn"
                                         class:selected={focusStat === s}
+                                        class:already-pinned={alreadyPinned}
+                                        disabled={alreadyPinned}
+                                        title={alreadyPinned ? `${s} is already pinned for this creature — delete that project first` : undefined}
                                         onclick={() => pickStat(s)}
                                     >
                                         <div class="stat-btn-label">{s}</div>
                                         <div class="stat-btn-muts" class:has={m > 0}>
-                                            {m > 0 ? `${m} muts` : '—'}
+                                            {alreadyPinned ? 'pinned' : (m > 0 ? `${m} muts` : '—')}
                                         </div>
                                     </button>
                                 {/each}
@@ -893,6 +917,21 @@
     background: linear-gradient(135deg, rgba(0,180,255,0.20) 0%, rgba(139,92,246,0.20) 100%);
     border-color: var(--tek-blue);
     box-shadow: 0 0 12px rgba(0,180,255,0.35);
+}
+.stat-btn.already-pinned {
+    background: rgba(100,116,139,0.06);
+    border-color: rgba(100,116,139,0.18);
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.stat-btn.already-pinned:hover {
+    background: rgba(100,116,139,0.06);
+    border-color: rgba(100,116,139,0.18);
+}
+.stat-btn.already-pinned .stat-btn-muts {
+    color: var(--tek-text-faint);
+    font-style: italic;
 }
 .stat-btn-label {
     font-family: var(--tek-mono);

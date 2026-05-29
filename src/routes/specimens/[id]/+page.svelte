@@ -496,7 +496,7 @@
             {#if data.isOwner}
                 <div class="action-bar">
                     <a class="act-btn primary" href="/specimens/{c.id}/edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</a>
-                    <button class="act-btn secondary" onclick={() => pinModalOpen = true}><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>Pin as Project</button>
+                    <button class="act-btn secondary" onclick={() => pinModalOpen = true}><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>{data.projectCountForThis > 0 ? `Pin Project (${data.projectCountForThis} active)` : 'Pin as Project'}</button>
                     <div class="share-wrap">
                         <button class="act-btn ghost" onclick={(evt) => { evt.stopPropagation(); shareMenuOpen = !shareMenuOpen; }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share</button>
                         {#if shareMenuOpen}
@@ -823,6 +823,7 @@
         mode="project"
         existingProjectId={c.id}
         existingProject={existingProjectForThis}
+        existingProjects={data.breedingProjects}
         onSave={savePinSelection}
     />
 {/if}

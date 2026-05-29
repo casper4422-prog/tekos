@@ -2,6 +2,13 @@ import type { PageServerLoad } from './$types';
 import { db } from '$lib/db';
 import { aggregateBadgesByCategory } from '$lib/badges';
 
+export type DossierBreedingProject = {
+    id: number;
+    creatureId: number;
+    focusStat: string;
+    targetMutations: number;
+};
+
 export const load: PageServerLoad = async ({ locals }) => {
     if (!locals.user) {
         return {
@@ -11,8 +18,7 @@ export const load: PageServerLoad = async ({ locals }) => {
             tribe: null,
             recentBoss: [],
             badgeWall: { bloodline: [], bossReady: [], roles: [], underdog: [] },
-            pinnedIds: [] as number[],
-            pinnedProjects: [] as Array<{ creatureId: number; focusStat: string | null; targetMutations: number }>,
+            breedingProjects: [] as DossierBreedingProject[],
             activeTrades: { myListings: [], pendingOffers: [] },
             recentActivity: [],
             notifications: { unreadCount: 0, latest: [] }
@@ -122,22 +128,72 @@ export const load: PageServerLoad = async ({ locals }) => {
         badgeWall.roles.length +
         badgeWall.underdog.length;
 
-    // Pinned creature ids — supports both legacy number[] and new object[] formats
-    let pinnedIds: number[] = [];
-    let pinnedProjects: Array<{ creatureId: number; focusStat: string | null; targetMutations: number }> = [];
-    if (Array.isArray(user?.pinnedCreatures)) {
-        for (const entry of user!.pinnedCreatures as unknown[]) {
-            if (typeof entry === 'number') {
-                pinnedIds.push(entry);
-            } else if (entry && typeof entry === 'object' && 'creatureId' in entry) {
-                const p = entry as { creatureId: number; focusStat?: string | null; targetMutations?: number };
-                pinnedIds.push(p.creatureId);
-                pinnedProjects.push({
-                    creatureId: p.creatureId,
-                    focusStat: p.focusStat ?? null,
-                    targetMutations: Number(p.targetMutations ?? 0)
-                });
+    // Breeding projects — pulled from the BreedingProject table now.
+    // First-load migration: if the user has no rows but has legacy
+    // pinnedCreatures JSON, backfill the JSON entries with non-null
+    // focusStat into the new table once, then clear the JSON so we
+    // don't re-backfill. Bare-id entries (legacy "featured" pins)
+    // are silently skipped — without a focus stat there's nothing
+    // to track as a breeding goal.
+    let breedingProjects: DossierBreedingProject[] = [];
+    {
+        const rows = await db.breedingProject.findMany({
+            where: { userId },
+            orderBy: { pinnedAt: 'asc' }
+        });
+
+        if (rows.length === 0 && Array.isArray(user?.pinnedCreatures) && (user!.pinnedCreatures as unknown[]).length > 0) {
+            const legacy = user!.pinnedCreatures as unknown[];
+            const candidates: Array<{ creatureId: number; focusStat: string; targetMutations: number }> = [];
+            for (const entry of legacy) {
+                if (entry && typeof entry === 'object' && 'creatureId' in entry && 'focusStat' in entry) {
+                    const e = entry as { creatureId: unknown; focusStat: unknown; targetMutations?: unknown };
+                    const cid = Number(e.creatureId);
+                    const stat = typeof e.focusStat === 'string' ? e.focusStat : null;
+                    if (Number.isFinite(cid) && stat) {
+                        candidates.push({
+                            creatureId: cid,
+                            focusStat: stat,
+                            targetMutations: Math.max(0, Math.min(99, Number(e.targetMutations) || 0))
+                        });
+                    }
+                }
             }
+            if (candidates.length > 0) {
+                const ownedIds = new Set(
+                    (await db.creature.findMany({
+                        where: { userId, id: { in: candidates.map(c => c.creatureId) } },
+                        select: { id: true }
+                    })).map(c => c.id)
+                );
+                const validRows = candidates
+                    .filter(c => ownedIds.has(c.creatureId))
+                    .map(c => ({ ...c, userId }));
+                if (validRows.length > 0) {
+                    await db.breedingProject.createMany({ data: validRows, skipDuplicates: true });
+                }
+            }
+            // Always clear the legacy JSON after the one-shot attempt — even
+            // if nothing valid was found (otherwise we'd retry on every load).
+            await db.user.update({ where: { id: userId }, data: { pinnedCreatures: [] } });
+
+            const refreshed = await db.breedingProject.findMany({
+                where: { userId },
+                orderBy: { pinnedAt: 'asc' }
+            });
+            breedingProjects = refreshed.map(r => ({
+                id: r.id,
+                creatureId: r.creatureId,
+                focusStat: r.focusStat,
+                targetMutations: r.targetMutations
+            }));
+        } else {
+            breedingProjects = rows.map(r => ({
+                id: r.id,
+                creatureId: r.creatureId,
+                focusStat: r.focusStat,
+                targetMutations: r.targetMutations
+            }));
         }
     }
 
@@ -192,8 +248,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         tribe,
         recentBoss: bossRecords,
         badgeWall,
-        pinnedIds,
-        pinnedProjects,
+        breedingProjects,
         activeTrades,
         recentActivity: recentActivity.map(a => ({
             id: a.id,
