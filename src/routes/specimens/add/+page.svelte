@@ -27,13 +27,14 @@
 
     let founderOn = $state(false);
 
-    // New specimen-notes fields (parity with Edit form + Individual page)
-    let fRole          = $state('');
+    // Advanced fields — Color regions + Stat Genealogy live behind a collapsed
+    // section by default. Most logs don't need them; serious breeders expand.
+    let advancedOpen = $state(false);
+
+    // Specimen availability + cosmetic fields (parity with Edit form).
     let fAvailBreed    = $state(false);
     let fAvailTrade    = $state(false);
     let fColorRegions  = $state<string[]>(['','','','','','']);
-    let fObtainedFrom  = $state('');
-    let fCryoLocation  = $state('');
 
     // ── Stat genealogy: per-stat founder attribution ────────────────────────
     let founderSources = $state<Record<StatKey, number | null>>({ HP:null, STA:null, OXY:null, FOOD:null, WGT:null, MEL:null, CRA:null });
@@ -552,12 +553,9 @@
             },
             isFounder: founderOn,
             statGenealogy: founderSources,
-            role: fRole || undefined,
             availableForBreeding: fAvailBreed,
             availableForTrade: fAvailTrade,
-            colorRegions: fColorRegions.some(s => s.trim()) ? fColorRegions : undefined,
-            obtainedFrom: fObtainedFrom.trim() || undefined,
-            cryoLocation: fCryoLocation.trim() || undefined
+            colorRegions: fColorRegions.some(s => s.trim()) ? fColorRegions : undefined
         };
 
         const res = await fetch('/api/creatures', {
@@ -574,12 +572,9 @@
                 fNotes = '';
                 fStats = { HP:0, STA:0, OXY:0, FOOD:0, WGT:0, MEL:0, CRA:0 };
                 fMuts  = { HP:0, STA:0, OXY:0, FOOD:0, WGT:0, MEL:0, CRA:0 };
-                fRole = '';
                 fAvailBreed = false;
                 fAvailTrade = false;
                 fColorRegions = ['','','','','',''];
-                fObtainedFrom = '';
-                fCryoLocation = '';
                 saving = false;
                 error = '';
             } else {
@@ -803,56 +798,6 @@
                     </div>
                 </div>
 
-                <!-- STAT GENEALOGY (optional) -->
-                <div class="form-section optional">
-                    <div class="form-section-head">
-                        <div class="form-section-title">Stat Genealogy</div>
-                        <div class="optional-tag">Optional</div>
-                    </div>
-                    <div class="form-section-hint">
-                        For consolidation breeding — track which high stat came from which tame. This populates from the tames marked as Founders on the specimen's detail page.
-                    </div>
-                    <div class="genealogy-grid">
-                        {#each STATS as s}
-                            <div class="gen-stat-label">{s}</div>
-                            <select class="gen-select" value={founderSources[s] ?? ''} onchange={(e) => onFounderPick(s, e)}>
-                                <option value="">— No founder —</option>
-                                {#each (data?.founders ?? []) as f (f.id)}
-                                    <option value={f.id}>{f.name || '(unnamed)'} · {f.species}</option>
-                                {/each}
-                            </select>
-                        {/each}
-                    </div>
-                    {#if (data?.founders ?? []).length === 0}
-                        <div class="form-section-hint" style="margin-top:8px">
-                            No founders yet. Mark a tame as a founder via the toggle below or from any specimen's detail page.
-                        </div>
-                    {/if}
-                    <div class="founder-toggle-row">
-                        <div class="toggle" class:on={founderOn} id="founderToggle" onclick={() => founderOn = !founderOn} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { founderOn = !founderOn; } }}></div>
-                        <div class="founder-toggle-label">
-                            <span class="t">Mark this specimen as a founder</span>
-                            <span class="d">Adds it to the Founders Index — its base stats can then be cited as origin for future descendants.</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SPECIMEN NOTES — role, availability, colors, origin, cryo (parity with Edit form) -->
-                <div class="form-section optional">
-                    <div class="form-section-head">
-                        <div class="form-section-title">Specimen Notes</div>
-                        <div class="optional-tag">Optional</div>
-                    </div>
-                    <CreatureNotesFields
-                        bind:role={fRole}
-                        bind:availableForBreeding={fAvailBreed}
-                        bind:availableForTrade={fAvailTrade}
-                        bind:colorRegions={fColorRegions}
-                        bind:obtainedFrom={fObtainedFrom}
-                        bind:cryoLocation={fCryoLocation}
-                    />
-                </div>
-
                 <!-- FREEFORM NOTES -->
                 <div class="form-section optional">
                     <div class="form-section-head">
@@ -860,6 +805,66 @@
                         <div class="optional-tag">Optional</div>
                     </div>
                     <textarea class="notes-area" bind:value={fNotes} placeholder="Color mutations, behavioral quirks, breeding plans, anything else worth recording…"></textarea>
+                </div>
+
+                <!-- ADVANCED — Stat Genealogy + Availability + Color regions (collapsed by default) -->
+                <div class="form-section optional">
+                    <button
+                        type="button"
+                        class="advanced-toggle"
+                        class:open={advancedOpen}
+                        onclick={() => advancedOpen = !advancedOpen}
+                        aria-expanded={advancedOpen}
+                    >
+                        <span class="adv-caret">{advancedOpen ? '▾' : '▸'}</span>
+                        <span class="adv-label">Advanced</span>
+                        <span class="adv-sub">Stat Genealogy · Availability · Color regions</span>
+                    </button>
+
+                    {#if advancedOpen}
+                        <div class="advanced-body">
+                            <!-- Stat Genealogy -->
+                            <div class="advanced-sub-section">
+                                <div class="advanced-sub-title">Stat Genealogy</div>
+                                <div class="form-section-hint">
+                                    For consolidation breeding — track which high stat came from which tame. This populates from the tames marked as Founders on the specimen's detail page.
+                                </div>
+                                <div class="genealogy-grid">
+                                    {#each STATS as s}
+                                        <div class="gen-stat-label">{s}</div>
+                                        <select class="gen-select" value={founderSources[s] ?? ''} onchange={(e) => onFounderPick(s, e)}>
+                                            <option value="">— No founder —</option>
+                                            {#each (data?.founders ?? []) as f (f.id)}
+                                                <option value={f.id}>{f.name || '(unnamed)'} · {f.species}</option>
+                                            {/each}
+                                        </select>
+                                    {/each}
+                                </div>
+                                {#if (data?.founders ?? []).length === 0}
+                                    <div class="form-section-hint" style="margin-top:8px">
+                                        No founders yet. Mark a tame as a founder via the toggle below or from any specimen's detail page.
+                                    </div>
+                                {/if}
+                                <div class="founder-toggle-row">
+                                    <div class="toggle" class:on={founderOn} id="founderToggle" onclick={() => founderOn = !founderOn} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { founderOn = !founderOn; } }}></div>
+                                    <div class="founder-toggle-label">
+                                        <span class="t">Mark this specimen as a founder</span>
+                                        <span class="d">Adds it to the Founders Index — its base stats can then be cited as origin for future descendants.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Availability + Color regions -->
+                            <div class="advanced-sub-section">
+                                <div class="advanced-sub-title">Availability & Colors</div>
+                                <CreatureNotesFields
+                                    bind:availableForBreeding={fAvailBreed}
+                                    bind:availableForTrade={fAvailTrade}
+                                    bind:colorRegions={fColorRegions}
+                                />
+                            </div>
+                        </div>
+                    {/if}
                 </div>
 
                 {#if error}
@@ -1115,6 +1120,58 @@
     border: 1px solid rgba(139,92,246,0.40);
     padding: 2px 7px;
     text-transform: uppercase;
+}
+
+/* Advanced collapse — Stat Genealogy + Availability + Color regions */
+.advanced-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 6px 0;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--tek-mono);
+    color: var(--tek-text);
+    transition: color 0.15s;
+}
+.advanced-toggle:hover { color: var(--tek-blue); }
+.advanced-toggle .adv-caret {
+    color: var(--tek-purple);
+    font-size: 0.9rem;
+    width: 12px;
+}
+.advanced-toggle .adv-label {
+    font-size: 0.82rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+.advanced-toggle .adv-sub {
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    color: var(--tek-text-faint);
+    text-transform: none;
+}
+.advanced-body {
+    margin-top: 14px;
+    padding: 16px;
+    background: rgba(139,92,246,0.04);
+    border: 1px dashed rgba(139,92,246,0.22);
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+.advanced-sub-section { display: flex; flex-direction: column; gap: 10px; }
+.advanced-sub-title {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tek-purple);
+    font-weight: 700;
 }
 .form-section-hint {
     font-family: var(--tek-mono);

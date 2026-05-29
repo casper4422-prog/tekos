@@ -219,8 +219,6 @@
             if (res.ok) location.reload();
         } finally { saving = false; }
     }
-    const ROLE_OPTIONS = ['Breeder', 'Tank', 'DPS', 'Harvester', 'Flyer', 'Utility'] as const;
-
     // ── Founders + Stat Origins (Phase 4) ──
     // Founders are vault creatures of the same species flagged isFounder=true.
     // Stat Origins maps each of the 7 stat keys to a founder id, stored in
@@ -700,20 +698,6 @@
                     <span class="key">Logged</span>     <span class="val">{loggedDateLong} by <a href="/survivors/{data.owner.id}" class="accent">{ownerName}</a></span>
                     <span class="key">Specimen ID</span> <span class="val">#{c.id}</span>
 
-                    <span class="key">Role</span>
-                    <span class="val">
-                        {#if data.isOwner}
-                            <select class="notes-select" value={c.role ?? ''} onchange={(e) => updateField('role', (e.currentTarget as HTMLSelectElement).value)} disabled={saving}>
-                                <option value="">—</option>
-                                {#each ROLE_OPTIONS as r}
-                                    <option value={r}>{r}</option>
-                                {/each}
-                            </select>
-                        {:else}
-                            {c.role ?? '—'}
-                        {/if}
-                    </span>
-
                     <span class="key">Availability</span>
                     <span class="val avail-row">
                         {#if data.isOwner}
@@ -738,21 +722,6 @@
                             </span>
                         {/each}
                     </span>
-
-                    <span class="key">Obtained From</span>
-                    <span class="val">
-                        {#if data.obtainedFromUser}
-                            <a href="/survivors/{data.obtainedFromUser.id}" class="accent">{data.obtainedFromUser.nickname ?? data.obtainedFromUser.discordName ?? 'Survivor'}</a>
-                            {#if c.obtainedFrom}<span class="dim"> · {c.obtainedFrom}</span>{/if}
-                        {:else if c.obtainedFrom}
-                            {c.obtainedFrom}
-                        {:else}
-                            —
-                        {/if}
-                    </span>
-
-                    <span class="key">Cryo Location</span>
-                    <span class="val">{c.cryoLocation || '—'}</span>
                 </div>
                 {#if c.notes}
                     <p class="prov-notes">{c.notes}</p>
@@ -1845,26 +1814,7 @@
 .prov-notes::before { content: '"'; color: rgba(var(--cat-rgb),0.5); font-size: 1.3rem; margin-right: 3px; }
 .prov-notes::after  { content: '"'; color: rgba(var(--cat-rgb),0.5); font-size: 1.3rem; margin-left: 3px; }
 
-/* New Notes fields — inline editors for owner, read-only for others */
-.prov-grid .val .dim { color: var(--tek-text-dim); }
-
-.notes-select {
-    background: rgba(5,8,18,0.6);
-    border: 1px solid rgba(100,116,139,0.25);
-    color: var(--tek-text);
-    font-family: var(--tek-mono);
-    font-size: 0.72rem;
-    padding: 4px 22px 4px 8px;
-    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
-    appearance: none; -webkit-appearance: none;
-    background-image: linear-gradient(45deg, transparent 50%, var(--tek-blue) 50%), linear-gradient(135deg, var(--tek-blue) 50%, transparent 50%);
-    background-position: calc(100% - 10px) 50%, calc(100% - 6px) 50%;
-    background-size: 5px 5px; background-repeat: no-repeat;
-    cursor: pointer;
-}
-.notes-select:focus { outline: none; border-color: var(--tek-blue); }
-.notes-select option { background: #0a1228; color: var(--tek-text); }
-
+/* Notes fields — inline editors for owner, read-only for others */
 .avail-row { display: inline-flex; gap: 6px; }
 .notes-toggle {
     background: rgba(5,8,18,0.6);

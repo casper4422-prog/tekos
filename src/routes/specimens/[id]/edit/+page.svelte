@@ -37,12 +37,9 @@
     );
     let fServer  = $state(String(c.server ?? ''));
     let fNotes   = $state(String(c.notes ?? ''));
-    let fRole          = $state(String(c.role ?? ''));
     let fAvailBreed    = $state(c.availableForBreeding === true);
     let fAvailTrade    = $state(c.availableForTrade === true);
     let fColorRegions  = $state<string[]>(initialColorRegions);
-    let fObtainedFrom  = $state(String(c.obtainedFrom ?? ''));
-    let fCryoLocation  = $state(String(c.cryoLocation ?? ''));
     let fStats   = $state<Record<StatKey, number>>({
         HP: bs.Health ?? 0, STA: bs.Stamina ?? 0, OXY: bs.Oxygen ?? 0,
         FOOD: bs.Food ?? 0, WGT: bs.Weight ?? 0, MEL: bs.Melee ?? 0,
@@ -88,6 +85,11 @@
         const merged: Record<string, unknown> = { ...c };
         delete merged.id;
         delete merged.createdAt;
+        // Retired fields — strip on save so any legacy values on existing
+        // creatures are dropped the next time the user edits.
+        delete merged.role;
+        delete merged.obtainedFrom;
+        delete merged.cryoLocation;
         Object.assign(merged, {
             name: fName.trim(),
             species: fSpecies.trim(),
@@ -97,12 +99,9 @@
             notes: fNotes.trim() || undefined,
             baseStats,
             mutations,
-            role: fRole || undefined,
             availableForBreeding: fAvailBreed,
             availableForTrade: fAvailTrade,
-            colorRegions: fColorRegions.some(s => s.trim()) ? fColorRegions : undefined,
-            obtainedFrom: fObtainedFrom.trim() || undefined,
-            cryoLocation: fCryoLocation.trim() || undefined
+            colorRegions: fColorRegions.some(s => s.trim()) ? fColorRegions : undefined
         });
 
         const res = await fetch(`/api/creatures/${c.id}`, {
@@ -200,19 +199,16 @@
                 </div>
             </div>
 
-            <!-- Specimen Notes (role / availability / colors / origin / cryo) -->
+            <!-- Availability + Color regions -->
             <div class="form-section optional">
                 <div class="form-section-head">
-                    <div class="form-section-title">Specimen Notes</div>
+                    <div class="form-section-title">Availability & Colors</div>
                     <div class="optional-tag">Optional</div>
                 </div>
                 <CreatureNotesFields
-                    bind:role={fRole}
                     bind:availableForBreeding={fAvailBreed}
                     bind:availableForTrade={fAvailTrade}
                     bind:colorRegions={fColorRegions}
-                    bind:obtainedFrom={fObtainedFrom}
-                    bind:cryoLocation={fCryoLocation}
                 />
             </div>
 

@@ -22,14 +22,10 @@ export type SpecimenDetail = {
     partnerId?: number;
     isFounder?: boolean;
     retired?: boolean;
-    // New Specimen Notes fields (planning notes §5) — all stored on creature.data
+    // Specimen Notes fields — all stored on creature.data
     colorRegions?: string[];                  // 6 slots: ['Red', 'Blue', '', '', 'Yellow', '']
-    role?: string;                            // Breeder | Tank | DPS | Harvester | Flyer | Utility
     availableForBreeding?: boolean;
     availableForTrade?: boolean;
-    obtainedFrom?: string;                    // free-text label, may co-exist with obtainedFromUserId
-    obtainedFromUserId?: number;              // when set, render obtainedFrom as a /survivors/[id] link
-    cryoLocation?: string;                    // free text: which fridge/pod
     // Ancestry → Stat Origins (planning notes §5 rework)
     statOrigins?: Record<string, number>;     // { HP: founderId, STA: founderId, ... }
 };
@@ -118,24 +114,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         isFounder: d.isFounder === true,
         retired:   d.retired === true,
         colorRegions:        Array.isArray(d.colorRegions) ? (d.colorRegions as unknown[]).map(x => typeof x === 'string' ? x : '') : undefined,
-        role:                typeof d.role === 'string' ? d.role : undefined,
         availableForBreeding: d.availableForBreeding === true,
         availableForTrade:    d.availableForTrade === true,
-        obtainedFrom:        typeof d.obtainedFrom === 'string' ? d.obtainedFrom : undefined,
-        obtainedFromUserId:  typeof d.obtainedFromUserId === 'number' ? d.obtainedFromUserId : undefined,
-        cryoLocation:        typeof d.cryoLocation === 'string' ? d.cryoLocation : undefined,
         statOrigins:         extractStatOrigins(d.statOrigins)
     };
-
-    // If obtainedFromUserId points to a real survivor, fetch their display name
-    // so we can render the link with a nice label. Falls back to obtainedFrom text.
-    let obtainedFromUser: { id: number; nickname: string | null; discordName: string | null } | null = null;
-    if (creature.obtainedFromUserId) {
-        obtainedFromUser = await db.user.findUnique({
-            where: { id: creature.obtainedFromUserId },
-            select: { id: true, nickname: true, discordName: true }
-        });
-    }
 
     // -- Parents (direct lookup)
     const parentIds = [creature.paternalId, creature.maternalId].filter((x): x is number => typeof x === 'number');
@@ -271,7 +253,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         breedingProjects,
         projectCountForThis,
         vault: vaultLite,
-        totalMuts: totalMutCount(creature.mutations),
-        obtainedFromUser
+        totalMuts: totalMutCount(creature.mutations)
     };
 };
