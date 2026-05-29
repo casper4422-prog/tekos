@@ -102,7 +102,7 @@
     <div class="tel-cell amber">
         <div class="tel-label">Bloodlines Logged</div>
         <div class="tel-value amber">{bloodlineCount.toLocaleString()}</div>
-        <div class="tel-sub">VAULT ENTRIES TOTAL</div>
+        <div class="tel-sub">SPECIMENS LOGGED TOTAL</div>
     </div>
 </div>
 

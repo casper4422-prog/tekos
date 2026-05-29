@@ -953,7 +953,7 @@
 				<div class="direction-picker">
 					<button type="button" class="dir-option sell" class:active={lDirection === 'sell'} onclick={() => lDirection = 'sell'}>
 						<div class="dir-option-title">⬡ Sell / Trade</div>
-						<div class="dir-option-desc">List something from my vault</div>
+						<div class="dir-option-desc">List something from my specimens</div>
 					</button>
 					<button type="button" class="dir-option buy" class:active={lDirection === 'buy'} onclick={() => lDirection = 'buy'}>
 						<div class="dir-option-title">◈ Looking to Buy</div>

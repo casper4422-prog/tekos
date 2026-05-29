@@ -5,14 +5,14 @@ import { computeMapBossBadges, MAP_BOSSES, ULTIMATE_BADGES, SPECIAL_ACHIEVEMENTS
 
 /**
  * Breeder Rank ladder — 8 ranks:
- *  1. Beach Bob       — first Bronze Bloodline
- *  2. Primitive Tamer — Bronze on 5 species
- *  3. Vault Keeper    — first Silver Bloodline
- *  4. Mutation Hunter — Silver on 5 species
- *  5. Alpha Line      — first Gold Bloodline
- *  6. Element Forged  — Gold on 5 species
- *  7. Ascendant       — first Diamond Bloodline
- *  8. Homo Deus       — Diamond on 5 species
+ *  1. Beach Bob         — first Bronze Bloodline
+ *  2. Primitive Tamer   — Bronze on 5 species
+ *  3. Bloodline Keeper  — first Silver Bloodline
+ *  4. Mutation Hunter   — Silver on 5 species
+ *  5. Alpha Line        — first Gold Bloodline
+ *  6. Element Forged    — Gold on 5 species
+ *  7. Ascendant         — first Diamond Bloodline
+ *  8. Homo Deus         — Diamond on 5 species
  */
 function computeBreederRank(bloodlineEntries: Array<{ species: string; tier: 'bronze'|'silver'|'gold'|'diamond' }>) {
     const bronzeSpecies  = new Set(bloodlineEntries.filter(b => b.tier === 'bronze').map(b => b.species));
@@ -23,7 +23,7 @@ function computeBreederRank(bloodlineEntries: Array<{ species: string; tier: 'br
     const ladder = [
         { id: 'beach_bob',       name: 'Beach Bob',       achieved: bronzeSpecies.size  >= 1 },
         { id: 'primitive_tamer', name: 'Primitive Tamer', achieved: bronzeSpecies.size  >= 5 },
-        { id: 'vault_keeper',    name: 'Vault Keeper',    achieved: silverSpecies.size  >= 1 },
+        { id: 'bloodline_keeper', name: 'Bloodline Keeper', achieved: silverSpecies.size  >= 1 },
         { id: 'mutation_hunter', name: 'Mutation Hunter', achieved: silverSpecies.size  >= 5 },
         { id: 'alpha_line',      name: 'Alpha Line',      achieved: goldSpecies.size    >= 1 },
         { id: 'element_forged',  name: 'Element Forged',  achieved: goldSpecies.size    >= 5 },
@@ -40,7 +40,7 @@ function computeBreederRank(bloodlineEntries: Array<{ species: string; tier: 'br
     if (next?.id === 'primitive_tamer') {
         progressLabel = `${bronzeSpecies.size} / 5 species with Bronze`;
         progressPct = Math.min(100, (bronzeSpecies.size / 5) * 100);
-    } else if (next?.id === 'vault_keeper') {
+    } else if (next?.id === 'bloodline_keeper') {
         progressLabel = 'First Silver Bloodline on any species';
         progressPct = silverSpecies.size > 0 ? 100 : 0;
     } else if (next?.id === 'mutation_hunter') {

@@ -139,12 +139,12 @@
     }
     function eventText(e: { type: string; data: Record<string, unknown> }): string {
         const d = e.data ?? {};
-        if (e.type === 'creature_add') return `Logged to vault as ${d.species ?? c.species} "${d.name ?? c.name}"`;
+        if (e.type === 'creature_add') return `Logged as ${d.species ?? c.species} "${d.name ?? c.name}"`;
         if (e.type === 'breed')        return `Bred offspring "${d.name ?? 'unnamed'}"`;
         if (e.type === 'boss_fight')   return `Committed to ${d.bossName ?? 'a boss'} run`;
         if (e.type === 'trade_list')   return `Listed on marketplace`;
         if (e.type === 'pin' || e.type === 'project_pin') return `Pinned as breeding project`;
-        if (e.type === 'retire')       return `Retired to vault archive`;
+        if (e.type === 'retire')       return `Retired to archive`;
         return e.type.replace(/_/g, ' ');
     }
 
@@ -179,7 +179,7 @@
     }
 
     async function retireSpecimen() {
-        if (!confirm(`Retire "${c.name}"? It will be archived but kept in your vault.`)) return;
+        if (!confirm(`Retire "${c.name}"? It will be archived but kept in your specimens.`)) return;
         if (saving) return;
         saving = true;
         try {
@@ -194,7 +194,7 @@
     }
 
     async function deleteSpecimen() {
-        if (!confirm(`Delete "${c.name}" from your vault? This cannot be undone.`)) return;
+        if (!confirm(`Delete "${c.name}" from your specimens? This cannot be undone.`)) return;
         const res = await fetch(`/api/creatures/${c.id}`, { method: 'DELETE' });
         if (res.ok) window.location.href = '/specimens';
     }
@@ -410,7 +410,7 @@
 
     <!-- ═══════════ BREADCRUMB ═══════════ -->
     <div class="breadcrumb">
-        <a href="/specimens">Vault</a>
+        <a href="/specimens">Specimens</a>
         <span class="sep">›</span>
         <a href="/dex/{c.species}">{c.species}</a>
         <span class="sep">›</span>
@@ -593,7 +593,7 @@
                             <span class="gender-glyph unknown">?</span>
                             <div class="ancestor-id">
                                 <div class="ancestor-species">— No lineage on record</div>
-                                <div class="ancestor-meta">Parents not linked in vault</div>
+                                <div class="ancestor-meta">Parents not linked yet</div>
                             </div>
                             <span class="ancestor-lvl">—</span>
                         </div>

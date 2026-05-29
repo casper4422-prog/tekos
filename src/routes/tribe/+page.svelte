@@ -133,7 +133,7 @@
 			case 'badge_earned':    return `${u} earned ${String(m.tier ?? '')} ${String(m.badgeType ?? 'Badge')}${m.species ? ` on ${String(m.species)}` : ''}`;
 			case 'boss_kill':       return `${u} cleared ${String(m.bossName ?? 'a boss')}${m.tier ? ` (${String(m.tier)})` : ''}`;
 			case 'mutation_logged': return `${u} logged a new mutation${m.species ? ` on ${String(m.species)}` : ''}`;
-			case 'creature_logged': return `${u} added a ${String(m.species ?? 'creature')} to the vault`;
+			case 'creature_logged': return `${u} logged a ${String(m.species ?? 'creature')} to their specimens`;
 			case 'trade_offer':     return `${u} posted a trade offer to the tribe`;
 			case 'alliance_proposed':  return `${u} proposed an alliance with ${String(m.allyTribeName ?? 'another tribe')}`;
 			case 'alliance_accepted':  return `${u} accepted alliance with ${String(m.allyTribeName ?? 'another tribe')}`;
@@ -528,9 +528,9 @@
 	<section class="section">
 		<div class="section-header">
 			<span class="pip"></span>
-			Tribe Vault · <span class="count">{tribe.creatures.length} SPECIMENS</span>
+			Tribe Specimens · <span class="count">{tribe.creatures.length} TOTAL</span>
 			<span class="rule"></span>
-			<a class="action" href="/specimens">View Full Vault <span class="arrow">▸</span></a>
+			<a class="action" href="/specimens">View All Specimens <span class="arrow">▸</span></a>
 		</div>
 		<div class="vault-row">
 			{#each tribe.creatures.slice(0, 3) as c}

@@ -22,7 +22,7 @@ export const SNTO_ROOT: SntoTopic[] = [
             {
                 id: 'specimens.log',
                 label: 'How do I log a tame?',
-                answer: 'Vault → Log Specimen. Three ways in: type the stats yourself, drop a Tek Binoculars screenshot for OCR, or import from a single-player save. Manual is fastest.'
+                answer: 'Specimens → Log Specimen. Three ways in: type the stats yourself, drop a Tek Binoculars screenshot for OCR, or import from a single-player save. Manual is fastest.'
             },
             {
                 id: 'specimens.mutations',
@@ -53,7 +53,7 @@ export const SNTO_ROOT: SntoTopic[] = [
             {
                 id: 'badges.how',
                 label: 'How are badges earned?',
-                answer: 'They auto-compute from your vault. No claim button. The Badges page walks every system and shows which specimens are close to the next tier.'
+                answer: 'They auto-compute from your specimens. No claim button. The Badges page walks every system and shows which tames are close to the next tier.'
             },
             {
                 id: 'badges.boss',
@@ -68,7 +68,7 @@ export const SNTO_ROOT: SntoTopic[] = [
             {
                 id: 'badges.roles',
                 label: 'Specialist Roles',
-                answer: 'Six roles — Tank, DPS, Bruiser, Vanguard, Packmaster, Endurance — each with four tiers (Standard → Elite → Apex → Legendary). Each role checks 1–2 ASA stats. No Speed since that does not level on tames.'
+                answer: 'Six roles — Tank, DPS, Bruiser, Vanguard, Packmaster, Endurance — each with four tiers (Standard → Elite → Apex → Legendary). Each role checks one or two stats: HP, Stamina, Weight, Melee.'
             },
             {
                 id: 'badges.underdog',
@@ -78,7 +78,7 @@ export const SNTO_ROOT: SntoTopic[] = [
             {
                 id: 'badges.rank',
                 label: 'Breeder rank ladder',
-                answer: 'Eight ranks tied to Prize Bloodline. Beach Bob → Primitive Tamer → Vault Keeper → Mutation Hunter → Alpha Line → Element Forged → Ascendant → Homo Deus. Each step is either "first of this tier" or "this tier on five species."'
+                answer: 'Eight ranks tied to Prize Bloodline. Beach Bob → Primitive Tamer → Bloodline Keeper → Mutation Hunter → Alpha Line → Element Forged → Ascendant → Homo Deus. Each step is either "first of this tier" or "this tier on five species."'
             }
         ]
     },
@@ -115,7 +115,7 @@ export const SNTO_ROOT: SntoTopic[] = [
             {
                 id: 'marketplace.list',
                 label: 'Listing a specimen',
-                answer: 'Marketplace → + Listing. Pick the creature from your vault, set what you want (gear, dust, resources), add notes, post. Offers come in as notifications.'
+                answer: 'Marketplace → + Listing. Pick the creature from your specimens, set what you want (gear, dust, resources), add notes, post. Offers come in as notifications.'
             },
             {
                 id: 'marketplace.buy',
@@ -202,8 +202,8 @@ export const SNTO_ROOT: SntoTopic[] = [
             },
             {
                 id: 'dex.add',
-                label: 'Add to vault from Dex',
-                answer: 'Each species page has a "+ Add to Vault" button. It opens the Log Specimen form with the species already filled in.'
+                label: 'Add from the Dex',
+                answer: 'Each species page has a "+ Add to Specimens" button. It opens the Log Specimen form with the species already filled in.'
             }
         ]
     },
@@ -219,12 +219,12 @@ export const SNTO_ROOT: SntoTopic[] = [
             {
                 id: 'settings.privacy',
                 label: 'Privacy controls',
-                answer: 'Settings → Privacy. Toggle whether your vault count, badges, online status, and breeding flags show on your public dossier. The viewer always sees their own stuff regardless.'
+                answer: 'Settings → Privacy. Toggle whether your specimen count, badges, online status, and breeding flags show on your public dossier. The viewer always sees their own stuff regardless.'
             },
             {
                 id: 'settings.theme',
                 label: 'Changing the theme',
-                answer: 'Settings → Themes. Pick a map palette — each one swaps the cyan accents to that map\'s colors. Dark / Light mode is in the same panel. Light mode is best for daylight reading; dark is the canonical look.'
+                answer: 'Settings → Themes. Pick a map palette — each one swaps the cyan accents to that map\'s colors. Pick the one that fits the map you\'re hunting on.'
             },
             {
                 id: 'settings.cluster',
@@ -234,7 +234,7 @@ export const SNTO_ROOT: SntoTopic[] = [
             {
                 id: 'settings.delete',
                 label: 'Deleting your account',
-                answer: 'Settings → Data → Delete Account. Type your callsign to confirm and enter your password. Everything cascades — vault, badges, trades, messages, friendships, notifications. No recovery, survivor.'
+                answer: 'Settings → Data → Delete Account. Type your callsign to confirm and enter your password. Everything cascades — specimens, badges, trades, messages, friendships, notifications. No recovery, survivor.'
             }
         ]
     }

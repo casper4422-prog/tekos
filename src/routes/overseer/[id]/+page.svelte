@@ -335,7 +335,7 @@
 		</div>
 		<div class="modal-body">
 			{#if myCreatures.length === 0}
-				<div style="color:#64748b">No specimens in your vault yet.</div>
+				<div style="color:#64748b">You have no specimens logged yet.</div>
 			{:else}
 				<div class="war-pick-grid">
 					{#each myCreatures as c}

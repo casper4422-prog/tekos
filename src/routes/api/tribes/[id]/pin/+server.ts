@@ -19,7 +19,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 	if (creatureId !== null) {
 		const tc = await db.tribeCreature.findFirst({ where: { id: creatureId, tribeId } });
-		if (!tc) return json({ error: 'Creature not in this tribe vault' }, { status: 404 });
+		if (!tc) return json({ error: 'Creature not in this tribe\'s specimens' }, { status: 404 });
 	}
 
 	await db.tribeMembership.update({ where: { id: member.id }, data: { pinnedCreatureId: creatureId } });

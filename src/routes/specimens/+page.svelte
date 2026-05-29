@@ -44,7 +44,7 @@
                 body: JSON.stringify({ creatureId: c.id })
             });
             const body = await res.json().catch(() => ({}));
-            flashToast(c.id, res.ok ? '✓ Sent to Tribe Vault' : (body?.error ?? 'Failed'));
+            flashToast(c.id, res.ok ? '✓ Sent to Tribe' : (body?.error ?? 'Failed'));
         } catch {
             flashToast(c.id, 'Failed');
         }
@@ -335,7 +335,7 @@
 </script>
 
 <svelte:head>
-    <title>⬡ TEKOS — Specimens Vault</title>
+    <title>⬡ TEKOS — Specimens</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
@@ -346,7 +346,7 @@
     <!-- ═══════════ HEADER ═══════════ -->
     <div class="vault-header">
         <div>
-            <div class="page-title">Specimens Vault</div>
+            <div class="page-title">Specimens</div>
             <div class="page-sub">
                 <span class="prefix">›</span>
                 <span class="stat-num">{enriched.length}</span> SAVED · <span class="stat-num">{speciesCount}</span> SPECIES · <span class="stat-num">{totalMutationsAll}</span> MUTATIONS
@@ -360,7 +360,7 @@
         <div class="toolbar-row">
             <div class="vault-search">
                 <svg class="vault-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                <input type="text" class="vault-search-input" bind:value={search} placeholder="Search vault by name, species, or nickname…" />
+                <input type="text" class="vault-search-input" bind:value={search} placeholder="Search specimens by name, species, or nickname…" />
             </div>
             <div class="sort-block">
                 <select class="sort-select" bind:value={sortMode}>
@@ -465,7 +465,7 @@
         Showing <span class="num">{filtered.length}</span> of <span class="num">{enriched.length}</span> · sorted by <span class="num">{sortLabel}</span>
     </div>
 
-    <!-- Shared per-card action bar (Share dropdown · Send to Tribe Vault · Pin Project) -->
+    <!-- Shared per-card action bar (Share dropdown · Send to Tribe · Pin Project) -->
     {#snippet cardActions(item: { ref: typeof data.creatures[0] })}
         <div class="card-actions">
             <div class="share-wrap">
@@ -480,7 +480,7 @@
                 {/if}
             </div>
             {#if data.myTribeId}
-                <button class="row-btn" onclick={(evt) => sendToTribeVault(item.ref, evt)} title="Send to Tribe Vault">
+                <button class="row-btn" onclick={(evt) => sendToTribeVault(item.ref, evt)} title="Send to Tribe">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </button>
             {/if}

@@ -216,7 +216,7 @@
 
 				<!-- Action buttons under hero -->
 				<div class="dex-actions">
-					<a href="/specimens/add?species={encodeURIComponent(name)}" class="dex-btn primary">+ Add to Vault</a>
+					<a href="/specimens/add?species={encodeURIComponent(name)}" class="dex-btn primary">+ Add to Specimens</a>
 					<button class="dex-btn ghost" onclick={addToWishlist} disabled={wlAdded || wlSaving}>
 						{wlAdded ? '♥ On Wishlist' : (wlSaving ? 'Adding…' : '♡ Wishlist')}
 					</button>

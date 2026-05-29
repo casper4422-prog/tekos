@@ -86,11 +86,11 @@
 
     const CONFIRM_COPY: Record<ConfirmKind, { title: string; phrase: string; description: string; danger: string; actionLabel: string; needsPassword: boolean }> = {
         'clear-vault': {
-            title: 'Clear Vault',
+            title: 'Clear Specimens',
             phrase: 'WIPE',
-            description: 'This will permanently delete every creature in your Vault. Pinned projects, breeding history, and lineage links are all destroyed.',
+            description: 'This will permanently delete every creature in your Specimens. Pinned projects, breeding history, and lineage links are all destroyed.',
             danger: 'This cannot be undone.',
-            actionLabel: 'Wipe my Vault',
+            actionLabel: 'Wipe my Specimens',
             needsPassword: false
         },
         'leave-tribes': {
@@ -137,11 +137,11 @@
                 if (res.ok) {
                     const b = await res.json().catch(() => ({}));
                     confirmOpen = null;
-                    dangerMsg = `✓ Vault cleared — ${b.deleted ?? 0} specimens removed.`;
+                    dangerMsg = `✓ Specimens cleared — ${b.deleted ?? 0} removed.`;
                     dangerErr = false;
                     setTimeout(() => dangerMsg = '', 4000);
                 } else {
-                    confirmMsg = 'Failed to clear Vault'; confirmErr = true;
+                    confirmMsg = 'Failed to clear Specimens'; confirmErr = true;
                 }
             } else if (confirmOpen === 'leave-tribes') {
                 const res = await fetch('/api/tribes/leave-all', { method: 'POST' });
@@ -1125,7 +1125,7 @@
                     </div>
                     <div class="row">
                         <div class="row-info">
-                            <div class="row-label">Who can see your Vault</div>
+                            <div class="row-label">Who can see your Specimens</div>
                             <div class="row-hint">Your saved specimens and their stat lines.</div>
                         </div>
                         <select class="select" bind:value={privacy.vaultVisibility} onchange={markDirty}>
@@ -1137,10 +1137,10 @@
                     </div>
                     <div class="row">
                         <div class="row-info">
-                            <div class="row-label">Show vault count on your public profile</div>
+                            <div class="row-label">Show specimen count on your public profile</div>
                             <div class="row-hint">When off, your specimen count shows as "—" to other survivors.</div>
                         </div>
-                        <button type="button" class="toggle" class:on={privacy.showVaultCount} role="switch" aria-checked={privacy.showVaultCount} aria-label="Show vault count"
+                        <button type="button" class="toggle" class:on={privacy.showVaultCount} role="switch" aria-checked={privacy.showVaultCount} aria-label="Show specimen count"
                              onclick={() => { privacy.showVaultCount = !privacy.showVaultCount; markDirty(); }}></button>
                     </div>
                     <div class="row">
@@ -1474,18 +1474,18 @@
             <div class="panel-section" class:active={activeSection === 'data'} id="section-data">
                 <div class="section-header">
                     <div class="section-title">Data</div>
-                    <div class="section-desc">Export your Vault, import from saves, manage what TekOS stores</div>
+                    <div class="section-desc">Export your Specimens, import from saves, manage what TekOS stores</div>
                 </div>
 
                 <div class="group">
                     <div class="group-label">Export</div>
                     <div class="action-card">
                         <div class="action-info">
-                            <div class="action-title">Export Vault</div>
+                            <div class="action-title">Export Specimens</div>
                             <div class="action-desc">All your specimens with stat lines, mutations, parents, genealogy and badges. Download as JSON.</div>
                         </div>
                         <div style="display:flex; gap:8px;">
-                            <a class="btn" href="/api/creatures?format=json" download="vault.json">JSON</a>
+                            <a class="btn" href="/api/creatures?format=json" download="specimens.json">JSON</a>
                         </div>
                     </div>
                 </div>
@@ -1495,7 +1495,7 @@
                     <div class="action-card">
                         <div class="action-info">
                             <div class="action-title">Import Collection</div>
-                            <div class="action-desc">Pick a Vault Export JSON file (yours or someone else's). Each creature is added as a fresh entry — your existing Vault isn't touched. Up to 5000 entries per import.</div>
+                            <div class="action-desc">Pick a Specimens Export JSON file (yours or someone else's). Each creature is added as a fresh entry — your existing Specimens aren't touched. Up to 5000 entries per import.</div>
                         </div>
                         <div style="display:flex; gap:8px;">
                             <input
@@ -1520,7 +1520,7 @@
                     <div class="action-card" style="flex-direction:column; align-items:stretch; gap:14px;">
                         <div class="action-info">
                             <div class="action-title">Import from CSV / Excel</div>
-                            <div class="action-desc">Download the template, fill it in with your creatures' stats, then upload it. One row per creature — your existing Vault isn't touched. Open the CSV in Excel, Google Sheets, or any spreadsheet app.</div>
+                            <div class="action-desc">Download the template, fill it in with your creatures' stats, then upload it. One row per creature — your existing Specimens aren't touched. Open the CSV in Excel, Google Sheets, or any spreadsheet app.</div>
                         </div>
                         <div class="csv-template-cols">
                             <div class="csv-col-group">
@@ -1555,7 +1555,7 @@
                         These actions cannot be undone. We strongly recommend exporting your archive first.
                     </div>
                     <div class="danger-actions">
-                        <button class="btn danger" onclick={() => openConfirm('clear-vault')}>CLEAR VAULT</button>
+                        <button class="btn danger" onclick={() => openConfirm('clear-vault')}>CLEAR SPECIMENS</button>
                         <button class="btn danger" onclick={() => openConfirm('leave-tribes')}>LEAVE ALL TRIBES</button>
                         <button class="btn danger" onclick={() => openConfirm('delete-account')}>DELETE ACCOUNT</button>
                     </div>

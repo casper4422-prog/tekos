@@ -95,7 +95,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
         where: { id: creatureId, userId: locals.user.id },
         select: { id: true }
     });
-    if (!owned) throw error(404, 'Creature not found in your vault');
+    if (!owned) throw error(404, 'Creature not found in your specimens');
 
     const rawStat = (body as { focusStat?: unknown }).focusStat;
     const focusStat = typeof rawStat === 'string' && FOCUS_STATS.has(rawStat) ? rawStat : null;

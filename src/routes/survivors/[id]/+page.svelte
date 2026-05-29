@@ -193,13 +193,13 @@
             <div class="tek-section-head">
                 <div class="tek-section-title">Recent Specimens</div>
                 <div class="tek-section-meta">
-                    {#if data.vaultHidden}VAULT HIDDEN
+                    {#if data.vaultHidden}SPECIMENS HIDDEN
                     {:else}{data.creatures.length} TOTAL · {data.speciesOwned} SPECIES{/if}
                 </div>
             </div>
             {#if data.vaultHidden}
                 <div class="vault-hidden-notice">
-                    🔒 This survivor keeps their Vault private. Become friends or join their tribe to see what they're breeding.
+                    🔒 This survivor keeps their specimens private. Become friends or join their tribe to see what they're breeding.
                 </div>
             {:else}
                 <div class="rec-grid">

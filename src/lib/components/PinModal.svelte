@@ -390,7 +390,7 @@
                                 <input
                                     type="text"
                                     class="specimen-search-input"
-                                    placeholder="Search your vault…"
+                                    placeholder="Search your specimens…"
                                     bind:value={search}
                                 />
                             </div>

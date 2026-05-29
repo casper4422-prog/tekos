@@ -13,7 +13,7 @@
     const rankFlavor: Record<string, string> = {
         beach_bob:       '"Woke up on the beach with nothing. Tamed something. That\'s a start, survivor."',
         primitive_tamer: '"Five species at Bronze. You\'re not just surviving anymore — you\'re building."',
-        vault_keeper:    '"First Silver line. Your vault\'s starting to mean something."',
+        bloodline_keeper: '"First Silver line. Your bloodlines are starting to mean something."',
         mutation_hunter: '"Silver on five species. You know what you\'re hunting now."',
         alpha_line:      '"Gold. The tribe notices when your dino walks past."',
         element_forged:  '"Five Gold lines. The kind of patience that makes new breeders nervous."',
@@ -178,7 +178,7 @@
         </div>
         <h1 class="page-title">Badge Archive</h1>
         <div class="page-sub">
-            Earned on your tames, not claimed. Four systems, all running off your Vault.
+            Earned on your tames, not claimed. Four systems, all running off your Specimens.
         </div>
     </div>
 
@@ -333,7 +333,7 @@
             <span class="how-pip"></span>
             <span class="how-title">How Badges Work</span>
             <span class="how-rule"></span>
-            <span class="how-hint">Auto-computed from your Vault — no manual claiming</span>
+            <span class="how-hint">Auto-computed from your Specimens — no manual claiming</span>
         </div>
         <div class="how-grid how-grid-4">
             <div class="how-card boss">
@@ -768,7 +768,7 @@
                 </div>
                 <div class="diamond-feature-stat">
                     <div class="diamond-feature-stat-val">{data.badgeWall.bloodline.filter(b => b.tier === 'diamond').length}</div>
-                    <div class="diamond-feature-stat-label">In your<br/>Vault</div>
+                    <div class="diamond-feature-stat-label">In your<br/>Specimens</div>
                 </div>
             </div>
         </div>

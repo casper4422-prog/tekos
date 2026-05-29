@@ -604,10 +604,10 @@
     <!-- Header -->
     <div class="page-header">
         <div class="breadcrumb">
-            <a href="/dossier">DASHBOARD</a><span class="sep">/</span><a href="/specimens">VAULT</a><span class="sep">/</span><span>ADD SPECIMEN</span>
+            <a href="/dossier">DASHBOARD</a><span class="sep">/</span><a href="/specimens">SPECIMENS</a><span class="sep">/</span><span>ADD SPECIMEN</span>
         </div>
         <h1 class="page-title">Add Specimen</h1>
-        <div class="page-sub">Record a new bloodline into your vault</div>
+        <div class="page-sub">Record a new bloodline into your specimens</div>
     </div>
 
     <!-- Mode tabs -->
@@ -639,7 +639,7 @@
                 <div class="dropzone-desc">
                     <strong style="color: var(--tek-amber)">Single-player only.</strong>
                     Dedicated / Nitrado / Wildcard servers don't expose their save files to clients, so this importer is for local single-player worlds only.
-                    We'll extract every tame from your save and stage them as Vault entries — stats only. Supports <code style="font-family:var(--tek-mono); color:var(--tek-blue);">.ark</code> files up to 200MB.
+                    We'll extract every tame from your save and stage them as Specimen entries — stats only. Supports <code style="font-family:var(--tek-mono); color:var(--tek-blue);">.ark</code> files up to 200MB.
                 </div>
                 <button class="btn">CHOOSE FILE</button>
                 <div class="dropzone-coming-soon">⏳ FEATURE COMING SOON</div>
@@ -869,7 +869,7 @@
                     <a class="btn ghost" href="/specimens">Cancel</a>
                     <div class="spacer"></div>
                     <button class="btn" onclick={() => save(true)} disabled={saving}>Save & Add Another</button>
-                    <button class="btn solid" onclick={() => save(false)} disabled={saving}>{saving ? 'SAVING…' : 'Save to Vault'}</button>
+                    <button class="btn solid" onclick={() => save(false)} disabled={saving}>{saving ? 'SAVING…' : 'Save Specimen'}</button>
                 </div>
 
             </div>

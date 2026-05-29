@@ -129,7 +129,7 @@
         title="Edit Specimen"
         crumbs={[
             { label: 'Dashboard', href: '/dossier' },
-            { label: 'Vault', href: '/specimens' },
+            { label: 'Specimens', href: '/specimens' },
             { label: String(c.name ?? 'Specimen'), href: `/specimens/${c.id}` },
             { label: 'Edit' }
         ]}
