@@ -3,6 +3,7 @@
     import { invalidateAll } from '$app/navigation';
     import { UserPlus, Sword, Repeat2, Shield, AtSign, Award, Sparkles, Box, Bell } from 'lucide-svelte';
     import type { PageData } from './$types';
+    import PageHeader from '$lib/components/PageHeader.svelte';
 
     let { data }: { data: PageData } = $props();
 
@@ -313,16 +314,18 @@
 
 <div class="stage">
 
-    <div class="page-header">
-        <div>
-            <div class="page-title">Notifications</div>
-            <div class="page-sub">
-                <span class="prefix">›</span>
-                <span class="num amber">{unread}</span> UNREAD · <span class="num">{totalCount}</span> TOTAL THIS WEEK
-            </div>
-        </div>
+    {#snippet notifSub()}
+        <span class="prefix">›</span>
+        <span class="num amber">{unread}</span> UNREAD · <span class="num">{totalCount}</span> TOTAL THIS WEEK
+    {/snippet}
+    {#snippet notifActions()}
         <button class="mark-all-btn" onclick={markAllRead}>⬡ Mark All Read</button>
-    </div>
+    {/snippet}
+    <PageHeader
+        title="Notifications"
+        subContent={notifSub}
+        actions={notifActions}
+    />
 
     <div class="notif-tabs">
         <button class="notif-tab" class:active={tab === 'all'} onclick={() => tab = 'all'}>
@@ -472,38 +475,10 @@
     margin: 0 auto;
 }
 
-.page-header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 22px;
-    flex-wrap: wrap;
-}
-.page-title {
-    font-family: var(--tek-display);
-    font-size: clamp(1.5rem, 4vw, 2rem);
-    font-weight: 900;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 12px rgba(0,180,255,0.30));
-    line-height: 1;
-    margin-bottom: 4px;
-}
-.page-sub {
-    font-family: var(--tek-mono);
-    font-size: 0.72rem;
-    letter-spacing: 0.22em;
-    color: var(--tek-text-dim);
-    text-transform: uppercase;
-}
-.page-sub .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
-.page-sub .num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
-.page-sub .num.amber { color: var(--tek-amber); text-shadow: 0 0 5px rgba(245,158,11,0.45); }
+/* page-header / page-title / page-sub live in static/tekos.css */
+.prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+.num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
+.num.amber { color: var(--tek-amber); text-shadow: 0 0 5px rgba(245,158,11,0.45); }
 
 .mark-all-btn {
     font-family: var(--tek-mono);

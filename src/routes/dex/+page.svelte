@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 
 	type SpeciesEntry = {
 		name?: string;
@@ -181,8 +182,10 @@
 
 <div class="stage">
 
-	<div class="page-title">Dex</div>
-	<div class="page-sub"><span class="prefix">›</span>EXPLORER NOTES · SPECIES CODEX</div>
+	{#snippet dexSub()}
+		<span class="prefix">›</span>EXPLORER NOTES · SPECIES CODEX
+	{/snippet}
+	<PageHeader title="Dex" subContent={dexSub} />
 
 	<!-- Toolbar: search + category filters -->
 	<div class="dex-toolbar">

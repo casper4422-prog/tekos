@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 
 	type SpeciesData = Record<string, unknown>;
 
@@ -120,8 +121,15 @@
 
 <div class="stage">
 
-	<div class="page-title">{name || 'Specimen'}</div>
-	<div class="page-sub"><span class="prefix">›</span>DEX · SPECIES PROFILE</div>
+	<PageHeader
+		title={name || 'Specimen'}
+		crumbs={[
+			{ label: 'Dashboard', href: '/dossier' },
+			{ label: 'Dex', href: '/dex' },
+			{ label: name || 'Specimen' }
+		]}
+		sub="Species profile"
+	/>
 
 	{#if !species}
 		<div style="color:#64748b;padding:40px 0;font-family:var(--tek-mono);letter-spacing:0.18em">LOADING…</div>
@@ -357,23 +365,7 @@
 	margin: 0 auto;
 }
 
-.page-title {
-	font-family: var(--tek-display);
-	font-size: 1.4rem;
-	font-weight: 900;
-	letter-spacing: 0.18em;
-	color: var(--tek-text);
-	margin-bottom: 4px;
-	text-transform: uppercase;
-}
-.page-sub {
-	font-family: var(--tek-mono);
-	font-size: 0.72rem;
-	letter-spacing: 0.22em;
-	color: var(--tek-text-dim);
-	margin-bottom: 56px;
-}
-.page-sub .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+/* page-title / page-sub live in static/tekos.css */
 
 .section-label {
 	display: flex; align-items: center; gap: 14px;

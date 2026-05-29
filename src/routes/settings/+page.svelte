@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import type { PageData } from './$types';
+    import PageHeader from '$lib/components/PageHeader.svelte';
 
     let { data }: { data: PageData } = $props();
 
@@ -869,16 +870,17 @@
 
 <div class="stage">
 
-    <!-- Header -->
-    <div class="page-header">
-        <div class="breadcrumb">
-            <a href="/dossier">DASHBOARD</a><span class="sep">/</span><span>SETTINGS</span>
-        </div>
-        <h1 class="page-title">Settings</h1>
-        <div class="page-sub">
-            Signed in as <span class="signed">{(data.profile?.nickname ?? data.profile?.email ?? 'SURVIVOR').toString().toUpperCase()}</span>
-        </div>
-    </div>
+    {#snippet settingsSub()}
+        Signed in as <span class="signed">{(data.profile?.nickname ?? data.profile?.email ?? 'SURVIVOR').toString().toUpperCase()}</span>
+    {/snippet}
+    <PageHeader
+        title="Settings"
+        crumbs={[
+            { label: 'Dashboard', href: '/dossier' },
+            { label: 'Settings' }
+        ]}
+        subContent={settingsSub}
+    />
 
     <!-- Shell -->
     <div class="settings-shell">
@@ -1788,41 +1790,8 @@
     margin: 0 auto;
 }
 
-/* ═════════════════════════════════════════════════════════════════════════
-   PAGE HEADER
-   ═════════════════════════════════════════════════════════════════════════ */
-.page-header { margin-bottom: 28px; }
-.breadcrumb {
-    font-family: var(--tek-mono);
-    font-size: 0.66rem;
-    letter-spacing: 0.18em;
-    color: var(--tek-text-dim);
-    text-transform: uppercase;
-    margin-bottom: 8px;
-}
-.breadcrumb a { color: var(--tek-text-dim); text-decoration: none; transition: color 0.15s; }
-.breadcrumb a:hover { color: var(--tek-blue); }
-.breadcrumb .sep { color: var(--tek-text-faint); margin: 0 6px; }
-.page-title {
-    font-family: var(--tek-display);
-    font-size: clamp(1.8rem, 3.6vw, 2.5rem);
-    font-weight: 900;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 10px rgba(0,180,255,0.30));
-}
-.page-sub {
-    font-family: var(--tek-mono); font-size: 0.72rem;
-    letter-spacing: 0.14em; color: var(--tek-text-dim);
-    text-transform: uppercase;
-    margin-top: 6px;
-}
-.page-sub .signed {
-    color: var(--tek-blue);
-}
+/* page-header / page-title / page-sub / breadcrumb live in static/tekos.css */
+.signed { color: var(--tek-blue); }
 
 /* ═════════════════════════════════════════════════════════════════════════
    LAYOUT — LEFT NAV + RIGHT PANEL

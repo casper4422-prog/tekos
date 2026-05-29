@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { PageData } from './$types';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	let { data }: { data: PageData } = $props();
 
 	type BossKind = 'killable' | 'tame' | 'world' | 'soon';
@@ -398,17 +399,14 @@
 <div class="stage">
 
 	{#if !activeSession}
-		<!-- ═══════════ HEADER ═══════════ -->
-		<div class="page-header">
-			<div>
-				<div class="page-title">Overseer</div>
-				<div class="page-sub">
-					<span class="prefix">›</span>
-					BOSS ARENA · <span class="stat-num">{BOSSES.length}</span> BOSSES · <span class="stat-num">{sessions.length}</span> WAR ROOMS ACTIVE · <span class="stat-num">{records.length}</span> KILLS LOGGED
-				</div>
-			</div>
+		{#snippet overseerSub()}
+			<span class="prefix">›</span>
+			BOSS ARENA · <span class="stat-num">{BOSSES.length}</span> BOSSES · <span class="stat-num">{sessions.length}</span> WAR ROOMS ACTIVE · <span class="stat-num">{records.length}</span> KILLS LOGGED
+		{/snippet}
+		{#snippet overseerActions()}
 			<button class="btn-create" onclick={() => document.getElementById('boss-arena')?.scrollIntoView({ behavior:'smooth', block:'start' })} title="Pick a boss below to schedule">⚔ Schedule War Room</button>
-		</div>
+		{/snippet}
+		<PageHeader title="Overseer" subContent={overseerSub} actions={overseerActions} variant="red" />
 
 		<!-- Join code row -->
 		<div class="ov-join-row">
@@ -1214,40 +1212,9 @@
     margin: 0 auto;
 }
 
-/* ═════════════════════════════════════════════════════════════════════════
-   PAGE HEADER (overseer)
-   ═════════════════════════════════════════════════════════════════════════ */
-.page-header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-}
-.page-title {
-    font-family: var(--tek-display);
-    font-size: clamp(1.5rem, 4vw, 2rem);
-    font-weight: 900;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    background: linear-gradient(180deg, #ffffff 0%, #fca5a5 70%, rgba(239,68,68,0.5) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 14px rgba(239,68,68,0.30));
-    line-height: 1;
-    margin-bottom: 4px;
-}
-.page-sub {
-    font-family: var(--tek-mono);
-    font-size: 0.72rem;
-    letter-spacing: 0.22em;
-    color: var(--tek-text-dim);
-    text-transform: uppercase;
-}
-.page-sub .prefix { color: var(--tek-red); opacity: 0.65; margin-right: 4px; }
-.page-sub .stat-num { color: var(--tek-red); font-weight: 700; text-shadow: 0 0 6px rgba(239,68,68,0.5); }
+/* page-header / page-title / page-sub live in static/tekos.css ('red' variant) */
+.prefix { color: var(--tek-red); opacity: 0.65; margin-right: 4px; }
+.stat-num { color: var(--tek-red); font-weight: 700; text-shadow: 0 0 6px rgba(239,68,68,0.5); }
 
 .btn-create {
     display: inline-flex;

@@ -4,6 +4,7 @@
     import { page } from '$app/stores';
     import { computeBadges } from '$lib/badges';
     import CreatureNotesFields from '$lib/components/CreatureNotesFields.svelte';
+    import PageHeader from '$lib/components/PageHeader.svelte';
     import type { PageData } from './$types';
 
     let { data }: { data: PageData } = $props();
@@ -601,14 +602,15 @@
 
 <div class="stage">
 
-    <!-- Header -->
-    <div class="page-header">
-        <div class="breadcrumb">
-            <a href="/dossier">DASHBOARD</a><span class="sep">/</span><a href="/specimens">SPECIMENS</a><span class="sep">/</span><span>ADD SPECIMEN</span>
-        </div>
-        <h1 class="page-title">Add Specimen</h1>
-        <div class="page-sub">Record a new bloodline into your specimens</div>
-    </div>
+    <PageHeader
+        title="Add Specimen"
+        crumbs={[
+            { label: 'Dashboard', href: '/dossier' },
+            { label: 'Specimens', href: '/specimens' },
+            { label: 'Add Specimen' }
+        ]}
+        sub="Record a new bloodline into your specimens"
+    />
 
     <!-- Mode tabs -->
     <div class="mode-tabs">
@@ -1011,35 +1013,7 @@
 /* ═════════════════════════════════════════════════════════════════════════
    PAGE HEADER
    ═════════════════════════════════════════════════════════════════════════ */
-.page-header { margin-bottom: 18px; }
-.breadcrumb {
-    font-family: var(--tek-mono);
-    font-size: 0.66rem;
-    letter-spacing: 0.18em;
-    color: var(--tek-text-dim);
-    text-transform: uppercase;
-    margin-bottom: 8px;
-}
-.breadcrumb a { color: var(--tek-text-dim); text-decoration: none; }
-.breadcrumb a:hover { color: var(--tek-blue); }
-.breadcrumb .sep { color: var(--tek-text-faint); margin: 0 6px; }
-.page-title {
-    font-family: var(--tek-display);
-    font-size: clamp(1.7rem, 3.4vw, 2.3rem);
-    font-weight: 900;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 10px rgba(0,180,255,0.30));
-}
-.page-sub {
-    font-family: var(--tek-mono); font-size: 0.72rem;
-    letter-spacing: 0.14em; color: var(--tek-text-dim);
-    text-transform: uppercase;
-    margin-top: 6px;
-}
+/* page-header / page-title / page-sub / breadcrumb styles now live in static/tekos.css */
 
 /* ═════════════════════════════════════════════════════════════════════════
    IMPORT MODE TABS

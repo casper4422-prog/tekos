@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import type { PageData } from './$types';
+    import PageHeader from '$lib/components/PageHeader.svelte';
 
     let { data }: { data: PageData } = $props();
 
@@ -416,14 +417,12 @@
 
 <div class="stage">
 
-    <div class="page-header">
-        <div class="page-title">Feed</div>
-        <div class="page-sub">
-            <span class="prefix">›</span>
-            <span class="num">{data.eventsToday ?? 0}</span> EVENTS TODAY ·
-            <span class="num">{data.survivorsActive ?? 0}</span> SURVIVORS ACTIVE
-        </div>
-    </div>
+    {#snippet feedSub()}
+        <span class="prefix">›</span>
+        <span class="num">{data.eventsToday ?? 0}</span> EVENTS TODAY ·
+        <span class="num">{data.survivorsActive ?? 0}</span> SURVIVORS ACTIVE
+    {/snippet}
+    <PageHeader title="Feed" subContent={feedSub} />
 
     <div class="scope-tabs">
         <button class="scope-tab all"       class:active={scope === 'all'}       onclick={() => scope = 'all'}><span class="tab-dot"></span>All</button>
@@ -748,25 +747,9 @@
     margin: 0 auto;
 }
 
-.page-header { margin-bottom: 22px; }
-.page-title {
-    font-family: var(--tek-display);
-    font-size: clamp(1.5rem, 4vw, 2rem);
-    font-weight: 900; letter-spacing: 0.16em;
-    text-transform: uppercase;
-    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 12px rgba(0,180,255,0.30));
-    line-height: 1; margin-bottom: 4px;
-}
-.page-sub {
-    font-family: var(--tek-mono); font-size: 0.72rem;
-    letter-spacing: 0.22em; color: var(--tek-text-dim);
-    text-transform: uppercase;
-}
-.page-sub .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
-.page-sub .num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
+/* page-header / page-title / page-sub live in static/tekos.css */
+.prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+.num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
 
 /* Scope tabs — prominent chip style matching the News platform chips */
 .scope-tabs {

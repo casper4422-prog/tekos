@@ -1,70 +1,77 @@
 <!--
-    PageHeader — standardized Tek-style header for top of every page.
-    Slots: title is the page title. crumbs is an array of {label, href?} for breadcrumb.
-    sub is the optional flavor subtitle (Crimson Pro italic).
+    PageHeader — the standard top-of-page header.
+
+    Renders breadcrumb (optional) + title + subtitle (optional), using the
+    global `.page-header` block defined in static/tekos.css so every page
+    lands its title at the same Y position.
+
+    Props:
+      title         — page heading text
+      crumbs        — breadcrumb trail [{ label, href? }]
+      sub           — plain-string subtitle (alternative to subContent)
+      subContent    — snippet for rich subtitle content (counters, pips,
+                      colored spans). Takes precedence over `sub` if both
+                      are passed.
+      subStyle      — 'mono' (default, uppercase JetBrains Mono) or 'serif'
+                      (Crimson Pro italic, used for narrative pages)
+      variant       — color tint on the title gradient.
+                      'default' cyan · 'red' · 'gold' · 'green' · 'purple'
+                      'category' reads --cat-rgb off the closest ancestor
+                      (used on species-tinted pages like /specimens/[id]).
+      actions       — optional snippet rendered on the right side of the
+                      header (toolbar buttons, "+ Add" CTAs, etc.). If
+                      supplied, the header switches to a two-column layout.
 -->
 <script lang="ts">
+    import type { Snippet } from 'svelte';
+
     type Crumb = { label: string; href?: string };
-    type Variant = 'default' | 'red' | 'gold' | 'green' | 'purple';
+    type Variant = 'default' | 'red' | 'gold' | 'green' | 'purple' | 'category';
+    type SubStyle = 'mono' | 'serif';
 
     let {
         title,
         crumbs = [],
         sub = '',
-        subMono = false,
-        variant = 'default'
+        subContent,
+        subStyle = 'mono',
+        variant = 'default',
+        actions
     }: {
         title: string;
         crumbs?: Crumb[];
         sub?: string;
-        subMono?: boolean;
+        subContent?: Snippet;
+        subStyle?: SubStyle;
         variant?: Variant;
+        actions?: Snippet;
     } = $props();
 </script>
 
-<div class="tek-page-header" data-variant={variant}>
-    {#if crumbs.length}
-        <div class="tek-breadcrumb">
-            {#each crumbs as c, i}
-                {#if c.href}
-                    <a href={c.href}>{c.label}</a>
-                {:else}
-                    <span>{c.label}</span>
-                {/if}
-                {#if i < crumbs.length - 1}<span class="sep">/</span>{/if}
-            {/each}
+<div class="page-header" class:with-actions={!!actions} data-variant={variant}>
+    <div class="page-header-text">
+        {#if crumbs.length}
+            <div class="breadcrumb">
+                {#each crumbs as c, i}
+                    {#if c.href}
+                        <a href={c.href}>{c.label}</a>
+                    {:else}
+                        <span>{c.label}</span>
+                    {/if}
+                    {#if i < crumbs.length - 1}<span class="sep">/</span>{/if}
+                {/each}
+            </div>
+        {/if}
+        <h1 class="page-title">{title}</h1>
+        {#if subContent}
+            <div class="page-sub" class:serif={subStyle === 'serif'}>{@render subContent()}</div>
+        {:else if sub}
+            <div class="page-sub" class:serif={subStyle === 'serif'}>{sub}</div>
+        {/if}
+    </div>
+    {#if actions}
+        <div class="page-header-actions">
+            {@render actions()}
         </div>
     {/if}
-    <h1 class="t-page-title">{title}</h1>
-    {#if sub}
-        <div class={subMono ? 'tek-page-sub-mono' : 'tek-page-sub'}>{sub}</div>
-    {/if}
 </div>
-
-<style>
-    /* Variant gradients override the default cyan on t-page-title */
-    :global(.tek-page-header[data-variant="red"] .t-page-title) {
-        background: linear-gradient(180deg, #ffffff 0%, #fca5a5 70%, rgba(239,68,68,0.5) 100%);
-        -webkit-background-clip: text; background-clip: text;
-        -webkit-text-fill-color: transparent;
-        filter: drop-shadow(0 0 14px rgba(239,68,68,0.30));
-    }
-    :global(.tek-page-header[data-variant="gold"] .t-page-title) {
-        background: linear-gradient(180deg, #ffffff 0%, #fde68a 60%, rgba(245,158,11,0.55) 100%);
-        -webkit-background-clip: text; background-clip: text;
-        -webkit-text-fill-color: transparent;
-        filter: drop-shadow(0 0 14px rgba(245,158,11,0.32));
-    }
-    :global(.tek-page-header[data-variant="green"] .t-page-title) {
-        background: linear-gradient(180deg, #ffffff 0%, #86efac 60%, rgba(34,197,94,0.55) 100%);
-        -webkit-background-clip: text; background-clip: text;
-        -webkit-text-fill-color: transparent;
-        filter: drop-shadow(0 0 14px rgba(34,197,94,0.30));
-    }
-    :global(.tek-page-header[data-variant="purple"] .t-page-title) {
-        background: linear-gradient(180deg, #ffffff 0%, #d8b4fe 60%, rgba(168,85,247,0.55) 100%);
-        -webkit-background-clip: text; background-clip: text;
-        -webkit-text-fill-color: transparent;
-        filter: drop-shadow(0 0 14px rgba(168,85,247,0.30));
-    }
-</style>

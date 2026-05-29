@@ -4,6 +4,7 @@
     import { computeBadges, getStat } from '$lib/badges';
     import { copyCreatureLink, shareCreatureToDiscord, type ShareableCreature } from '$lib/discordShare';
     import PinModal from '$lib/components/PinModal.svelte';
+    import PageHeader from '$lib/components/PageHeader.svelte';
 
     let { data }: { data: PageData } = $props();
 
@@ -343,17 +344,14 @@
 
 <div class="stage">
 
-    <!-- ═══════════ HEADER ═══════════ -->
-    <div class="vault-header">
-        <div>
-            <div class="page-title">Specimens</div>
-            <div class="page-sub">
-                <span class="prefix">›</span>
-                <span class="stat-num">{enriched.length}</span> SAVED · <span class="stat-num">{speciesCount}</span> SPECIES · <span class="stat-num">{totalMutationsAll}</span> MUTATIONS
-            </div>
-        </div>
+    {#snippet specimensSub()}
+        <span class="prefix">›</span>
+        <span class="stat-num">{enriched.length}</span> SAVED · <span class="stat-num">{speciesCount}</span> SPECIES · <span class="stat-num">{totalMutationsAll}</span> MUTATIONS
+    {/snippet}
+    {#snippet specimensActions()}
         <a class="btn-add" href="/specimens/add"><span class="glyph">⬡</span> Log Specimen</a>
-    </div>
+    {/snippet}
+    <PageHeader title="Specimens" subContent={specimensSub} actions={specimensActions} />
 
     <!-- ═══════════ TOOLBAR ═══════════ -->
     <div class="vault-toolbar">
@@ -631,44 +629,9 @@
     margin: 0 auto;
 }
 
-/* ═════════════════════════════════════════════════════════════════════════
-   PAGE HEADER
-   ═════════════════════════════════════════════════════════════════════════ */
-.vault-header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-}
-.page-title {
-    font-family: var(--tek-display);
-    font-size: clamp(1.4rem, 4vw, 1.9rem);
-    font-weight: 900;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 12px rgba(0,180,255,0.35));
-    margin-bottom: 4px;
-    line-height: 1;
-}
-.page-sub {
-    font-family: var(--tek-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.18em;
-    color: var(--tek-text-dim);
-    text-transform: uppercase;
-}
-.page-sub .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
-.page-sub .stat-num {
-    color: var(--tek-blue);
-    font-weight: 700;
-    text-shadow: 0 0 6px var(--tek-blue-glow);
-}
+/* page-header (with-actions) / page-title / page-sub live in static/tekos.css */
+.prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+.stat-num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 6px var(--tek-blue-glow); }
 
 .btn-add {
     display: inline-flex;
@@ -1457,7 +1420,6 @@
     .list-row-main { grid-template-columns: auto 1fr auto auto; gap: 12px; padding: 10px 14px 10px 18px; }
     .list-row .cat-pill, .list-row .list-stat { display: none; }
     .list-row-wrap > .card-actions { padding-right: 4px; }
-    .vault-header { align-items: flex-start; }
     .btn-add { font-size: 0.7rem; padding: 9px 14px; }
     .stage { padding: 60px 14px 80px; }
 }

@@ -5,6 +5,7 @@
     import NetworkPanel from '$lib/components/NetworkPanel.svelte';
     import SurvivorsPanel from '$lib/components/SurvivorsPanel.svelte';
     import MessagesPanel from '$lib/components/MessagesPanel.svelte';
+    import PageHeader from '$lib/components/PageHeader.svelte';
 
     let { data }: { data: PageData } = $props();
 
@@ -43,21 +44,17 @@
 
 <div class="stage">
 
-    <div class="page-header">
-        <div>
-            <div class="page-title">Network</div>
-            <div class="page-sub">
-                <span class="prefix">›</span>
-                {#if activeTab === 'network'}
-                    <span class="stat-num">{totalCount}</span> SURVIVORS LINKED · <span class="stat-num green">{onlineCount}</span> ONLINE NOW · <span class="stat-num">{pendingCount}</span> PENDING
-                {:else if activeTab === 'messages'}
-                    <span class="stat-num">{(data.convos ?? []).length}</span> CONVERSATIONS · <span class="stat-num green">{unreadTotal}</span> UNREAD
-                {:else}
-                    BROWSE EVERY SURVIVOR ON THE NETWORK
-                {/if}
-            </div>
-        </div>
-    </div>
+    {#snippet networkSub()}
+        <span class="prefix">›</span>
+        {#if activeTab === 'network'}
+            <span class="stat-num">{totalCount}</span> SURVIVORS LINKED · <span class="stat-num green">{onlineCount}</span> ONLINE NOW · <span class="stat-num">{pendingCount}</span> PENDING
+        {:else if activeTab === 'messages'}
+            <span class="stat-num">{(data.convos ?? []).length}</span> CONVERSATIONS · <span class="stat-num green">{unreadTotal}</span> UNREAD
+        {:else}
+            BROWSE EVERY SURVIVOR ON THE NETWORK
+        {/if}
+    {/snippet}
+    <PageHeader title="Network" subContent={networkSub} />
 
     <div class="tab-strip">
         <button class="tab" class:active={activeTab === 'network'} onclick={() => setTab('network')}>
@@ -137,31 +134,10 @@
     margin: 0 auto;
 }
 
-.page-header { margin-bottom: 22px; }
-.page-title {
-    font-family: var(--tek-display);
-    font-size: clamp(1.5rem, 4vw, 2rem);
-    font-weight: 900;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 12px rgba(0,180,255,0.30));
-    line-height: 1;
-    margin-bottom: 4px;
-}
-.page-sub {
-    font-family: var(--tek-mono);
-    font-size: 0.72rem;
-    letter-spacing: 0.22em;
-    color: var(--tek-text-dim);
-    text-transform: uppercase;
-}
-.page-sub .prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
-.page-sub .stat-num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
-.page-sub .stat-num.green { color: var(--tek-green); text-shadow: 0 0 5px rgba(16,185,129,0.5); }
+/* page-header / page-title / page-sub live in static/tekos.css */
+.prefix { color: var(--tek-blue); opacity: 0.6; margin-right: 4px; }
+.stat-num { color: var(--tek-blue); font-weight: 700; text-shadow: 0 0 5px var(--tek-blue-glow); }
+.stat-num.green { color: var(--tek-green); text-shadow: 0 0 5px rgba(16,185,129,0.5); }
 
 /* Tab strip */
 .tab-strip {

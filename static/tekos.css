@@ -91,6 +91,96 @@ body::before {
     z-index: 2;
 }
 
+/* ── Standard page header (used by PageHeader component) ──────────────────
+   Every routed page that needs a title + breadcrumb + sub renders the same
+   block so the title sits at a consistent Y position across navigation.
+   Pages that need custom hero/identity chrome (landing, login, dossier,
+   specimen detail) opt out via the variant prop on PageHeader.            */
+.page-header {
+    margin-bottom: 24px;
+}
+.page-header.with-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.page-header .page-header-text {
+    flex: 1;
+    min-width: 0;
+}
+.page-header .breadcrumb {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.page-header .breadcrumb a { color: var(--tek-text-dim); text-decoration: none; transition: color 0.15s; }
+.page-header .breadcrumb a:hover { color: var(--tek-blue); }
+.page-header .breadcrumb .sep { color: var(--tek-text-faint); margin: 0 6px; }
+.page-header .page-title {
+    font-family: var(--tek-display);
+    font-size: clamp(1.7rem, 3.4vw, 2.3rem);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0;
+    line-height: 1.05;
+    background: linear-gradient(180deg, #ffffff 0%, #a5d8ff 70%, rgba(0,180,255,0.5) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(0,180,255,0.30));
+}
+.page-header .page-sub {
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-text-dim);
+    text-transform: uppercase;
+    margin-top: 6px;
+}
+.page-header .page-sub.serif {
+    font-family: var(--tek-serif, 'Crimson Pro', Georgia, serif);
+    font-style: italic;
+    font-size: 0.9rem;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: var(--tek-text-dim);
+}
+.page-header[data-variant="red"] .page-title {
+    background: linear-gradient(180deg, #ffffff 0%, #fca5a5 70%, rgba(239,68,68,0.5) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 14px rgba(239,68,68,0.30));
+}
+.page-header[data-variant="gold"] .page-title {
+    background: linear-gradient(180deg, #ffffff 0%, #fde68a 60%, rgba(245,158,11,0.55) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 14px rgba(245,158,11,0.32));
+}
+.page-header[data-variant="green"] .page-title {
+    background: linear-gradient(180deg, #ffffff 0%, #86efac 60%, rgba(34,197,94,0.55) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 14px rgba(34,197,94,0.30));
+}
+.page-header[data-variant="purple"] .page-title {
+    background: linear-gradient(180deg, #ffffff 0%, #d8b4fe 60%, rgba(168,85,247,0.55) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 14px rgba(168,85,247,0.30));
+}
+.page-header[data-variant="category"] .page-title {
+    background: linear-gradient(180deg, #ffffff 0%, rgb(var(--cat-rgb, 0,180,255), 0.85) 70%, rgba(var(--cat-rgb, 0,180,255), 0.45) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 12px rgba(var(--cat-rgb, 0,180,255), 0.35));
+}
+
 /* ── App layout: sidebar + main ─────────────────────────────────────────── */
 #tekApp {
     display: flex;
