@@ -37,37 +37,52 @@ function genderGlyph(g: string): string {
 /**
  * Format a creature into a Discord-pasteable summary:
  *
- *   🦕 REX — "Big Daddy" ♂
+ *   🦕 **REX** — "Big Daddy" ♂
  *   ━━━━━━━━━━━━━━━━━━━
- *   ❤️ HP 52 · ⚡ STA 38
- *   💧 OXY 30 · 🍖 FOOD 44
- *   ⚖️ WGT 41 · ⚔️ MEL 48
+ *   ❤️ HP 52 (+10) · ⚡ STA 38
+ *   💧 OXY 30 · 🍖 FOOD 44 (+8)
+ *   ⚖️ WGT 41 · ⚔️ MEL 48 (+22)
  *   ━━━━━━━━━━━━━━━━━━━
  *   ✅ Available for Breeding | Trade
+ *
+ * Each stat shows the base value, then `(+N)` only when mutation levels > 0
+ * — so clean stats stay clean and mutated lines pop. Species name bolded
+ * via Discord markdown for header emphasis.
  *
  * Crafting (🔨 CRA) renders on its own line under the grid for Gacha only.
  * Availability line omitted when neither flag is set.
  */
+function fmtStat(emoji: string, label: string, base: number, mut: number): string {
+	return mut > 0
+		? `${emoji} ${label} ${base} (+${mut})`
+		: `${emoji} ${label} ${base}`;
+}
+
 export function formatCreatureForDiscord(c: ShareableCreature): string {
 	const species = (c.species || 'CREATURE').toUpperCase();
 	const name = c.name || 'Unnamed';
 	const glyph = genderGlyph(c.gender);
-	const header = `🦕 ${species} — "${name}"${glyph ? ' ' + glyph : ''}`;
+	const header = `🦕 **${species}** — "${name}"${glyph ? ' ' + glyph : ''}`;
 
-	// 3 rows × 2 cols over the 6 core stats.
+	// 3 rows × 2 cols over the 6 core stats. Base and mutations broken out.
 	const statRows: string[] = [];
 	for (let i = 0; i < CORE_STATS.length; i += 2) {
 		const left  = CORE_STATS[i];
 		const right = CORE_STATS[i + 1];
-		const lVal  = getStat(c.baseStats, left)  + getStat(c.mutations, left);
-		const rVal  = getStat(c.baseStats, right) + getStat(c.mutations, right);
-		statRows.push(`${STAT_EMOJI[left]} ${left} ${lVal} · ${STAT_EMOJI[right]} ${right} ${rVal}`);
+		const lBase = getStat(c.baseStats, left);
+		const lMut  = getStat(c.mutations, left);
+		const rBase = getStat(c.baseStats, right);
+		const rMut  = getStat(c.mutations, right);
+		statRows.push(
+			`${fmtStat(STAT_EMOJI[left], left, lBase, lMut)} · ${fmtStat(STAT_EMOJI[right], right, rBase, rMut)}`
+		);
 	}
 
 	// Crafting tag on its own row when the species cares about it.
 	if (CRAFTING_SPECIES.has((c.species || '').toLowerCase())) {
-		const craftVal = getStat(c.baseStats, 'CRA') + getStat(c.mutations, 'CRA');
-		statRows.push(`${STAT_EMOJI.CRA} CRA ${craftVal}`);
+		const craftBase = getStat(c.baseStats, 'CRA');
+		const craftMut  = getStat(c.mutations, 'CRA');
+		statRows.push(fmtStat(STAT_EMOJI.CRA, 'CRA', craftBase, craftMut));
 	}
 
 	const availability: string[] = [];

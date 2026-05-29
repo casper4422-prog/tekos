@@ -1139,7 +1139,12 @@
     padding-right: 6px;
 }
 
-/* Grid variant — absolute top-right with backdrop for contrast */
+/* Grid variant — absolute top-right with backdrop for contrast.
+   NOTE: no clip-path here on purpose. The share-menu dropdown is positioned
+   absolutely inside .card-actions, and any clip-path on this container
+   would slice the dropdown invisible the moment it opens (the bug we
+   spent half an hour chasing). Per-button .row-btn elements still carry
+   their own chamfer so the Tek aesthetic isn't lost. */
 .grid-card-wrap > .card-actions {
     position: absolute;
     top: 12px;
@@ -1147,7 +1152,6 @@
     padding: 4px 6px;
     background: rgba(5,8,18,0.72);
     border: 1px solid rgba(0,180,255,0.18);
-    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
     backdrop-filter: blur(6px);
 }
 
