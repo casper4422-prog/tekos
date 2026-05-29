@@ -1,4 +1,4 @@
-import { computeBadges, getStat, type Stats } from '$lib/badges';
+import { getStat, type Stats } from '$lib/badges';
 
 export type ShareableCreature = {
 	name: string;
@@ -10,7 +10,22 @@ export type ShareableCreature = {
 	availableForTrade?: boolean;
 };
 
-const STAT_KEYS = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'] as const;
+// Six core stats render as a 3×2 grid for every species. Crafting renders
+// on a 4th line below the grid ONLY for species where the stat mechanically
+// matters — currently just Gacha (its Crafting Skill drives resource output
+// quality). Speed isn't shown because it doesn't level on tames in ASA.
+const CORE_STATS = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL'] as const;
+const STAT_EMOJI: Record<string, string> = {
+	HP:   '❤️',
+	STA:  '⚡',
+	OXY:  '💧',
+	FOOD: '🍖',
+	WGT:  '⚖️',
+	MEL:  '⚔️',
+	CRA:  '🔨'
+};
+
+const CRAFTING_SPECIES = new Set(['gacha']);
 
 function genderGlyph(g: string): string {
 	const l = (g || '').toLowerCase();
@@ -19,28 +34,19 @@ function genderGlyph(g: string): string {
 	return '';
 }
 
-function bossReadyTierLabel(t: 'gamma' | 'beta' | 'alpha' | 'titan' | null): string {
-	if (!t) return '';
-	return t.charAt(0).toUpperCase() + t.slice(1);
-}
-
-function totalMutations(mut: Stats): number {
-	// Mutation field stores TOTAL mutation LEVELS across the 7 stats.
-	// Sum them — no ×2 multiplier (matches the current creature-card math).
-	return STAT_KEYS.reduce((sum, k) => sum + getStat(mut, k), 0);
-}
-
 /**
- * Format a creature into a Discord-pasteable summary matching the spec block:
+ * Format a creature into a Discord-pasteable summary:
  *
  *   🦕 REX — "Big Daddy" ♂
- *   ━━━━━━━━━━━━━━━━━━━━━
- *   🔵 Boss Ready: Alpha · 🧬 18 Mutations
- *   📊 HP: 52 · STA: 38 · OXY: 30 · FOOD: 44 · WGT: 41 · MEL: 48 · CRA: 0
- *   ━━━━━━━━━━━━━━━━━━━━━
+ *   ━━━━━━━━━━━━━━━━━━━
+ *   ❤️ HP 52 · ⚡ STA 38
+ *   💧 OXY 30 · 🍖 FOOD 44
+ *   ⚖️ WGT 41 · ⚔️ MEL 48
+ *   ━━━━━━━━━━━━━━━━━━━
  *   ✅ Available for Breeding | Trade
  *
- * The third (status) line is omitted entirely if neither availability flag is true.
+ * Crafting (🔨 CRA) renders on its own line under the grid for Gacha only.
+ * Availability line omitted when neither flag is set.
  */
 export function formatCreatureForDiscord(c: ShareableCreature): string {
 	const species = (c.species || 'CREATURE').toUpperCase();
@@ -48,17 +54,21 @@ export function formatCreatureForDiscord(c: ShareableCreature): string {
 	const glyph = genderGlyph(c.gender);
 	const header = `🦕 ${species} — "${name}"${glyph ? ' ' + glyph : ''}`;
 
-	const badges = computeBadges(c.baseStats, c.mutations, c.species);
-	const mutCount = totalMutations(c.mutations);
-	const metaParts: string[] = [];
-	if (badges.bossReady) metaParts.push(`🔵 Boss Ready: ${bossReadyTierLabel(badges.bossReady)}`);
-	if (badges.bloodline) metaParts.push(`💎 ${badges.bloodline.charAt(0).toUpperCase() + badges.bloodline.slice(1)} Bloodline`);
-	metaParts.push(`🧬 ${mutCount} Mutation${mutCount === 1 ? '' : 's'}`);
-	const metaLine = metaParts.join(' · ');
+	// 3 rows × 2 cols over the 6 core stats.
+	const statRows: string[] = [];
+	for (let i = 0; i < CORE_STATS.length; i += 2) {
+		const left  = CORE_STATS[i];
+		const right = CORE_STATS[i + 1];
+		const lVal  = getStat(c.baseStats, left)  + getStat(c.mutations, left);
+		const rVal  = getStat(c.baseStats, right) + getStat(c.mutations, right);
+		statRows.push(`${STAT_EMOJI[left]} ${left} ${lVal} · ${STAT_EMOJI[right]} ${right} ${rVal}`);
+	}
 
-	const statsLine = '📊 ' + STAT_KEYS
-		.map(k => `${k}: ${getStat(c.baseStats, k) + getStat(c.mutations, k)}`)
-		.join(' · ');
+	// Crafting tag on its own row when the species cares about it.
+	if (CRAFTING_SPECIES.has((c.species || '').toLowerCase())) {
+		const craftVal = getStat(c.baseStats, 'CRA') + getStat(c.mutations, 'CRA');
+		statRows.push(`${STAT_EMOJI.CRA} CRA ${craftVal}`);
+	}
 
 	const availability: string[] = [];
 	if (c.availableForBreeding) availability.push('Breeding');
@@ -67,15 +77,9 @@ export function formatCreatureForDiscord(c: ShareableCreature): string {
 		? `✅ Available for ${availability.join(' | ')}`
 		: '';
 
-	const divider = '━━━━━━━━━━━━━━━━━━━━━';
+	const divider = '━━━━━━━━━━━━━━━━━━━';
 
-	const lines = [
-		header,
-		divider,
-		metaLine,
-		statsLine,
-		divider
-	];
+	const lines = [header, divider, ...statRows, divider];
 	if (availLine) lines.push(availLine);
 
 	return lines.join('\n');
