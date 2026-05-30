@@ -9,6 +9,11 @@
     let pinModalOpen = $state(false);
     let pinModalMode = $state<'project' | 'featured'>('project');
 
+    // Pinned-projects view toggle. Card default for the visual at-a-glance,
+    // list compresses each project to a single row for users running 5–6
+    // active projects who don't want to scroll through tall cards.
+    let pinnedView = $state<'card' | 'list'>('card');
+
     // Share button — copies a link to this user's public dossier to the clipboard.
     let shareLabel = $state('Share');
     async function copyProfileLink() {
@@ -349,6 +354,16 @@
                 <span class="count">{pinned.length} / 6</span>
             {/if}
             <span class="rule"></span>
+            {#if pinned.length > 0}
+                <div class="pinned-view-toggle">
+                    <button type="button" class="pv-btn" class:active={pinnedView === 'card'} onclick={() => pinnedView = 'card'} title="Card view" aria-label="Card view">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    </button>
+                    <button type="button" class="pv-btn" class:active={pinnedView === 'list'} onclick={() => pinnedView = 'list'} title="List view" aria-label="List view">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                </div>
+            {/if}
             <button type="button" class="action" disabled={pinned.length >= 6} onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Project <span class="arrow">▸</span></button>
         </div>
         {#if pinned.length === 0}
@@ -359,7 +374,8 @@
                 <button type="button" class="pinned-empty-cta" onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Your First Project</button>
             </div>
         {:else}
-            <div class="pinned-row">
+            <!-- Card view (default) -->
+            <div class="pinned-row" class:hidden={pinnedView !== 'card'}>
                 {#each pinned as c}
                     {@const cat = categoryForSpecies(c.species)}
                     {@const badges = computeBadges(c.baseStats, c.mutations)}
@@ -401,6 +417,31 @@
                                 <div class="project-meta-row"><span class="key">Server</span><span class="val">{c.server}</span></div>
                             {/if}
                         </div>
+                    </div>
+                {/each}
+            </div>
+
+            <!-- List view — compressed single row per project -->
+            <div class="pinned-list" class:hidden={pinnedView !== 'list'}>
+                {#each pinned as c}
+                    {@const focusLabel = c.focusStat}
+                    {@const currentMut = mutationCounts[c.projectId] ?? 0}
+                    {@const targetMut = c.targetMutations ?? 0}
+                    <div class="pin-list-row" role="link" tabindex="0" onclick={() => openProject(c.id)} onkeydown={(e) => openProject(c.id, e)}>
+                        <span class="pin-list-gender gender {c.gender?.toLowerCase() === 'female' ? 'female' : 'male'}">{c.gender?.toLowerCase() === 'female' ? '♀' : '♂'}</span>
+                        <div class="pin-list-id">
+                            <div class="pin-list-species">{c.species}</div>
+                            <div class="pin-list-nick">"{c.name}"</div>
+                        </div>
+                        <div class="pin-list-focus">
+                            <span class="pin-list-focus-label">{focusLabel}</span>
+                        </div>
+                        <div class="pin-list-counter">
+                            <button class="project-btn minus" title="Decrement {focusLabel} mutations" onclick={(e) => { e.stopPropagation(); bump(c, -1); }}>−</button>
+                            <span class="pin-list-counter-num">{currentMut}{targetMut > 0 ? ` / ${targetMut}` : ''}</span>
+                            <button class="project-btn plus" title="Increment {focusLabel} mutations — new baby with +1" onclick={(e) => { e.stopPropagation(); bump(c, 1); }}>+</button>
+                        </div>
+                        <button class="pin-unpin" title="Unpin this {focusLabel} project" aria-label="Unpin {focusLabel} project for {c.name}" onclick={(e) => { e.stopPropagation(); unpinProject(c); }}>×</button>
                     </div>
                 {/each}
             </div>
@@ -1189,6 +1230,129 @@
     gap: 16px;
 }
 @media (max-width: 860px) { .pinned-row { grid-template-columns: 1fr; } }
+.pinned-row.hidden, .pinned-list.hidden { display: none; }
+
+/* View toggle in section header — small icon buttons next to "+ Pin Project" */
+.pinned-view-toggle {
+    display: inline-flex;
+    gap: 2px;
+    margin-right: 10px;
+}
+.pv-btn {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(5,8,18,0.6);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--tek-text-faint);
+    cursor: pointer;
+    padding: 0;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: all 0.15s;
+}
+.pv-btn:hover {
+    border-color: rgba(0,180,255,0.30);
+    color: var(--tek-text);
+}
+.pv-btn.active {
+    background: rgba(0,180,255,0.10);
+    border-color: var(--tek-blue);
+    color: var(--tek-blue);
+    box-shadow: 0 0 8px rgba(0,180,255,0.30);
+}
+
+/* List view — compressed single row per project */
+.pinned-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.pin-list-row {
+    display: grid;
+    grid-template-columns: 24px 1fr auto auto 24px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: linear-gradient(160deg, rgba(10,18,44,0.85) 0%, rgba(4,8,20,0.95) 100%);
+    border: 1px solid rgba(100,116,139,0.20);
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+    text-decoration: none;
+    color: inherit;
+}
+.pin-list-row:hover {
+    border-color: rgba(0,180,255,0.40);
+    transform: translateY(-1px);
+}
+.pin-list-gender {
+    font-size: 1rem;
+    text-align: center;
+}
+.pin-list-id {
+    min-width: 0;
+}
+.pin-list-species {
+    font-family: var(--tek-display);
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--tek-text);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pin-list-nick {
+    font-family: var(--tek-serif, 'Crimson Pro', Georgia, serif);
+    font-style: italic;
+    font-size: 0.84rem;
+    color: var(--tek-text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pin-list-focus {
+    display: flex;
+    align-items: center;
+}
+.pin-list-focus-label {
+    font-family: var(--tek-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    color: var(--tek-blue);
+    text-transform: uppercase;
+    padding: 4px 10px;
+    background: rgba(0,180,255,0.08);
+    border: 1px solid var(--tek-blue-border);
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.pin-list-counter {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.pin-list-counter-num {
+    font-family: var(--tek-mono);
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--tek-text);
+    min-width: 48px;
+    text-align: center;
+}
+@media (max-width: 640px) {
+    .pin-list-row {
+        grid-template-columns: 22px 1fr auto;
+        grid-template-areas:
+            "g i u"
+            "f f f"
+            "c c c";
+        row-gap: 6px;
+    }
+    .pin-list-gender { grid-area: g; }
+    .pin-list-id { grid-area: i; }
+    .pin-list-focus { grid-area: f; justify-content: flex-start; }
+    .pin-list-counter { grid-area: c; justify-content: space-between; }
+    .pin-list-row .pin-unpin { grid-area: u; }
+}
 
 .pin-card {
     --cat-rgb: 239,68,68;

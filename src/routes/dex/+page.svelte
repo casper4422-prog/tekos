@@ -19,16 +19,15 @@
 
 	let { data }: { data: PageData } = $props();
 	const ownedBySpecies = $derived(data.ownedBySpecies ?? {});
-	const badgedSet = $derived(new Set(data.badgedSpecies ?? []));
 
 	let species = $state<Record<string, SpeciesEntry>>({});
 	let search = $state('');
 	let activeFilter = $state('all');
 
-	// New filters (planning notes §7) — Map / Owned / Has Badge / Variant Type
+	// Filters: Map / Owned / Variant Type. "Has Badge" checkbox dropped in
+	// milestone 3 — added noise without matching how users actually browse.
 	let filterMap = $state<string>('any');
 	let filterOwned = $state<'any' | 'owned' | 'not-owned'>('any');
-	let filterHasBadge = $state<boolean>(false);
 	let filterVariant = $state<string>('any');
 
 	// Variant types — derive from name prefix as v1. Explicit tagging in the
@@ -51,12 +50,11 @@
 	let allMaps = $state<string[]>([]);
 
 	const advancedFiltersActive = $derived(
-		filterMap !== 'any' || filterOwned !== 'any' || filterHasBadge || filterVariant !== 'any'
+		filterMap !== 'any' || filterOwned !== 'any' || filterVariant !== 'any'
 	);
 	function clearAdvancedFilters() {
 		filterMap = 'any';
 		filterOwned = 'any';
-		filterHasBadge = false;
 		filterVariant = 'any';
 	}
 
@@ -142,8 +140,6 @@
 				const count = ownedCount(displayName);
 				if (filterOwned === 'owned' && count === 0) return false;
 				if (filterOwned === 'not-owned' && count > 0) return false;
-				// Has badge
-				if (filterHasBadge && !badgedSet.has(displayName)) return false;
 				// Variant type
 				if (filterVariant !== 'any' && variantTypeOf(displayName) !== filterVariant) return false;
 				return true;
@@ -220,13 +216,6 @@
 				<button class="adv-chip" class:active={filterOwned === 'any'} onclick={() => filterOwned = 'any'}>Any</button>
 				<button class="adv-chip" class:active={filterOwned === 'owned'} onclick={() => filterOwned = 'owned'}>✓ Owned</button>
 				<button class="adv-chip" class:active={filterOwned === 'not-owned'} onclick={() => filterOwned = 'not-owned'}>○ Not Owned</button>
-			</div>
-
-			<div class="adv-group">
-				<label class="adv-check">
-					<input type="checkbox" bind:checked={filterHasBadge} />
-					Has Badge
-				</label>
 			</div>
 
 			<div class="adv-group">
@@ -473,17 +462,6 @@
 }
 .adv-chip:hover { color: var(--tek-text); border-color: var(--tek-blue-border); }
 .adv-chip.active { background: rgba(0,180,255,0.12); border-color: var(--tek-blue); color: var(--tek-blue); }
-
-.adv-check {
-    display: inline-flex; align-items: center; gap: 7px;
-    font-family: var(--tek-mono);
-    font-size: 0.72rem;
-    letter-spacing: 0.06em;
-    color: var(--tek-text-dim);
-    cursor: pointer;
-}
-.adv-check input { accent-color: var(--tek-blue); cursor: pointer; }
-.adv-check:hover { color: var(--tek-text); }
 
 .adv-clear {
     margin-left: auto;

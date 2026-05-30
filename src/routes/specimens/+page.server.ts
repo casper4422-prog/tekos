@@ -5,6 +5,7 @@ import type { Stats } from '$lib/badges';
 export type VaultCreature = {
     id: number;
     createdAt: Date;
+    updatedAt: Date;
     name: string;
     species: string;
     level: number;
@@ -39,6 +40,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         return {
             id:        r.id,
             createdAt: r.createdAt,
+            updatedAt: r.updatedAt,
             name:      String(d.name ?? 'Unnamed'),
             species:   String(d.species ?? 'Unknown'),
             level:     Number(d.level ?? 1),
