@@ -1,8 +1,15 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { computeBadges, badgeCountForCreature } from '$lib/badges';
+	import { formatCountdown } from '$lib/warRoomCountdown';
 	let { data }: { data: PageData } = $props();
+
+	// Live countdown for the Next War Room card. 1s tick is fine for sub-hour displays.
+	let now = $state(Date.now());
+	let nowTimer: ReturnType<typeof setInterval>;
+	onMount(() => { nowTimer = setInterval(() => { now = Date.now(); }, 1000); });
+	onDestroy(() => clearInterval(nowTimer));
 
 	function categoryForSpecies(species: string): string {
 		const s = species.toLowerCase();
@@ -394,6 +401,7 @@
 		<div class="pending-list">
 
 			{#if nextWarRoom}
+			{@const pcd = formatCountdown(now, nextWarRoom.scheduledAt)}
 			<!-- Boss fight -->
 			<div class="pending-item">
 				<div class="pending-icon-wrap boss">
@@ -408,7 +416,7 @@
 					<span class="label">{nextWarRoom.difficulty ? nextWarRoom.difficulty.charAt(0).toUpperCase() + nextWarRoom.difficulty.slice(1) + ' ' : ''}{nextWarRoom.bossName} War Room</span>
 					<span class="meta">{nextWarRoom.notes ?? 'Scheduled fight'}</span>
 				</div>
-				<div class="pending-timer">{new Date(nextWarRoom.scheduledAt).toLocaleDateString([], { month:'short', day:'numeric' })}</div>
+				<div class="pending-timer" class:urgent={pcd.urgent}>{pcd.text}</div>
 				<button class="pending-btn boss">Open War Room ▸</button>
 			</div>
 			{/if}
@@ -672,9 +680,11 @@
 					<span>⚔ Next War Room</span>
 				</div>
 				{#if nextWarRoom}
+					{@const cd = formatCountdown(now, nextWarRoom.scheduledAt)}
 					<div class="warroom-info">
 						<div class="warroom-boss">{nextWarRoom.difficulty ? nextWarRoom.difficulty.charAt(0).toUpperCase() + nextWarRoom.difficulty.slice(1) + ' ' : ''}{nextWarRoom.bossName}</div>
-						<div class="warroom-date">{new Date(nextWarRoom.scheduledAt).toLocaleString([], { weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }).toUpperCase()}</div>
+						<div class="warroom-date" class:urgent={cd.urgent}>{cd.text}{#if !cd.past} until kickoff{/if}</div>
+						<div class="warroom-detail" style="opacity:0.7">{new Date(nextWarRoom.scheduledAt).toLocaleString([], { weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }).toUpperCase()}</div>
 						{#if nextWarRoom.notes}<div class="warroom-detail">{nextWarRoom.notes}</div>{/if}
 					</div>
 				{:else}
@@ -1846,6 +1856,10 @@
 	color: #fcd34d;
 	letter-spacing: 0.10em;
 	margin-bottom: 8px;
+}
+.warroom-date.urgent {
+	color: #ef4444;
+	text-shadow: 0 0 6px rgba(239,68,68,0.45);
 }
 .warroom-detail {
 	font-family: var(--tek-mono);
