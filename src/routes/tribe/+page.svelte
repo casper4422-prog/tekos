@@ -34,6 +34,7 @@
 		id:number; name:string; mainMap:string|null; description:string|null;
 		motto:string|null; bannerUrl:string|null; sigilUrl:string|null;
 		recruitmentOpen:boolean; lookingFor:string|null;
+		discordWebhookUrl:string|null;
 		ownerUserId:number; members:Member[]; creatures:TribeC[]; joinRequests:JoinReq[]
 	};
 	type AllTribe  = { id:number; name:string; description:string|null; mainMap:string|null; memberCount:number };
@@ -72,6 +73,8 @@
 	let eLookingFor = $state('');
 	let eMap        = $state('');
 	let eDesc       = $state('');
+	let eDiscord    = $state('');
+	let eDiscordErr = $state('');
 
 	// Invite modal
 	let inviteOpen  = $state(false);
@@ -212,6 +215,8 @@
 		eLookingFor = t.lookingFor ?? '';
 		eMap = t.mainMap ?? '';
 		eDesc = t.description ?? '';
+		eDiscord = t.discordWebhookUrl ?? '';
+		eDiscordErr = '';
 		editOpen = true;
 	}
 	async function saveEdit() {
@@ -219,15 +224,25 @@
 		const trimmedName = eName.trim();
 		if (!trimmedName) { eNameErr = 'Tribe name required.'; return; }
 		eNameErr = '';
+		eDiscordErr = '';
 		saving = true;
 		const res = await fetch(`/api/tribes/${membership.tribe.id}`, {
 			method:'PUT', headers:{'Content-Type':'application/json'},
-			body:JSON.stringify({ name:trimmedName, motto:eMotto||null, bannerUrl:eBanner||null, sigilUrl:eSigil||null, recruitmentOpen:eRecruit, lookingFor:eLookingFor||null, mainMap:eMap||null, description:eDesc||null })
+			body:JSON.stringify({
+				name:trimmedName, motto:eMotto||null, bannerUrl:eBanner||null,
+				sigilUrl:eSigil||null, recruitmentOpen:eRecruit, lookingFor:eLookingFor||null,
+				mainMap:eMap||null, description:eDesc||null,
+				discordWebhookUrl: eDiscord.trim() || null
+			})
 		});
 		saving = false;
 		if (res.ok) { location.reload(); return; }
 		// Surface 409 (duplicate name) inline; everything else still uses the alert path.
 		const err = (await res.json().catch(() => ({}))).error ?? 'Failed';
+		if (/discord webhook/i.test(err)) {
+			eDiscordErr = err;
+			return;
+		}
 		if (res.status === 409 || /already|unique|exists/i.test(err)) {
 			eNameErr = 'That tribe name is already taken.';
 		} else {
@@ -860,6 +875,15 @@
 			<div class="plan-field"><label class="form-label" for="e-desc">Description</label><textarea id="e-desc" class="form-control" rows="2" bind:value={eDesc}></textarea></div>
 			<label class="toggle-row"><input type="checkbox" bind:checked={eRecruit} /> <span>Recruitment open</span></label>
 			<div class="plan-field"><label class="form-label" for="e-lf">Looking for</label><input id="e-lf" class="form-control" bind:value={eLookingFor} placeholder="e.g. Breeders, PvP veterans, builders…" /></div>
+			<div class="plan-field">
+				<label class="form-label" for="e-discord">Discord webhook URL</label>
+				<input id="e-discord" class="form-control" bind:value={eDiscord} placeholder="https://discord.com/api/webhooks/…" />
+				<div style="font-family:var(--tek-mono);font-size:0.66rem;color:var(--tek-text-faint);margin-top:4px;line-height:1.5">
+					Optional. In Discord: Server Settings → Integrations → Webhooks → New Webhook → Copy URL.
+					Tribe events (war room scheduled / started / ended) post here automatically.
+				</div>
+				{#if eDiscordErr}<div class="tek-login-error" style="margin-top:6px">{eDiscordErr}</div>{/if}
+			</div>
 		</div>
 		<div class="modal-footer">
 			<button class="btn btn-ghost" onclick={() => editOpen=false}>Cancel</button>

@@ -80,11 +80,23 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
 	const body = await request.json().catch(() => ({}));
 	const data: Record<string, unknown> = {};
-	const allowed = ['name','mainMap','description','motto','bannerUrl','sigilUrl','recruitmentOpen','lookingFor'] as const;
+	const allowed = ['name','mainMap','description','motto','bannerUrl','sigilUrl','recruitmentOpen','lookingFor','discordWebhookUrl'] as const;
 	for (const k of allowed) {
 		if (k in body) data[k] = body[k];
 	}
 	if (Object.keys(data).length === 0) return json({ error: 'Nothing to update' }, { status: 400 });
+
+	// Validate the Discord webhook shape if the field is being set (empty string = clear).
+	if ('discordWebhookUrl' in data) {
+		const raw = data.discordWebhookUrl;
+		if (raw === '' || raw === null || raw === undefined) {
+			data.discordWebhookUrl = null;
+		} else if (typeof raw !== 'string' || !/^https:\/\/(?:ptb\.|canary\.)?discord(?:app)?\.com\/api\/webhooks\/\d+\/[A-Za-z0-9_-]+$/.test(raw.trim())) {
+			return json({ error: 'Invalid Discord webhook URL. Use the full URL from Discord → Channel → Integrations → Webhooks.' }, { status: 400 });
+		} else {
+			data.discordWebhookUrl = raw.trim();
+		}
+	}
 
 	const updated = await db.tribe.update({ where: { id }, data });
 	await db.tribalActivity.create({ data: { tribeId: id, userId: uid, eventType: 'tribe_edited', metadata: { fields: Object.keys(data) } } });

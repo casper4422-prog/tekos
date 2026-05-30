@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { requireUser } from '$lib/auth';
 import { intParam } from '$lib/params';
+import { postToTribeChannel, COLOR_INFO } from '$lib/discordTribeWebhook';
 
 // List scheduled war rooms for this tribe. Members only.
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -44,5 +45,18 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		}
 	});
 	await db.tribalActivity.create({ data: { tribeId, userId: uid, eventType: 'warroom_scheduled', metadata: { bossName, scheduledAt: scheduledAt.toISOString(), difficulty: body.difficulty ?? null } } });
+
+	// Discord — fire-and-forget; webhook failures don't block the response.
+	postToTribeChannel(tribeId, {
+		title: '⚔ War Room Scheduled',
+		description: `**${bossName}**${body.difficulty ? ` · ${String(body.difficulty).toUpperCase()}` : ''}`,
+		color: COLOR_INFO,
+		fields: [
+			{ name: 'Kickoff', value: `<t:${Math.floor(scheduledAt.getTime()/1000)}:F>`, inline: true },
+			...(body.notes ? [{ name: 'Notes', value: String(body.notes).slice(0, 1000), inline: false }] : [])
+		],
+		timestamp: new Date().toISOString()
+	}).catch(() => {});
+
 	return json(room, { status: 201 });
 };
