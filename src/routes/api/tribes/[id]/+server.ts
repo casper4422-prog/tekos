@@ -36,7 +36,14 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		const admins = await db.tribeMembership.findMany({ where: { tribeId: id, role: { in: ['owner','admin'] } } });
 		const me = await db.user.findUnique({ where: { id: uid }, select: { nickname:true, discordName:true } });
 		for (const a of admins) {
-			await notify(a.userId, uid, 'tribe_join_request', { tribeName: tribe?.name, fromName: me?.nickname ?? me?.discordName ?? 'Unknown survivor' });
+			// tribeId + requestId are what the Accept/Decline buttons on /notifications need.
+			// Without them the click handlers can't call back into this endpoint.
+			await notify(a.userId, uid, 'tribe_join_request', {
+				tribeName: tribe?.name,
+				fromName: me?.nickname ?? me?.discordName ?? 'Unknown survivor',
+				tribeId: id,
+				requestId: req.id
+			});
 		}
 		return json(req, { status: 201 });
 	}

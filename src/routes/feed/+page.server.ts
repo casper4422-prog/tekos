@@ -114,11 +114,16 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 		}
 	} catch { /* empty */ }
 
-	// YouTube items — endpoint requires a ?url=, so loop over saved feedSources of type 'youtube'
-	const rawPinned = (me?.pinnedCreatures ?? {}) as Json;
-	const feedSources = Array.isArray((rawPinned as Json).feedSources)
-		? ((rawPinned as Json).feedSources as Json[])
-		: [];
+	// YouTube items — endpoint requires a ?url=, so loop over saved feedSources of type 'youtube'.
+	// FeedSource moved off pinnedCreatures into its own Prisma table in milestone 2 —
+	// the previous JSON storage got clobbered by the BreedingProject backfill.
+	const feedSourceRows = await db.feedSource.findMany({
+		where: { userId: uid },
+		orderBy: { createdAt: 'asc' }
+	});
+	const feedSources: Json[] = feedSourceRows.map(r => ({
+		id: r.id, type: r.type, url: r.url, label: r.label
+	})) as Json[];
 	const ytSources = feedSources.filter(s => s.type === 'youtube' && typeof s.url === 'string');
 	let youtubeItems: Json[] = [];
 	for (const src of ytSources.slice(0, 4)) {

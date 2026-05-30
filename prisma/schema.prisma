@@ -57,6 +57,7 @@ model User {
   tribalActivity       TribalActivity[]     @relation("TribalActivityUser")
   warRoomsCreated      WarRoom[]            @relation("WarRoomCreator")
   breedingProjects     BreedingProject[]
+  feedSources          FeedSource[]
 
   @@map("users")
 }
@@ -74,6 +75,28 @@ model Creature {
   breedingProjects BreedingProject[]
 
   @@map("creatures")
+}
+
+// FeedSource — curated external sources (YouTube channel, Twitter handle,
+// subreddit, Steam page, etc.) the user has subscribed to for the News tab
+// on /feed. Replaces the previous JSON storage at User.pinnedCreatures.
+// feedSources — that key got clobbered by the BreedingProject migration
+// when it cleared pinnedCreatures to [] on first dossier load. A real table
+// keeps subscriptions safe from any future migration that touches the
+// pinnedCreatures column.
+model FeedSource {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  type      String   // 'youtube' | 'twitter' | 'reddit' | 'twitch' | 'steam'
+  url       String
+  label     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, url])
+  @@index([userId])
+  @@map("feed_sources")
 }
 
 // BreedingProject — pinned breeding goals shown on the Dossier's

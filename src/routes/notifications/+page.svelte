@@ -81,56 +81,72 @@
     }
 
     // ---- Action handlers ----
+    // Helper: surfaces errors with an alert instead of silently swallowing them.
+    // The previous .catch(() => {}) pattern hid the missing-payload-IDs bug for
+    // weeks — keeping errors loud now so the next regression shows up immediately.
+    async function postAction(url: string, method: string, body: unknown, missingMsg: string): Promise<boolean> {
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+                const err = (await res.json().catch(() => ({}))).error ?? `Failed (${res.status})`;
+                alert(err);
+                return false;
+            }
+            return true;
+        } catch {
+            alert('Network error — please try again.');
+            return false;
+        }
+        // missingMsg path handled by caller when ID lookup short-circuits
+        void missingMsg;
+    }
+
     async function acceptFriend(n: Notif) {
         const p = n.payload ?? {};
         const fid = (p.friendshipId ?? p.requestId ?? p.id) as number | undefined;
-        if (fid != null) {
-            await fetch(`/api/friends/${fid}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'accept' })
-            }).catch(() => {});
+        if (fid == null) {
+            alert('This notification is missing the friend request ID — try refreshing your notifications.');
+            return;
         }
-        markRead(n.id);
+        const ok = await postAction(`/api/friends/${fid}`, 'PUT', { action: 'accept' }, 'friend id missing');
+        if (ok) markRead(n.id);
     }
     async function declineFriend(n: Notif) {
         const p = n.payload ?? {};
         const fid = (p.friendshipId ?? p.requestId ?? p.id) as number | undefined;
-        if (fid != null) {
-            await fetch(`/api/friends/${fid}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'decline' })
-            }).catch(() => {});
+        if (fid == null) {
+            alert('This notification is missing the friend request ID — try refreshing your notifications.');
+            return;
         }
-        markRead(n.id);
+        const ok = await postAction(`/api/friends/${fid}`, 'PUT', { action: 'decline' }, 'friend id missing');
+        if (ok) markRead(n.id);
     }
 
     async function acceptTribeJoin(n: Notif) {
         const p = n.payload ?? {};
         const tribeId = p.tribeId as number | undefined;
         const requestId = (p.requestId ?? p.joinRequestId) as number | undefined;
-        if (tribeId != null && requestId != null) {
-            await fetch(`/api/tribes/${tribeId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'accept', requestId })
-            }).catch(() => {});
+        if (tribeId == null || requestId == null) {
+            alert('This notification is missing the tribe / request ID — try refreshing your notifications.');
+            return;
         }
-        markRead(n.id);
+        const ok = await postAction(`/api/tribes/${tribeId}`, 'POST', { action: 'accept', requestId }, 'tribe ids missing');
+        if (ok) markRead(n.id);
     }
     async function declineTribeJoin(n: Notif) {
         const p = n.payload ?? {};
         const tribeId = p.tribeId as number | undefined;
         const requestId = (p.requestId ?? p.joinRequestId) as number | undefined;
-        if (tribeId != null && requestId != null) {
-            await fetch(`/api/tribes/${tribeId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'reject', requestId })
-            }).catch(() => {});
+        if (tribeId == null || requestId == null) {
+            alert('This notification is missing the tribe / request ID — try refreshing your notifications.');
+            return;
         }
-        markRead(n.id);
+        const ok = await postAction(`/api/tribes/${tribeId}`, 'POST', { action: 'reject', requestId }, 'tribe ids missing');
+        if (ok) markRead(n.id);
     }
 
     // ---- Link/href derivers for "go-to" actions ----

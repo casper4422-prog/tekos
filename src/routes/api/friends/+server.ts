@@ -57,6 +57,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (existing) return json({ error: 'Request already exists' }, { status: 409 });
 	const row = await db.friendship.create({ data: { userId: uid, friendUserId, status: 'pending' } });
 	const me = await db.user.findUnique({ where: { id: uid }, select: { nickname:true, discordName:true } });
-	await notify(friendUserId, uid, 'friend_request', { fromName: me?.nickname ?? me?.discordName ?? 'Unknown survivor' });
+	// friendshipId is what the recipient's Accept/Decline buttons need to call /api/friends/[id].
+	// Without it the notification handlers silently no-op.
+	await notify(friendUserId, uid, 'friend_request', {
+		fromName: me?.nickname ?? me?.discordName ?? 'Unknown survivor',
+		friendshipId: row.id
+	});
 	return json({ ok: true, id: row.id }, { status: 201 });
 };
