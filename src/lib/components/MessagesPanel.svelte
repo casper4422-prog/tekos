@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { onMount, tick, untrack } from 'svelte';
-    import { page } from '$app/stores';
+    import { onMount, tick } from 'svelte';
     import { invalidateAll } from '$app/navigation';
 
     type Convo = {
@@ -149,6 +148,9 @@
         activeWith = userId;
         activeWarRoom = null;
         activeWarMessages = [];
+        // Reset the shared composer text — otherwise typed-but-unsent content from
+        // the previous thread carries over and Enter fires against the new endpoint.
+        inputText = '';
         const url = new URL(window.location.href);
         url.searchParams.set('tab', 'messages');
         url.searchParams.set('with', String(userId));
@@ -163,6 +165,8 @@
         activeWith = null;
         activeMessages = [];
         activePartner = null;
+        // Reset the shared composer text — see comment in setActive.
+        inputText = '';
         const url = new URL(window.location.href);
         url.searchParams.set('tab', 'messages');
         url.searchParams.set('war', String(w.sessionId));
@@ -335,46 +339,48 @@
         activeMessages = [];
         activeWarMessages = [];
         activePartner = null;
+        inputText = '';
         const url = new URL(window.location.href);
         url.searchParams.delete('with');
         url.searchParams.delete('war');
         history.pushState({}, '', url);
     }
 
-    // Sync activeWith / activeWarRoom from URL on mount + when URL actually
-    // changes (back/forward, deep-link). Reads of $page and warRooms outside
-    // the untrack are deliberate — those SHOULD re-fire the effect. The body
-    // is untracked so internal assignments to activeWith / activeWarRoom
-    // (which we make from set/clear handlers) don't loop back through here.
-    // Without the untrack, native history.pushState updates the browser URL
-    // but NOT $page, so the effect re-fired against stale URL params and
-    // immediately reset whatever we'd just set.
-    $effect(() => {
-        const w = $page.url.searchParams.get('with');
-        const r = $page.url.searchParams.get('war');
-        const rooms = warRooms;
-        untrack(() => {
-            if (w) {
-                const id = parseInt(w, 10);
-                if (!isNaN(id) && id !== activeWith) setActive(id);
-            } else if (r) {
-                const sid = parseInt(r, 10);
-                if (!isNaN(sid) && activeWarRoom?.sessionId !== sid) {
-                    const found = rooms.find(x => x.sessionId === sid);
-                    if (found) {
-                        setActiveWar(found);
-                    } else {
-                        setActiveWar({ sessionId: sid, bossName: 'War Room', difficulty: null, joinCode: '', lastMessage: null, lastAt: new Date().toISOString() });
-                    }
+    // URL sync — single source of truth is the explicit set/clear handlers.
+    // We only sync FROM the URL on initial mount (for deep links) and on
+    // popstate (browser back/forward). NEVER as a reactive $effect — that
+    // approach kept re-firing on prop refreshes (warRooms invalidated by
+    // polling every 30s) while $page lagged behind history.pushState,
+    // which wiped the active thread mid-flow.
+    function syncFromUrl(url: URL) {
+        const w = url.searchParams.get('with');
+        const r = url.searchParams.get('war');
+        if (w) {
+            const id = parseInt(w, 10);
+            if (!isNaN(id) && id !== activeWith) void setActive(id);
+        } else if (r) {
+            const sid = parseInt(r, 10);
+            if (!isNaN(sid) && activeWarRoom?.sessionId !== sid) {
+                const found = warRooms.find(x => x.sessionId === sid);
+                if (found) {
+                    void setActiveWar(found);
+                } else {
+                    void setActiveWar({ sessionId: sid, bossName: 'War Room', difficulty: null, joinCode: '', lastMessage: null, lastAt: new Date().toISOString() });
                 }
-            } else {
-                if (activeWith !== null) { activeWith = null; activeMessages = []; activePartner = null; }
-                if (activeWarRoom !== null) { activeWarRoom = null; activeWarMessages = []; }
             }
-        });
-    });
+        } else {
+            // Empty params after a real navigation — user hit back to the bare /messages URL.
+            if (activeWith !== null || activeWarRoom !== null) clearActive();
+        }
+    }
+
+    function onPopState() { syncFromUrl(new URL(window.location.href)); }
 
     onMount(() => {
+        // Initial deep-link sync
+        syncFromUrl(new URL(window.location.href));
+        window.addEventListener('popstate', onPopState);
+
         // Poll the active thread every 6s so incoming messages appear without a
         // manual refresh, and re-fetch the convo list every 30s so unread
         // badges + last-message previews stay current.
@@ -384,6 +390,7 @@
         }, 6000);
         const listTimer   = setInterval(() => { void invalidateAll(); }, 30000);
         return () => {
+            window.removeEventListener('popstate', onPopState);
             clearInterval(threadTimer);
             clearInterval(listTimer);
         };
