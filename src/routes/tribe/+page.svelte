@@ -551,7 +551,7 @@
 			<span class="pip"></span>
 			Tribe Specimens · <span class="count">{tribe.creatures.length} TOTAL</span>
 			<span class="rule"></span>
-			<a class="action" href="/specimens">View All Specimens <span class="arrow">▸</span></a>
+			<a class="action" href="/tribe/specimens">View All Specimens <span class="arrow">▸</span></a>
 		</div>
 		<div class="vault-row">
 			{#each tribe.creatures.slice(0, 3) as c}
