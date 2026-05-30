@@ -81,12 +81,12 @@
             ]
         },
         {
-            key: 'endurance', label: 'Endurance', icon: '⟳', primary: 'High Stamina — long fights',
+            key: 'endurance', label: 'Endurance', icon: '⟳', primary: 'High Oxygen — long fights',
             tiers: [
-                { tier: 'standard',  label: 'Standard',  req: 'STA ≥ 150' },
-                { tier: 'elite',     label: 'Elite',     req: 'STA ≥ 175' },
-                { tier: 'apex',      label: 'Apex',      req: 'STA ≥ 200' },
-                { tier: 'legendary', label: 'Legendary', req: 'STA ≥ 225' }
+                { tier: 'standard',  label: 'Standard',  req: 'OXY ≥ 150' },
+                { tier: 'elite',     label: 'Elite',     req: 'OXY ≥ 175' },
+                { tier: 'apex',      label: 'Apex',      req: 'OXY ≥ 200' },
+                { tier: 'legendary', label: 'Legendary', req: 'OXY ≥ 225' }
             ]
         }
     ];
@@ -97,11 +97,15 @@
     const underdogEligibleSamples = 'Carno, Sabertooth, Direwolf, Pteranodon, Argentavis, Pachy';
 
     // ── Earned-state lookups ──────────────────────────────────────────────
-    // tier comes back as a nullable tier-union from the server, so filtering
-    // by string equality is safe (null !== 'gamma' etc.). Type the helpers
-    // to return the raw badge-wall shape so callers don't need to re-cast.
+    // Boss Ready + Specialist Roles credit cumulatively: a Titan-tier species also counts
+    // toward Alpha/Beta/Gamma cards (you had to clear those tiers first). Same logic for
+    // Specialist Legendary → Apex/Elite/Standard.
+    const bossTierOrder: Record<string, number> = { gamma: 1, beta: 2, alpha: 3, titan: 4 };
+    const roleTierOrder: Record<string, number> = { standard: 1, elite: 2, apex: 3, legendary: 4 };
+
     function bossReadyEarned(tier: string) {
-        return (data.badgeWall.bossReady ?? []).filter(b => b.tier === tier);
+        const min = bossTierOrder[tier] ?? 0;
+        return (data.badgeWall.bossReady ?? []).filter(b => (bossTierOrder[b.tier ?? ''] ?? 0) >= min);
     }
     function bloodlineEarned(tier: string) {
         return (data.badgeWall.bloodline ?? []).filter(b => b.tier === tier);
@@ -110,12 +114,25 @@
         return (data.badgeWall.underdog ?? []).filter(b => b.tier === tier);
     }
     function specialistEarned(role: RoleKey, tier: RoleTier) {
-        return (data.badgeWall.roles ?? []).filter(r => r.role === role && r.tier === tier);
+        const min = roleTierOrder[tier] ?? 0;
+        return (data.badgeWall.roles ?? []).filter(r => r.role === role && (roleTierOrder[r.tier] ?? 0) >= min);
     }
 
     function speciesList(arr: Array<{ species: string }>, max = 4): string {
         if (arr.length === 0) return '';
         const sliced = arr.slice(0, max).map(e => e.species).join(', ');
+        return arr.length > max ? `${sliced} +${arr.length - max} more` : sliced;
+    }
+
+    // Variant for Boss Ready cards — annotates each species with its current highest tier so a
+    // Gamma card showing a Titan-tier Rex reads "Rex (Titan), Theri (Alpha) ..." instead of just
+    // plain names (otherwise the lower-tier cards look misleading post tier-progression credit).
+    const bossTierLabel: Record<string, string> = { gamma: 'γ', beta: 'β', alpha: 'α', titan: '◆' };
+    function speciesListWithBossTier(arr: Array<{ species: string; tier: string | null }>, max = 4): string {
+        if (arr.length === 0) return '';
+        const fmt = (e: { species: string; tier: string | null }) =>
+            e.tier ? `${e.species} (${bossTierLabel[e.tier] ?? e.tier})` : e.species;
+        const sliced = arr.slice(0, max).map(fmt).join(', ');
         return arr.length > max ? `${sliced} +${arr.length - max} more` : sliced;
     }
 
@@ -172,7 +189,7 @@
                     <div class="badge-name">{t.label}</div>
                     <div class="badge-criteria">HP ≥ {t.hp} AND MEL ≥ {t.mel}</div>
                     {#if earned.length > 0}
-                        <div class="badge-status earned">⬡ {earned.length} {earned.length === 1 ? 'species' : 'species'} · {speciesList(earned)}</div>
+                        <div class="badge-status earned">⬡ {earned.length} {earned.length === 1 ? 'species' : 'species'} · {speciesListWithBossTier(earned)}</div>
                     {:else}
                         <div class="badge-status locked">🔒 Not yet earned</div>
                     {/if}
@@ -272,8 +289,8 @@
         <header class="bs-head">
             <h2 class="bs-title">Map Boss Badges</h2>
             <p class="bs-desc">
-                Earned by defeating a specific boss arena (or field-taming the field-tame Titans on Extinction).
-                Greyed-out cards are bosses for maps still on the way to ASA.
+                Each badge requires defeating the boss with at least one creature of the listed
+                species at the listed tier — and clearing any stamina floor noted on the card.
             </p>
         </header>
         {#each mapsWithBosses as group}
@@ -282,13 +299,11 @@
                 <div class="badge-grid">
                     {#each group.bosses as boss}
                         {@const status = data.mapBossEarned?.[boss.id] ?? { earned: false, reason: undefined as string|undefined }}
-                        <div class="badge-card" class:earned={status.earned} class:soon={boss.comingSoon}>
+                        <div class="badge-card" class:earned={status.earned}>
                             <div class="badge-glyph" style="color:{boss.iconColor}">⬡</div>
                             <div class="badge-name">{boss.name}</div>
                             <div class="badge-criteria">{boss.description}</div>
-                            {#if boss.comingSoon}
-                                <div class="badge-status soon">⏳ {boss.specialty}</div>
-                            {:else if status.earned}
+                            {#if status.earned}
                                 <div class="badge-status earned">⬡ Earned</div>
                             {:else}
                                 <div class="badge-status locked">🔒 Not yet earned</div>
@@ -449,10 +464,6 @@
     background: linear-gradient(160deg, rgba(0,180,255,0.08) 0%, rgba(10,18,44,0.85) 100%);
     box-shadow: inset 0 0 0 1px rgba(0,180,255,0.06), 0 0 18px rgba(0,180,255,0.12);
 }
-.badge-card.soon {
-    opacity: 0.4;
-    border-style: dashed;
-}
 .badge-card.small { padding: 12px 14px; }
 
 .badge-glyph {
@@ -506,7 +517,6 @@
 }
 .badge-status.earned   { color: var(--tek-blue); }
 .badge-status.locked   { color: var(--tek-text-faint); }
-.badge-status.soon     { color: var(--tek-amber); }
 .badge-card.small .badge-status { font-size: 0.62rem; padding-top: 6px; }
 
 /* ── Specialist role groups ───────────────────────────────────────────── */

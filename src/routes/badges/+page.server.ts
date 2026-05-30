@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/db';
 import { computeBadges, getStat, aggregateBadgesByCategory, type Stats } from '$lib/badges';
-import { computeMapBossBadges, MAP_BOSSES, ULTIMATE_BADGES, SPECIAL_ACHIEVEMENTS } from '$lib/mapBosses';
+import { computeMapBossBadges, MAP_BOSSES, ULTIMATE_BADGES, SPECIAL_ACHIEVEMENTS, type BossTier } from '$lib/mapBosses';
 
 /**
  * Breeder Rank ladder — 8 ranks:
@@ -225,11 +225,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     const badgeWall = aggregateBadgesByCategory(creatures);
 
-    // Build the highest-tier-by-species map used by mapBossBadges
+    // Per-creature stats fed into map-boss eligibility: species-specific badges need to know
+    // which creature qualifies (e.g. Broodmother requires a Megatherium at Alpha), and the
+    // stamina-floored badges need that creature's actual STA total.
     const tierOrder = { gamma: 1, beta: 2, alpha: 3, titan: 4 } as const;
     const highestBossTierBySpecies = new Map<string, 'gamma'|'beta'|'alpha'|'titan'>();
+    const creatureStats: Array<{ species: string; bossTier: BossTier | null; staTotal: number }> = [];
     for (const c of creatures) {
         const b = computeBadges(c.baseStats, c.mutations, c.species);
+        const staTotal = getStat(c.baseStats, 'STA') + getStat(c.mutations, 'STA');
+        creatureStats.push({ species: c.species, bossTier: b.bossReady, staTotal });
         if (!b.bossReady) continue;
         const cur = highestBossTierBySpecies.get(c.species);
         if (!cur || tierOrder[b.bossReady] > tierOrder[cur]) {
@@ -237,7 +242,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         }
     }
 
-    const mapBossEarnedMap = computeMapBossBadges(bossRecords, highestBossTierBySpecies);
+    const mapBossEarnedMap = computeMapBossBadges(bossRecords, creatureStats);
     const mapBossEarned: Record<string, { earned: boolean; reason?: string }> = {};
     for (const [k, v] of mapBossEarnedMap) mapBossEarned[k] = v;
 
@@ -247,7 +252,9 @@ export const load: PageServerLoad = async ({ locals }) => {
     const islandWonCount = islandBosses.filter(b => mapBossEarnedMap.get(b.id)?.earned).length;
     const titanSpeciesCount = Array.from(highestBossTierBySpecies.values()).filter(t => t === 'titan').length;
 
-    const storyMaps: Array<'island'|'scorched'|'aberration'|'extinction'|'genesis'> = ['island','scorched','aberration','extinction','genesis'];
+    // Pruned to the 3 released story maps that have badges in the trimmed roster
+    // (Extinction + Genesis came out with the broader Map Boss cull).
+    const storyMaps: Array<'island'|'scorched'|'aberration'> = ['island','scorched','aberration'];
     const storyMapsCleared = storyMaps.filter(map => {
         const inMap = MAP_BOSSES.filter(b => b.map === map);
         return inMap.length > 0 && inMap.every(b => mapBossEarnedMap.get(b.id)?.earned);

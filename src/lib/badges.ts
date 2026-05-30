@@ -19,7 +19,7 @@
  *     Bruiser:    HP ≥ 125/150/175 AND WGT ≥ 125/150/175
  *     Vanguard:   HP ≥ 100/125/150 AND STA ≥ 125/150/175
  *     Packmaster: WGT ≥ 175/200/225
- *     Endurance:  STA ≥ 150/175/200
+ *     Endurance:  OXY ≥ 150/175/200/225
  *  4. Underdog (non-meta species, total = base + mutation levels):
  *     Champion 90 / Hero 115 / Legend 140 / Titan 160
  */
@@ -161,10 +161,10 @@ const ROLE_DEFS: Array<{
     {
         key: 'endurance',
         tiers: [
-            { tier: 'legendary', reqs: [{ stat: 'STA', min: 225 }] },
-            { tier: 'apex',      reqs: [{ stat: 'STA', min: 200 }] },
-            { tier: 'elite',     reqs: [{ stat: 'STA', min: 175 }] },
-            { tier: 'standard',  reqs: [{ stat: 'STA', min: 150 }] },
+            { tier: 'legendary', reqs: [{ stat: 'OXY', min: 225 }] },
+            { tier: 'apex',      reqs: [{ stat: 'OXY', min: 200 }] },
+            { tier: 'elite',     reqs: [{ stat: 'OXY', min: 175 }] },
+            { tier: 'standard',  reqs: [{ stat: 'OXY', min: 150 }] },
         ]
     },
 ];
