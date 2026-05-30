@@ -398,12 +398,28 @@
     // CLUSTER
     // ═══════════════════════════════════════════════════════════════════════
     // `map` kept optional so legacy entries that had a map saved still load cleanly.
-    type ServerEntry = { id: string; name: string; map?: string; role: 'admin' | 'member'; online: boolean; password?: string };
+    type ServerEntry = {
+        id: string;
+        name: string;
+        map?: string;
+        role: 'admin' | 'member';
+        online: boolean;
+        password?: string;
+        host?: string;
+        port?: number;
+        battlemetricsId?: string;
+        players?: number;
+        maxPlayers?: number;
+    };
 
     const seededServers = (SERVER_SETTINGS.cluster?.servers ?? SERVER_SETTINGS.servers ?? []) as ServerEntry[];
     let servers = $state<ServerEntry[]>(Array.isArray(seededServers) ? seededServers : []);
     let newServerName      = $state('');
     let newServerPass      = $state('');
+    let newServerHost      = $state('');
+    let newServerPort      = $state('27015');
+    let serverLookupMsg    = $state<{ kind: 'ok' | 'warn' | 'err'; text: string } | null>(null);
+    let serverLookupBusy   = $state(false);
     let clusterSaving      = $state(false);
     let clusterMsg         = $state('');
     let clusterErr         = $state(false);
@@ -423,17 +439,74 @@
     let pollInterval  = $state(String(initialPoll.interval ?? '60'));
     let pollPauseIdle = $state(initialPoll.pauseWhenIdle ?? true);
 
-    function addServer() {
-        const name = newServerName.trim();
-        if (!name) return;
+    async function addServer() {
+        if (serverLookupBusy) return;
+        const typedName = newServerName.trim();
+        const host = newServerHost.trim();
+        const portRaw = newServerPort.trim();
+        const port = portRaw ? Number(portRaw) : 27015;
+
+        // No host typed → manual entry only, online flag stays false until a lookup
+        // succeeds (no more fake-green pips for arbitrary strings).
+        if (!host && !typedName) {
+            serverLookupMsg = { kind: 'err', text: 'Enter a server name or IP:port to add.' };
+            return;
+        }
+        if (host && (!Number.isFinite(port) || port < 1 || port > 65535)) {
+            serverLookupMsg = { kind: 'err', text: 'Port must be 1–65535.' };
+            return;
+        }
+
+        if (host) {
+            serverLookupBusy = true;
+            serverLookupMsg = { kind: 'ok', text: 'Looking up via BattleMetrics…' };
+            try {
+                const res = await fetch(`/api/cluster/lookup?host=${encodeURIComponent(host)}&port=${port}`);
+                if (res.ok) {
+                    const r = await res.json();
+                    if (r.found) {
+                        servers = [...servers, {
+                            id: crypto.randomUUID(),
+                            name: typedName || r.name,
+                            map: r.map ?? undefined,
+                            role: 'member',
+                            online: !!r.online,
+                            password: newServerPass.trim() || undefined,
+                            host, port,
+                            battlemetricsId: r.battlemetricsId,
+                            players: r.players,
+                            maxPlayers: r.maxPlayers
+                        }];
+                        serverLookupMsg = { kind: 'ok', text: `✓ Added ${r.name} (${r.players}/${r.maxPlayers})` };
+                        newServerName = ''; newServerPass = ''; newServerHost = ''; newServerPort = '27015';
+                        markDirty();
+                        return;
+                    }
+                    // 200 but found:false — BattleMetrics didn't recognize the address. Fall through
+                    // so the entry still saves with online:false instead of fake-green.
+                    serverLookupMsg = { kind: 'warn', text: 'No BattleMetrics match — saved as offline. Verify IP:port.' };
+                } else {
+                    serverLookupMsg = { kind: 'warn', text: 'Lookup failed — saved as offline.' };
+                }
+            } catch {
+                serverLookupMsg = { kind: 'warn', text: 'Lookup error — saved as offline.' };
+            } finally {
+                serverLookupBusy = false;
+            }
+        }
+
+        // Fallback path: manual entry, or lookup didn't resolve.
+        const fallbackName = typedName || `${host}:${port}`;
         servers = [...servers, {
             id: crypto.randomUUID(),
-            name,
+            name: fallbackName,
             role: 'member',
-            online: true,
-            password: newServerPass.trim() || undefined
+            online: false,
+            password: newServerPass.trim() || undefined,
+            host: host || undefined,
+            port: host ? port : undefined
         }];
-        newServerName = ''; newServerPass = '';
+        newServerName = ''; newServerPass = ''; newServerHost = ''; newServerPort = '27015';
         markDirty();
     }
     function removeServer(id: string) {
@@ -1368,10 +1441,17 @@
                     {/if}
 
                     <div class="add-server-row" style="flex-wrap:wrap; gap:8px;">
-                        <input class="input" bind:value={newServerName} oninput={markDirty} placeholder="Server name (e.g. Ragnarok·07)" style="flex:1; min-width:200px;" />
+                        <input class="input" bind:value={newServerHost} placeholder="IP / hostname (e.g. 192.168.0.42)" style="flex:1; min-width:180px;" />
+                        <input class="input" bind:value={newServerPort} placeholder="Port" type="text" inputmode="numeric" style="width:90px;" />
+                        <input class="input" bind:value={newServerName} oninput={markDirty} placeholder="Custom label (optional — auto-filled from BattleMetrics)" style="flex:1; min-width:200px;" />
                         <input class="input" bind:value={newServerPass} placeholder="Password (optional)" type="password" style="min-width:160px;" />
-                        <button class="btn" onclick={addServer}>＋ ADD SERVER</button>
+                        <button class="btn" onclick={addServer} disabled={serverLookupBusy}>
+                            {serverLookupBusy ? '… looking up' : '＋ ADD SERVER'}
+                        </button>
                     </div>
+                    {#if serverLookupMsg}
+                        <div class="server-lookup-msg {serverLookupMsg.kind}">{serverLookupMsg.text}</div>
+                    {/if}
 
                     <!-- Server-name helper -->
                     <div class="srv-help">
@@ -2509,6 +2589,17 @@
     padding-top: 12px;
     border-top: 1px solid rgba(0,180,255,0.10);
 }
+.server-lookup-msg {
+    margin-top: 8px;
+    padding: 6px 10px;
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    border-left: 2px solid currentColor;
+}
+.server-lookup-msg.ok   { color: #4ade80; background: rgba(74,222,128,0.06); }
+.server-lookup-msg.warn { color: #fbbf24; background: rgba(251,191,36,0.06); }
+.server-lookup-msg.err  { color: #ef4444; background: rgba(239,68,68,0.06); }
 
 /* RCON Block */
 .rcon-block {
