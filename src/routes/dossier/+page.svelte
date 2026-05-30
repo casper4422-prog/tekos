@@ -340,6 +340,73 @@
     </section>
     {/if}
 
+    <!-- ═══════════ ACTIVE BREEDING PROJECTS ═══════════ -->
+    <section class="section">
+        <div class="section-header">
+            <span class="pip"></span>
+            Active Breeding Projects
+            {#if pinned.length > 0}
+                <span class="count">{pinned.length} / 6</span>
+            {/if}
+            <span class="rule"></span>
+            <button type="button" class="action" disabled={pinned.length >= 6} onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Project <span class="arrow">▸</span></button>
+        </div>
+        {#if pinned.length === 0}
+            <div class="pinned-empty">
+                <div class="pinned-empty-icon">⬡</div>
+                <div class="pinned-empty-title">No pinned projects yet</div>
+                <div class="pinned-empty-flavor">"Pin a specimen here to track your active breeding focus — mutation counter, target stat, and quick access from your dossier."</div>
+                <button type="button" class="pinned-empty-cta" onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Your First Project</button>
+            </div>
+        {:else}
+            <div class="pinned-row">
+                {#each pinned as c}
+                    {@const cat = categoryForSpecies(c.species)}
+                    {@const badges = computeBadges(c.baseStats, c.mutations)}
+                    {@const tierLabel = badges.bossReady ? `Boss · ${badges.bossReady}` : badges.bloodline ? `${badges.bloodline.charAt(0).toUpperCase() + badges.bloodline.slice(1)} Bloodline` : 'Standard'}
+                    {@const focusBase = getStatValue(c.baseStats, c.focusStat)}
+                    {@const focusLabel = c.focusStat}
+                    {@const currentMut = mutationCounts[c.projectId] ?? 0}
+                    {@const targetMut = c.targetMutations ?? 0}
+                    <div class="pin-card {cat}" role="link" tabindex="0" onclick={() => openProject(c.id)} onkeydown={(e) => openProject(c.id, e)}>
+                        <div class="pin-top">
+                            <span class="pin-tier">⬢ {tierLabel}</span>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <button class="pin-unpin" title="Unpin this {focusLabel} project" aria-label="Unpin {focusLabel} project for {c.name}" onclick={(e) => { e.stopPropagation(); unpinProject(c); }}>×</button>
+                                <svg class="pin-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                            </div>
+                        </div>
+                        <div class="pin-species">{c.species}</div>
+                        <div class="pin-nick">"{c.name}"</div>
+                        <div class="pin-meta">
+                            <span class="gender {c.gender?.toLowerCase() === 'female' ? 'female' : 'male'}">{c.gender?.toLowerCase() === 'female' ? '♀' : '♂'}</span>
+                            <span>·</span>
+                            <span class="cat">{categoryLabel(cat)}</span>
+                        </div>
+                        <div class="project-focus">
+                            <div class="project-focus-label">{focusLabel} Base</div>
+                            <div class="project-focus-stat">{focusBase}</div>
+                        </div>
+                        <div class="project-counter">
+                            <button class="project-btn minus" title="Decrement {focusLabel} mutations" onclick={(e) => { e.stopPropagation(); bump(c, -1); }}>−</button>
+                            <div class="project-counter-center">
+                                <div class="project-counter-num">{currentMut}{targetMut > 0 ? ` / ${targetMut}` : ''}</div>
+                                <div class="project-counter-lbl">{focusLabel} Mutations</div>
+                            </div>
+                            <button class="project-btn plus" title="Increment {focusLabel} mutations — new baby with +1" onclick={(e) => { e.stopPropagation(); bump(c, 1); }}>+</button>
+                        </div>
+                        <div class="project-meta">
+                            <div class="project-meta-row"><span class="key">Last bred</span><span class="val">{relativeTime(c.createdAt)}</span></div>
+                            {#if c.server}
+                                <div class="project-meta-row"><span class="key">Server</span><span class="val">{c.server}</span></div>
+                            {/if}
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {/if}
+    </section>
+
     <!-- ═══════════ BADGE WALL (centerpiece) ═══════════ -->
     <section class="section">
         <div class="section-header">
@@ -432,73 +499,6 @@
             {/if}
 
         </div>
-    </section>
-
-    <!-- ═══════════ ACTIVE BREEDING PROJECTS ═══════════ -->
-    <section class="section">
-        <div class="section-header">
-            <span class="pip"></span>
-            Active Breeding Projects
-            {#if pinned.length > 0}
-                <span class="count">{pinned.length} / 6</span>
-            {/if}
-            <span class="rule"></span>
-            <button type="button" class="action" disabled={pinned.length >= 6} onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Project <span class="arrow">▸</span></button>
-        </div>
-        {#if pinned.length === 0}
-            <div class="pinned-empty">
-                <div class="pinned-empty-icon">⬡</div>
-                <div class="pinned-empty-title">No pinned projects yet</div>
-                <div class="pinned-empty-flavor">"Pin a specimen here to track your active breeding focus — mutation counter, target stat, and quick access from your dossier."</div>
-                <button type="button" class="pinned-empty-cta" onclick={() => { pinModalMode = 'project'; pinModalOpen = true; }}>+ Pin Your First Project</button>
-            </div>
-        {:else}
-            <div class="pinned-row">
-                {#each pinned as c}
-                    {@const cat = categoryForSpecies(c.species)}
-                    {@const badges = computeBadges(c.baseStats, c.mutations)}
-                    {@const tierLabel = badges.bossReady ? `Boss · ${badges.bossReady}` : badges.bloodline ? `${badges.bloodline.charAt(0).toUpperCase() + badges.bloodline.slice(1)} Bloodline` : 'Standard'}
-                    {@const focusBase = getStatValue(c.baseStats, c.focusStat)}
-                    {@const focusLabel = c.focusStat}
-                    {@const currentMut = mutationCounts[c.projectId] ?? 0}
-                    {@const targetMut = c.targetMutations ?? 0}
-                    <div class="pin-card {cat}" role="link" tabindex="0" onclick={() => openProject(c.id)} onkeydown={(e) => openProject(c.id, e)}>
-                        <div class="pin-top">
-                            <span class="pin-tier">⬢ {tierLabel}</span>
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <button class="pin-unpin" title="Unpin this {focusLabel} project" aria-label="Unpin {focusLabel} project for {c.name}" onclick={(e) => { e.stopPropagation(); unpinProject(c); }}>×</button>
-                                <svg class="pin-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                            </div>
-                        </div>
-                        <div class="pin-species">{c.species}</div>
-                        <div class="pin-nick">"{c.name}"</div>
-                        <div class="pin-meta">
-                            <span class="gender {c.gender?.toLowerCase() === 'female' ? 'female' : 'male'}">{c.gender?.toLowerCase() === 'female' ? '♀' : '♂'}</span>
-                            <span>·</span>
-                            <span class="cat">{categoryLabel(cat)}</span>
-                        </div>
-                        <div class="project-focus">
-                            <div class="project-focus-label">{focusLabel} Base</div>
-                            <div class="project-focus-stat">{focusBase}</div>
-                        </div>
-                        <div class="project-counter">
-                            <button class="project-btn minus" title="Decrement {focusLabel} mutations" onclick={(e) => { e.stopPropagation(); bump(c, -1); }}>−</button>
-                            <div class="project-counter-center">
-                                <div class="project-counter-num">{currentMut}{targetMut > 0 ? ` / ${targetMut}` : ''}</div>
-                                <div class="project-counter-lbl">{focusLabel} Mutations</div>
-                            </div>
-                            <button class="project-btn plus" title="Increment {focusLabel} mutations — new baby with +1" onclick={(e) => { e.stopPropagation(); bump(c, 1); }}>+</button>
-                        </div>
-                        <div class="project-meta">
-                            <div class="project-meta-row"><span class="key">Last bred</span><span class="val">{relativeTime(c.createdAt)}</span></div>
-                            {#if c.server}
-                                <div class="project-meta-row"><span class="key">Server</span><span class="val">{c.server}</span></div>
-                            {/if}
-                        </div>
-                    </div>
-                {/each}
-            </div>
-        {/if}
     </section>
 
     <!-- ═══════════ ACTIVE TRADES ═══════════ -->

@@ -283,8 +283,6 @@ export const load: PageServerLoad = async ({ locals }) => {
             specialEarned[s.id] = { earned: bossReadySpeciesCount >= s.target, current: bossReadySpeciesCount, target: s.target };
         } else if (s.id === 'collection') {
             specialEarned[s.id] = { earned: diamondSpeciesCount >= s.target, current: diamondSpeciesCount, target: s.target };
-        } else if (s.id === 'speedrun') {
-            specialEarned[s.id] = { earned: false, current: 0, target: s.target, reason: 'NOT STARTED' };
         } else if (s.id === 'underdog') {
             specialEarned[s.id] = { earned: false, current: 0, target: s.target, reason: 'NOT STARTED' };
         } else if (s.id === 'community') {

@@ -91,10 +91,10 @@
         }
     ];
 
-    // Underdog uses Boss Ready math but only species NOT on the meta-exclusion list.
-    // The list lives in lib/badges (UNDERDOG_META_EXCLUDE); copying the head here so
-    // the user can scan it on the reference card without leaving the page.
-    const underdogExcludedSamples = 'Rex, Giga, Theri, Yuty, Shadowmane, Reaper';
+    // Underdog uses Boss Ready math but only species NOT on the meta-exclusion list
+    // (UNDERDOG_META_EXCLUDE in lib/badges). The page surfaces eligible species
+    // inline rather than excluded ones — easier to read as "what counts."
+    const underdogEligibleSamples = 'Carno, Sabertooth, Direwolf, Pteranodon, Argentavis, Pachy';
 
     // ── Earned-state lookups ──────────────────────────────────────────────
     // tier comes back as a nullable tier-union from the server, so filtering
@@ -198,7 +198,7 @@
                     <div class="badge-name">{t.label}</div>
                     <div class="badge-criteria">All 5 stats ≥ {t.thresh} base</div>
                     {#if earned.length > 0}
-                        <div class="badge-status earned">⬡ {earned.length} {earned.length === 1 ? 'species' : 'species'} · {speciesList(earned)}</div>
+                        <div class="badge-status earned">⬡ {earned.length} {earned.length === 1 ? 'species earned' : 'species earned'}</div>
                     {:else}
                         <div class="badge-status locked">🔒 Not yet earned</div>
                     {/if}
@@ -247,8 +247,7 @@
             <h2 class="bs-title">Underdog</h2>
             <p class="bs-desc">
                 Same math as Boss Ready (HP and Melee thresholds), but only non-meta species qualify.
-                Excluded picks (won't earn Underdog): {underdogExcludedSamples}.
-                Carno, Sabertooth, Direwolf, Pteranodon and most other species are eligible.
+                Eligible: {underdogEligibleSamples}, and most other non-meta tames.
             </p>
         </header>
         <div class="badge-grid">

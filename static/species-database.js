@@ -27670,7 +27670,7 @@ const SPECIES_DATABASE = {
   uniqueMechanics: ['Boss-reward only (no wild spawns, cannot be bred)', 'Refrigerator inventory for perishables', 'Ice armor howl'],
 
   // Spawn & Location
-  spawnMaps: ['Fjordur (boss reward only)'],
+  spawnMaps: ['Fjordur'],
   spawnZones: ['N/A (does not spawn in the wild)'],
   rarityRating: 'Mythical',
   levelRange: 'Awarded at variable levels based on boss difficulty',
@@ -57512,7 +57512,7 @@ const SPECIES_DATABASE = {
   dossierText: "The Gigadesmodus is a truly monstrous creature — a titan among bats that serves as a flying fortress. Unlike anything else in the ARK universe, it cannot be found in the wild; it exists only as a reward for those brave enough to defeat the Lost King and Lost Queen bosses of the Lost Colony. The egg is claimed from the boss arena and hatched. Once raised, the Gigadesmodus functions as a massive aerial platform with a mobile command center that can be built upon its back. Its lifesteal attacks make it self-sustaining in prolonged combat, and its blood spit and execution mechanics are devastatingly effective against both creatures and Neophyte enemies.",
   temperament: 'Aggressive (tamed only)',
   diet: 'Carnivore (Blood)',
-  habitat: 'Lost Colony — boss reward only',
+  habitat: 'Lost Colony',
   realWorldBasis: 'Giant bat (fictional mega-fauna)',
   sizeClass: 'Colossal',
   tamingMethod: 'Boss Reward (Egg)',
@@ -57550,7 +57550,7 @@ const SPECIES_DATABASE = {
   workstation: 'None', resourceProduction: 'None', structureFunctions: 'Platform saddle — structures can be built on its back.',
   buffAuras: ['None'], debuffAbilities: ['Blood spit execution', 'echolocation reveals stealthed targets'],
   uniqueMechanics: ['Obtained exclusively from Lost King and Lost Queen boss fight', 'platform saddle without a saddle item', 'lifesteal self-sustaining mechanic', 'execution attack mechanic'],
-  spawnMaps: ['Lost Colony (boss reward only)'],
+  spawnMaps: ['Lost Colony'],
   spawnZones: ['Does not spawn in the wild — boss egg reward'],
   rarityRating: 'Legendary',
   levelRange: 'Random level from boss reward',

@@ -56,6 +56,8 @@
 
 	// Edit-tribe modal
 	let editOpen    = $state(false);
+	let eName       = $state('');
+	let eNameErr    = $state('');
 	let eMotto      = $state('');
 	let eBanner     = $state('');
 	let eSigil      = $state('');
@@ -194,6 +196,8 @@
 	function openEdit() {
 		if (!membership) return;
 		const t = membership.tribe;
+		eName = t.name ?? '';
+		eNameErr = '';
 		eMotto = t.motto ?? '';
 		eBanner = t.bannerUrl ?? '';
 		eSigil = t.sigilUrl ?? '';
@@ -205,14 +209,23 @@
 	}
 	async function saveEdit() {
 		if (!membership) return;
+		const trimmedName = eName.trim();
+		if (!trimmedName) { eNameErr = 'Tribe name required.'; return; }
+		eNameErr = '';
 		saving = true;
 		const res = await fetch(`/api/tribes/${membership.tribe.id}`, {
 			method:'PUT', headers:{'Content-Type':'application/json'},
-			body:JSON.stringify({ motto:eMotto||null, bannerUrl:eBanner||null, sigilUrl:eSigil||null, recruitmentOpen:eRecruit, lookingFor:eLookingFor||null, mainMap:eMap||null, description:eDesc||null })
+			body:JSON.stringify({ name:trimmedName, motto:eMotto||null, bannerUrl:eBanner||null, sigilUrl:eSigil||null, recruitmentOpen:eRecruit, lookingFor:eLookingFor||null, mainMap:eMap||null, description:eDesc||null })
 		});
 		saving = false;
-		if (res.ok) location.reload();
-		else alert((await res.json()).error ?? 'Failed');
+		if (res.ok) { location.reload(); return; }
+		// Surface 409 (duplicate name) inline; everything else still uses the alert path.
+		const err = (await res.json().catch(() => ({}))).error ?? 'Failed';
+		if (res.status === 409 || /already|unique|exists/i.test(err)) {
+			eNameErr = 'That tribe name is already taken.';
+		} else {
+			alert(err);
+		}
 	}
 
 	async function sendInvite() {
@@ -820,6 +833,11 @@
 	<div class="modal-content" style="max-width:520px">
 		<div class="modal-header"><h2 class="modal-title">Edit Tribe Identity</h2><button class="close-btn" onclick={() => editOpen=false}>&times;</button></div>
 		<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+			<div class="plan-field">
+				<label class="form-label" for="e-name">Tribe Name *</label>
+				<input id="e-name" class="form-control" bind:value={eName} placeholder="e.g. Iron Talons" maxlength="48" />
+				{#if eNameErr}<div class="tek-login-error" style="margin-top:6px">{eNameErr}</div>{/if}
+			</div>
 			<div class="plan-field"><label class="form-label" for="e-motto">Motto</label><input id="e-motto" class="form-control" bind:value={eMotto} placeholder="A short rallying cry…" maxlength="120" /></div>
 			<div class="plan-field"><label class="form-label" for="e-banner">Banner image URL</label><input id="e-banner" class="form-control" bind:value={eBanner} placeholder="https://…" /></div>
 			<div class="plan-field"><label class="form-label" for="e-sigil">Sigil image URL</label><input id="e-sigil" class="form-control" bind:value={eSigil} placeholder="https://… (square)" /></div>

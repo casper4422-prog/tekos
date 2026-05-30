@@ -136,7 +136,6 @@ export const ULTIMATE_BADGES = [
 
 export const SPECIAL_ACHIEVEMENTS = [
     { id:'diversity',  name:'Diversity Master',   description:'Boss Ready earned on ten different species. You don\'t play one tame, you play the roster.', target:10 },
-    { id:'speedrun',   name:'Speedrun Champion',  description:'Cleared an Alpha boss within thirty days of awakening. Welcome to the deep end.', target:1 },
     { id:'collection', name:'Perfect Collection', description:'Diamond Bloodline on five species. The whole roster breathes pedigree.', target:5 },
     { id:'underdog',   name:'Underdog Victory',   description:'Took down an Alpha boss with non-meta tames only. The wild remembers.', target:1 },
     { id:'community',  name:'Community Hero',     description:'Helped ten other survivors earn their first Boss Ready badge. The tribe carries the tribe.', target:10 }

@@ -667,39 +667,9 @@
 								{/each}
 							</div>
 
-							<div class="readiness-section gear">
-								<div class="readiness-header">
-									<div class="icon-wrap">
-										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-										<span class="title">Strategy</span>
-									</div>
-									<span class="readiness-status ready">PRIMED</span>
-								</div>
-								{#each tips.tips as t}
-									<div class="readiness-row">
-										<span class="name">{t}</span>
-										<span class="qty"></span>
-										<span class="check ok">✓</span>
-									</div>
-								{/each}
-							</div>
-
-							<div class="readiness-section tributes">
-								<div class="readiness-header">
-									<div class="icon-wrap">
-										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-										<span class="title">What to Avoid</span>
-									</div>
-									<span class="readiness-status missing">CAUTION</span>
-								</div>
-								{#each tips.avoid as a}
-									<div class="readiness-row">
-										<span class="name">{a}</span>
-										<span class="qty"></span>
-										<span class="check missing">✗</span>
-									</div>
-								{/each}
-							</div>
+							<!-- Strategy + What to Avoid sections intentionally hidden — copy
+							     rebuild pending per-boss from YouTube transcripts. Data preserved
+							     in BOSS_TIPS.{tips, avoid} so we can re-enable per-boss later. -->
 						</div>
 
 						<!-- Squad / members block -->
@@ -905,36 +875,8 @@
 							</div>
 						{/each}
 					</div>
-					<div class="readiness-section gear">
-						<div class="readiness-header">
-							<div class="icon-wrap">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-								<span class="title">Strategy</span>
-							</div>
-						</div>
-						{#each dtips.tips as t}
-							<div class="readiness-row">
-								<span class="name">{t}</span>
-								<span class="qty"></span>
-								<span class="check ok">✓</span>
-							</div>
-						{/each}
-					</div>
-					<div class="readiness-section tributes">
-						<div class="readiness-header">
-							<div class="icon-wrap">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-								<span class="title">What to Avoid</span>
-							</div>
-						</div>
-						{#each dtips.avoid as a}
-							<div class="readiness-row">
-								<span class="name">{a}</span>
-								<span class="qty"></span>
-								<span class="check missing">✗</span>
-							</div>
-						{/each}
-					</div>
+					<!-- Strategy + What to Avoid intentionally hidden until per-boss
+					     transcript-based rewrites land. Data preserved in BOSS_TIPS. -->
 				</div>
 			</div>
 		</section>

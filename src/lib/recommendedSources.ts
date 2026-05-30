@@ -40,6 +40,6 @@ export const RECOMMENDED_SOURCES: RecommendedSource[] = [
 		type: 'youtube',
 		url: 'https://youtube.com/@LoadedCrysis',
 		label: 'Loaded Crysis',
-		description: 'Featured ASA creator — tutorials, breeding, boss runs'
+		description: 'Featured ASA Creator · Cluster Owner, Pretty Chill Guy'
 	}
 ];

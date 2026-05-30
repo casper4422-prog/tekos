@@ -427,29 +427,8 @@
 				</div>
 			{/if}
 
-			{#if tips.tips.length > 0}
-			<!-- Strategy tips -->
-			<div class="war-tip-card war-tip-full">
-				<div class="war-tip-title">Strategy</div>
-				{#each tips.tips as t}
-					<div class="war-tip-item">
-						<span class="war-tip-bullet" style="background:rgba(0,180,255,0.6)"></span>{t}
-					</div>
-				{/each}
-			</div>
-			{/if}
-
-			{#if tips.avoid.length > 0}
-			<!-- What to avoid -->
-			<div class="war-tip-card war-tip-full war-tip-danger">
-				<div class="war-tip-title">What to Avoid</div>
-				{#each tips.avoid as a}
-					<div class="war-tip-item">
-						<span class="war-tip-bullet" style="background:rgba(239,68,68,0.6)"></span>{a}
-					</div>
-				{/each}
-			</div>
-			{/if}
+			<!-- Strategy + What to Avoid intentionally hidden until per-boss
+			     transcript-based rewrites land. Data preserved in BOSS_TIPS.{tips, avoid}. -->
 		</div>
 		{/if}
 	{/if}

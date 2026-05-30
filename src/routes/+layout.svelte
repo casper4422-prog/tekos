@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {
 		User, Dna, BookOpen,
-		Users, Shield, Rss,
+		Users, Shield, Rss, MessageSquare,
 		Repeat2, Sword, Bell, Hexagon,
 		Power, Award, Settings, Flag
 	} from 'lucide-svelte';
@@ -22,9 +22,10 @@
 			{ page:'dex',       Icon:BookOpen, label:'Dex'       },
 		]},
 		{ section:'Social', color:'gamma', items:[
-			{ page:'feed',    Icon:Rss,    label:'Feed'    },
-			{ page:'network', Icon:Users,  label:'Network' },
-			{ page:'tribe',   Icon:Shield, label:'Tribe'   },
+			{ page:'feed',     Icon:Rss,            label:'Feed'     },
+			{ page:'network',  Icon:Users,          label:'Network'  },
+			{ page:'messages', Icon:MessageSquare,  label:'Messages' },
+			{ page:'tribe',    Icon:Shield,         label:'Tribe'    },
 		]},
 		{ section:'Operations', color:'alpha', items:[
 			{ page:'marketplace',   Icon:Repeat2, label:'Marketplace'   },
