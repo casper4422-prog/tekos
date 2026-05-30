@@ -30,6 +30,15 @@
         lastAt: string | Date;
     };
 
+    // War-room chat shape matches /api/arena/sessions/[id]/chat — one row per
+    // message with the sender's nickname/email so we can label each bubble.
+    type WarChatMsg = {
+        id: number;
+        content: string;
+        createdAt: string | Date;
+        user: { id?: number; nickname: string | null; discordName: string | null; email: string | null };
+    };
+
     let { convos, warRooms = [], myId }: { convos: Convo[]; warRooms?: WarRoom[]; myId: number } = $props();
 
     let activeFilter = $state<'all' | 'unread'>('all');
@@ -37,6 +46,11 @@
     let activeWith = $state<number | null>(null);
     let activeMessages = $state<Message[]>([]);
     let activePartner = $state<Partner | null>(null);
+    // War-room thread state — siblings of activeWith/activeMessages but for the
+    // /api/arena/sessions/[id]/chat shape. Only one of {activeWith, activeWarRoom}
+    // is non-null at a time; the renderer picks based on whichever is set.
+    let activeWarRoom = $state<WarRoom | null>(null);
+    let activeWarMessages = $state<WarChatMsg[]>([]);
     let loadingThread = $state(false);
     let inputText = $state('');
     let sending = $state(false);
@@ -120,14 +134,104 @@
     // Replace once we have a real avatar/identity system.
     const myInitial = 'C';
 
+    function warSenderName(u: WarChatMsg['user']): string {
+        if (u.nickname) return u.nickname;
+        if (u.discordName) return u.discordName;
+        if (u.email) return u.email.split('@')[0];
+        return 'Survivor';
+    }
+    function warSenderInitial(u: WarChatMsg['user']): string {
+        return (warSenderName(u).charAt(0) ?? '?').toUpperCase();
+    }
+
     async function setActive(userId: number) {
-        if (activeWith === userId) return;
+        if (activeWith === userId && !activeWarRoom) return;
         activeWith = userId;
+        activeWarRoom = null;
+        activeWarMessages = [];
         const url = new URL(window.location.href);
         url.searchParams.set('tab', 'messages');
         url.searchParams.set('with', String(userId));
+        url.searchParams.delete('war');
         history.pushState({}, '', url);
         await loadThread(userId);
+    }
+
+    async function setActiveWar(w: WarRoom) {
+        if (activeWarRoom?.sessionId === w.sessionId) return;
+        activeWarRoom = w;
+        activeWith = null;
+        activeMessages = [];
+        activePartner = null;
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', 'messages');
+        url.searchParams.set('war', String(w.sessionId));
+        url.searchParams.delete('with');
+        history.pushState({}, '', url);
+        await loadWarThread(w.sessionId);
+    }
+
+    async function loadWarThread(sessionId: number) {
+        loadingThread = true;
+        activeWarMessages = [];
+        try {
+            const res = await fetch(`/api/arena/sessions/${sessionId}/chat`);
+            if (res.ok) activeWarMessages = await res.json();
+        } catch { /* silent — empty-state renders */ }
+        loadingThread = false;
+        await tick();
+        scrollToBottom();
+    }
+
+    async function refreshActiveWarThread() {
+        if (!activeWarRoom || sending) return;
+        try {
+            const res = await fetch(`/api/arena/sessions/${activeWarRoom.sessionId}/chat`);
+            if (!res.ok) return;
+            const fresh = await res.json() as WarChatMsg[];
+            if (fresh.length > activeWarMessages.length) {
+                const atBottom = threadEl
+                    ? threadEl.scrollHeight - threadEl.scrollTop - threadEl.clientHeight < 60
+                    : true;
+                activeWarMessages = fresh;
+                if (atBottom) {
+                    await tick();
+                    scrollToBottom();
+                }
+            }
+        } catch { /* swallow */ }
+    }
+
+    async function sendWarMessage() {
+        const text = inputText.trim();
+        if (!text || sending || !activeWarRoom) return;
+        sending = true;
+        const tempId = -Date.now();
+        const optimistic: WarChatMsg = {
+            id: tempId,
+            content: text,
+            createdAt: new Date().toISOString(),
+            user: { id: myId, nickname: 'You', discordName: null, email: null }
+        };
+        activeWarMessages = [...activeWarMessages, optimistic];
+        inputText = '';
+        await tick();
+        scrollToBottom();
+        try {
+            const res = await fetch(`/api/arena/sessions/${activeWarRoom.sessionId}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: text, messageType: 'text' })
+            });
+            if (res.ok) {
+                const saved = await res.json();
+                activeWarMessages = activeWarMessages.map(m =>
+                    m.id === tempId ? { ...saved, user: { id: myId, nickname: 'You', discordName: null, email: null } } : m
+                );
+                invalidateAll();
+            }
+        } catch { /* swallow — optimistic stays */ }
+        sending = false;
     }
 
     async function loadThread(userId: number) {
@@ -227,35 +331,50 @@
 
     function clearActive() {
         activeWith = null;
+        activeWarRoom = null;
         activeMessages = [];
+        activeWarMessages = [];
         activePartner = null;
         const url = new URL(window.location.href);
         url.searchParams.delete('with');
+        url.searchParams.delete('war');
         history.pushState({}, '', url);
     }
 
-    // Sync activeWith from URL on mount + when URL changes (back/forward, deep-link)
+    // Sync activeWith / activeWarRoom from URL on mount + when URL changes
+    // (back/forward navigation, deep-link, manual edit).
     $effect(() => {
         const w = $page.url.searchParams.get('with');
+        const r = $page.url.searchParams.get('war');
         if (w) {
             const id = parseInt(w, 10);
-            if (!isNaN(id) && id !== activeWith) {
-                setActive(id);
+            if (!isNaN(id) && id !== activeWith) setActive(id);
+        } else if (r) {
+            const sid = parseInt(r, 10);
+            if (!isNaN(sid) && activeWarRoom?.sessionId !== sid) {
+                const found = warRooms.find(x => x.sessionId === sid);
+                if (found) {
+                    setActiveWar(found);
+                } else {
+                    // Deep link to a session no longer surfaced in the convo list — load
+                    // it directly so the user can still reach a war room they were in.
+                    setActiveWar({ sessionId: sid, bossName: 'War Room', difficulty: null, joinCode: '', lastMessage: null, lastAt: new Date().toISOString() });
+                }
             }
-        } else if (activeWith !== null && !w) {
-            activeWith = null;
-            activeMessages = [];
-            activePartner = null;
+        } else {
+            if (activeWith !== null) { activeWith = null; activeMessages = []; activePartner = null; }
+            if (activeWarRoom !== null) { activeWarRoom = null; activeWarMessages = []; }
         }
     });
 
     onMount(() => {
-        // Initial URL deep-link is handled by the $effect above.
-        // Poll the active thread every 6s so incoming messages from the other
-        // survivor appear without requiring a manual refresh. Also re-fetch
-        // the convo list every 30s so unread badges + last-message previews
-        // stay current.
-        const threadTimer = setInterval(() => { void refreshActiveThread(); }, 6000);
+        // Poll the active thread every 6s so incoming messages appear without a
+        // manual refresh, and re-fetch the convo list every 30s so unread
+        // badges + last-message previews stay current.
+        const threadTimer = setInterval(() => {
+            if (activeWarRoom) void refreshActiveWarThread();
+            else void refreshActiveThread();
+        }, 6000);
         const listTimer   = setInterval(() => { void invalidateAll(); }, 30000);
         return () => {
             clearInterval(threadTimer);
@@ -264,7 +383,7 @@
     });
 </script>
 
-<div class="messages-app" class:has-active={activeWith !== null}>
+<div class="messages-app" class:has-active={activeWith !== null || activeWarRoom !== null}>
 
     <!-- LEFT: convo list -->
     <aside class="pane list-pane">
@@ -287,7 +406,7 @@
                     <span class="section-count">{warRooms.length}</span>
                 </div>
                 {#each warRooms as w (w.sessionId)}
-                    <a class="convo war-room" href="/overseer/{w.sessionId}">
+                    <button type="button" class="convo war-room" class:active={activeWarRoom?.sessionId === w.sessionId} onclick={() => setActiveWar(w)}>
                         <div class="convo-avatar">
                             <svg viewBox="0 0 100 110"><polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.20)" stroke="#f59e0b" stroke-width="2"/><text x="50" y="74" font-family="Orbitron" font-size="40" font-weight="900" text-anchor="middle" fill="#fcd34d">⚔</text></svg>
                         </div>
@@ -302,7 +421,7 @@
                             <div class="convo-time">{relTime(w.lastAt)}</div>
                             {#if w.difficulty}<div class="war-tier {w.difficulty.toLowerCase()}">{w.difficulty.toUpperCase()}</div>{/if}
                         </div>
-                    </a>
+                    </button>
                 {/each}
                 {#if filteredConvos.length > 0}
                     <div class="convo-section-head">
@@ -346,7 +465,72 @@
     </aside>
 
     <!-- RIGHT: active thread or empty state -->
-    {#if activeWith}
+    {#if activeWarRoom}
+        <section class="pane thread-pane">
+            <div class="thread-head war">
+                <button class="thread-back" type="button" onclick={clearActive} aria-label="Back to conversations">‹</button>
+                <div class="thread-head-avatar war">
+                    <svg viewBox="0 0 100 110"><polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.20)" stroke="#f59e0b" stroke-width="2"/><text x="50" y="74" font-family="Orbitron" font-size="44" font-weight="900" text-anchor="middle" fill="#fcd34d">⚔</text></svg>
+                </div>
+                <div class="thread-head-info">
+                    <div class="thread-head-name">{activeWarRoom.bossName}</div>
+                    <div class="thread-head-meta">
+                        <span class="status war">⚔ War Room</span>
+                        {#if activeWarRoom.difficulty}<span class="war-tier-pill {activeWarRoom.difficulty.toLowerCase()}">{activeWarRoom.difficulty.toUpperCase()}</span>{/if}
+                        {#if activeWarRoom.joinCode}<span class="code">Code <strong>{activeWarRoom.joinCode}</strong></span>{/if}
+                    </div>
+                </div>
+                <div class="thread-head-actions">
+                    <a class="head-btn" href="/overseer/{activeWarRoom.sessionId}" title="Open full War Room">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
+                    </a>
+                </div>
+            </div>
+
+            <div class="thread-messages" bind:this={threadEl}>
+                {#if loadingThread}
+                    <div class="thread-loading">Loading messages…</div>
+                {:else if activeWarMessages.length === 0}
+                    <div class="msg system">
+                        <div class="msg-body">
+                            <div class="msg-text">— No messages yet. Start the conversation below. —</div>
+                        </div>
+                    </div>
+                {:else}
+                    {#each activeWarMessages as m (m.id)}
+                        {@const mine = m.user.id === myId || m.user.nickname === 'You'}
+                        {@const who = mine ? 'You' : warSenderName(m.user)}
+                        {@const initial = mine ? myInitial : warSenderInitial(m.user)}
+                        <div class="msg">
+                            <div class="msg-avatar">
+                                {#if mine}
+                                    <svg viewBox="0 0 100 110"><polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(255,215,0,0.18)" stroke="#ffd700" stroke-width="3"/><text x="50" y="76" font-family="Orbitron" font-size="56" font-weight="900" text-anchor="middle" fill="#fde047">{initial}</text></svg>
+                                {:else}
+                                    <svg viewBox="0 0 100 110"><polygon points="50,2 96,28 96,82 50,108 4,82 4,28" fill="rgba(245,158,11,0.18)" stroke="#f59e0b" stroke-width="3"/><text x="50" y="76" font-family="Orbitron" font-size="56" font-weight="900" text-anchor="middle" fill="#fcd34d">{initial}</text></svg>
+                                {/if}
+                            </div>
+                            <div class="msg-body">
+                                <div class="msg-meta">
+                                    <span class="who" class:me={mine}>{who}</span>
+                                    <span class="time">{timeOf(m.createdAt)}</span>
+                                </div>
+                                <div class="msg-text">{m.content}</div>
+                            </div>
+                        </div>
+                    {/each}
+                {/if}
+            </div>
+
+            <div class="composer">
+                <div class="composer-row">
+                    <textarea class="composer-input" placeholder="Message the war room…" rows="1"
+                        bind:value={inputText}
+                        onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendWarMessage(); } }}></textarea>
+                    <button class="composer-send" onclick={sendWarMessage} disabled={!inputText.trim() || sending}>Send <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+                </div>
+            </div>
+        </section>
+    {:else if activeWith}
         <section class="pane thread-pane">
             <div class="thread-head">
                 <button class="thread-back" type="button" onclick={clearActive} aria-label="Back to conversations">‹</button>
@@ -593,8 +777,23 @@
 .thread-head-avatar .pip { position: absolute; bottom: 2px; right: -1px; width: 9px; height: 9px; border-radius: 50%; background: var(--tek-green); border: 2px solid #050812; box-shadow: 0 0 5px rgba(16,185,129,0.65); }
 .thread-head-info { flex: 1; min-width: 0; line-height: 1.3; }
 .thread-head-name { font-family: var(--tek-display); font-size: 1rem; font-weight: 800; letter-spacing: 0.06em; color: var(--tek-text); text-transform: uppercase; }
-.thread-head-meta { font-family: var(--tek-mono); font-size: 0.6rem; color: var(--tek-text-dim); letter-spacing: 0.10em; margin-top: 2px; }
+.thread-head-meta { font-family: var(--tek-mono); font-size: 0.6rem; color: var(--tek-text-dim); letter-spacing: 0.10em; margin-top: 2px; display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .thread-head-meta .status { color: var(--tek-green); }
+.thread-head-meta .status.war { color: #fcd34d; }
+.thread-head-meta .code { color: var(--tek-text-faint); }
+.thread-head-meta .code strong { color: #fcd34d; font-weight: 600; letter-spacing: 0.10em; }
+.thread-head.war .thread-head-name { color: #fcd34d; }
+.war-tier-pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--tek-mono); font-size: 0.54rem; font-weight: 700;
+    letter-spacing: 0.10em; padding: 1px 6px;
+    background: rgba(0,0,0,0.30);
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+.war-tier-pill.gamma { color: var(--tek-green); }
+.war-tier-pill.beta  { color: var(--tek-blue); }
+.war-tier-pill.alpha { color: var(--tek-pink); }
+.war-tier-pill.titan { color: var(--tier-diamond); }
 .thread-head-actions { display: flex; gap: 6px; }
 .head-btn {
     width: 30px; height: 30px;
