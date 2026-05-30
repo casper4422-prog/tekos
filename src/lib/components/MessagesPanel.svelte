@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, tick } from 'svelte';
+    import { onMount, tick, untrack } from 'svelte';
     import { page } from '$app/stores';
     import { invalidateAll } from '$app/navigation';
 
@@ -341,30 +341,37 @@
         history.pushState({}, '', url);
     }
 
-    // Sync activeWith / activeWarRoom from URL on mount + when URL changes
-    // (back/forward navigation, deep-link, manual edit).
+    // Sync activeWith / activeWarRoom from URL on mount + when URL actually
+    // changes (back/forward, deep-link). Reads of $page and warRooms outside
+    // the untrack are deliberate — those SHOULD re-fire the effect. The body
+    // is untracked so internal assignments to activeWith / activeWarRoom
+    // (which we make from set/clear handlers) don't loop back through here.
+    // Without the untrack, native history.pushState updates the browser URL
+    // but NOT $page, so the effect re-fired against stale URL params and
+    // immediately reset whatever we'd just set.
     $effect(() => {
         const w = $page.url.searchParams.get('with');
         const r = $page.url.searchParams.get('war');
-        if (w) {
-            const id = parseInt(w, 10);
-            if (!isNaN(id) && id !== activeWith) setActive(id);
-        } else if (r) {
-            const sid = parseInt(r, 10);
-            if (!isNaN(sid) && activeWarRoom?.sessionId !== sid) {
-                const found = warRooms.find(x => x.sessionId === sid);
-                if (found) {
-                    setActiveWar(found);
-                } else {
-                    // Deep link to a session no longer surfaced in the convo list — load
-                    // it directly so the user can still reach a war room they were in.
-                    setActiveWar({ sessionId: sid, bossName: 'War Room', difficulty: null, joinCode: '', lastMessage: null, lastAt: new Date().toISOString() });
+        const rooms = warRooms;
+        untrack(() => {
+            if (w) {
+                const id = parseInt(w, 10);
+                if (!isNaN(id) && id !== activeWith) setActive(id);
+            } else if (r) {
+                const sid = parseInt(r, 10);
+                if (!isNaN(sid) && activeWarRoom?.sessionId !== sid) {
+                    const found = rooms.find(x => x.sessionId === sid);
+                    if (found) {
+                        setActiveWar(found);
+                    } else {
+                        setActiveWar({ sessionId: sid, bossName: 'War Room', difficulty: null, joinCode: '', lastMessage: null, lastAt: new Date().toISOString() });
+                    }
                 }
+            } else {
+                if (activeWith !== null) { activeWith = null; activeMessages = []; activePartner = null; }
+                if (activeWarRoom !== null) { activeWarRoom = null; activeWarMessages = []; }
             }
-        } else {
-            if (activeWith !== null) { activeWith = null; activeMessages = []; activePartner = null; }
-            if (activeWarRoom !== null) { activeWarRoom = null; activeWarMessages = []; }
-        }
+        });
     });
 
     onMount(() => {
