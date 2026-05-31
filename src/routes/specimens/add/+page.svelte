@@ -247,16 +247,27 @@
         if (!shotImage || !cropCanvasEl || !cropBox) return;
         const ctx = cropCanvasEl.getContext('2d');
         if (!ctx) return;
-        // Fit canvas height to image aspect — width is set by CSS / parent.
-        // Fall back to 600 if clientWidth hasn't laid out yet on first mount.
-        const cssW = cropCanvasEl.clientWidth || 600;
+        // Fit canvas to its CSS width, but cap the display height at 70vh so
+        // tall portrait phone photos don't blow past the viewport. When the
+        // aspect ratio pushes us past the ceiling we shrink the displayed
+        // width to maintain it — preserves image aspect, keeps cropper usable.
         const dpr  = window.devicePixelRatio || 1;
-        const pixW = Math.round(cssW * dpr);
-        const pixH = Math.round((shotImage.height / shotImage.width) * pixW);
+        const containerW = cropCanvasEl.clientWidth || 600;
+        const aspect = shotImage.width / shotImage.height;
+        const maxDisplayH = Math.max(420, window.innerHeight * 0.70);
+        let displayW = containerW;
+        let displayH = displayW / aspect;
+        if (displayH > maxDisplayH) {
+            displayH = maxDisplayH;
+            displayW = displayH * aspect;
+        }
+        const pixW = Math.round(displayW * dpr);
+        const pixH = Math.round(displayH * dpr);
         if (cropCanvasEl.width !== pixW || cropCanvasEl.height !== pixH) {
             cropCanvasEl.width = pixW;
             cropCanvasEl.height = pixH;
-            cropCanvasEl.style.height = `${pixH / dpr}px`;
+            cropCanvasEl.style.width  = `${displayW}px`;
+            cropCanvasEl.style.height = `${displayH}px`;
         }
         const scale = pixW / shotImage.width;
         ctx.drawImage(shotImage, 0, 0, pixW, pixH);
@@ -987,16 +998,16 @@
                             </button>
                         </div>
 
-                        <!-- ░░░ RIGHT: review ░░░ -->
-                        <div class="shot-pane">
+                        <!-- ░░░ BELOW: review ░░░ -->
+                        <div class="shot-pane review">
                             <div class="shot-step-label">Step 3 · Review &amp; correct</div>
 
                             {#if shotError}
-                                <div class="form-error" style="margin-bottom:10px">{shotError}</div>
+                                <div class="form-error">{shotError}</div>
                             {/if}
 
                             {#if !shotRawText && !shotRunning && !shotError}
-                                <div class="shot-hint" style="padding:18px 0">
+                                <div class="shot-hint">
                                     Click <strong>Run OCR</strong> when you're happy with the crop.
                                 </div>
                             {/if}
@@ -1005,9 +1016,7 @@
                                 <div class="shot-source-banner">
                                     <span class="ss-mark ok">✓</span>
                                     Detected as <strong>{shotSource === 'spyglass' ? 'Super Spyglass' : 'Tek Binoculars / u+Binoculars'}</strong>
-                                </div>
-                                <div class="shot-hint" style="margin-bottom:10px">
-                                    Adjust anything OCR got wrong below, then apply to the form.
+                                    · Adjust anything OCR got wrong below, then apply to the form.
                                 </div>
                                 <div class="ocr-edit-grid">
                                     <div class="stats-stat-label">Name</div>
@@ -1021,23 +1030,23 @@
                                         <input class="ocr-edit-input" type="number" min="0" max="999" bind:value={shotParsed[s]} placeholder="0" />
                                     {/each}
                                 </div>
-                                <button class="btn" onclick={applyOcrToForm} style="margin-top:14px; width:100%">
+                                <div class="shot-preview-stack">
+                                    {#if shotProcUrl}
+                                        <details open>
+                                            <summary class="shot-details-summary">Preprocessed image (what Tesseract sees)</summary>
+                                            <img src={shotProcUrl} alt="Preprocessed" style="width:100%; max-height:280px; object-fit:contain; margin-top:6px; border:1px solid rgba(245,158,11,0.30); background:#fff" />
+                                        </details>
+                                    {/if}
+                                    {#if shotRawText}
+                                        <details style="margin-top:10px">
+                                            <summary class="shot-details-summary">Raw OCR text</summary>
+                                            <pre class="shot-raw-text">{shotRawText}</pre>
+                                        </details>
+                                    {/if}
+                                </div>
+                                <button class="btn shot-apply-btn" onclick={applyOcrToForm}>
                                     ✓ Apply to form
                                 </button>
-                            {/if}
-
-                            {#if shotProcUrl}
-                                <details style="margin-top:14px">
-                                    <summary class="shot-details-summary">Preprocessed image (what Tesseract sees)</summary>
-                                    <img src={shotProcUrl} alt="Preprocessed" style="width:100%; max-height:180px; object-fit:contain; margin-top:6px; border:1px solid rgba(245,158,11,0.30); background:#fff" />
-                                </details>
-                            {/if}
-
-                            {#if shotRawText}
-                                <details style="margin-top:10px">
-                                    <summary class="shot-details-summary">Raw OCR text</summary>
-                                    <pre class="shot-raw-text">{shotRawText}</pre>
-                                </details>
                             {/if}
                         </div>
                     </div>
@@ -1678,22 +1687,47 @@
     border: 1px solid rgba(239, 68, 68, 0.40);
 }
 
-/* ── Screenshot reader: two-pane flow (cropper + review) ────────────────── */
+/* ── Screenshot reader: cropper on top (full-width), review below ──────── */
 .shot-flow {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 22px;
-    align-items: start;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
     text-align: left;
-}
-@media (max-width: 900px) {
-    .shot-flow { grid-template-columns: 1fr; }
 }
 .shot-pane {
     display: flex;
     flex-direction: column;
     gap: 10px;
     min-width: 0;
+}
+/* The review pane, once populated, uses a 2-col internal layout so the
+   editable inputs spread across the full available width without forcing
+   single-column scroll on wide screens. */
+.shot-pane.review {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 24px;
+    align-items: start;
+}
+.shot-pane.review > .shot-step-label,
+.shot-pane.review > .shot-source-banner,
+.shot-pane.review > .form-error,
+.shot-pane.review > .shot-hint {
+    grid-column: 1 / -1;
+}
+.shot-pane.review > .ocr-edit-grid {
+    grid-column: 1 / 2;
+}
+.shot-pane.review > .shot-apply-btn {
+    grid-column: 1 / -1;
+}
+.shot-pane.review > .shot-preview-stack {
+    grid-column: 2 / 3;
+}
+@media (max-width: 900px) {
+    .shot-pane.review { grid-template-columns: 1fr; }
+    .shot-pane.review > .ocr-edit-grid,
+    .shot-pane.review > .shot-preview-stack { grid-column: 1 / -1; }
 }
 .shot-step-label {
     font-family: var(--tek-mono);
