@@ -488,10 +488,21 @@
     /**
      * Cut the cropped region out of the source image, upscale it, blur slightly
      * to thicken thin font strokes (slashes / pipes / 1s), then threshold to
-     * pure black-on-white via Otsu's method (adaptive — copes with phone-photo
-     * lighting variance that breaks a fixed cutoff).
+     * pure black-on-white. Two strategies in parallel:
+     *
+     *   variant 'text'  — Otsu threshold across the whole crop. Good for most
+     *                     panels with consistent contrast.
+     *   variant 'digits'— Saturation-aware threshold that kills the colored
+     *                     stat icons (lightning bolt, fist, etc.) BEFORE they
+     *                     bleed into the digit values. The icons sit in
+     *                     specific colors (yellow, red, green) so we drop any
+     *                     pixel with saturation > 0.45, then Otsu the rest.
+     *                     The numbers are white/grey (~0 saturation) so they
+     *                     survive cleanly.
+     *
+     * We OCR both variants and pick whichever pulled more triples.
      */
-    async function preprocessShot(): Promise<Blob> {
+    async function preprocessShot(variant: 'text' | 'digits' = 'text'): Promise<Blob> {
         if (!shotImage || !cropBox) throw new Error('No image cropped');
 
         // Cut the cropped region
@@ -506,8 +517,10 @@
             0, 0, cut.width, cut.height
         );
 
-        // Upscale to ≥ 1800px on the long edge
-        const targetMin = 1800;
+        // Upscale to ≥ 2400px on the long edge — larger glyphs survive blur+
+        // threshold better, and Tesseract's letter-vs-digit accuracy improves
+        // sharply at this resolution.
+        const targetMin = 2400;
         const longest = Math.max(cut.width, cut.height);
         const scale = Math.max(1, targetMin / longest);
         const w = Math.round(cut.width * scale);
@@ -518,13 +531,34 @@
         if (!ctx) throw new Error('Canvas 2D unavailable');
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.filter = 'blur(0.8px)';
+        // Stronger blur (1.2px) thickens thin diagonal strokes (slashes, 1s, |s)
+        // enough to survive the threshold; OCR accuracy on slash-triples
+        // improved noticeably going from 0.8 to 1.2 in testing.
+        ctx.filter = 'blur(1.2px)';
         ctx.drawImage(cut, 0, 0, w, h);
         ctx.filter = 'none';
 
-        // Adaptive threshold (Otsu) → pure black on white
         const id = ctx.getImageData(0, 0, w, h);
         const d = id.data;
+
+        if (variant === 'digits') {
+            // Drop high-saturation pixels (the colored stat icons) to white
+            // BEFORE Otsu, so the threshold focuses on the desaturated digit
+            // text only. Math: HSV saturation = (max - min) / max.
+            for (let i = 0; i < d.length; i += 4) {
+                const r = d[i], g = d[i+1], b = d[i+2];
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                const sat = max === 0 ? 0 : (max - min) / max;
+                if (sat > 0.42) {
+                    d[i] = 0; d[i+1] = 0; d[i+2] = 0;
+                    // After masking, this pixel is "background" — luminance 0
+                    // → it'll fall on the low side of Otsu's split, becoming
+                    // white in the final pass.
+                }
+            }
+        }
+
         const threshold = otsuThreshold(d);
         for (let i = 0; i < d.length; i += 4) {
             const lum = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
@@ -562,13 +596,41 @@
         return threshold;
     }
 
+    /**
+     * Run OCR with multiple preprocess + page-segmentation strategies and pick
+     * the result with the most extracted triples. Order is most-likely-to-work
+     * first so we usually only need pass 1:
+     *
+     *   pass 1: digits-mode preprocess + PSM 6 (single block)
+     *           — saturation-mask kills colored icons that bleed into digits,
+     *             best general-purpose strategy
+     *   pass 2: text-mode preprocess + PSM 6
+     *           — fallback when the icon mask was too aggressive
+     *   pass 3: digits-mode preprocess + PSM 11 (sparse text)
+     *           — when column layout confuses PSM 6, sparse-text mode finds
+     *             isolated digit clusters individually
+     *
+     * Worker is reused across passes (just retoggle PSM); preprocesses are
+     * cached so we don't pay the canvas pipeline cost twice for variant=digits.
+     */
     async function runOcr() {
         if (!shotImage || !cropBox) { shotError = 'Drop a screenshot first.'; return; }
         shotRunning = true; shotError = ''; shotProgress = 0; shotPhase = 'preprocessing';
+        shotRawText = ''; shotParsed = {}; shotSource = null;
         if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
+
+        // Count triples (both shapes) — the higher the count, the better the OCR
+        function tripleCount(text: string): number {
+            const paren = (text.match(/\(\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*\)/g) ?? []).length;
+            const slash = (text.match(/(?<![()\d.])\d{1,3}\s*[\/|\\]\s*\d{1,3}\s*[\/|\\]\s*\d{1,3}(?![\d)])/g) ?? []).length;
+            return paren + slash;
+        }
+
         try {
-            const preprocessed = await preprocessShot();
-            shotProcUrl = URL.createObjectURL(preprocessed);
+            // Preprocess both variants up front so the user can see whichever
+            // produced the winning OCR in the debug panel.
+            const digitsBlob = await preprocessShot('digits');
+            let textBlob: Blob | null = null;
 
             shotPhase = 'recognizing';
             const Tesseract = await import('tesseract.js');
@@ -581,12 +643,37 @@
                     if (m.status === 'recognizing text') shotProgress = Math.round(m.progress * 100);
                 }
             });
+
+            type Pass = { label: string; text: string; count: number; blob: Blob };
+            const passes: Pass[] = [];
+
+            // Pass 1: digits preprocess + PSM 6
             await worker.setParameters({ tessedit_pageseg_mode: '6' as never });
-            const { data: ocr } = await worker.recognize(preprocessed);
+            const r1 = await worker.recognize(digitsBlob);
+            passes.push({ label: 'digits/PSM6', text: r1.data.text, count: tripleCount(r1.data.text), blob: digitsBlob });
+
+            // Pass 2: text preprocess + PSM 6 — only if pass 1 was weak
+            if (passes[0].count < 5) {
+                textBlob = await preprocessShot('text');
+                const r2 = await worker.recognize(textBlob);
+                passes.push({ label: 'text/PSM6', text: r2.data.text, count: tripleCount(r2.data.text), blob: textBlob });
+            }
+
+            // Pass 3: digits preprocess + PSM 11 (sparse text) — last-resort
+            if (passes.every(p => p.count < 5)) {
+                await worker.setParameters({ tessedit_pageseg_mode: '11' as never });
+                const r3 = await worker.recognize(digitsBlob);
+                passes.push({ label: 'digits/PSM11', text: r3.data.text, count: tripleCount(r3.data.text), blob: digitsBlob });
+            }
+
             await worker.terminate();
 
-            shotRawText = ocr.text;
-            parseStatPanel(ocr.text);
+            // Pick the pass with the highest triple count; break ties by order
+            // (earlier passes are faster + more "natural" parse).
+            const best = passes.reduce((a, b) => b.count > a.count ? b : a);
+            shotProcUrl = URL.createObjectURL(best.blob);
+            shotRawText = best.text;
+            parseStatPanel(best.text);
         } catch (err) {
             shotError = (err as Error).message || 'OCR failed';
         } finally {
