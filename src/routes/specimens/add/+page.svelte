@@ -62,9 +62,33 @@
         if (typeof v === 'number') fStats[s] = v;
     }
 
-    // ── Screenshot OCR state ───────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    //  SCREENSHOT OCR — Tek Binoculars, u+Binoculars, Super Spyglass
+    // ─────────────────────────────────────────────────────────────────────────
+    //
+    // Flow: drop image → (auto-detect panel OR full-image) crop box → user
+    // adjusts crop → preprocess (cut → upscale → blur → Otsu threshold) →
+    // Tesseract.js → fingerprint detection → positional parser → review grid.
+    //
+    // Two source UIs supported:
+    //
+    //   Tek Binoculars / u+Binoculars (single column)
+    //     Row format: "current / max  (base | mut | dom)"   ←  parens + pipes
+    //     Top-to-bottom: HP, STA, OXY, FOOD, WGT, MEL, CRA
+    //
+    //   Super Spyglass (2-column grid)
+    //     Row format: "base/mut/dom"                         ← slashes, no parens
+    //     Left/right column pairs, OCR reads row-by-row:
+    //       HP|WGT · STA|MEL · OXY|SPD(skip) · FOOD|CRA · Imp|Total · ♀|♂
+    //
+    // Cryopods (vanilla or modded) are not a usable source — they don't surface
+    // base wild levels — the dropzone copy says so explicitly.
+
+    type ShotSource = 'tek' | 'spyglass';
+    type CropBox = { x: number; y: number; w: number; h: number };
+
     let shotFile     = $state<File | null>(null);
-    let shotPreview  = $state<string | null>(null);
+    let shotImage    = $state<HTMLImageElement | null>(null);
     let shotProcUrl  = $state<string | null>(null);
     let shotRunning  = $state(false);
     let shotProgress = $state(0);
@@ -72,85 +96,459 @@
     let shotRawText  = $state('');
     let shotParsed   = $state<Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number }>({});
     let shotError    = $state('');
+    let shotSource   = $state<ShotSource | null>(null);
+    let shotAutoDetected = $state(false);
+
+    // Cropper — coords held in IMAGE space so they survive canvas resize.
+    let cropBox      = $state<CropBox | null>(null);
+    let cropCanvasEl = $state<HTMLCanvasElement | null>(null);
+    let cropPointerMode = 'idle' as
+        | 'idle' | 'move'
+        | 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br'
+        | 'resize-t'  | 'resize-b'  | 'resize-l'  | 'resize-r';
+    let cropPointerStart = { x: 0, y: 0 };
+    let cropBoxStart: CropBox = { x: 0, y: 0, w: 0, h: 0 };
+    // Pinch-to-zoom (touch): two-finger gesture scales cropBox around the pinch midpoint
+    let pinchPrevDist = 0;
+    let pinchPrevMid  = { x: 0, y: 0 };
+    const activePointers = new Map<number, { x: number; y: number }>();
 
     function pickScreenshot(e: Event) {
         const inp = e.target as HTMLInputElement;
         const f = inp.files?.[0];
         if (!f) return;
+        void loadShotFile(f);
+    }
+
+    async function loadShotFile(f: File) {
         shotFile = f;
         shotError = '';
         shotRawText = '';
         shotParsed = {};
-        const reader = new FileReader();
-        reader.onload = () => { shotPreview = String(reader.result); };
-        reader.readAsDataURL(f);
-    }
+        shotSource = null;
+        shotAutoDetected = false;
+        if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
 
-    // Preprocess: upscale → slight blur (thickens thin lines like the / between values
-    // in stat triples so they survive thresholding) → high-contrast threshold to
-    // black-on-white. ARK UI is light-cyan-on-dark-blue at native res, which Tesseract
-    // reads very poorly; this pipeline makes it readable.
-    async function preprocessShot(file: File): Promise<Blob> {
-        const url = URL.createObjectURL(file);
+        const url = URL.createObjectURL(f);
         try {
-            const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const img = await new Promise<HTMLImageElement>((res, rej) => {
                 const i = new Image();
-                i.onload = () => resolve(i);
-                i.onerror = () => reject(new Error('Failed to load image'));
+                i.onload  = () => res(i);
+                i.onerror = () => rej(new Error('Failed to load image'));
                 i.src = url;
             });
-            // Scale so the longest dimension is at least 1800px
-            const targetMin = 1800;
-            const longest = Math.max(img.width, img.height);
-            const scale = Math.max(1, targetMin / longest);
-            const w = Math.round(img.width * scale);
-            const h = Math.round(img.height * scale);
-            const canvas = document.createElement('canvas');
-            canvas.width = w; canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) throw new Error('Canvas 2D unavailable');
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            // Small blur thickens 1-pixel diagonal strokes (slashes) so they don't
-            // disappear in the threshold step. 0.8px is enough to preserve "/", "1",
-            // and small punctuation without losing character separation.
-            ctx.filter = 'blur(0.8px)';
-            ctx.drawImage(img, 0, 0, w, h);
-            ctx.filter = 'none';
-
-            // Threshold: light pixels (UI text) → black; dark pixels (background) → white.
-            // Threshold raised slightly (140 from 130) to leave a wider tolerance after
-            // the blur step lightens edge pixels.
-            const id = ctx.getImageData(0, 0, w, h);
-            const d = id.data;
-            const TH = 120;
-            for (let i = 0; i < d.length; i += 4) {
-                const lum = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-                const v = lum > TH ? 0 : 255;
-                d[i] = v; d[i+1] = v; d[i+2] = v;
-                // keep alpha
+            shotImage = img;
+            const detected = autoDetectPanel(img);
+            if (detected) {
+                cropBox = detected;
+                shotAutoDetected = true;
+            } else {
+                cropBox = { x: 0, y: 0, w: img.width, h: img.height };
+                shotAutoDetected = false;
             }
-            ctx.putImageData(id, 0, 0);
-            return await new Promise<Blob>((resolve, reject) => {
-                canvas.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
-            });
         } finally {
             URL.revokeObjectURL(url);
         }
     }
 
+    /**
+     * Auto-locate the stat panel via the teal/blue UI background signature.
+     *
+     * Both Tek/u+ and Super Spyglass paint their panel on a dark teal-blue
+     * background. We downsample the image to 256px wide, mask pixels that fall
+     * in that color signature, find the largest connected region, and return
+     * its bounding box (padded slightly) in source-image coords.
+     *
+     * Returns null when the signature region is < 5% of the image (panel
+     * couldn't be confidently located — fall back to full-image bounds).
+     */
+    function autoDetectPanel(img: HTMLImageElement): CropBox | null {
+        const W = 256;
+        const H = Math.max(1, Math.round((img.height / img.width) * W));
+        const c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        const ctx = c.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0, W, H);
+        const data = ctx.getImageData(0, 0, W, H).data;
+
+        // Panel signature: hue 175–235, sat 0.08–0.65, value 0.04–0.34.
+        // Loose enough to tolerate phone-photo white-balance shift.
+        const mask = new Uint8Array(W * H);
+        for (let i = 0; i < W * H; i++) {
+            const r = data[i*4] / 255;
+            const g = data[i*4+1] / 255;
+            const b = data[i*4+2] / 255;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const delta = max - min;
+            const v = max;
+            const s = max === 0 ? 0 : delta / max;
+            let h: number;
+            if (delta === 0) h = 0;
+            else if (max === r) h = ((g - b) / delta) % 6;
+            else if (max === g) h = (b - r) / delta + 2;
+            else h = (r - g) / delta + 4;
+            h *= 60; if (h < 0) h += 360;
+            if (h >= 175 && h <= 235 && s >= 0.08 && s <= 0.65 && v >= 0.04 && v <= 0.34) {
+                mask[i] = 1;
+            }
+        }
+
+        // Largest connected component via iterative BFS.
+        const visited = new Uint8Array(W * H);
+        let bestBox: { x: number; y: number; w: number; h: number; area: number } | null = null;
+        for (let seed = 0; seed < W * H; seed++) {
+            if (!mask[seed] || visited[seed]) continue;
+            const queue: number[] = [seed];
+            let minX = W, minY = H, maxX = 0, maxY = 0, area = 0;
+            while (queue.length) {
+                const idx = queue.pop()!;
+                if (visited[idx] || !mask[idx]) continue;
+                visited[idx] = 1;
+                const x = idx % W, y = (idx - x) / W;
+                if (x < minX) minX = x;
+                if (y < minY) minY = y;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+                area++;
+                if (x > 0)     queue.push(idx - 1);
+                if (x < W - 1) queue.push(idx + 1);
+                if (y > 0)     queue.push(idx - W);
+                if (y < H - 1) queue.push(idx + W);
+            }
+            if (!bestBox || area > bestBox.area) {
+                bestBox = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1, area };
+            }
+        }
+        // Require the panel to occupy ≥ 5% of the image, otherwise our match is
+        // probably a tiny UI sliver / noise, not the real panel.
+        if (!bestBox || bestBox.area < W * H * 0.05) return null;
+
+        // Pad by 4% so we don't shave the panel's border or external icons.
+        const padX = Math.round(W * 0.04);
+        const padY = Math.round(H * 0.04);
+        const x = Math.max(0, bestBox.x - padX);
+        const y = Math.max(0, bestBox.y - padY);
+        const w = Math.min(W - x, bestBox.w + padX * 2);
+        const h = Math.min(H - y, bestBox.h + padY * 2);
+        const sx = img.width / W;
+        const sy = img.height / H;
+        return {
+            x: Math.round(x * sx),
+            y: Math.round(y * sy),
+            w: Math.round(w * sx),
+            h: Math.round(h * sy)
+        };
+    }
+
+    // ── Cropper rendering ────────────────────────────────────────────────
+    function drawCropper() {
+        if (!shotImage || !cropCanvasEl || !cropBox) return;
+        const ctx = cropCanvasEl.getContext('2d');
+        if (!ctx) return;
+        // Fit canvas height to image aspect — width is set by CSS / parent.
+        // Fall back to 600 if clientWidth hasn't laid out yet on first mount.
+        const cssW = cropCanvasEl.clientWidth || 600;
+        const dpr  = window.devicePixelRatio || 1;
+        const pixW = Math.round(cssW * dpr);
+        const pixH = Math.round((shotImage.height / shotImage.width) * pixW);
+        if (cropCanvasEl.width !== pixW || cropCanvasEl.height !== pixH) {
+            cropCanvasEl.width = pixW;
+            cropCanvasEl.height = pixH;
+            cropCanvasEl.style.height = `${pixH / dpr}px`;
+        }
+        const scale = pixW / shotImage.width;
+        ctx.drawImage(shotImage, 0, 0, pixW, pixH);
+
+        const bx = cropBox.x * scale;
+        const by = cropBox.y * scale;
+        const bw = cropBox.w * scale;
+        const bh = cropBox.h * scale;
+
+        // Dim everything outside the crop
+        ctx.fillStyle = 'rgba(2, 6, 16, 0.72)';
+        ctx.fillRect(0, 0, pixW, by);
+        ctx.fillRect(0, by + bh, pixW, pixH - (by + bh));
+        ctx.fillRect(0, by, bx, bh);
+        ctx.fillRect(bx + bw, by, pixW - (bx + bw), bh);
+
+        // Crop border
+        ctx.strokeStyle = '#00b4ff';
+        ctx.lineWidth = 2 * dpr;
+        ctx.strokeRect(bx, by, bw, bh);
+
+        // Rule-of-thirds guides (subtle)
+        ctx.strokeStyle = 'rgba(0, 180, 255, 0.18)';
+        ctx.lineWidth = 1 * dpr;
+        for (let i = 1; i <= 2; i++) {
+            ctx.beginPath();
+            ctx.moveTo(bx + (bw * i) / 3, by);
+            ctx.lineTo(bx + (bw * i) / 3, by + bh);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(bx, by + (bh * i) / 3);
+            ctx.lineTo(bx + bw, by + (bh * i) / 3);
+            ctx.stroke();
+        }
+
+        // Handles
+        const hs = 12 * dpr;
+        const half = hs / 2;
+        ctx.fillStyle = '#00b4ff';
+        for (const h of cropHandlePositions(bx, by, bw, bh, half)) {
+            ctx.fillRect(h.x, h.y, hs, hs);
+        }
+    }
+
+    function cropHandlePositions(bx: number, by: number, bw: number, bh: number, half: number) {
+        return [
+            { id: 'resize-tl' as const, x: bx - half,         y: by - half },
+            { id: 'resize-tr' as const, x: bx + bw - half,    y: by - half },
+            { id: 'resize-bl' as const, x: bx - half,         y: by + bh - half },
+            { id: 'resize-br' as const, x: bx + bw - half,    y: by + bh - half },
+            { id: 'resize-t'  as const, x: bx + bw / 2 - half, y: by - half },
+            { id: 'resize-b'  as const, x: bx + bw / 2 - half, y: by + bh - half },
+            { id: 'resize-l'  as const, x: bx - half,         y: by + bh / 2 - half },
+            { id: 'resize-r'  as const, x: bx + bw - half,    y: by + bh / 2 - half }
+        ];
+    }
+
+    // Redraw whenever the image or crop box changes
+    $effect(() => {
+        if (shotImage && cropCanvasEl && cropBox) drawCropper();
+    });
+
+    function getPointerCoords(e: PointerEvent): { x: number; y: number } {
+        if (!cropCanvasEl) return { x: 0, y: 0 };
+        const r = cropCanvasEl.getBoundingClientRect();
+        return {
+            x: (e.clientX - r.left) * (cropCanvasEl.width / r.width),
+            y: (e.clientY - r.top)  * (cropCanvasEl.height / r.height)
+        };
+    }
+
+    function clampBox(b: CropBox): CropBox {
+        if (!shotImage) return b;
+        const MIN = 16;
+        let { x, y, w, h } = b;
+        w = Math.max(MIN, Math.min(shotImage.width,  w));
+        h = Math.max(MIN, Math.min(shotImage.height, h));
+        x = Math.max(0, Math.min(shotImage.width  - w, x));
+        y = Math.max(0, Math.min(shotImage.height - h, y));
+        return { x, y, w, h };
+    }
+
+    function onCropPointerDown(e: PointerEvent) {
+        if (!shotImage || !cropBox || !cropCanvasEl) return;
+        cropCanvasEl.setPointerCapture(e.pointerId);
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        // Two-finger gesture → enter pinch-zoom mode
+        if (activePointers.size === 2) {
+            const pts = [...activePointers.values()];
+            pinchPrevDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+            pinchPrevMid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+            cropPointerMode = 'idle';
+            return;
+        }
+
+        const pt = getPointerCoords(e);
+        const dpr = window.devicePixelRatio || 1;
+        const scale = (cropCanvasEl.width || 1) / shotImage.width;
+        const bx = cropBox.x * scale, by = cropBox.y * scale;
+        const bw = cropBox.w * scale, bh = cropBox.h * scale;
+
+        // Bigger hit area than visual (touch-friendly)
+        const hitSize = Math.max(20, 18 * dpr);
+        const half = hitSize / 2;
+        for (const h of cropHandlePositions(bx, by, bw, bh, half)) {
+            if (pt.x >= h.x && pt.x <= h.x + hitSize && pt.y >= h.y && pt.y <= h.y + hitSize) {
+                cropPointerMode = h.id;
+                cropPointerStart = pt;
+                cropBoxStart = { ...cropBox };
+                return;
+            }
+        }
+        if (pt.x >= bx && pt.x <= bx + bw && pt.y >= by && pt.y <= by + bh) {
+            cropPointerMode = 'move';
+            cropPointerStart = pt;
+            cropBoxStart = { ...cropBox };
+            return;
+        }
+
+        // Click outside → start a fresh box at this point (drag-to-define)
+        const imgX = pt.x / scale;
+        const imgY = pt.y / scale;
+        cropBox = clampBox({ x: imgX, y: imgY, w: 16, h: 16 });
+        cropPointerMode = 'resize-br';
+        cropPointerStart = pt;
+        cropBoxStart = { ...cropBox };
+    }
+
+    function onCropPointerMove(e: PointerEvent) {
+        if (!shotImage || !cropBox || !cropCanvasEl) return;
+        if (activePointers.has(e.pointerId)) {
+            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        }
+
+        // Pinch-zoom while two fingers down
+        if (activePointers.size === 2) {
+            const pts = [...activePointers.values()];
+            const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+            if (pinchPrevDist > 0) {
+                const factor = dist / pinchPrevDist;
+                // Pinch midpoint in IMAGE coords
+                const r = cropCanvasEl.getBoundingClientRect();
+                const midCanvasX = (pinchPrevMid.x - r.left) * (cropCanvasEl.width  / r.width);
+                const midCanvasY = (pinchPrevMid.y - r.top)  * (cropCanvasEl.height / r.height);
+                const scale = (cropCanvasEl.width || 1) / shotImage.width;
+                const midImgX = midCanvasX / scale;
+                const midImgY = midCanvasY / scale;
+                const nw = cropBox.w / factor;
+                const nh = cropBox.h / factor;
+                const nx = midImgX - (midImgX - cropBox.x) / factor;
+                const ny = midImgY - (midImgY - cropBox.y) / factor;
+                cropBox = clampBox({ x: nx, y: ny, w: nw, h: nh });
+            }
+            pinchPrevDist = dist;
+            pinchPrevMid  = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+            return;
+        }
+
+        if (cropPointerMode === 'idle') return;
+        const pt = getPointerCoords(e);
+        const scale = (cropCanvasEl.width || 1) / shotImage.width;
+        const dx = (pt.x - cropPointerStart.x) / scale;
+        const dy = (pt.y - cropPointerStart.y) / scale;
+        const s = cropBoxStart;
+        let { x, y, w, h } = s;
+
+        if (cropPointerMode === 'move') {
+            x = s.x + dx; y = s.y + dy;
+        } else {
+            if (cropPointerMode.includes('l')) { x = s.x + dx; w = s.w - dx; }
+            if (cropPointerMode.includes('r')) { w = s.w + dx; }
+            if (cropPointerMode.includes('t')) { y = s.y + dy; h = s.h - dy; }
+            if (cropPointerMode.includes('b')) { h = s.h + dy; }
+            // If we drag past the opposing edge, the box would invert — clamp.
+            if (w < 16) { if (cropPointerMode.includes('l')) x = s.x + s.w - 16; w = 16; }
+            if (h < 16) { if (cropPointerMode.includes('t')) y = s.y + s.h - 16; h = 16; }
+        }
+        cropBox = clampBox({ x, y, w, h });
+    }
+
+    function onCropPointerUp(e: PointerEvent) {
+        if (cropCanvasEl?.hasPointerCapture(e.pointerId)) {
+            cropCanvasEl.releasePointerCapture(e.pointerId);
+        }
+        activePointers.delete(e.pointerId);
+        if (activePointers.size < 2) pinchPrevDist = 0;
+        if (activePointers.size === 0) cropPointerMode = 'idle';
+    }
+
+    function resetCrop() {
+        if (!shotImage) return;
+        cropBox = { x: 0, y: 0, w: shotImage.width, h: shotImage.height };
+        shotAutoDetected = false;
+    }
+
+    function reAutoDetect() {
+        if (!shotImage) return;
+        const d = autoDetectPanel(shotImage);
+        if (d) {
+            cropBox = d;
+            shotAutoDetected = true;
+        }
+    }
+
+    /**
+     * Cut the cropped region out of the source image, upscale it, blur slightly
+     * to thicken thin font strokes (slashes / pipes / 1s), then threshold to
+     * pure black-on-white via Otsu's method (adaptive — copes with phone-photo
+     * lighting variance that breaks a fixed cutoff).
+     */
+    async function preprocessShot(): Promise<Blob> {
+        if (!shotImage || !cropBox) throw new Error('No image cropped');
+
+        // Cut the cropped region
+        const cut = document.createElement('canvas');
+        cut.width = Math.max(1, Math.round(cropBox.w));
+        cut.height = Math.max(1, Math.round(cropBox.h));
+        const cutCtx = cut.getContext('2d');
+        if (!cutCtx) throw new Error('Canvas 2D unavailable');
+        cutCtx.drawImage(
+            shotImage,
+            cropBox.x, cropBox.y, cropBox.w, cropBox.h,
+            0, 0, cut.width, cut.height
+        );
+
+        // Upscale to ≥ 1800px on the long edge
+        const targetMin = 1800;
+        const longest = Math.max(cut.width, cut.height);
+        const scale = Math.max(1, targetMin / longest);
+        const w = Math.round(cut.width * scale);
+        const h = Math.round(cut.height * scale);
+        const out = document.createElement('canvas');
+        out.width = w; out.height = h;
+        const ctx = out.getContext('2d');
+        if (!ctx) throw new Error('Canvas 2D unavailable');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.filter = 'blur(0.8px)';
+        ctx.drawImage(cut, 0, 0, w, h);
+        ctx.filter = 'none';
+
+        // Adaptive threshold (Otsu) → pure black on white
+        const id = ctx.getImageData(0, 0, w, h);
+        const d = id.data;
+        const threshold = otsuThreshold(d);
+        for (let i = 0; i < d.length; i += 4) {
+            const lum = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+            const v = lum > threshold ? 0 : 255;
+            d[i] = v; d[i+1] = v; d[i+2] = v;
+        }
+        ctx.putImageData(id, 0, 0);
+        return await new Promise<Blob>((resolve, reject) => {
+            out.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
+        });
+    }
+
+    /** Otsu's method — pick a luminance threshold that maximises between-class variance. */
+    function otsuThreshold(data: Uint8ClampedArray): number {
+        const hist = new Array<number>(256).fill(0);
+        const px = data.length / 4;
+        for (let i = 0; i < data.length; i += 4) {
+            const lum = Math.round(0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]);
+            hist[lum]++;
+        }
+        let sum = 0;
+        for (let t = 0; t < 256; t++) sum += t * hist[t];
+        let sumB = 0, wB = 0, maxVar = 0, threshold = 128;
+        for (let t = 0; t < 256; t++) {
+            wB += hist[t];
+            if (wB === 0) continue;
+            const wF = px - wB;
+            if (wF === 0) break;
+            sumB += t * hist[t];
+            const mB = sumB / wB;
+            const mF = (sum - sumB) / wF;
+            const variance = wB * wF * (mB - mF) * (mB - mF);
+            if (variance > maxVar) { maxVar = variance; threshold = t; }
+        }
+        return threshold;
+    }
+
     async function runOcr() {
-        if (!shotFile) { shotError = 'Drop a screenshot first.'; return; }
+        if (!shotImage || !cropBox) { shotError = 'Drop a screenshot first.'; return; }
         shotRunning = true; shotError = ''; shotProgress = 0; shotPhase = 'preprocessing';
-        if (shotProcUrl) URL.revokeObjectURL(shotProcUrl);
+        if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
         try {
-            const preprocessed = await preprocessShot(shotFile);
+            const preprocessed = await preprocessShot();
             shotProcUrl = URL.createObjectURL(preprocessed);
 
             shotPhase = 'recognizing';
             const Tesseract = await import('tesseract.js');
-            // All Tesseract assets are served from /static/tesseract so the strict CSP
-            // doesn't need to allow third-party CDNs.
             const worker = await Tesseract.createWorker('eng', 1, {
                 workerPath: '/tesseract/worker.min.js',
                 corePath:   '/tesseract',
@@ -160,13 +558,12 @@
                     if (m.status === 'recognizing text') shotProgress = Math.round(m.progress * 100);
                 }
             });
-            // PSM 6 = "single uniform block of text" — best fit for the panel layout.
             await worker.setParameters({ tessedit_pageseg_mode: '6' as never });
             const { data: ocr } = await worker.recognize(preprocessed);
             await worker.terminate();
 
             shotRawText = ocr.text;
-            parseTekBinocularsText(ocr.text);
+            parseStatPanel(ocr.text);
         } catch (err) {
             shotError = (err as Error).message || 'OCR failed';
         } finally {
@@ -175,311 +572,197 @@
         }
     }
 
-    function parseTekBinocularsText(raw: string) {
-        // Two source UIs are supported, auto-detected from text markers:
-        //
-        // 1) Tek Binoculars wild-scan view — "Lvl 239" / "Tamed" / "Wild"; stats are a
-        //    single column of "(base | mut | dom)" triples.
-        //
-        // 2) Creature Inventory view (press F on a tame) — "Tribe:" / "Level: N" / "Can
-        //    Mate"; stats are a 2-column grid of "base/mut/dom" triples laid out as:
-        //         HP  / WGT
-        //         STA / MEL
-        //         OXY / SPD (skip — Movement Speed is never wild-levelable on tames)
-        //         FOOD/ CRA
-        //         IMP%/ TotalLvl
-        //         ♀mut/ ♂mut
-        //
-        // Auto-detect — markers OR layout fingerprint.
-        // Markers (clean OCR): "Tribe:", "Can Mate", "Level:"
-        // Layout fingerprint (mangled OCR): the Inventory grid puts TWO triples on one
-        // visible line; the Binoculars view never does.
-        function hasMultiTriplePerLine(text: string): boolean {
-            for (const line of text.split(/\r?\n/)) {
-                const tripleCount = (line.match(/\d{1,3}\s*[\/|]\s*\d{1,3}\s*[\/|]\s*\d{1,3}/g) ?? []).length;
-                if (tripleCount >= 2) return true;
-            }
-            return false;
+    /**
+     * Route to the right parser by fingerprinting the OCR text:
+     *   - Tek/u+ → contains "(NN | NN | NN)" parenthesized triples
+     *   - Spyglass → any line has TWO "NN/NN/NN" slash triples (2-col grid)
+     * Both match → user cropped over both panels → reject with message.
+     * Neither matches → unsupported source → reject with message.
+     */
+    function parseStatPanel(raw: string) {
+        const parenTriple = /\(\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*\)/;
+        const hasTek = parenTriple.test(raw);
+
+        const slashTriple = /\d{1,3}\s*\/\s*\d{1,3}\s*\/\s*\d{1,3}/g;
+        let hasSpyglass = false;
+        for (const line of raw.split(/\r?\n/)) {
+            const matches = line.match(slashTriple) ?? [];
+            if (matches.length >= 2) { hasSpyglass = true; break; }
         }
-        const isInventory = /\b(?:Tribe\s*:|Can\s*Mate|Level\s*:)/i.test(raw)
-                          || hasMultiTriplePerLine(raw);
-        if (isInventory) {
-            parseInventoryUI(raw);
+
+        if (hasTek && hasSpyglass) {
+            shotError = 'Your crop includes two stat panels. Re-crop to just one (Tek/u+ OR Super Spyglass) and run OCR again.';
+            shotParsed = {};
+            shotSource = null;
             return;
         }
-        // Otherwise fall through to the binoculars parser below.
-        const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (!hasTek && !hasSpyglass) {
+            shotError = 'Couldn\'t find base stats in this image. Make sure you cropped to a Tek Binoculars, u+Binoculars, or Super Spyglass panel.';
+            shotParsed = {};
+            shotSource = null;
+            return;
+        }
+        if (hasTek) {
+            shotSource = 'tek';
+            parseTekUplus(raw);
+        } else {
+            shotSource = 'spyglass';
+            parseSuperSpyglass(raw);
+        }
+    }
+
+    /**
+     * Tek Binoculars / u+Binoculars — one stat per row.
+     * Row format: "<icon> current / max (base | mut | dom)"
+     * Top-to-bottom order: HP, STA, OXY, FOOD, WGT, MEL, CRA
+     */
+    function parseTekUplus(raw: string) {
         const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
+        const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        extractNameAndLevel(lines, out);
 
-        // ── Header parsing: first 3 lines ──
-        for (const line of lines.slice(0, 3)) {
-            // Level: "Lvl 239", "Lv 239", "Level 239"
-            const lvMatch = line.match(/\b(?:lv|lvl|level)\s*[:\-]?\s*(\d{1,4})\b/i);
-            if (lvMatch && !out.level) out.level = Math.min(9999, parseInt(lvMatch[1]));
-
-            // Species / specimen name: capitalized word(s) before "Lv" or hyphen
-            if (!out.species) {
-                const headerMatch = line.match(/^([A-Z][A-Za-z][A-Za-z\s'-]+?)(?:\s*[-–—]|\s+Lv|\s+Lvl|\s+Level)/i);
-                if (headerMatch) {
-                    const cand = headerMatch[1].trim();
-                    if (cand.length > 2 && !/^(?:Tamed|Wild|Sleeping|Awake|Sleeping|Aggressive|Passive)$/i.test(cand)) {
-                        out.species = cand;
-                    }
-                }
-            }
-        }
-
-        // ── Extract every triple in document order. The ASA Tek Binoculars layout puts
-        // exactly one stat triple per visible row. OCR variants we have to handle:
-        //   (43 | 0 | 0)     — clean
-        //   (45]0]0)         — pipes misread as ] or [
-        //   (45 1 0 1 0)     — pipes misread as 1 (collide with neighbors)
-        //   (451010)         — spaces lost + pipes→1, three values run together
-        //   ...4310]0)       — opening paren dropped, mangled
-        //   (X|X|0)          — placeholder row (skip)
-        //
-        // Strategy: scan line-by-line. For each line that contains a closing `)` somewhere
-        // after a number+separator pattern, try to extract three numbers via a series of
-        // increasingly forgiving regex patterns. Skip rows where any token is X/x.
-        const triples: Array<{ base: number | null }> = [];
-
+        const bases: number[] = [];
         for (const line of lines) {
-            // Skip lines without any digits in parens-ish neighborhood
-            if (!/\)/.test(line) && !/\d/.test(line)) continue;
-            // X-placeholder check: if the line has an X near the closing paren, treat as null
-            if (/[Xx]\s*[|I1l\]\/]\s*[Xx]/.test(line) || /\([^)]*[Xx][^)]*\)/.test(line)) {
-                triples.push({ base: null });
-                continue;
-            }
-
-            // Try clean (a | b | c) with flexible separators including ]
-            let m = line.match(/\(\s*(\d{1,4})\s*[|I1l\]\[\/\\:]\s*(\d{1,4})\s*[|I1l\]\[\/\\:]\s*(\d{1,4})\s*\)/);
-            if (m) { triples.push({ base: parseInt(m[1]) }); continue; }
-
-            // Try opening-paren-dropped: number+separator+number+separator+number ending in )
-            m = line.match(/(\d{1,3})\s*[|I1l\]\[\/\\:]\s*(\d{1,3})\s*[|I1l\]\[\/\\:]\s*(\d{1,3})\s*\)/);
-            if (m) { triples.push({ base: parseInt(m[1]) }); continue; }
-
-            // Try parens with all digits run together (`(451010)` was originally `(45|0|0)`).
-            // Pipes were dropped AND read as 1s combining with adjacent 0s → "451010".
-            // Pattern guess: base (1-3 digits) + "10" + "10" or similar artifacts.
-            m = line.match(/\((\d{1,3})(?:10|0)(?:10|0)\)/);
-            if (m) { triples.push({ base: parseInt(m[1]) }); continue; }
-
-            // Last-ditch: ANY parenthesized group with at least one number, take first number
-            m = line.match(/\(([^)]*\d[^)]*)\)/);
-            if (m) {
-                const nm = m[1].match(/\d+/);
-                triples.push({ base: nm ? parseInt(nm[0]) : null });
-                continue;
-            }
+            // Permissive on pipe-vs-1-vs-I confusion that Tesseract loves to make
+            const m = line.match(/\(\s*(\d{1,3})\s*[|Il1\]\[]\s*(\d{1,3})\s*[|Il1\]\[]\s*(\d{1,3})\s*\)/);
+            if (m) bases.push(parseInt(m[1], 10));
         }
 
-        const bases = triples.map(t => t.base);
-        const setStat = (k: StatKey, v: number | null) => { if (typeof v === 'number' && v >= 0) out[k] = v; };
-
-        // Positional mapping based on triple count.
-        //   8 triples: HP, STA, FOOD, WGT, OXY, Speed-skip, MEL, CRA
-        //   7 triples: HP, STA, FOOD, WGT, OXY, Speed-skip, MEL
-        //   6 triples: ambiguous — either OXY present + no Speed, or Speed present + OXY=N/A
-        //              Disambiguate via "N/A" substring check in OCR.
-        //   5 triples: HP, STA, FOOD, WGT, MEL (no OXY, no Speed)
-        const n = bases.length;
-        if (n >= 4) {
-            setStat('HP',   bases[0]);
-            setStat('STA',  bases[1]);
-            setStat('FOOD', bases[2]);
-            setStat('WGT',  bases[3]);
+        const order: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
+        for (let i = 0; i < Math.min(bases.length, order.length); i++) {
+            if (bases[i] >= 0 && bases[i] <= 999) out[order[i]] = bases[i];
         }
-        if (n === 5) {
-            setStat('MEL', bases[4]);
-        } else if (n === 6) {
-            const oxyIsNA = /\bn\s*\/\s*a\b/i.test(raw);
-            if (oxyIsNA) {
-                // bases[4] is Speed (skip), bases[5] is MEL
-                setStat('MEL', bases[5]);
-            } else {
-                setStat('OXY', bases[4]);
-                setStat('MEL', bases[5]);
-            }
-        } else if (n === 7) {
-            setStat('OXY', bases[4]);
-            // bases[5] = Speed → skip
-            setStat('MEL', bases[6]);
-        } else if (n >= 8) {
-            setStat('OXY', bases[4]);
-            // bases[5] = Speed → skip
-            setStat('MEL', bases[6]);
-            setStat('CRA', bases[7]);
-        }
-
         shotParsed = out;
     }
 
-    function parseInventoryUI(raw: string) {
-        // Creature Inventory layout — 8-stat grid in document order (PSM 6 reads rows
-        // left-to-right):  HP WGT  STA MEL  OXY SPD  FOOD CRA
-        // SPD is at position 5 and always 0/0/0 (Movement Speed never wild-levels on
-        // tames); we skip it.
-        //
-        // OCR of ARK's UI font frequently confuses digits with letters that have
-        // similar glyphs (5↔s, 7↔r, 0↔o, 1↔i, 8↔B). It also drops the thin "/"
-        // separator. The parser below applies aggressive letter→digit substitution
-        // before extracting base values from each row.
+    /**
+     * Super Spyglass — 2-column grid, OCR reads row-by-row.
+     * Document order of base-triples: HP, WGT, STA, MEL, OXY, SPD(skip), FOOD, CRA
+     */
+    function parseSuperSpyglass(raw: string) {
         const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
         const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        extractNameAndLevel(lines, out);
 
-        // ── Header parsing FIRST on the raw text (substitution would mangle "Level") ──
-        for (let i = 0; i < lines.length; i++) {
-            const lvMatch = lines[i].match(/\blevel\s*:?\s*(\d{1,4})/i);
-            if (lvMatch) {
-                if (!out.level) out.level = Math.min(9999, parseInt(lvMatch[1]));
-                if (!out.name && i > 0) {
+        const bases: number[] = [];
+        // Skip lines that are obviously top-panel current/max bars (single decimal,
+        // "K"-suffixed totals, color region rows of plain 2-digit numbers).
+        // Those don't contain slash triples so the regex naturally skips them, but
+        // we add a guard so a noisy bar line can't smuggle in a fake triple.
+        const colorRegionLine = /^[\d\s]{4,}$/;
+        const slashAllowed    = /\d\s*\/\s*\d/;
+
+        for (const line of lines) {
+            if (!slashAllowed.test(line)) continue;
+            if (colorRegionLine.test(line)) continue;
+            // Skip "current / max" style HP bar lines (only ONE slash, big numbers,
+            // typical 4-5 digits each side)
+            const slashCount = (line.match(/\//g) ?? []).length;
+            if (slashCount === 1 && /\d{3,}/.test(line)) continue;
+
+            for (const m of line.matchAll(/(\d{1,3})\s*\/\s*(\d{1,3})\s*\/\s*(\d{1,3})/g)) {
+                bases.push(parseInt(m[1], 10));
+            }
+        }
+
+        // Mapping with SPD skip at position 5
+        const order: (StatKey | null)[] = ['HP', 'WGT', 'STA', 'MEL', 'OXY', null, 'FOOD', 'CRA'];
+        for (let i = 0; i < Math.min(bases.length, order.length); i++) {
+            const k = order[i];
+            if (k && bases[i] >= 0 && bases[i] <= 999) out[k] = bases[i];
+        }
+        shotParsed = out;
+    }
+
+    /**
+     * Pull the creature's name + level from the first 5 lines of OCR. Both
+     * sources put the name immediately before or alongside the level marker.
+     *
+     * If the extracted name matches a known species (from /static/species-
+     * database.js) we treat it as an unnamed creature and pre-fill BOTH the
+     * Name and Species fields with the canonical species name. Otherwise we
+     * pre-fill only the Name, and leave Species blank for the user to pick.
+     */
+    function extractNameAndLevel(
+        lines: string[],
+        out: { name?: string; species?: string; level?: number }
+    ) {
+        const BLACKLIST = /^(?:tamed|wild|tribe(?:\s*of)?|can\s*mate|ready\s*to\s*mate|sleeping|awake|aggressive|passive|level)/i;
+
+        for (let i = 0; i < Math.min(5, lines.length); i++) {
+            const m = lines[i].match(/\b(?:lv|lvl|level)\s*[:\-]?\s*(\d{1,4})\b/i);
+            if (m && out.level === undefined) out.level = Math.min(9999, parseInt(m[1], 10));
+        }
+
+        let headerName: string | null = null;
+        // Pattern A: "Name - Lvl N" / "Name Lvl N" on one line
+        for (let i = 0; i < Math.min(5, lines.length); i++) {
+            const m = lines[i].match(/^(.+?)\s*[-–—]?\s*(?:Lv|Lvl|Level)\s*[:\-]?\s*\d+/i);
+            if (m) {
+                const cand = m[1].trim();
+                if (cand.length > 0 && !BLACKLIST.test(cand)) {
+                    headerName = cand;
+                    break;
+                }
+            }
+        }
+        // Pattern B (Super Spyglass): name on line N, "Level: 243" on line N+1
+        if (!headerName) {
+            for (let i = 1; i < Math.min(5, lines.length); i++) {
+                if (/\blevel\s*:?\s*\d/i.test(lines[i])) {
                     const cand = lines[i - 1].trim();
-                    if (cand && cand.length >= 1 && !/^(?:tribe|level|tamed|wild|can\s*mate)/i.test(cand)) {
-                        out.name = cand.replace(/[^\w\s'\-]/g, '').trim();
+                    if (cand.length > 0 && !BLACKLIST.test(cand)) {
+                        headerName = cand;
+                        break;
                     }
                 }
-                break;
             }
         }
-
-        // ── Letter→digit substitution for stat-value tokens only ──
-        // (Header was already parsed; from here we treat the rest as numeric.)
-        function letterToDigit(s: string): string {
-            return s
-                .replace(/[oOQD]/g, '0')
-                .replace(/[iIlL!|]/g, '1')
-                .replace(/[zZ]/g, '2')
-                .replace(/[sS]/g, '5')
-                .replace(/[bG]/g, '6')
-                .replace(/[rRtT]/g, '7')  // ARK font's 7 has a serif that reads as r/t
-                .replace(/[B&]/g, '8')
-                .replace(/[gq]/g, '9');
-        }
-
-        // Base wild levels in ASA can't realistically exceed ~99. If we extract a 3-digit
-        // base, the leading digit is almost always an OCR artifact (e.g. "s77" was "57"
-        // with an extra noise pixel) — cap by taking the first 2 digits.
-        function cap99(s: string): number {
-            return s.length >= 3 ? parseInt(s.slice(0, 2)) : parseInt(s);
-        }
-
-        function extractBase(tok: string): number | null {
-            // Clean triple first (in case some OCRs are clean)
-            const clean = tok.match(/^(\d{1,3})\/(\d{1,3})\/(\d{1,3})$/);
-            if (clean) return cap99(clean[1]);
-
-            // Apply substitutions and strip everything except digits and /
-            const norm = letterToDigit(tok).replace(/[^\d\/]/g, '');
-            if (!norm) return null;
-
-            // Try clean triple again after substitution
-            const cleanNorm = norm.match(/^(\d{1,3})\/(\d{1,3})\/(\d{1,3})$/);
-            if (cleanNorm) return cap99(cleanNorm[1]);
-
-            // Partial slash survived ("28/070" pattern — first slash kept, rest merged)
-            const partial = norm.match(/^(\d{1,3})\//);
-            if (partial) return cap99(partial[1]);
-
-            // No slashes at all — split a digit blob into a probable base.
-            const digits = norm.replace(/\//g, '');
-            const len = digits.length;
-            // Reject single-digit residues — these are usually fragments of a
-            // partially-recognized icon (e.g. "RN" reduces to "7"), not real stats.
-            if (len < 2) return null;
-            if (len === 2) return parseInt(digits);
-            if (len === 3) {
-                // If it starts with 0, the whole thing is probably "0/X/0" → base is 0
-                if (digits[0] === '0') return 0;
-                // Otherwise "AB0" → base AB, or "A00" → base A.
-                return parseInt(digits.slice(0, 2));
-            }
-            if (len === 4) {
-                // Most common: base is first 2 digits ("57/0/0" → "5700" → 57)
-                return parseInt(digits.slice(0, 2));
-            }
-            if (len >= 5 && len <= 6) {
-                return parseInt(digits.slice(0, 2));
-            }
-            return null;
-        }
-
-        // ── Identify stat-row lines and pull two values per row ──
-        // The Creature-Inventory stat grid in the OCR output is bracketed by:
-        //   TOP   — header (Level: N), HP/Stam bar values, tribe name, color regions
-        //   GRID  — 4 rows × 2 stat triples each, each row punctuated by icon chars
-        //           that Tesseract renders as §, ®, ¥, &, +, * etc.
-        //   BOTTOM — Imprint%, Total Lvl, mutation counts ♀ ♂
-        // Strategy: skip lines until we hit one that looks like a grid row (≥2 icon
-        // chars OR contains the / separator and an icon char), then extract bases
-        // until we either hit a "%" line (imprint) or have collected 8 bases.
-        const bases: number[] = [];
-        const headerPat = /level\s*:?|tribe\s*:?|can\s*mate|tamed|wild/i;
-        // Post-grid signal: imprint shows as "100%" (digit + %). The Stamina icon
-        // (lightning bolt) often OCRs to a bare "%" at line start — don't break on
-        // that. Require a digit immediately preceding the % to identify imprint.
-        const postGridPat = /\d\s*%|\blvl\b|\bmutation/i;
-        const iconPat = /[§®¥&+*#@]/;
-
-        let inStatGrid = false;
-        for (const line of lines) {
-            if (headerPat.test(line)) continue;
-            if (inStatGrid && postGridPat.test(line)) break;
-
-            // Pure-numeric / punctuation-only lines (HP-bar values, color regions)
-            if (/^[\s\d:.,\-—|]+$/.test(line)) continue;
-
-            // Enter the stat grid: a line with ≥2 slashes (one or more clean triples)
-            // OR ≥2 icon chars (icon-prefixed stat row with mangled slashes).
-            // Single icon + single slash matches the stat-bar line at the top, so we
-            // require 2 of one kind, not a mix.
-            if (!inStatGrid) {
-                const iconCount  = (line.match(/[§®¥&+*#@]/g) ?? []).length;
-                const slashCount = (line.match(/\//g) ?? []).length;
-                if (slashCount >= 2 || iconCount >= 2) {
-                    inStatGrid = true;
-                } else {
-                    continue;
+        // Pattern C: fallback — first non-blacklisted alphabetic line in the top 3
+        if (!headerName) {
+            for (let i = 0; i < Math.min(3, lines.length); i++) {
+                const cand = lines[i].trim();
+                if (cand.length >= 2 && !BLACKLIST.test(cand) && /[A-Za-z]/.test(cand)) {
+                    headerName = cand;
+                    break;
                 }
             }
-
-            // Tokenize and extract bases — cap at 2 per row since the Inventory grid
-            // is fixed 2-stats-per-row. This prevents spurious mid-line fragments
-            // (e.g. an icon misread between two real values) from sneaking in as a
-            // third base and displacing the next row.
-            const tokens = line.split(/[\s|§®¥&+*#@{}()_—:,»«\[\]]+/)
-                .map(t => t.trim())
-                .filter(t => t.length >= 2 && t.length <= 8);
-
-            let basesThisRow = 0;
-            for (const tok of tokens) {
-                if (basesThisRow >= 2) break;
-                if (!/[\d]/.test(tok) && !/[oOiIlLsSrRbBzZ]/.test(tok)) continue;
-                const base = extractBase(tok);
-                if (base !== null && base >= 0 && base <= 200) {
-                    bases.push(base);
-                    basesThisRow++;
-                    if (bases.length >= 8) break;
-                }
-            }
-            if (bases.length >= 8) break;
         }
+        if (!headerName) return;
 
-        const setStat = (k: StatKey, v: number | undefined) => {
-            if (typeof v === 'number' && v >= 0 && v <= 999) out[k] = v;
-        };
-        // Row-major mapping: HP WGT  STA MEL  OXY SPD  FOOD CRA
-        if (bases.length >= 1) setStat('HP',   bases[0]);
-        if (bases.length >= 2) setStat('WGT',  bases[1]);
-        if (bases.length >= 3) setStat('STA',  bases[2]);
-        if (bases.length >= 4) setStat('MEL',  bases[3]);
-        if (bases.length >= 5) setStat('OXY',  bases[4]);
-        // bases[5] = Movement Speed → always 0/0/0 on tames, skip
-        if (bases.length >= 7) setStat('FOOD', bases[6]);
-        if (bases.length >= 8) setStat('CRA',  bases[7]);
+        // Clean up: strip stray punctuation but keep apostrophes, hyphens, spaces
+        headerName = headerName.replace(/[^\w\s'\-]/g, '').replace(/\s+/g, ' ').trim();
+        if (!headerName) return;
 
-        shotParsed = out;
+        // Cross-reference the species DB to detect unnamed creatures
+        const dbMatch = matchSpecies(headerName);
+        if (dbMatch) {
+            out.name = dbMatch;
+            out.species = dbMatch;
+        } else {
+            out.name = headerName;
+        }
+    }
+
+    /** Case-insensitive species lookup with OCR-tolerant near-matching. */
+    function matchSpecies(text: string): string | null {
+        if (!speciesList.length) return null;
+        const lc = text.toLowerCase();
+        for (const sp of speciesList) {
+            if (sp.toLowerCase() === lc) return sp;
+        }
+        // Whitespace-insensitive (handles "RockDrake" ↔ "Rock Drake")
+        const compact = lc.replace(/\s+/g, '');
+        for (const sp of speciesList) {
+            const spc = sp.toLowerCase().replace(/\s+/g, '');
+            if (spc === compact) return sp;
+            // Allow either-direction prefix match for 5+ char names (catches OCR
+            // dropping the last char or two: "Therizinosaur" ↔ "Therizinosa")
+            if (compact.length >= 5) {
+                if (spc.startsWith(compact) || compact.startsWith(spc)) return sp;
+            }
+        }
+        return null;
     }
 
     function applyOcrToForm() {
@@ -642,76 +925,118 @@
                 <div class="dropzone-coming-soon">⏳ FEATURE COMING SOON</div>
             </div>
 
-            <!-- Screenshot OCR dropzone — Tek Binoculars UI -->
+            <!-- Screenshot OCR — Tek Binoculars / u+Binoculars / Super Spyglass -->
             <div class="dropzone" class:visible={mode === 'screenshot'} id="dropzoneShot" style={mode === 'screenshot' ? 'min-height:auto; padding:24px' : ''}>
-                {#if !shotPreview}
+                {#if !shotFile}
                     <div class="dropzone-icon">⊡</div>
-                    <div class="dropzone-title">Screenshot the Tek Binoculars stat panel</div>
-                    <div class="dropzone-desc">
-                        Aim your <strong>Tek Binoculars</strong> at the tame and hold the zoom button until the stats panel appears, then take a screenshot.
-                        TekOS reads the values via on-device OCR (no upload). You confirm before saving. Works best with the default ARK UI scale and no overlays.
+                    <div class="dropzone-title">Import stats from a screenshot</div>
+                    <div class="shot-sources">
+                        <div class="ss-col">
+                            <div class="ss-head ok">Supported</div>
+                            <div class="ss-row"><span class="ss-mark ok">✓</span> Tek Binoculars</div>
+                            <div class="ss-row"><span class="ss-mark ok">✓</span> u+Binoculars</div>
+                            <div class="ss-row"><span class="ss-mark ok">✓</span> Super Spyglass</div>
+                        </div>
+                        <div class="ss-col">
+                            <div class="ss-head no">Not Supported</div>
+                            <div class="ss-row"><span class="ss-mark no">✕</span> Cryopod (Vanilla or Mod)</div>
+                        </div>
+                    </div>
+                    <div class="dropzone-desc" style="margin-top:14px">
+                        OCR runs entirely in your browser — nothing uploads. Phone photos of your monitor are fine; you'll crop to the panel in the next step.
                     </div>
                     <label class="btn" style="cursor:pointer; display:inline-block">
                         CHOOSE IMAGE
                         <input type="file" accept="image/*" onchange={pickScreenshot} style="display:none" />
                     </label>
                 {:else}
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; text-align:left">
-                        <div>
-                            <div style="font-family:var(--tek-mono); font-size:0.62rem; letter-spacing:0.16em; color:var(--tek-text-faint); margin-bottom:6px; text-transform:uppercase">Original</div>
-                            <img src={shotPreview} alt="Tek Binoculars screenshot" style="width:100%; max-height:280px; object-fit:contain; border:1px solid rgba(0,180,255,0.20); border-radius:4px; background:#000" />
-                            {#if shotProcUrl}
-                                <div style="font-family:var(--tek-mono); font-size:0.62rem; letter-spacing:0.16em; color:var(--tek-text-faint); margin:10px 0 6px; text-transform:uppercase">Preprocessed (what Tesseract sees)</div>
-                                <img src={shotProcUrl} alt="Preprocessed" style="width:100%; max-height:280px; object-fit:contain; border:1px solid rgba(245,158,11,0.30); border-radius:4px; background:#fff" />
-                            {/if}
-                            <div style="display:flex; gap:8px; margin-top:10px">
-                                <label class="btn" style="cursor:pointer; flex:1; text-align:center">
-                                    REPLACE
+                    <div class="shot-flow">
+                        <!-- ░░░ LEFT: cropper ░░░ -->
+                        <div class="shot-pane">
+                            <div class="shot-step-label">Step 1 · Crop to the stat panel</div>
+                            <div class="shot-actions">
+                                <button type="button" class="ghost-btn" onclick={reAutoDetect} title="Re-snap the box to the detected panel">⊕ Auto-detect</button>
+                                <button type="button" class="ghost-btn" onclick={resetCrop}>↺ Reset</button>
+                                <label class="ghost-btn" style="cursor:pointer">
+                                    ↻ Replace
                                     <input type="file" accept="image/*" onchange={pickScreenshot} style="display:none" />
                                 </label>
-                                <button class="btn" disabled={shotRunning} onclick={runOcr} style="flex:1">
-                                    {#if shotRunning && shotPhase === 'preprocessing'}Preparing…{:else if shotRunning}Reading… {shotProgress}%{:else}Run OCR{/if}
-                                </button>
                             </div>
+                            <div class="cropper-wrap">
+                                <canvas
+                                    bind:this={cropCanvasEl}
+                                    class="cropper-canvas"
+                                    onpointerdown={onCropPointerDown}
+                                    onpointermove={onCropPointerMove}
+                                    onpointerup={onCropPointerUp}
+                                    onpointercancel={onCropPointerUp}
+                                    onpointerleave={onCropPointerUp}
+                                ></canvas>
+                            </div>
+                            <div class="shot-hint">
+                                {#if shotAutoDetected}
+                                    ⊕ Auto-snapped to the detected panel. Drag corners or center to adjust.
+                                {:else}
+                                    Drag corners to resize, drag the box to move. Pinch on touch to zoom.
+                                {/if}
+                            </div>
+                            <button class="btn shot-run-btn" disabled={shotRunning} onclick={runOcr}>
+                                {#if shotRunning && shotPhase === 'preprocessing'}Preparing image…
+                                {:else if shotRunning}Reading text… {shotProgress}%
+                                {:else}Step 2 · Run OCR ➜{/if}
+                            </button>
                         </div>
-                        <div>
-                            <div class="form-section-title" style="margin-bottom:8px">Detected values</div>
+
+                        <!-- ░░░ RIGHT: review ░░░ -->
+                        <div class="shot-pane">
+                            <div class="shot-step-label">Step 3 · Review &amp; correct</div>
+
                             {#if shotError}
-                                <div class="form-error" style="margin-bottom:8px">{shotError}</div>
+                                <div class="form-error" style="margin-bottom:10px">{shotError}</div>
                             {/if}
-                            {#if !shotRawText && !shotRunning}
-                                <div class="form-section-hint">Click <strong>Run OCR</strong> to scan this image.</div>
+
+                            {#if !shotRawText && !shotRunning && !shotError}
+                                <div class="shot-hint" style="padding:18px 0">
+                                    Click <strong>Run OCR</strong> when you're happy with the crop.
+                                </div>
                             {/if}
-                            {#if shotParsed && Object.keys(shotParsed).length > 0}
-                                <div class="form-section-hint" style="margin-bottom:8px">Review and correct any values OCR got wrong, then Apply.</div>
+
+                            {#if Object.keys(shotParsed).length > 0 && shotSource}
+                                <div class="shot-source-banner">
+                                    <span class="ss-mark ok">✓</span>
+                                    Detected as <strong>{shotSource === 'spyglass' ? 'Super Spyglass' : 'Tek Binoculars / u+Binoculars'}</strong>
+                                </div>
+                                <div class="shot-hint" style="margin-bottom:10px">
+                                    Adjust anything OCR got wrong below, then apply to the form.
+                                </div>
                                 <div class="ocr-edit-grid">
-                                    {#if shotParsed.name !== undefined}
-                                        <div class="stats-stat-label">Name</div>
-                                        <input class="ocr-edit-input" type="text" bind:value={shotParsed.name} />
-                                    {/if}
-                                    {#if shotParsed.species !== undefined}
-                                        <div class="stats-stat-label">Species</div>
-                                        <input class="ocr-edit-input" type="text" bind:value={shotParsed.species} />
-                                    {/if}
-                                    {#if shotParsed.level !== undefined}
-                                        <div class="stats-stat-label">Level</div>
-                                        <input class="ocr-edit-input" type="number" min="1" max="9999" bind:value={shotParsed.level} />
-                                    {/if}
+                                    <div class="stats-stat-label">Name</div>
+                                    <input class="ocr-edit-input" type="text" bind:value={shotParsed.name} placeholder="—" />
+                                    <div class="stats-stat-label">Species</div>
+                                    <input class="ocr-edit-input" type="text" bind:value={shotParsed.species} placeholder="(pick from dropdown)" list="speciesList" />
+                                    <div class="stats-stat-label">Level</div>
+                                    <input class="ocr-edit-input" type="number" min="1" max="9999" bind:value={shotParsed.level} />
                                     {#each STATS as s}
-                                        {#if shotParsed[s] !== undefined}
-                                            <div class="stats-stat-label">{s}</div>
-                                            <input class="ocr-edit-input" type="number" min="0" max="999" bind:value={shotParsed[s]} />
-                                        {/if}
+                                        <div class="stats-stat-label">{s}</div>
+                                        <input class="ocr-edit-input" type="number" min="0" max="999" bind:value={shotParsed[s]} placeholder="0" />
                                     {/each}
                                 </div>
-                                <button class="btn" onclick={applyOcrToForm} style="margin-top:12px; width:100%">
+                                <button class="btn" onclick={applyOcrToForm} style="margin-top:14px; width:100%">
                                     ✓ Apply to form
                                 </button>
                             {/if}
+
+                            {#if shotProcUrl}
+                                <details style="margin-top:14px">
+                                    <summary class="shot-details-summary">Preprocessed image (what Tesseract sees)</summary>
+                                    <img src={shotProcUrl} alt="Preprocessed" style="width:100%; max-height:180px; object-fit:contain; margin-top:6px; border:1px solid rgba(245,158,11,0.30); background:#fff" />
+                                </details>
+                            {/if}
+
                             {#if shotRawText}
-                                <details style="margin-top:14px" open>
-                                    <summary style="font-family:var(--tek-mono); font-size:0.65rem; letter-spacing:0.16em; color:var(--tek-text-faint); cursor:pointer; text-transform:uppercase">Raw OCR text</summary>
-                                    <pre style="margin-top:6px; padding:10px; background:rgba(0,0,0,0.4); font-size:0.7rem; max-height:200px; overflow:auto; white-space:pre-wrap; color:var(--tek-text-dim)">{shotRawText}</pre>
+                                <details style="margin-top:10px">
+                                    <summary class="shot-details-summary">Raw OCR text</summary>
+                                    <pre class="shot-raw-text">{shotRawText}</pre>
                                 </details>
                             {/if}
                         </div>
@@ -1294,6 +1619,176 @@
 .ocr-edit-input[type=number] {
     font-weight: 700;
     color: var(--tek-blue);
+}
+
+/* ── Screenshot reader: supported / not-supported lists ─────────────────── */
+.shot-sources {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 520px;
+    margin: 12px auto 6px;
+    text-align: left;
+}
+@media (max-width: 540px) {
+    .shot-sources { grid-template-columns: 1fr; gap: 12px; }
+}
+.ss-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.ss-head {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.ss-head.ok { color: var(--tek-green); }
+.ss-head.no { color: var(--tek-red, #ef4444); }
+.ss-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--tek-mono);
+    font-size: 0.78rem;
+    color: var(--tek-text-dim);
+    padding: 2px 0;
+}
+.ss-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px; height: 18px;
+    font-weight: 800;
+    font-size: 0.78rem;
+    clip-path: polygon(3px 0%, 100% 0%, calc(100% - 3px) 100%, 0% 100%);
+}
+.ss-mark.ok {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--tek-green);
+    border: 1px solid rgba(34, 197, 94, 0.45);
+}
+.ss-mark.no {
+    background: rgba(239, 68, 68, 0.10);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.40);
+}
+
+/* ── Screenshot reader: two-pane flow (cropper + review) ────────────────── */
+.shot-flow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    align-items: start;
+    text-align: left;
+}
+@media (max-width: 900px) {
+    .shot-flow { grid-template-columns: 1fr; }
+}
+.shot-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+.shot-step-label {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: var(--tek-blue);
+    text-shadow: 0 0 6px rgba(0, 180, 255, 0.30);
+    margin-bottom: 2px;
+}
+.shot-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.ghost-btn {
+    background: rgba(0, 180, 255, 0.06);
+    border: 1px solid rgba(0, 180, 255, 0.22);
+    color: var(--tek-text-dim);
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.10em;
+    padding: 5px 10px;
+    cursor: pointer;
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    text-transform: uppercase;
+}
+.ghost-btn:hover {
+    background: rgba(0, 180, 255, 0.14);
+    color: var(--tek-text);
+    border-color: rgba(0, 180, 255, 0.50);
+}
+.cropper-wrap {
+    position: relative;
+    width: 100%;
+    background: #02060e;
+    border: 1px solid rgba(0, 180, 255, 0.22);
+    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    overflow: hidden;
+    /* Disable browser default touch gestures so we own pinch/drag */
+    touch-action: none;
+}
+.cropper-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: crosshair;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.shot-hint {
+    font-family: var(--tek-mono);
+    font-size: 0.68rem;
+    color: var(--tek-text-faint);
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+}
+.shot-run-btn { margin-top: 4px; }
+
+.shot-source-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    font-family: var(--tek-mono);
+    font-size: 0.72rem;
+    background: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(34, 197, 94, 0.30);
+    border-left-width: 3px;
+    color: var(--tek-text);
+    clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.shot-source-banner strong { color: var(--tek-green); }
+
+.shot-details-summary {
+    font-family: var(--tek-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    color: var(--tek-text-faint);
+    cursor: pointer;
+    text-transform: uppercase;
+}
+.shot-details-summary:hover { color: var(--tek-text-dim); }
+.shot-raw-text {
+    margin-top: 6px;
+    padding: 10px;
+    background: rgba(0,0,0,0.4);
+    font-size: 0.7rem;
+    max-height: 200px;
+    overflow: auto;
+    white-space: pre-wrap;
+    color: var(--tek-text-dim);
+    border: 1px solid rgba(255,255,255,0.04);
 }
 .stats-head {
     font-family: var(--tek-mono);
