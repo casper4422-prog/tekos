@@ -303,9 +303,17 @@
             ctx.stroke();
         }
 
-        // Handles
-        const hs = 12 * dpr;
+        // Handles — sized proportional to the crop box so they stay grabbable
+        // when the user has cropped to a small panel inside a huge screenshot.
+        // Floor at 16px, ceiling at 28px (in CSS pixels, scaled by DPR).
+        const handleCss = Math.max(16, Math.min(28, Math.min(bw, bh) * 0.18 / dpr));
+        const hs = handleCss * dpr;
         const half = hs / 2;
+        // Outer fill (darker) for contrast against any image, then inner cyan
+        ctx.fillStyle = 'rgba(2, 6, 16, 0.92)';
+        for (const h of cropHandlePositions(bx, by, bw, bh, half)) {
+            ctx.fillRect(h.x - 1, h.y - 1, hs + 2, hs + 2);
+        }
         ctx.fillStyle = '#00b4ff';
         for (const h of cropHandlePositions(bx, by, bw, bh, half)) {
             ctx.fillRect(h.x, h.y, hs, hs);
@@ -370,8 +378,12 @@
         const bx = cropBox.x * scale, by = cropBox.y * scale;
         const bw = cropBox.w * scale, bh = cropBox.h * scale;
 
-        // Bigger hit area than visual (touch-friendly)
-        const hitSize = Math.max(20, 18 * dpr);
+        // Hit area is generous — minimum 36 CSS px, scaled with the crop box
+        // so a tiny crop inside a huge screenshot is still draggable. Larger
+        // than the visual handle so the user doesn't need pixel-perfect aim.
+        const handleCss = Math.max(16, Math.min(28, Math.min(bw, bh) * 0.18 / dpr));
+        const hitCss = Math.max(36, handleCss + 14);
+        const hitSize = hitCss * dpr;
         const half = hitSize / 2;
         for (const h of cropHandlePositions(bx, by, bw, bh, half)) {
             if (pt.x >= h.x && pt.x <= h.x + hitSize && pt.y >= h.y && pt.y <= h.y + hitSize) {
@@ -584,22 +596,38 @@
     }
 
     /**
-     * Route to the right parser by fingerprinting the OCR text:
-     *   - Tek/u+ → contains "(NN | NN | NN)" parenthesized triples
-     *   - Spyglass → any line has TWO "NN/NN/NN" slash triples (2-col grid)
-     * Both match → user cropped over both panels → reject with message.
-     * Neither matches → unsupported source → reject with message.
+     * Route to the right parser by fingerprinting the OCR text.
+     *
+     * Tek/u+ — triples wrapped in parens with pipe-like separators:
+     *   "(59 | 10 | 21)"   (OCR may misread | as I, 1, l, ], [)
+     *
+     * Super Spyglass — bare slash triples (no parens):
+     *   "59/10/21"
+     *
+     * Detection counts TOTAL triples across the whole text. We require ≥3
+     * matches of one shape (and 0–1 of the other) to confidently route.
+     * Per-line counts won't work because PSM 6 sometimes flattens the
+     * Spyglass 2-column grid into one triple per output line.
+     *
+     * Additional Spyglass markers ("Tribe:", "Can Mate", "Ready to Mate")
+     * boost confidence when triple counts are borderline.
      */
     function parseStatPanel(raw: string) {
-        const parenTriple = /\(\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*\)/;
-        const hasTek = parenTriple.test(raw);
+        const parenTripleRe = /\(\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*\)/g;
+        // SS bare triples — accept /, |, \ as separators (OCR mangles thin
+        // diagonals). Negative lookbehind/ahead keep us from re-matching
+        // Tek/u+ paren-wrapped triples.
+        const slashTripleRe = /(?<![()\d.])\d{1,3}\s*[\/|\\]\s*\d{1,3}\s*[\/|\\]\s*\d{1,3}(?![\d)])/g;
 
-        const slashTriple = /\d{1,3}\s*\/\s*\d{1,3}\s*\/\s*\d{1,3}/g;
-        let hasSpyglass = false;
-        for (const line of raw.split(/\r?\n/)) {
-            const matches = line.match(slashTriple) ?? [];
-            if (matches.length >= 2) { hasSpyglass = true; break; }
-        }
+        const parenCount = (raw.match(parenTripleRe) ?? []).length;
+        const slashCount = (raw.match(slashTripleRe) ?? []).length;
+        const spyglassMarker = /\b(?:Tribe\s*:|Can\s*Mate|Ready\s*to\s*Mate|Mutations\s*:)/i.test(raw);
+
+        // Confident Spyglass: 3+ slash triples (full panel = 8 triples for stats
+        // + total-level row), OR 2+ slash triples plus a Spyglass marker.
+        const hasSpyglass = slashCount >= 3 || (slashCount >= 2 && spyglassMarker);
+        // Confident Tek/u+: 3+ paren triples. Anything less is probably noise.
+        const hasTek = parenCount >= 3;
 
         if (hasTek && hasSpyglass) {
             shotError = 'Your crop includes two stat panels. Re-crop to just one (Tek/u+ OR Super Spyglass) and run OCR again.';
@@ -608,11 +636,12 @@
             return;
         }
         if (!hasTek && !hasSpyglass) {
-            shotError = 'Couldn\'t find base stats in this image. Make sure you cropped to a Tek Binoculars, u+Binoculars, or Super Spyglass panel.';
+            shotError = `Couldn't find base stats in this image. Tesseract read ${slashCount} slash-triples and ${parenCount} paren-triples — need at least 3 of one shape. Check the raw OCR text below to see what got through, then adjust the crop and try again.`;
             shotParsed = {};
             shotSource = null;
             return;
         }
+        shotError = '';
         if (hasTek) {
             shotSource = 'tek';
             parseTekUplus(raw);
@@ -671,7 +700,10 @@
             const slashCount = (line.match(/\//g) ?? []).length;
             if (slashCount === 1 && /\d{3,}/.test(line)) continue;
 
-            for (const m of line.matchAll(/(\d{1,3})\s*\/\s*(\d{1,3})\s*\/\s*(\d{1,3})/g)) {
+            // Accept /, |, \ as separators — OCR mangles thin diagonals
+            // routinely. The negative lookbehind on the leading char keeps us
+            // from grabbing the (NN|NN|NN) Tek/u+ shape if it ever shows up.
+            for (const m of line.matchAll(/(?<![()\d.])(\d{1,3})\s*[\/|\\]\s*(\d{1,3})\s*[\/|\\]\s*(\d{1,3})(?!\d)/g)) {
                 bases.push(parseInt(m[1], 10));
             }
         }
@@ -1030,23 +1062,28 @@
                                         <input class="ocr-edit-input" type="number" min="0" max="999" bind:value={shotParsed[s]} placeholder="0" />
                                     {/each}
                                 </div>
+                                <button class="btn shot-apply-btn" onclick={applyOcrToForm}>
+                                    ✓ Apply to form
+                                </button>
+                            {/if}
+
+                            <!-- Debug surface — ALWAYS visible after OCR runs (success OR failure)
+                                 so the user can see exactly what Tesseract read and adjust crop -->
+                            {#if shotRawText || shotProcUrl}
                                 <div class="shot-preview-stack">
                                     {#if shotProcUrl}
-                                        <details open>
+                                        <details open={!shotSource}>
                                             <summary class="shot-details-summary">Preprocessed image (what Tesseract sees)</summary>
                                             <img src={shotProcUrl} alt="Preprocessed" style="width:100%; max-height:280px; object-fit:contain; margin-top:6px; border:1px solid rgba(245,158,11,0.30); background:#fff" />
                                         </details>
                                     {/if}
                                     {#if shotRawText}
-                                        <details style="margin-top:10px">
+                                        <details open={!shotSource} style="margin-top:10px">
                                             <summary class="shot-details-summary">Raw OCR text</summary>
                                             <pre class="shot-raw-text">{shotRawText}</pre>
                                         </details>
                                     {/if}
                                 </div>
-                                <button class="btn shot-apply-btn" onclick={applyOcrToForm}>
-                                    ✓ Apply to form
-                                </button>
                             {/if}
                         </div>
                     </div>
