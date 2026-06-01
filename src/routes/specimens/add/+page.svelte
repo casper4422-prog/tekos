@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, tick } from 'svelte';
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
     import { computeBadges } from '$lib/badges';
@@ -154,16 +154,39 @@
             shotAutoDetected = false;
         }
 
-        // Start fit-to-width so the user sees the whole image; they can zoom in
-        // for fine adjustment afterward.
-        imgZoom = computeFitZoom(img.width);
+        // CRITICAL: wait for the DOM to render the cropper-scroll container so
+        // we can read its REAL width. Without this, `stageContainerEl` is null
+        // (the {#if shotFile} block hasn't rendered yet) and we fall back to a
+        // hardcoded 800px guess, which leaves the image rendering at a totally
+        // different size than the container — "the container is oversized but
+        // the screenshot isn't" is the symptom.
+        await tick();
+        imgZoom = computeFitZoom(img.width, img.height);
     }
 
-    function computeFitZoom(imgW: number): number {
-        const containerW = stageContainerEl?.clientWidth ?? stageContainerW;
-        if (!containerW || !imgW) return 1;
-        return containerW / imgW;
+    function computeFitZoom(imgW: number, imgH: number): number {
+        const containerW = stageContainerEl?.clientWidth  || stageContainerW;
+        const containerH = stageContainerEl?.clientHeight || 600;
+        if (!containerW || !imgW || !imgH) return 1;
+        // Fit to BOTH dimensions so a landscape screenshot uses the available
+        // vertical space too — picks the smaller scale that keeps the whole
+        // image visible. User can zoom in afterward.
+        const padded = 0.96; // tiny breathing room so handles aren't clipped
+        return Math.min(containerW / imgW, containerH / imgH) * padded;
     }
+
+    // Keep stageContainerW in sync with the actual DOM dimension so subsequent
+    // fit-zoom calls (e.g., after a window resize) use the real value.
+    $effect(() => {
+        if (!stageContainerEl) return;
+        const ro = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                stageContainerW = entry.contentRect.width;
+            }
+        });
+        ro.observe(stageContainerEl);
+        return () => ro.disconnect();
+    });
 
     /**
      * Auto-locate the stat panel via the teal/blue UI background signature.
@@ -278,8 +301,10 @@
         // Stop the parent crop-box's 'move' pointerdown from also firing when
         // the user grabs an edge/corner. Without this, every edge drag would
         // also enter move mode and the two would race.
+        // NOTE: we intentionally do NOT preventDefault — on some pointer
+        // implementations preventDefault on pointerdown can prevent subsequent
+        // pointermove events from arriving with the expected timestamps.
         e.stopPropagation();
-        e.preventDefault();
 
         const target = e.currentTarget as HTMLElement;
         try { target.setPointerCapture(e.pointerId); } catch { /* ignore */ }
@@ -329,7 +354,7 @@
     function zoomActual(){ imgZoom = 1.0; }
     function zoomFit() {
         if (!shotImage || !stageContainerEl) return;
-        imgZoom = computeFitZoom(shotImage.width);
+        imgZoom = computeFitZoom(shotImage.width, shotImage.height);
     }
 
     // Ctrl-wheel on the stage zooms around the cursor.
@@ -1112,6 +1137,7 @@
                                             src={shotImageUrl}
                                             alt=""
                                             draggable="false"
+                                            style="width: {sw}px; height: {sh}px"
                                         />
                                         <!-- Four dimmed-mask quadrants outside the crop. pointer-events
                                              disabled so clicks pass through to handles below. -->
@@ -1978,8 +2004,9 @@
 }
 .cropper-img {
     display: block;
-    width: 100%;
-    height: 100%;
+    /* Width/height set INLINE via style="" to match the stage exactly —
+       relying on width:100% was producing layout glitches where the image
+       and the stage drifted out of sync. */
     pointer-events: none;     /* clicks go to overlays/handles below */
     user-select: none;
     -webkit-user-drag: none;
@@ -2022,24 +2049,31 @@
 .edge-l { left: -10px;   top: 16px;   bottom: 16px; width: 20px; cursor: ew-resize; }
 .edge-r { right: -10px;  top: 16px;   bottom: 16px; width: 20px; cursor: ew-resize; }
 
-/* Visible cyan corner handles, centered on each corner. Big hit zone via
-   padding-style sizing so the user can click slightly outside the visible
-   square. */
+/* Visible cyan corner handles. Big enough to be unmissable, with a chunky
+   dark outline so they stand out on any image. The hit area extends slightly
+   past the visible square via offset positioning. */
 .corner {
     position: absolute;
-    width: 18px;
-    height: 18px;
-    background: #00b4ff;
-    border: 2px solid #02060e;
+    width: 24px;
+    height: 24px;
+    background: #00d4ff;
+    border: 3px solid #02060e;
     box-sizing: border-box;
     touch-action: none;
-    box-shadow: 0 0 6px rgba(0, 180, 255, 0.50);
+    box-shadow:
+        0 0 0 1px rgba(0, 180, 255, 0.7),
+        0 0 10px rgba(0, 180, 255, 0.60);
+    z-index: 2;
+    transition: background 0.12s, transform 0.12s;
 }
-.corner-tl { top: -9px;    left: -9px;    cursor: nwse-resize; }
-.corner-tr { top: -9px;    right: -9px;   cursor: nesw-resize; }
-.corner-bl { bottom: -9px; left: -9px;    cursor: nesw-resize; }
-.corner-br { bottom: -9px; right: -9px;   cursor: nwse-resize; }
-.corner:hover { background: #44ddff; }
+.corner-tl { top: -12px;    left: -12px;   cursor: nwse-resize; }
+.corner-tr { top: -12px;    right: -12px;  cursor: nesw-resize; }
+.corner-bl { bottom: -12px; left: -12px;   cursor: nesw-resize; }
+.corner-br { bottom: -12px; right: -12px;  cursor: nwse-resize; }
+.corner:hover {
+    background: #66e8ff;
+    transform: scale(1.15);
+}
 .shot-hint {
     font-family: var(--tek-mono);
     font-size: 0.68rem;
