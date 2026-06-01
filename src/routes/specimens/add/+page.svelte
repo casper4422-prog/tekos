@@ -534,124 +534,6 @@
         }
     }
 
-    /**
-     * Cut the cropped region out of the source image, upscale it, blur slightly
-     * to thicken thin font strokes (slashes / pipes / 1s), then threshold to
-     * pure black-on-white. Two strategies in parallel:
-     *
-     *   variant 'text'  — Otsu threshold across the whole crop. Good for most
-     *                     panels with consistent contrast.
-     *   variant 'digits'— Saturation-aware threshold that kills the colored
-     *                     stat icons (lightning bolt, fist, etc.) BEFORE they
-     *                     bleed into the digit values. The icons sit in
-     *                     specific colors (yellow, red, green) so we drop any
-     *                     pixel with saturation > 0.45, then Otsu the rest.
-     *                     The numbers are white/grey (~0 saturation) so they
-     *                     survive cleanly.
-     *
-     * We OCR both variants and pick whichever pulled more triples.
-     */
-    async function preprocessShot(variant: 'text' | 'digits' = 'text'): Promise<Blob> {
-        if (!shotImage || !cropBox) throw new Error('No image cropped');
-
-        // Cut the cropped region
-        const cut = document.createElement('canvas');
-        cut.width = Math.max(1, Math.round(cropBox.w));
-        cut.height = Math.max(1, Math.round(cropBox.h));
-        const cutCtx = cut.getContext('2d');
-        if (!cutCtx) throw new Error('Canvas 2D unavailable');
-        cutCtx.drawImage(
-            shotImage,
-            cropBox.x, cropBox.y, cropBox.w, cropBox.h,
-            0, 0, cut.width, cut.height
-        );
-
-        // Target resolution adapts to the input size — the user uploads can
-        // range from a 200-px-wide tight close-up to a 5000-px crop off a 4K
-        // monitor capture, and we want both to come out at a size Tesseract
-        // can read confidently.
-        //
-        //   Floor: 3600 (digits) / 2400 (text)  — the minimum after upscale
-        //   Multiplier: longest × 2.5            — bigger crops get more pixels
-        //   Ceiling: 6000                        — Tesseract slows down past this
-        //
-        // This means a 800px tight crop upscales 4.5× to 3600; a 1500px crop
-        // upscales 2.5× to 3750; a 3000px crop upscales 2× to 6000; a 6000px
-        // crop stays at 6000 (no downscale, no upscale).
-        const baseFloor = variant === 'digits' ? 3600 : 2400;
-        const longest = Math.max(cut.width, cut.height);
-        const targetMin = Math.min(6000, Math.max(baseFloor, Math.round(longest * 2.5)));
-        const scale = Math.max(1, targetMin / longest);
-        const w = Math.round(cut.width * scale);
-        const h = Math.round(cut.height * scale);
-        const out = document.createElement('canvas');
-        out.width = w; out.height = h;
-        const ctx = out.getContext('2d');
-        if (!ctx) throw new Error('Canvas 2D unavailable');
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        // Stronger blur (1.2px) thickens thin diagonal strokes (slashes, 1s, |s)
-        // enough to survive the threshold; OCR accuracy on slash-triples
-        // improved noticeably going from 0.8 to 1.2 in testing.
-        ctx.filter = 'blur(1.2px)';
-        ctx.drawImage(cut, 0, 0, w, h);
-        ctx.filter = 'none';
-
-        const id = ctx.getImageData(0, 0, w, h);
-        const d = id.data;
-
-        if (variant === 'digits') {
-            // Two-pass saturation mask. The naive mask catches JPEG color-bleed
-            // pixels at the edge of an icon — fringes of the red HP cross
-            // tinting the adjacent "5" digit, etc. That partial masking
-            // mangles the glyph shape and Tesseract drops it.
-            //
-            // Pass A: build a binary saturation map (1 = colored pixel).
-            // Pass B: only mask pixels that have ≥5 of 8 colored neighbors —
-            //         i.e., they're INTERIOR to a colored region, not on the
-            //         fringe. Edge bleed pixels survive.
-            const W = w, H = h;
-            const sat = new Uint8Array(W * H);
-            for (let i = 0; i < W * H; i++) {
-                const r = d[i*4], g = d[i*4+1], b = d[i*4+2];
-                const mx = Math.max(r, g, b);
-                const mn = Math.min(r, g, b);
-                const s = mx === 0 ? 0 : (mx - mn) / mx;
-                if (s > 0.28) sat[i] = 1;
-            }
-            for (let y = 1; y < H - 1; y++) {
-                for (let x = 1; x < W - 1; x++) {
-                    const idx = y * W + x;
-                    if (!sat[idx]) continue;
-                    // Majority of 8 neighbors must also be colored
-                    let nb = 0;
-                    if (sat[idx - W - 1]) nb++;
-                    if (sat[idx - W])     nb++;
-                    if (sat[idx - W + 1]) nb++;
-                    if (sat[idx - 1])     nb++;
-                    if (sat[idx + 1])     nb++;
-                    if (sat[idx + W - 1]) nb++;
-                    if (sat[idx + W])     nb++;
-                    if (sat[idx + W + 1]) nb++;
-                    if (nb >= 5) {
-                        d[idx*4] = 0; d[idx*4+1] = 0; d[idx*4+2] = 0;
-                    }
-                }
-            }
-        }
-
-        const threshold = otsuThreshold(d);
-        for (let i = 0; i < d.length; i += 4) {
-            const lum = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-            const v = lum > threshold ? 0 : 255;
-            d[i] = v; d[i+1] = v; d[i+2] = v;
-        }
-        ctx.putImageData(id, 0, 0);
-        return await new Promise<Blob>((resolve, reject) => {
-            out.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
-        });
-    }
-
     /** Otsu's method — pick a luminance threshold that maximises between-class variance. */
     function otsuThreshold(data: Uint8ClampedArray): number {
         const hist = new Array<number>(256).fill(0);
@@ -677,40 +559,193 @@
         return threshold;
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // ROW-ANCHORED OCR PIPELINE
+    //
+    // Why this design exists: trying to OCR the entire panel as one image
+    // and then parse the text salad with regexes turned out to be hopeless
+    // on ARK's stylized UI font. Separators (|, /, [, ], parens) get
+    // mangled and the text-soup regex can't lock onto triples.
+    //
+    // The key insight from the user: regardless of font or background,
+    //   "the + sign is still HP, and the numbers next to it are HP's."
+    //
+    // So we anchor on the panel's STRUCTURE — its rows. Each stat lives on
+    // its own row. We:
+    //   1. Detect the rows of the panel using per-row pixel variance
+    //      (text rows have high variance, blank gaps have low variance).
+    //   2. For each row, run a tiny, focused OCR pass on JUST that row
+    //      with PSM 7 (single-line) and a digit-friendly whitelist.
+    //   3. Extract the first plausible triple from each row's text.
+    //   4. Map triples to stats by canonical order (HP, STA, OXY, FOOD,
+    //      WGT, MEL, CRA), choosing the layout (1-col vs 2-col) based on
+    //      how many triples each row contains.
+    //
+    // This is dramatically more reliable than whole-panel OCR because each
+    // OCR call has tiny context (one line of digits + maybe a separator
+    // pattern) — Tesseract's actual wheelhouse.
+    // ─────────────────────────────────────────────────────────────────────
+
+    type RowBox = { y0: number; y1: number }; // panel-relative pixel rows (downsampled space)
+
     /**
-     * Two-pass OCR — different jobs, different settings.
+     * Detect text-bearing rows inside the cropped panel.
      *
-     *   HEADER pass:  text-mode preprocess (lighter, full charset)
-     *                 → extract creature name + level
-     *   STATS pass:   digits-mode preprocess (saturation-mask)
-     *                 + character whitelist of "0123456789/|\\() "
-     *                 → Tesseract is FORCED to pick the closest match for
-     *                   every glyph from that whitelist. A wonky "1" that
-     *                   would otherwise come out as "l" or "I" now lands as
-     *                   "1"; a slash misread as "f" now lands as "/".
-     *                 → extract stat triples
-     *
-     * If the stats pass returns nothing useful, we fall back to one more pass:
-     * digit-whitelist + PSM 11 (sparse text) on the same digits blob, for
-     * crops where the column layout confused PSM 6 entirely.
-     *
-     * Worker stays alive across passes; only PSM + whitelist are retoggled.
+     * Per-row standard deviation of pixel luminance: rows with text have
+     * high σ (white digits on dark background); blank gaps between rows
+     * have near-zero σ. We threshold and group contiguous high-σ rows.
      */
+    function detectStatRows(img: HTMLImageElement, crop: CropBox): { rows: CropBox[]; debug: string } {
+        const W = 256;
+        const H = Math.max(1, Math.round((crop.h / crop.w) * W));
+        const c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        const ctx = c.getContext('2d');
+        if (!ctx) return { rows: [], debug: 'no canvas ctx' };
+        ctx.drawImage(img, crop.x, crop.y, crop.w, crop.h, 0, 0, W, H);
+        const data = ctx.getImageData(0, 0, W, H).data;
+
+        const lum = new Float32Array(W * H);
+        for (let i = 0; i < W * H; i++) {
+            lum[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
+        }
+
+        // Per-row standard deviation
+        const rowStd = new Float32Array(H);
+        for (let y = 0; y < H; y++) {
+            let mean = 0;
+            for (let x = 0; x < W; x++) mean += lum[y*W + x];
+            mean /= W;
+            let varSum = 0;
+            for (let x = 0; x < W; x++) varSum += (lum[y*W + x] - mean) ** 2;
+            rowStd[y] = Math.sqrt(varSum / W);
+        }
+
+        // Smooth ±2 rows
+        const win = 2;
+        const smooth = new Float32Array(H);
+        for (let y = 0; y < H; y++) {
+            let s = 0, n = 0;
+            for (let dy = -win; dy <= win; dy++) {
+                const yy = y + dy;
+                if (yy >= 0 && yy < H) { s += rowStd[yy]; n++; }
+            }
+            smooth[y] = s / n;
+        }
+
+        // Threshold: rows with σ > 0.55 × max are "text rows".
+        // 0.55 is lenient enough to catch faint rows (color region row, etc.)
+        // but high enough to exclude blank gaps.
+        let maxStd = 0;
+        for (let y = 0; y < H; y++) if (smooth[y] > maxStd) maxStd = smooth[y];
+        const threshold = maxStd * 0.45;
+
+        // Contiguous runs above threshold = row bboxes
+        const runs: RowBox[] = [];
+        let rs = -1;
+        for (let y = 0; y <= H; y++) {
+            const inRun = y < H && smooth[y] > threshold;
+            if (inRun && rs < 0) rs = y;
+            else if (!inRun && rs >= 0) {
+                if (y - rs >= 3) runs.push({ y0: rs, y1: y - 1 });
+                rs = -1;
+            }
+        }
+
+        // Convert downsampled rows back to source-image bboxes (full width)
+        const sy = crop.h / H;
+        const rows = runs.map(r => ({
+            x: crop.x,
+            y: Math.round(crop.y + r.y0 * sy),
+            w: crop.w,
+            h: Math.round((r.y1 - r.y0 + 1) * sy)
+        }));
+
+        return { rows, debug: `${rows.length} rows, max σ=${maxStd.toFixed(1)}, thresh=${threshold.toFixed(1)}` };
+    }
+
+    /**
+     * Preprocess + OCR a single region.
+     * Upscales the region to ~600px tall so Tesseract has plenty of pixels
+     * per character, Otsu-thresholds to pure b/w, then OCRs with provided
+     * Tesseract parameters.
+     */
+    async function ocrRegion(
+        img: HTMLImageElement,
+        bbox: CropBox,
+        worker: { recognize: (b: Blob) => Promise<{ data: { text: string } }> }
+    ): Promise<string> {
+        // Upscale to at least 600px tall (or 6× source, whichever is smaller)
+        const target = Math.max(160, Math.min(800, bbox.h * 8));
+        const scale = Math.max(2, target / bbox.h);
+        const w = Math.round(bbox.w * scale);
+        const h = Math.round(bbox.h * scale);
+        const out = document.createElement('canvas');
+        out.width = w; out.height = h;
+        const ctx = out.getContext('2d');
+        if (!ctx) return '';
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.filter = 'blur(0.8px)';
+        ctx.drawImage(img, bbox.x, bbox.y, bbox.w, bbox.h, 0, 0, w, h);
+        ctx.filter = 'none';
+
+        const id = ctx.getImageData(0, 0, w, h);
+        const d = id.data;
+        const threshold = otsuThreshold(d);
+        for (let i = 0; i < d.length; i += 4) {
+            const l = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+            const v = l > threshold ? 255 : 0;
+            d[i] = v; d[i+1] = v; d[i+2] = v;
+        }
+        ctx.putImageData(id, 0, 0);
+
+        const blob = await new Promise<Blob>((resolve, reject) => {
+            out.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
+        });
+        const result = await worker.recognize(blob);
+        return result.data.text.trim();
+    }
+
+    /**
+     * Extract all plausible (base, mut, dom) triples from a text fragment.
+     * Tolerant of common Tesseract misreads:
+     *   - Pipes as I, l, 1, ], [
+     *   - Slashes as |, \
+     *   - Brackets/parens optional
+     *   - Whitespace between numbers and separators
+     */
+    function extractTriples(text: string): Array<[number, number, number]> {
+        const triples: Array<[number, number, number]> = [];
+        // Separator class: any of | / \ I l 1 ] [ — at least one between numbers.
+        // Negative lookbehind/lookahead on digits prevents "1234/5/6" from matching as "234/5/6".
+        const re = /(?<![\d.])[\(\[]?\s*(\d{1,3})\s*[\|\/\\Il1\]\[]+\s*(\d{1,3})\s*[\|\/\\Il1\]\[]+\s*(\d{1,3})\s*[\)\]]?(?![\d.])/g;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            const a = parseInt(m[1], 10);
+            const b = parseInt(m[2], 10);
+            const c = parseInt(m[3], 10);
+            // Wild base 0-200 (extreme high-level); mut/dom 0-99
+            if (a >= 0 && a <= 999 && b >= 0 && b <= 999 && c >= 0 && c <= 999) {
+                triples.push([a, b, c]);
+            }
+        }
+        return triples;
+    }
+
     async function runOcr() {
         if (!shotImage || !cropBox) { shotError = 'Drop a screenshot first.'; return; }
         shotRunning = true; shotError = ''; shotProgress = 0; shotPhase = 'preprocessing';
         shotRawText = ''; shotParsed = {}; shotSource = null;
         if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
 
-        function tripleCount(text: string): number {
-            const paren = (text.match(/\(\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*\)/g) ?? []).length;
-            const slash = (text.match(/(?<![()\d.])\d{1,3}\s*[\/|\\]\s*\d{1,3}\s*[\/|\\]\s*\d{1,3}(?![\d)])/g) ?? []).length;
-            return paren + slash;
-        }
-
         try {
-            const textBlob   = await preprocessShot('text');
-            const digitsBlob = await preprocessShot('digits');
+            // 1. Detect rows in the panel — pure pixel analysis, no Tesseract
+            const { rows, debug: rowDebug } = detectStatRows(shotImage, cropBox);
+            if (rows.length === 0) {
+                shotError = 'Could not find any text rows in the cropped region. Try cropping closer to the panel.';
+                return;
+            }
 
             shotPhase = 'recognizing';
             const Tesseract = await import('tesseract.js');
@@ -720,11 +755,20 @@
                 langPath:   '/tesseract',
                 workerBlobURL: false,
                 logger: (m: { status: string; progress: number }) => {
-                    if (m.status === 'recognizing text') shotProgress = Math.round(m.progress * 100);
+                    if (m.status === 'recognizing text') {
+                        // Progress is per-region; not super meaningful with N rows
+                        shotProgress = Math.min(99, Math.round(m.progress * 100));
+                    }
                 }
             });
 
-            // Header pass — full alphabet, PSM 6
+            // 2. Header: OCR everything from the top of the crop to the first
+            //    detected row (full charset, single-block PSM, no whitelist)
+            const headerRegion: CropBox = {
+                x: cropBox.x, y: cropBox.y,
+                w: cropBox.w,
+                h: Math.max(20, rows[0].y - cropBox.y)
+            };
             await worker.setParameters({
                 tessedit_pageseg_mode: '6' as never,
                 tessedit_char_whitelist: '' as never,
@@ -732,85 +776,100 @@
                 load_system_dawg: '1' as never,
                 load_freq_dawg: '1' as never
             });
-            const headerResult = await worker.recognize(textBlob);
-            const headerText = headerResult.data.text;
+            const headerText = await ocrRegion(shotImage, headerRegion, worker);
 
-            // Stats pass — digits-only whitelist + numeric mode + no dictionary.
-            // numeric mode tells the LSTM model to expect digits;
-            // dictionary-disable stops Tesseract from rejecting plausible digit
-            // sequences for "not a word" reasons. user_defined_dpi at 300 lets
-            // the recognizer scale features for our upscaled glyph size.
+            // 3. Per-row OCR: digit-friendly whitelist, single-line PSM
             await worker.setParameters({
-                tessedit_pageseg_mode: '6' as never,
-                tessedit_char_whitelist: '0123456789/|\\() .,-' as never,
+                tessedit_pageseg_mode: '7' as never,
+                tessedit_char_whitelist: '0123456789/|\\()[]., -:' as never,
                 classify_bln_numeric_mode: '1' as never,
                 load_system_dawg: '0' as never,
                 load_freq_dawg: '0' as never,
                 user_defined_dpi: '300' as never
             });
-            const statsResultMain = await worker.recognize(digitsBlob);
-            let statsText = statsResultMain.data.text;
-            let statsCount = tripleCount(statsText);
-            const passLabels: string[] = [`PSM 6 → ${statsCount} triples`];
 
-            // Fallback 1: sparse-text PSM if column layout confused PSM 6
-            if (statsCount < 6) {
-                await worker.setParameters({ tessedit_pageseg_mode: '11' as never });
-                const r2 = await worker.recognize(digitsBlob);
-                const c2 = tripleCount(r2.data.text);
-                passLabels.push(`PSM 11 → ${c2} triples`);
-                if (c2 > statsCount) { statsText = r2.data.text; statsCount = c2; }
-            }
-
-            // Fallback 2: same digit whitelist + PSM 6, but on the text-mode
-            // blob (no saturation mask at all). If the icon-adjacent first
-            // digit of any row was getting partially eaten by the sat mask,
-            // this pass recovers it. Often produces a triple-count tie with
-            // the main pass, but with the leading digits restored.
-            await worker.setParameters({ tessedit_pageseg_mode: '6' as never });
-            const r4 = await worker.recognize(textBlob);
-            const c4 = tripleCount(r4.data.text);
-            passLabels.push(`text-blob PSM 6 → ${c4} triples`);
-            // Strict ≥ here (not >) so a tie picks the safer text-blob pass.
-            if (c4 >= statsCount && c4 > 0) { statsText = r4.data.text; statsCount = c4; }
-
-            // Fallback 3: per-line OCR. Re-segment the digits blob with PSM 6 to
-            // get line bounding boxes, then OCR each line individually with
-            // PSM 7 (single line). Each cell gets its own focused pass —
-            // far more robust when the column grid is borderline-readable.
-            // Per-line rectangles are extended 5% to the left so icon-adjacent
-            // first digits don't fall outside the bbox Tesseract detected.
-            const lines = (statsResultMain.data as unknown as {
-                lines?: Array<{ bbox?: { x0: number; y0: number; x1: number; y1: number } }>
-            }).lines ?? [];
-            if (statsCount < 6 && lines.length > 0) {
-                const perLineTriples: string[] = [];
-                await worker.setParameters({ tessedit_pageseg_mode: '7' as never });
-                for (const line of lines) {
-                    const bb = line.bbox;
-                    if (!bb) continue;
-                    const widening = Math.round((bb.x1 - bb.x0) * 0.05);
-                    const adjLeft = Math.max(0, bb.x0 - widening);
-                    const adjW = bb.x1 - adjLeft;
-                    const lineRes = await worker.recognize(digitsBlob, {
-                        rectangle: { left: adjLeft, top: bb.y0, width: adjW, height: bb.y1 - bb.y0 }
-                    });
-                    perLineTriples.push(lineRes.data.text.trim());
-                }
-                const perLineText = perLineTriples.join('\n');
-                const c5 = tripleCount(perLineText);
-                passLabels.push(`per-line PSM 7 → ${c5} triples`);
-                if (c5 > statsCount) { statsText = perLineText; statsCount = c5; }
+            const rowTexts: string[] = [];
+            for (let i = 0; i < rows.length; i++) {
+                const text = await ocrRegion(shotImage, rows[i], worker);
+                rowTexts.push(text);
+                shotProgress = Math.round(((i + 1) / rows.length) * 100);
             }
 
             await worker.terminate();
 
-            shotProcUrl = URL.createObjectURL(digitsBlob);
-            shotRawText =
-                `── HEADER PASS (full charset, PSM 6) ──\n${headerText}\n\n` +
-                `── STATS PASS (best of: ${passLabels.join(', ')}) ──\n${statsText}`;
+            // 4. Extract triples per row
+            const rowTriples = rowTexts.map(t => extractTriples(t));
 
-            parseStatPanel(headerText, statsText);
+            // 5. Determine layout: 1-col (u+ / Tek) vs 2-col (Spyglass)
+            //    Find the FIRST row that has any triple. If it has ≥2 triples
+            //    → 2-col. Else → 1-col.
+            const firstWithTriple = rowTriples.find(r => r.length > 0);
+            const is2Col = !!firstWithTriple && firstWithTriple.length >= 2;
+            shotSource = is2Col ? 'spyglass' : 'tek';
+
+            // 6. Map triples to stats by canonical order
+            const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
+            // Pull only the rows that have at least one triple (skip header /
+            // current-max bar / color region / imprint rows)
+            const statRows = rowTriples.filter(r => r.length > 0);
+
+            if (is2Col) {
+                // Spyglass: each stat row has TWO triples (left col, right col).
+                // Canonical order:
+                //   Row 0: HP    | WGT
+                //   Row 1: STA   | MEL
+                //   Row 2: OXY   | (SPD — skip)
+                //   Row 3: FOOD  | CRA
+                const map: Array<[StatKey | null, StatKey | null]> = [
+                    ['HP',   'WGT'],
+                    ['STA',  'MEL'],
+                    ['OXY',  null],
+                    ['FOOD', 'CRA']
+                ];
+                for (let i = 0; i < Math.min(statRows.length, map.length); i++) {
+                    const [lk, rk] = map[i];
+                    if (lk && statRows[i][0]) out[lk] = statRows[i][0][0];
+                    if (rk && statRows[i][1]) out[rk] = statRows[i][1][0];
+                }
+            } else {
+                // u+/Tek: one triple per row, canonical order HP→CRA.
+                const order: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
+                for (let i = 0; i < Math.min(statRows.length, order.length); i++) {
+                    if (statRows[i][0]) out[order[i]] = statRows[i][0][0];
+                }
+            }
+
+            // 7. Name + level from header
+            extractNameAndLevel(
+                headerText.split(/\r?\n/).map(l => l.trim()).filter(Boolean),
+                out
+            );
+
+            shotParsed = out;
+
+            // Debug dump — visible in the "Raw OCR text" details element so the
+            // user can inspect what each row was read as. Invaluable when a row
+            // gets misparsed.
+            const dbg = [
+                `── ROW DETECTION ──`,
+                rowDebug,
+                rows.map((r, i) => `  row ${i}: y=${r.y - cropBox!.y}..${r.y - cropBox!.y + r.h}  h=${r.h}px`).join('\n'),
+                ``,
+                `── HEADER ──`,
+                headerText || '(empty)',
+                ``,
+                `── PER-ROW OCR (${rows.length} rows, layout: ${is2Col ? 'Spyglass 2-col' : 'u+/Tek 1-col'}) ──`,
+                rowTexts.map((t, i) => {
+                    const trips = rowTriples[i];
+                    const tripStr = trips.length ? ' → ' + trips.map(([a,b,c]) => `(${a}|${b}|${c})`).join(', ') : '';
+                    return `  row ${i}: "${t}"${tripStr}`;
+                }).join('\n')
+            ].join('\n');
+            shotRawText = dbg;
+
+            if (Object.keys(out).filter(k => k !== 'name' && k !== 'species' && k !== 'level').length === 0) {
+                shotError = 'Found rows in the panel but no readable stat triples. Check the row-by-row OCR below to see what Tesseract read.';
+            }
         } catch (err) {
             shotError = (err as Error).message || 'OCR failed';
         } finally {
@@ -819,116 +878,9 @@
         }
     }
 
-    /**
-     * Route to the right parser by fingerprinting the OCR text.
-     *
-     * Tek/u+ — triples wrapped in parens with pipe-like separators:
-     *   "(59 | 10 | 21)"   (OCR may misread | as I, 1, l, ], [)
-     *
-     * Super Spyglass — bare slash triples (no parens):
-     *   "59/10/21"
-     *
-     * Detection counts TOTAL triples across the whole text. We require ≥3
-     * matches of one shape (and 0–1 of the other) to confidently route.
-     * Per-line counts won't work because PSM 6 sometimes flattens the
-     * Spyglass 2-column grid into one triple per output line.
-     *
-     * Additional Spyglass markers ("Tribe:", "Can Mate", "Ready to Mate")
-     * boost confidence when triple counts are borderline.
-     */
-    /**
-     * Route to the right parser by fingerprinting the STATS pass output.
-     * Header text is parsed separately by extractNameAndLevel using the
-     * full-charset HEADER pass.
-     */
-    function parseStatPanel(headerText: string, statsText: string) {
-        const parenTripleRe = /\(\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*\)/g;
-        const slashTripleRe = /(?<![()\d.])\d{1,3}\s*[\/|\\]\s*\d{1,3}\s*[\/|\\]\s*\d{1,3}(?![\d)])/g;
-
-        const parenCount = (statsText.match(parenTripleRe) ?? []).length;
-        const slashCount = (statsText.match(slashTripleRe) ?? []).length;
-        // Spyglass markers come from the FULL-charset header pass — that's
-        // where "Tribe:", "Can Mate", etc. show up readable.
-        const spyglassMarker = /\b(?:Tribe\s*:|Can\s*Mate|Ready\s*to\s*Mate|Mutations\s*:)/i.test(headerText);
-
-        const hasSpyglass = slashCount >= 3 || (slashCount >= 2 && spyglassMarker);
-        const hasTek = parenCount >= 3;
-
-        if (hasTek && hasSpyglass) {
-            shotError = 'Your crop includes two stat panels. Re-crop to just one (Tek/u+ OR Super Spyglass) and run OCR again.';
-            shotParsed = {};
-            shotSource = null;
-            return;
-        }
-        if (!hasTek && !hasSpyglass) {
-            shotError = `Couldn't find base stats in this image. Tesseract read ${slashCount} slash-triples and ${parenCount} paren-triples — need at least 3 of one shape. Check the raw OCR text below to see what got through, then adjust the crop and try again.`;
-            shotParsed = {};
-            shotSource = null;
-            return;
-        }
-        shotError = '';
-        if (hasTek) {
-            shotSource = 'tek';
-            parseTekUplus(headerText, statsText);
-        } else {
-            shotSource = 'spyglass';
-            parseSuperSpyglass(headerText, statsText);
-        }
-    }
-
-    /**
-     * Tek Binoculars / u+Binoculars — one stat per row.
-     * Row format: "<icon> current / max (base | mut | dom)"
-     * Top-to-bottom order: HP, STA, OXY, FOOD, WGT, MEL, CRA
-     */
-    function parseTekUplus(headerText: string, statsText: string) {
-        const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
-        extractNameAndLevel(headerText.split(/\r?\n/).map(l => l.trim()).filter(Boolean), out);
-
-        const bases: number[] = [];
-        for (const line of statsText.split(/\r?\n/)) {
-            const m = line.match(/\(\s*(\d{1,3})\s*[|Il1\]\[]\s*(\d{1,3})\s*[|Il1\]\[]\s*(\d{1,3})\s*\)/);
-            if (m) bases.push(parseInt(m[1], 10));
-        }
-
-        const order: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
-        for (let i = 0; i < Math.min(bases.length, order.length); i++) {
-            if (bases[i] >= 0 && bases[i] <= 999) out[order[i]] = bases[i];
-        }
-        shotParsed = out;
-    }
-
-    /**
-     * Super Spyglass — 2-column grid, OCR reads row-by-row.
-     * Document order of base-triples: HP, WGT, STA, MEL, OXY, SPD(skip), FOOD, CRA
-     */
-    function parseSuperSpyglass(headerText: string, statsText: string) {
-        const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
-        extractNameAndLevel(headerText.split(/\r?\n/).map(l => l.trim()).filter(Boolean), out);
-
-        const bases: number[] = [];
-        const colorRegionLine = /^[\d\s]{4,}$/;
-        const slashAllowed    = /\d\s*[\/|\\]\s*\d/;
-
-        for (const line of statsText.split(/\r?\n/).map(l => l.trim()).filter(Boolean)) {
-            if (!slashAllowed.test(line)) continue;
-            if (colorRegionLine.test(line)) continue;
-            // Skip "current / max" HP bar lines — single separator, 3+ digit values
-            const sepCount = (line.match(/[\/|\\]/g) ?? []).length;
-            if (sepCount === 1 && /\d{3,}/.test(line)) continue;
-
-            for (const m of line.matchAll(/(?<![()\d.])(\d{1,3})\s*[\/|\\]\s*(\d{1,3})\s*[\/|\\]\s*(\d{1,3})(?!\d)/g)) {
-                bases.push(parseInt(m[1], 10));
-            }
-        }
-
-        const order: (StatKey | null)[] = ['HP', 'WGT', 'STA', 'MEL', 'OXY', null, 'FOOD', 'CRA'];
-        for (let i = 0; i < Math.min(bases.length, order.length); i++) {
-            const k = order[i];
-            if (k && bases[i] >= 0 && bases[i] <= 999) out[k] = bases[i];
-        }
-        shotParsed = out;
-    }
+    // Old whole-panel parsers (parseStatPanel, parseTekUplus,
+    // parseSuperSpyglass) were removed when we switched to row-anchored OCR
+    // above. The row pipeline handles both layouts naturally — see runOcr().
 
     /**
      * Pull the creature's name + level from the first 5 lines of OCR. Both
