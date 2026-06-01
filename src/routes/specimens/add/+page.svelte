@@ -589,14 +589,24 @@
     type RowBox = { y0: number; y1: number }; // panel-relative pixel rows (downsampled space)
 
     /**
-     * Detect text-bearing rows inside the cropped panel.
+     * Detect text-bearing rows inside the cropped panel via PEAK FINDING
+     * on white-pixel density (not generic variance — that one merged
+     * adjacent rows into mega-clumps).
      *
-     * Per-row standard deviation of pixel luminance: rows with text have
-     * high σ (white digits on dark background); blank gaps between rows
-     * have near-zero σ. We threshold and group contiguous high-σ rows.
+     * Why white-pixel count: ARK panel text is bright white digits on dark
+     * teal background. A row with text has many pixels above ~80% of the
+     * panel's max luminance. A blank gap has almost none. The signal has
+     * sharp clean peaks at each text row centre.
+     *
+     * Why peaks instead of thresholding: thresholding requires picking a
+     * cutoff that distinguishes "has text" from "blank." When text rows
+     * are stacked close together (typical for u+/Tek), the gap dips don't
+     * go far enough below threshold, so multiple rows merge into one.
+     * Peak finding with a MINIMUM SPACING constraint guarantees one peak
+     * per real row regardless of how shallow the gap dip is.
      */
     function detectStatRows(img: HTMLImageElement, crop: CropBox): { rows: CropBox[]; debug: string } {
-        const W = 256;
+        const W = 320;
         const H = Math.max(1, Math.round((crop.h / crop.w) * W));
         const c = document.createElement('canvas');
         c.width = W; c.height = H;
@@ -606,62 +616,80 @@
         const data = ctx.getImageData(0, 0, W, H).data;
 
         const lum = new Float32Array(W * H);
+        let maxLum = 0;
         for (let i = 0; i < W * H; i++) {
-            lum[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
+            const l = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
+            lum[i] = l;
+            if (l > maxLum) maxLum = l;
         }
 
-        // Per-row standard deviation
-        const rowStd = new Float32Array(H);
+        // Per-row white-pixel count. Text pixels are at ~85-100% of max.
+        const brightT = maxLum * 0.78;
+        const rowBright = new Float32Array(H);
         for (let y = 0; y < H; y++) {
-            let mean = 0;
-            for (let x = 0; x < W; x++) mean += lum[y*W + x];
-            mean /= W;
-            let varSum = 0;
-            for (let x = 0; x < W; x++) varSum += (lum[y*W + x] - mean) ** 2;
-            rowStd[y] = Math.sqrt(varSum / W);
+            let cnt = 0;
+            for (let x = 0; x < W; x++) if (lum[y*W + x] > brightT) cnt++;
+            rowBright[y] = cnt;
         }
 
-        // Smooth ±2 rows
-        const win = 2;
+        // Light smooth ±1 only — keep peaks crisp.
         const smooth = new Float32Array(H);
         for (let y = 0; y < H; y++) {
-            let s = 0, n = 0;
-            for (let dy = -win; dy <= win; dy++) {
-                const yy = y + dy;
-                if (yy >= 0 && yy < H) { s += rowStd[yy]; n++; }
-            }
-            smooth[y] = s / n;
+            const a = y > 0 ? rowBright[y-1] : rowBright[y];
+            const b = rowBright[y];
+            const c2 = y < H-1 ? rowBright[y+1] : rowBright[y];
+            smooth[y] = (a + b + c2) / 3;
         }
 
-        // Threshold: rows with σ > 0.55 × max are "text rows".
-        // 0.55 is lenient enough to catch faint rows (color region row, etc.)
-        // but high enough to exclude blank gaps.
-        let maxStd = 0;
-        for (let y = 0; y < H; y++) if (smooth[y] > maxStd) maxStd = smooth[y];
-        const threshold = maxStd * 0.45;
+        // Maximum bright count seen
+        let maxBright = 0;
+        for (let y = 0; y < H; y++) if (smooth[y] > maxBright) maxBright = smooth[y];
+        // Min spacing in downsampled rows ~ 10 (≈ smallest plausible row gap)
+        const minSpacing = Math.max(6, Math.round(H * 0.022));
+        const minPeak    = maxBright * 0.18;
 
-        // Contiguous runs above threshold = row bboxes
-        const runs: RowBox[] = [];
-        let rs = -1;
-        for (let y = 0; y <= H; y++) {
-            const inRun = y < H && smooth[y] > threshold;
-            if (inRun && rs < 0) rs = y;
-            else if (!inRun && rs >= 0) {
-                if (y - rs >= 3) runs.push({ y0: rs, y1: y - 1 });
-                rs = -1;
+        // Find peaks: a row is a peak if it's >= both neighbors AND at least
+        // minSpacing rows away from the previous accepted peak.
+        const peaks: number[] = [];
+        let lastPeak = -1000;
+        for (let y = 1; y < H - 1; y++) {
+            const v = smooth[y];
+            if (v < minPeak) continue;
+            if (v < smooth[y-1] || v < smooth[y+1]) continue;
+            if (y - lastPeak < minSpacing) {
+                // If new peak is stronger than the last, replace it
+                if (peaks.length > 0 && v > smooth[peaks[peaks.length - 1]]) {
+                    peaks[peaks.length - 1] = y;
+                    lastPeak = y;
+                }
+                continue;
             }
+            peaks.push(y);
+            lastPeak = y;
         }
 
-        // Convert downsampled rows back to source-image bboxes (full width)
+        // Each peak → row bbox bounded by midpoints to neighbouring peaks.
         const sy = crop.h / H;
-        const rows = runs.map(r => ({
-            x: crop.x,
-            y: Math.round(crop.y + r.y0 * sy),
-            w: crop.w,
-            h: Math.round((r.y1 - r.y0 + 1) * sy)
-        }));
+        const rows: CropBox[] = peaks.map((p, i) => {
+            const prev = i > 0 ? peaks[i-1] : -1;
+            const next = i < peaks.length - 1 ? peaks[i+1] : H;
+            // Tighten around the peak: extend at most ~22 downsampled px each
+            // side OR halfway to neighbour (whichever is smaller).
+            const halfMax = Math.min(22, Math.round(H * 0.05));
+            const top = Math.max(0, prev < 0 ? p - halfMax : Math.max(p - halfMax, Math.round((prev + p) / 2)));
+            const bot = Math.min(H - 1, next >= H ? p + halfMax : Math.min(p + halfMax, Math.round((p + next) / 2)));
+            return {
+                x: crop.x,
+                y: Math.round(crop.y + top * sy),
+                w: crop.w,
+                h: Math.round((bot - top + 1) * sy)
+            };
+        });
 
-        return { rows, debug: `${rows.length} rows, max σ=${maxStd.toFixed(1)}, thresh=${threshold.toFixed(1)}` };
+        return {
+            rows,
+            debug: `${rows.length} rows from ${peaks.length} peaks, maxBright=${maxBright.toFixed(0)}, minPeak=${minPeak.toFixed(0)}, minSpacing=${minSpacing}`
+        };
     }
 
     /**
@@ -693,9 +721,12 @@
         const id = ctx.getImageData(0, 0, w, h);
         const d = id.data;
         const threshold = otsuThreshold(d);
+        // INVERT polarity: ARK panels are WHITE text on DARK background.
+        // Tesseract expects BLACK text on WHITE, so bright pixels (text)
+        // become black, dark pixels (background) become white.
         for (let i = 0; i < d.length; i += 4) {
             const l = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-            const v = l > threshold ? 255 : 0;
+            const v = l > threshold ? 0 : 255;
             d[i] = v; d[i+1] = v; d[i+2] = v;
         }
         ctx.putImageData(id, 0, 0);
