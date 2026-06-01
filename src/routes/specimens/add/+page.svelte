@@ -358,6 +358,88 @@
         return { x, y, w, h };
     }
 
+    /**
+     * Decide which drag mode a pointer at `pt` would enter. Pure function —
+     * called from pointerdown for the actual drag start AND from pointermove
+     * (while idle) to update the hover cursor so the user can SEE which mode
+     * they'll get before clicking.
+     *
+     * Zones (all measurements in CSS pixels, scaled to canvas pixels via dpr):
+     *
+     *   Corner zones — 28 CSS px square at each of the four corners. Win
+     *   priority because they're visually marked by handles.
+     *
+     *   Edge bands — 36 CSS px on either side of each edge. The user can
+     *   click anywhere on the edge to resize from that side. Generous so
+     *   missing the exact pixel of the border still works.
+     *
+     *   Move zone — the interior of the box minus the edge bands.
+     *
+     *   Outside the box+margin entirely → 'idle' (no-op). We deliberately do
+     *   NOT create a fresh tiny box on outside-click — that surprises users
+     *   who thought they were grabbing an edge but landed in the dimmed area.
+     *   Use the Reset / Auto-detect buttons to recreate the box.
+     */
+    function hitTestCropper(pt: { x: number; y: number }): typeof cropPointerMode {
+        if (!shotImage || !cropBox || !cropCanvasEl) return 'idle';
+        const dpr = window.devicePixelRatio || 1;
+        const scale = (cropCanvasEl.width || 1) / shotImage.width;
+        const bx = cropBox.x * scale;
+        const by = cropBox.y * scale;
+        const bw = cropBox.w * scale;
+        const bh = cropBox.h * scale;
+
+        const edge = 36 * dpr;       // CSS px on each side of an edge
+        const cornerSize = 28 * dpr; // CSS px square at each corner
+
+        // Outside the box + edge band → no action.
+        if (pt.x < bx - edge || pt.x > bx + bw + edge) return 'idle';
+        if (pt.y < by - edge || pt.y > by + bh + edge) return 'idle';
+
+        // Shrink corner-zone for small boxes so corners can't eat the whole edge.
+        const cx = Math.min(cornerSize, bw / 3);
+        const cy = Math.min(cornerSize, bh / 3);
+
+        const inLeftCorner   = pt.x < bx + cx;
+        const inRightCorner  = pt.x > bx + bw - cx;
+        const inTopCorner    = pt.y < by + cy;
+        const inBottomCorner = pt.y > by + bh - cy;
+
+        if (inTopCorner    && inLeftCorner)  return 'resize-tl';
+        if (inTopCorner    && inRightCorner) return 'resize-tr';
+        if (inBottomCorner && inLeftCorner)  return 'resize-bl';
+        if (inBottomCorner && inRightCorner) return 'resize-br';
+
+        const nearLeft   = pt.x < bx + edge;
+        const nearRight  = pt.x > bx + bw - edge;
+        const nearTop    = pt.y < by + edge;
+        const nearBottom = pt.y > by + bh - edge;
+
+        if (nearLeft)   return 'resize-l';
+        if (nearRight)  return 'resize-r';
+        if (nearTop)    return 'resize-t';
+        if (nearBottom) return 'resize-b';
+
+        // Anywhere inside the box that wasn't an edge band → move.
+        if (pt.x >= bx && pt.x <= bx + bw && pt.y >= by && pt.y <= by + bh) return 'move';
+        return 'idle';
+    }
+
+    function cursorForCropMode(mode: typeof cropPointerMode): string {
+        switch (mode) {
+            case 'move':       return 'move';
+            case 'resize-l':
+            case 'resize-r':   return 'ew-resize';
+            case 'resize-t':
+            case 'resize-b':   return 'ns-resize';
+            case 'resize-tl':
+            case 'resize-br':  return 'nwse-resize';
+            case 'resize-tr':
+            case 'resize-bl':  return 'nesw-resize';
+            default:           return 'default';
+        }
+    }
+
     function onCropPointerDown(e: PointerEvent) {
         if (!shotImage || !cropBox || !cropCanvasEl) return;
         // setPointerCapture can throw if the pointer is no longer active
@@ -377,49 +459,15 @@
         }
 
         const pt = getPointerCoords(e);
-        const dpr = window.devicePixelRatio || 1;
-        const scale = (cropCanvasEl.width || 1) / shotImage.width;
-        const bx = cropBox.x * scale, by = cropBox.y * scale;
-        const bw = cropBox.w * scale, bh = cropBox.h * scale;
-
-        // Edge-band hit testing — the WHOLE edge is the resize zone, not just
-        // the midpoint handle. Matches user expectation: "I clicked the left
-        // edge of the box, it should let me resize from the left".
-        // Corners win when within margin of two edges; everything else inside
-        // the box is "move"; outside starts a fresh box.
-        const margin = Math.max(22 * dpr, 30);
-        const insideX = pt.x >= bx - margin && pt.x <= bx + bw + margin;
-        const insideY = pt.y >= by - margin && pt.y <= by + bh + margin;
-        if (insideX && insideY) {
-            const nearLeft   = pt.x < bx + margin;
-            const nearRight  = pt.x > bx + bw - margin;
-            const nearTop    = pt.y < by + margin;
-            const nearBottom = pt.y > by + bh - margin;
-
-            let mode: typeof cropPointerMode = 'idle';
-            if (nearTop && nearLeft)         mode = 'resize-tl';
-            else if (nearTop && nearRight)   mode = 'resize-tr';
-            else if (nearBottom && nearLeft) mode = 'resize-bl';
-            else if (nearBottom && nearRight) mode = 'resize-br';
-            else if (nearLeft)   mode = 'resize-l';
-            else if (nearRight)  mode = 'resize-r';
-            else if (nearTop)    mode = 'resize-t';
-            else if (nearBottom) mode = 'resize-b';
-            else if (pt.x >= bx && pt.x <= bx + bw && pt.y >= by && pt.y <= by + bh) mode = 'move';
-
-            if (mode !== 'idle') {
-                cropPointerMode = mode;
-                cropPointerStart = pt;
-                cropBoxStart = { ...cropBox };
-                return;
-            }
+        const mode = hitTestCropper(pt);
+        if (mode === 'idle') {
+            // Click outside the box+margin: NO-OP. Don't replace the existing
+            // crop with a tiny new one — that confuses users who thought they
+            // were grabbing the edge from the dimmed area. The Reset and
+            // Auto-detect buttons exist for full-redraw scenarios.
+            return;
         }
-
-        // Click well outside the box → start a fresh box at this point
-        const imgX = pt.x / scale;
-        const imgY = pt.y / scale;
-        cropBox = clampBox({ x: imgX, y: imgY, w: 16, h: 16 });
-        cropPointerMode = 'resize-br';
+        cropPointerMode = mode;
         cropPointerStart = pt;
         cropBoxStart = { ...cropBox };
     }
@@ -455,7 +503,13 @@
             return;
         }
 
-        if (cropPointerMode === 'idle') return;
+        if (cropPointerMode === 'idle') {
+            // Not dragging: update hover cursor so the user can see which
+            // mode they'll get if they click here. Costs ~nothing.
+            const hoverPt = getPointerCoords(e);
+            cropCanvasEl.style.cursor = cursorForCropMode(hitTestCropper(hoverPt));
+            return;
+        }
         const pt = getPointerCoords(e);
         const scale = (cropCanvasEl.width || 1) / shotImage.width;
         const dx = (pt.x - cropPointerStart.x) / scale;
@@ -533,13 +587,21 @@
             0, 0, cut.width, cut.height
         );
 
-        // Upscale to ≥ 3600px on the long edge for the digits variant — phone
-        // photos of monitors lose so much fidelity in JPEG compression that
-        // even 2400 was leaving Tesseract guessing at character shapes. 3600
-        // gives ~9 MP after upscale on most crops, enough for the recognizer
-        // to nail individual digits.
-        const targetMin = variant === 'digits' ? 3600 : 2400;
+        // Target resolution adapts to the input size — the user uploads can
+        // range from a 200-px-wide tight close-up to a 5000-px crop off a 4K
+        // monitor capture, and we want both to come out at a size Tesseract
+        // can read confidently.
+        //
+        //   Floor: 3600 (digits) / 2400 (text)  — the minimum after upscale
+        //   Multiplier: longest × 2.5            — bigger crops get more pixels
+        //   Ceiling: 6000                        — Tesseract slows down past this
+        //
+        // This means a 800px tight crop upscales 4.5× to 3600; a 1500px crop
+        // upscales 2.5× to 3750; a 3000px crop upscales 2× to 6000; a 6000px
+        // crop stays at 6000 (no downscale, no upscale).
+        const baseFloor = variant === 'digits' ? 3600 : 2400;
         const longest = Math.max(cut.width, cut.height);
+        const targetMin = Math.min(6000, Math.max(baseFloor, Math.round(longest * 2.5)));
         const scale = Math.max(1, targetMin / longest);
         const w = Math.round(cut.width * scale);
         const h = Math.round(cut.height * scale);
