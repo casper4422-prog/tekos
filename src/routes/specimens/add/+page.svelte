@@ -360,11 +360,15 @@
 
     function onCropPointerDown(e: PointerEvent) {
         if (!shotImage || !cropBox || !cropCanvasEl) return;
-        cropCanvasEl.setPointerCapture(e.pointerId);
+        // setPointerCapture can throw if the pointer is no longer active
+        // (rare browser edge case). Don't let it break the rest of the flow.
+        try { cropCanvasEl.setPointerCapture(e.pointerId); } catch { /* ignore */ }
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-        // Two-finger gesture → enter pinch-zoom mode
-        if (activePointers.size === 2) {
+        // Two-finger TOUCH gesture → enter pinch-zoom mode. Restricted to
+        // pointerType === 'touch' so a hybrid device's stray pen/mouse pointer
+        // can't accidentally put us in pinch mode and kill the active drag.
+        if (e.pointerType === 'touch' && activePointers.size === 2) {
             const pts = [...activePointers.values()];
             pinchPrevDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
             pinchPrevMid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
@@ -426,8 +430,9 @@
             activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         }
 
-        // Pinch-zoom while two fingers down
-        if (activePointers.size === 2) {
+        // Pinch-zoom while two TOUCH fingers down. Same gating as pointerdown
+        // — only pinch when the moving pointer is a touch contact.
+        if (e.pointerType === 'touch' && activePointers.size === 2) {
             const pts = [...activePointers.values()];
             const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
             if (pinchPrevDist > 0) {
@@ -1180,7 +1185,6 @@
                                     onpointermove={onCropPointerMove}
                                     onpointerup={onCropPointerUp}
                                     onpointercancel={onCropPointerUp}
-                                    onpointerleave={onCropPointerUp}
                                 ></canvas>
                             </div>
                             <div class="shot-hint">
@@ -1982,6 +1986,9 @@
     cursor: crosshair;
     user-select: none;
     -webkit-user-select: none;
+    /* Own all pointer gestures — inheritance from the wrapper isn't reliable
+       across Safari + touchscreen-Windows, so set it here too. */
+    touch-action: none;
 }
 .shot-hint {
     font-family: var(--tek-mono);
