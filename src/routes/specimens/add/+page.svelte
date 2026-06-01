@@ -378,29 +378,40 @@
         const bx = cropBox.x * scale, by = cropBox.y * scale;
         const bw = cropBox.w * scale, bh = cropBox.h * scale;
 
-        // Hit area is generous — minimum 36 CSS px, scaled with the crop box
-        // so a tiny crop inside a huge screenshot is still draggable. Larger
-        // than the visual handle so the user doesn't need pixel-perfect aim.
-        const handleCss = Math.max(16, Math.min(28, Math.min(bw, bh) * 0.18 / dpr));
-        const hitCss = Math.max(36, handleCss + 14);
-        const hitSize = hitCss * dpr;
-        const half = hitSize / 2;
-        for (const h of cropHandlePositions(bx, by, bw, bh, half)) {
-            if (pt.x >= h.x && pt.x <= h.x + hitSize && pt.y >= h.y && pt.y <= h.y + hitSize) {
-                cropPointerMode = h.id;
+        // Edge-band hit testing — the WHOLE edge is the resize zone, not just
+        // the midpoint handle. Matches user expectation: "I clicked the left
+        // edge of the box, it should let me resize from the left".
+        // Corners win when within margin of two edges; everything else inside
+        // the box is "move"; outside starts a fresh box.
+        const margin = Math.max(22 * dpr, 30);
+        const insideX = pt.x >= bx - margin && pt.x <= bx + bw + margin;
+        const insideY = pt.y >= by - margin && pt.y <= by + bh + margin;
+        if (insideX && insideY) {
+            const nearLeft   = pt.x < bx + margin;
+            const nearRight  = pt.x > bx + bw - margin;
+            const nearTop    = pt.y < by + margin;
+            const nearBottom = pt.y > by + bh - margin;
+
+            let mode: typeof cropPointerMode = 'idle';
+            if (nearTop && nearLeft)         mode = 'resize-tl';
+            else if (nearTop && nearRight)   mode = 'resize-tr';
+            else if (nearBottom && nearLeft) mode = 'resize-bl';
+            else if (nearBottom && nearRight) mode = 'resize-br';
+            else if (nearLeft)   mode = 'resize-l';
+            else if (nearRight)  mode = 'resize-r';
+            else if (nearTop)    mode = 'resize-t';
+            else if (nearBottom) mode = 'resize-b';
+            else if (pt.x >= bx && pt.x <= bx + bw && pt.y >= by && pt.y <= by + bh) mode = 'move';
+
+            if (mode !== 'idle') {
+                cropPointerMode = mode;
                 cropPointerStart = pt;
                 cropBoxStart = { ...cropBox };
                 return;
             }
         }
-        if (pt.x >= bx && pt.x <= bx + bw && pt.y >= by && pt.y <= by + bh) {
-            cropPointerMode = 'move';
-            cropPointerStart = pt;
-            cropBoxStart = { ...cropBox };
-            return;
-        }
 
-        // Click outside → start a fresh box at this point (drag-to-define)
+        // Click well outside the box → start a fresh box at this point
         const imgX = pt.x / scale;
         const imgY = pt.y / scale;
         cropBox = clampBox({ x: imgX, y: imgY, w: 16, h: 16 });
@@ -597,21 +608,23 @@
     }
 
     /**
-     * Run OCR with multiple preprocess + page-segmentation strategies and pick
-     * the result with the most extracted triples. Order is most-likely-to-work
-     * first so we usually only need pass 1:
+     * Two-pass OCR — different jobs, different settings.
      *
-     *   pass 1: digits-mode preprocess + PSM 6 (single block)
-     *           — saturation-mask kills colored icons that bleed into digits,
-     *             best general-purpose strategy
-     *   pass 2: text-mode preprocess + PSM 6
-     *           — fallback when the icon mask was too aggressive
-     *   pass 3: digits-mode preprocess + PSM 11 (sparse text)
-     *           — when column layout confuses PSM 6, sparse-text mode finds
-     *             isolated digit clusters individually
+     *   HEADER pass:  text-mode preprocess (lighter, full charset)
+     *                 → extract creature name + level
+     *   STATS pass:   digits-mode preprocess (saturation-mask)
+     *                 + character whitelist of "0123456789/|\\() "
+     *                 → Tesseract is FORCED to pick the closest match for
+     *                   every glyph from that whitelist. A wonky "1" that
+     *                   would otherwise come out as "l" or "I" now lands as
+     *                   "1"; a slash misread as "f" now lands as "/".
+     *                 → extract stat triples
      *
-     * Worker is reused across passes (just retoggle PSM); preprocesses are
-     * cached so we don't pay the canvas pipeline cost twice for variant=digits.
+     * If the stats pass returns nothing useful, we fall back to one more pass:
+     * digit-whitelist + PSM 11 (sparse text) on the same digits blob, for
+     * crops where the column layout confused PSM 6 entirely.
+     *
+     * Worker stays alive across passes; only PSM + whitelist are retoggled.
      */
     async function runOcr() {
         if (!shotImage || !cropBox) { shotError = 'Drop a screenshot first.'; return; }
@@ -619,7 +632,6 @@
         shotRawText = ''; shotParsed = {}; shotSource = null;
         if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
 
-        // Count triples (both shapes) — the higher the count, the better the OCR
         function tripleCount(text: string): number {
             const paren = (text.match(/\(\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*\)/g) ?? []).length;
             const slash = (text.match(/(?<![()\d.])\d{1,3}\s*[\/|\\]\s*\d{1,3}\s*[\/|\\]\s*\d{1,3}(?![\d)])/g) ?? []).length;
@@ -627,10 +639,8 @@
         }
 
         try {
-            // Preprocess both variants up front so the user can see whichever
-            // produced the winning OCR in the debug panel.
+            const textBlob   = await preprocessShot('text');
             const digitsBlob = await preprocessShot('digits');
-            let textBlob: Blob | null = null;
 
             shotPhase = 'recognizing';
             const Tesseract = await import('tesseract.js');
@@ -644,36 +654,45 @@
                 }
             });
 
-            type Pass = { label: string; text: string; count: number; blob: Blob };
-            const passes: Pass[] = [];
+            // Header pass — full alphabet, PSM 6
+            await worker.setParameters({
+                tessedit_pageseg_mode: '6' as never,
+                tessedit_char_whitelist: '' as never  // no restriction
+            });
+            const headerResult = await worker.recognize(textBlob);
+            const headerText = headerResult.data.text;
 
-            // Pass 1: digits preprocess + PSM 6
-            await worker.setParameters({ tessedit_pageseg_mode: '6' as never });
-            const r1 = await worker.recognize(digitsBlob);
-            passes.push({ label: 'digits/PSM6', text: r1.data.text, count: tripleCount(r1.data.text), blob: digitsBlob });
+            // Stats pass — digits-only whitelist, PSM 6
+            await worker.setParameters({
+                tessedit_pageseg_mode: '6' as never,
+                tessedit_char_whitelist: '0123456789/|\\() .,-' as never
+            });
+            let statsResult = await worker.recognize(digitsBlob);
+            let statsText = statsResult.data.text;
+            let statsCount = tripleCount(statsText);
+            let usedPSM = 6;
 
-            // Pass 2: text preprocess + PSM 6 — only if pass 1 was weak
-            if (passes[0].count < 5) {
-                textBlob = await preprocessShot('text');
-                const r2 = await worker.recognize(textBlob);
-                passes.push({ label: 'text/PSM6', text: r2.data.text, count: tripleCount(r2.data.text), blob: textBlob });
-            }
-
-            // Pass 3: digits preprocess + PSM 11 (sparse text) — last-resort
-            if (passes.every(p => p.count < 5)) {
-                await worker.setParameters({ tessedit_pageseg_mode: '11' as never });
-                const r3 = await worker.recognize(digitsBlob);
-                passes.push({ label: 'digits/PSM11', text: r3.data.text, count: tripleCount(r3.data.text), blob: digitsBlob });
+            // Fallback to sparse-text PSM if column layout confused PSM 6
+            if (statsCount < 5) {
+                await worker.setParameters({
+                    tessedit_pageseg_mode: '11' as never
+                });
+                const r2 = await worker.recognize(digitsBlob);
+                if (tripleCount(r2.data.text) > statsCount) {
+                    statsText = r2.data.text;
+                    statsCount = tripleCount(statsText);
+                    usedPSM = 11;
+                }
             }
 
             await worker.terminate();
 
-            // Pick the pass with the highest triple count; break ties by order
-            // (earlier passes are faster + more "natural" parse).
-            const best = passes.reduce((a, b) => b.count > a.count ? b : a);
-            shotProcUrl = URL.createObjectURL(best.blob);
-            shotRawText = best.text;
-            parseStatPanel(best.text);
+            shotProcUrl = URL.createObjectURL(digitsBlob);
+            shotRawText =
+                `── HEADER PASS (full charset, PSM 6) ──\n${headerText}\n\n` +
+                `── STATS PASS (digit whitelist, PSM ${usedPSM}) ──\n${statsText}`;
+
+            parseStatPanel(headerText, statsText);
         } catch (err) {
             shotError = (err as Error).message || 'OCR failed';
         } finally {
@@ -699,21 +718,22 @@
      * Additional Spyglass markers ("Tribe:", "Can Mate", "Ready to Mate")
      * boost confidence when triple counts are borderline.
      */
-    function parseStatPanel(raw: string) {
+    /**
+     * Route to the right parser by fingerprinting the STATS pass output.
+     * Header text is parsed separately by extractNameAndLevel using the
+     * full-charset HEADER pass.
+     */
+    function parseStatPanel(headerText: string, statsText: string) {
         const parenTripleRe = /\(\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*[|Il1\]\[]\s*\d{1,3}\s*\)/g;
-        // SS bare triples — accept /, |, \ as separators (OCR mangles thin
-        // diagonals). Negative lookbehind/ahead keep us from re-matching
-        // Tek/u+ paren-wrapped triples.
         const slashTripleRe = /(?<![()\d.])\d{1,3}\s*[\/|\\]\s*\d{1,3}\s*[\/|\\]\s*\d{1,3}(?![\d)])/g;
 
-        const parenCount = (raw.match(parenTripleRe) ?? []).length;
-        const slashCount = (raw.match(slashTripleRe) ?? []).length;
-        const spyglassMarker = /\b(?:Tribe\s*:|Can\s*Mate|Ready\s*to\s*Mate|Mutations\s*:)/i.test(raw);
+        const parenCount = (statsText.match(parenTripleRe) ?? []).length;
+        const slashCount = (statsText.match(slashTripleRe) ?? []).length;
+        // Spyglass markers come from the FULL-charset header pass — that's
+        // where "Tribe:", "Can Mate", etc. show up readable.
+        const spyglassMarker = /\b(?:Tribe\s*:|Can\s*Mate|Ready\s*to\s*Mate|Mutations\s*:)/i.test(headerText);
 
-        // Confident Spyglass: 3+ slash triples (full panel = 8 triples for stats
-        // + total-level row), OR 2+ slash triples plus a Spyglass marker.
         const hasSpyglass = slashCount >= 3 || (slashCount >= 2 && spyglassMarker);
-        // Confident Tek/u+: 3+ paren triples. Anything less is probably noise.
         const hasTek = parenCount >= 3;
 
         if (hasTek && hasSpyglass) {
@@ -731,10 +751,10 @@
         shotError = '';
         if (hasTek) {
             shotSource = 'tek';
-            parseTekUplus(raw);
+            parseTekUplus(headerText, statsText);
         } else {
             shotSource = 'spyglass';
-            parseSuperSpyglass(raw);
+            parseSuperSpyglass(headerText, statsText);
         }
     }
 
@@ -743,14 +763,12 @@
      * Row format: "<icon> current / max (base | mut | dom)"
      * Top-to-bottom order: HP, STA, OXY, FOOD, WGT, MEL, CRA
      */
-    function parseTekUplus(raw: string) {
+    function parseTekUplus(headerText: string, statsText: string) {
         const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
-        const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        extractNameAndLevel(lines, out);
+        extractNameAndLevel(headerText.split(/\r?\n/).map(l => l.trim()).filter(Boolean), out);
 
         const bases: number[] = [];
-        for (const line of lines) {
-            // Permissive on pipe-vs-1-vs-I confusion that Tesseract loves to make
+        for (const line of statsText.split(/\r?\n/)) {
             const m = line.match(/\(\s*(\d{1,3})\s*[|Il1\]\[]\s*(\d{1,3})\s*[|Il1\]\[]\s*(\d{1,3})\s*\)/);
             if (m) bases.push(parseInt(m[1], 10));
         }
@@ -766,36 +784,26 @@
      * Super Spyglass — 2-column grid, OCR reads row-by-row.
      * Document order of base-triples: HP, WGT, STA, MEL, OXY, SPD(skip), FOOD, CRA
      */
-    function parseSuperSpyglass(raw: string) {
+    function parseSuperSpyglass(headerText: string, statsText: string) {
         const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
-        const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        extractNameAndLevel(lines, out);
+        extractNameAndLevel(headerText.split(/\r?\n/).map(l => l.trim()).filter(Boolean), out);
 
         const bases: number[] = [];
-        // Skip lines that are obviously top-panel current/max bars (single decimal,
-        // "K"-suffixed totals, color region rows of plain 2-digit numbers).
-        // Those don't contain slash triples so the regex naturally skips them, but
-        // we add a guard so a noisy bar line can't smuggle in a fake triple.
         const colorRegionLine = /^[\d\s]{4,}$/;
-        const slashAllowed    = /\d\s*\/\s*\d/;
+        const slashAllowed    = /\d\s*[\/|\\]\s*\d/;
 
-        for (const line of lines) {
+        for (const line of statsText.split(/\r?\n/).map(l => l.trim()).filter(Boolean)) {
             if (!slashAllowed.test(line)) continue;
             if (colorRegionLine.test(line)) continue;
-            // Skip "current / max" style HP bar lines (only ONE slash, big numbers,
-            // typical 4-5 digits each side)
-            const slashCount = (line.match(/\//g) ?? []).length;
-            if (slashCount === 1 && /\d{3,}/.test(line)) continue;
+            // Skip "current / max" HP bar lines — single separator, 3+ digit values
+            const sepCount = (line.match(/[\/|\\]/g) ?? []).length;
+            if (sepCount === 1 && /\d{3,}/.test(line)) continue;
 
-            // Accept /, |, \ as separators — OCR mangles thin diagonals
-            // routinely. The negative lookbehind on the leading char keeps us
-            // from grabbing the (NN|NN|NN) Tek/u+ shape if it ever shows up.
             for (const m of line.matchAll(/(?<![()\d.])(\d{1,3})\s*[\/|\\]\s*(\d{1,3})\s*[\/|\\]\s*(\d{1,3})(?!\d)/g)) {
                 bases.push(parseInt(m[1], 10));
             }
         }
 
-        // Mapping with SPD skip at position 5
         const order: (StatKey | null)[] = ['HP', 'WGT', 'STA', 'MEL', 'OXY', null, 'FOOD', 'CRA'];
         for (let i = 0; i < Math.min(bases.length, order.length); i++) {
             const k = order[i];
