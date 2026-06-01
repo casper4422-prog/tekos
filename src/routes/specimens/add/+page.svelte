@@ -694,36 +694,45 @@
 
     /**
      * Preprocess + OCR a single region.
-     * Upscales the region to ~600px tall so Tesseract has plenty of pixels
-     * per character, Otsu-thresholds to pure b/w, then OCRs with provided
-     * Tesseract parameters.
+     *
+     * Scale: pick the smaller of (240 / bbox.h) and (3000 / bbox.w) so we
+     * don't end up with extreme aspect ratios (a full-panel-width row
+     * upscaled 8× horizontally is 5000+ px wide which confuses Tesseract).
+     *
+     * Polarity: ARK panels are WHITE text on DARK background. Tesseract
+     * expects BLACK on WHITE so we invert after Otsu.
+     *
+     * Returns BOTH the text AND a debug canvas so the caller can preview
+     * exactly what Tesseract saw.
      */
     async function ocrRegion(
         img: HTMLImageElement,
         bbox: CropBox,
         worker: { recognize: (b: Blob) => Promise<{ data: { text: string } }> }
-    ): Promise<string> {
-        // Upscale to at least 600px tall (or 6× source, whichever is smaller)
-        const target = Math.max(160, Math.min(800, bbox.h * 8));
-        const scale = Math.max(2, target / bbox.h);
-        const w = Math.round(bbox.w * scale);
-        const h = Math.round(bbox.h * scale);
+    ): Promise<{ text: string; canvas: HTMLCanvasElement }> {
+        // Scale: want ~240 px height (good for Tesseract's text-height sweet
+        // spot when training data is ~32 px), but cap width at 3000 to keep
+        // aspect ratio sane.
+        const scaleH = 240 / bbox.h;
+        const scaleW = 3000 / bbox.w;
+        const scale = Math.max(2, Math.min(scaleH, scaleW));
+        const w = Math.max(1, Math.round(bbox.w * scale));
+        const h = Math.max(1, Math.round(bbox.h * scale));
+
         const out = document.createElement('canvas');
         out.width = w; out.height = h;
         const ctx = out.getContext('2d');
-        if (!ctx) return '';
+        if (!ctx) return { text: '', canvas: out };
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.filter = 'blur(0.8px)';
+        ctx.filter = 'blur(1.0px)'; // slight blur thickens thin separators
         ctx.drawImage(img, bbox.x, bbox.y, bbox.w, bbox.h, 0, 0, w, h);
         ctx.filter = 'none';
 
         const id = ctx.getImageData(0, 0, w, h);
         const d = id.data;
         const threshold = otsuThreshold(d);
-        // INVERT polarity: ARK panels are WHITE text on DARK background.
-        // Tesseract expects BLACK text on WHITE, so bright pixels (text)
-        // become black, dark pixels (background) become white.
+        // Invert: bright (text) → black, dark (background) → white
         for (let i = 0; i < d.length; i += 4) {
             const l = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
             const v = l > threshold ? 0 : 255;
@@ -735,7 +744,7 @@
             out.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
         });
         const result = await worker.recognize(blob);
-        return result.data.text.trim();
+        return { text: result.data.text.trim(), canvas: out };
     }
 
     /**
@@ -793,8 +802,8 @@
                 }
             });
 
-            // 2. Header: OCR everything from the top of the crop to the first
-            //    detected row (full charset, single-block PSM, no whitelist)
+            // 2. Header: full charset, PSM 6 (multi-line block) — captures
+            //    creature name, level, tribe name
             const headerRegion: CropBox = {
                 x: cropBox.x, y: cropBox.y,
                 w: cropBox.w,
@@ -807,26 +816,62 @@
                 load_system_dawg: '1' as never,
                 load_freq_dawg: '1' as never
             });
-            const headerText = await ocrRegion(shotImage, headerRegion, worker);
+            const headerOut = await ocrRegion(shotImage, headerRegion, worker);
+            const headerText = headerOut.text;
 
-            // 3. Per-row OCR: digit-friendly whitelist, single-line PSM
+            // 3. Per-row OCR: PSM 6 (block) so multi-line content in one row
+            //    (current/max above + triple below) still parses. Numeric mode
+            //    OFF and whitelist permissive — letting Tesseract use its full
+            //    model and we filter for triples in extractTriples.
+            //    Trim the leftmost 12% of each row to skip the icon — that area
+            //    isn't text, just colored UI artwork that misleads recognition.
             await worker.setParameters({
-                tessedit_pageseg_mode: '7' as never,
-                tessedit_char_whitelist: '0123456789/|\\()[]., -:' as never,
-                classify_bln_numeric_mode: '1' as never,
+                tessedit_pageseg_mode: '6' as never,
+                tessedit_char_whitelist: '0123456789/|\\()[]., -:KkMm' as never,
+                classify_bln_numeric_mode: '0' as never,
                 load_system_dawg: '0' as never,
                 load_freq_dawg: '0' as never,
                 user_defined_dpi: '300' as never
             });
 
             const rowTexts: string[] = [];
+            const rowCanvases: HTMLCanvasElement[] = [];
             for (let i = 0; i < rows.length; i++) {
-                const text = await ocrRegion(shotImage, rows[i], worker);
-                rowTexts.push(text);
+                const r = rows[i];
+                const trimmed: CropBox = {
+                    x: r.x + Math.round(r.w * 0.10),
+                    y: r.y,
+                    w: Math.round(r.w * 0.90),
+                    h: r.h
+                };
+                const o = await ocrRegion(shotImage, trimmed, worker);
+                rowTexts.push(o.text);
+                rowCanvases.push(o.canvas);
                 shotProgress = Math.round(((i + 1) / rows.length) * 100);
             }
 
             await worker.terminate();
+
+            // Build a debug image: all preprocessed rows stacked vertically
+            // so the user can see EXACTLY what Tesseract saw.
+            const debugW = Math.max(...rowCanvases.map(c => c.width), 100);
+            const debugH = rowCanvases.reduce((a, c) => a + c.height + 4, 0);
+            const debugC = document.createElement('canvas');
+            debugC.width = debugW; debugC.height = debugH;
+            const dctx = debugC.getContext('2d');
+            if (dctx) {
+                dctx.fillStyle = '#ddd';
+                dctx.fillRect(0, 0, debugW, debugH);
+                let yOff = 0;
+                for (const c of rowCanvases) {
+                    dctx.drawImage(c, 0, yOff);
+                    yOff += c.height + 4;
+                }
+                const debugBlob = await new Promise<Blob>((resolve, reject) => {
+                    debugC.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
+                });
+                shotProcUrl = URL.createObjectURL(debugBlob);
+            }
 
             // 4. Extract triples per row
             const rowTriples = rowTexts.map(t => extractTriples(t));
