@@ -112,6 +112,9 @@
     let stageContainerEl = $state<HTMLDivElement | null>(null);
     let stageEl          = $state<HTMLDivElement | null>(null);
     let stageContainerW  = $state(800);
+    // Streamlined flow: cropper hidden by default; only shown when the user
+    // explicitly asks to adjust (auto-detect was wrong) or auto-detect failed.
+    let cropperVisible   = $state(false);
     // Two-pointer pinch zoom on the stage (touch only).
     const stagePointers  = new Map<number, { x: number; y: number }>();
     let pinchPrevDist    = 0;
@@ -146,22 +149,44 @@
         shotImage = img;
 
         const detected = autoDetectPanel(img);
+        let autoRun = false;
         if (detected) {
-            cropBox = detected;
+            cropBox = detected.box;
             shotAutoDetected = true;
+            // High confidence → trust the auto-crop and run OCR immediately.
+            // The cropper UI stays hidden; user only sees the review pane.
+            // Threshold 0.18 is calibrated from testing — anything below it
+            // tended to misfire on game-world clutter.
+            if (detected.confidence >= 0.18) {
+                cropperVisible = false;
+                autoRun = true;
+            } else {
+                // Low-confidence detection: cropper opens so the user can
+                // tighten it before running OCR.
+                cropperVisible = true;
+            }
         } else {
+            // No panel found at all — use full image, show cropper for manual.
             cropBox = { x: 0, y: 0, w: img.width, h: img.height };
             shotAutoDetected = false;
+            cropperVisible = true;
         }
 
-        // CRITICAL: wait for the DOM to render the cropper-scroll container so
-        // we can read its REAL width. Without this, `stageContainerEl` is null
-        // (the {#if shotFile} block hasn't rendered yet) and we fall back to a
-        // hardcoded 800px guess, which leaves the image rendering at a totally
-        // different size than the container — "the container is oversized but
-        // the screenshot isn't" is the symptom.
+        // Wait for the DOM to render the cropper-scroll container so we can
+        // read its real dimensions before computing fit-zoom.
         await tick();
         imgZoom = computeFitZoom(img.width, img.height);
+
+        // Streamlined flow: if auto-detect was confident, run OCR immediately
+        // so the user just sees results — no manual crop step required.
+        if (autoRun) {
+            void runOcr();
+        }
+    }
+
+    // Manual override — exposed via "Adjust crop" button in the review pane.
+    function showCropperManual() {
+        cropperVisible = true;
     }
 
     function computeFitZoom(imgW: number, imgH: number): number {
@@ -189,17 +214,31 @@
     });
 
     /**
-     * Auto-locate the stat panel via the teal/blue UI background signature.
+     * Auto-locate the stat panel via STRUCTURAL features — no color.
      *
-     * Both Tek/u+ and Super Spyglass paint their panel on a dark teal-blue
-     * background. We downsample the image to 256px wide, mask pixels that fall
-     * in that color signature, find the largest connected region, and return
-     * its bounding box (padded slightly) in source-image coords.
+     * The panels (Tek/u+ Binoculars and Super Spyglass) have a very dense
+     * pattern of horizontal edges: header line, current/max bar, "Ready to
+     * Mate" strip, 7-8 stat rows, color region row, mutation line, etc. The
+     * game world around them (wyverns, sky, terrain) has organic textures
+     * with far less per-column horizontal-edge density. We exploit that.
      *
-     * Returns null when the signature region is < 5% of the image (panel
-     * couldn't be confidently located — fall back to full-image bounds).
+     * Algorithm:
+     *   1. Downscale to 256-wide and convert to luminance.
+     *   2. Compute |L[y+1] − L[y-1]| per pixel (a horizontal-edge magnitude).
+     *   3. Sum the edge map per column → 1D density profile across X.
+     *   4. Box-smooth to suppress single-column noise.
+     *   5. Threshold based on (mean + k·std). Columns above threshold belong
+     *      to a "panel candidate".
+     *   6. Pick the longest contiguous run anchored to the LEFT 35% or the
+     *      RIGHT 35% of the image (the panel is always at an edge, per user).
+     *   7. Within that column range, repeat for rows → vertical extent.
+     *   8. Sanity-check aspect ratio: panels are taller than wide (>= 1:1).
+     *
+     * Returns null if no plausible panel can be located. Includes a
+     * confidence score [0, 1] so the caller can decide whether to auto-run
+     * OCR or show the manual cropper as an escape hatch.
      */
-    function autoDetectPanel(img: HTMLImageElement): CropBox | null {
+    function autoDetectPanel(img: HTMLImageElement): { box: CropBox; confidence: number } | null {
         const W = 256;
         const H = Math.max(1, Math.round((img.height / img.width) * W));
         const c = document.createElement('canvas');
@@ -209,73 +248,149 @@
         ctx.drawImage(img, 0, 0, W, H);
         const data = ctx.getImageData(0, 0, W, H).data;
 
-        // Panel signature: hue 175–235, sat 0.08–0.65, value 0.04–0.34.
-        // Loose enough to tolerate phone-photo white-balance shift.
-        const mask = new Uint8Array(W * H);
+        // Luminance per pixel
+        const lum = new Float32Array(W * H);
         for (let i = 0; i < W * H; i++) {
-            const r = data[i*4] / 255;
-            const g = data[i*4+1] / 255;
-            const b = data[i*4+2] / 255;
-            const max = Math.max(r, g, b);
-            const min = Math.min(r, g, b);
-            const delta = max - min;
-            const v = max;
-            const s = max === 0 ? 0 : delta / max;
-            let h: number;
-            if (delta === 0) h = 0;
-            else if (max === r) h = ((g - b) / delta) % 6;
-            else if (max === g) h = (b - r) / delta + 2;
-            else h = (r - g) / delta + 4;
-            h *= 60; if (h < 0) h += 360;
-            if (h >= 175 && h <= 235 && s >= 0.08 && s <= 0.65 && v >= 0.04 && v <= 0.34) {
-                mask[i] = 1;
+            lum[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
+        }
+
+        // Horizontal-edge magnitude: vertical gradient, picks up text row tops
+        // and bottoms, icon edges, divider lines.
+        const edges = new Float32Array(W * H);
+        for (let y = 1; y < H - 1; y++) {
+            const rowU = (y - 1) * W;
+            const rowD = (y + 1) * W;
+            for (let x = 0; x < W; x++) {
+                edges[y * W + x] = Math.abs(lum[rowD + x] - lum[rowU + x]);
             }
         }
 
-        // Largest connected component via iterative BFS.
-        const visited = new Uint8Array(W * H);
-        let bestBox: { x: number; y: number; w: number; h: number; area: number } | null = null;
-        for (let seed = 0; seed < W * H; seed++) {
-            if (!mask[seed] || visited[seed]) continue;
-            const queue: number[] = [seed];
-            let minX = W, minY = H, maxX = 0, maxY = 0, area = 0;
-            while (queue.length) {
-                const idx = queue.pop()!;
-                if (visited[idx] || !mask[idx]) continue;
-                visited[idx] = 1;
-                const x = idx % W, y = (idx - x) / W;
-                if (x < minX) minX = x;
-                if (y < minY) minY = y;
-                if (x > maxX) maxX = x;
-                if (y > maxY) maxY = y;
-                area++;
-                if (x > 0)     queue.push(idx - 1);
-                if (x < W - 1) queue.push(idx + 1);
-                if (y > 0)     queue.push(idx - W);
-                if (y < H - 1) queue.push(idx + W);
+        // Per-column edge sum → 1D density profile
+        const colE = new Float32Array(W);
+        for (let x = 0; x < W; x++) {
+            let s = 0;
+            for (let y = 0; y < H; y++) s += edges[y * W + x];
+            colE[x] = s;
+        }
+
+        // Box-smooth ±5 columns to suppress single-column noise
+        const colS = new Float32Array(W);
+        const win = 5;
+        for (let x = 0; x < W; x++) {
+            let s = 0, n = 0;
+            for (let dx = -win; dx <= win; dx++) {
+                const xx = x + dx;
+                if (xx >= 0 && xx < W) { s += colE[xx]; n++; }
             }
-            if (!bestBox || area > bestBox.area) {
-                bestBox = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1, area };
+            colS[x] = s / n;
+        }
+
+        // Statistics for adaptive threshold
+        let mean = 0;
+        for (let x = 0; x < W; x++) mean += colS[x];
+        mean /= W;
+        let varSum = 0;
+        for (let x = 0; x < W; x++) varSum += (colS[x] - mean) ** 2;
+        const std = Math.sqrt(varSum / W);
+        // Threshold ~0.5σ above mean catches dense-edge columns without
+        // requiring extreme contrast (handles tight crops where most columns
+        // are high-density)
+        const threshold = mean + 0.5 * std;
+
+        // Find contiguous runs above threshold, with their average density
+        type Run = { start: number; end: number; mean: number };
+        const runs: Run[] = [];
+        let rs = -1;
+        for (let x = 0; x <= W; x++) {
+            const inRun = x < W && colS[x] > threshold;
+            if (inRun && rs < 0) rs = x;
+            else if (!inRun && rs >= 0) {
+                const end = x - 1;
+                const wRun = end - rs + 1;
+                if (wRun >= Math.max(8, W * 0.04)) {
+                    let sum = 0;
+                    for (let xx = rs; xx <= end; xx++) sum += colS[xx];
+                    runs.push({ start: rs, end, mean: sum / wRun });
+                }
+                rs = -1;
             }
         }
-        // Require the panel to occupy ≥ 5% of the image, otherwise our match is
-        // probably a tiny UI sliver / noise, not the real panel.
-        if (!bestBox || bestBox.area < W * H * 0.05) return null;
+        if (runs.length === 0) return null;
 
-        // Pad by 4% so we don't shave the panel's border or external icons.
-        const padX = Math.round(W * 0.04);
-        const padY = Math.round(H * 0.04);
-        const x = Math.max(0, bestBox.x - padX);
-        const y = Math.max(0, bestBox.y - padY);
-        const w = Math.min(W - x, bestBox.w + padX * 2);
-        const h = Math.min(H - y, bestBox.h + padY * 2);
+        // Score = density × edge-anchored bonus. Panels live on the FAR
+        // LEFT or FAR RIGHT of full screenshots — bias hard toward those.
+        // (For a tight crop where the entire image is the panel, this still
+        // picks the one big run that spans the whole width.)
+        function score(r: Run): number {
+            const leftAnchored  = r.start < W * 0.05;
+            const rightAnchored = r.end   > W * 0.95;
+            const spansMost     = (r.end - r.start) > W * 0.7;
+            let bonus = 1;
+            if (leftAnchored || rightAnchored) bonus = 1.6;
+            if (spansMost) bonus = 1.4; // tight-crop case
+            return r.mean * bonus;
+        }
+        const best = runs.reduce((a, b) => score(a) >= score(b) ? a : b);
+
+        // Vertical extent: row-edge density within the chosen column range
+        const xs = best.start, xe = best.end;
+        const rowE = new Float32Array(H);
+        for (let y = 0; y < H; y++) {
+            let s = 0;
+            for (let x = xs; x <= xe; x++) s += edges[y * W + x];
+            rowE[y] = s;
+        }
+        const rowS = new Float32Array(H);
+        for (let y = 0; y < H; y++) {
+            let s = 0, n = 0;
+            for (let dy = -win; dy <= win; dy++) {
+                const yy = y + dy;
+                if (yy >= 0 && yy < H) { s += rowE[yy]; n++; }
+            }
+            rowS[y] = s / n;
+        }
+        let rMean = 0;
+        for (let y = 0; y < H; y++) rMean += rowS[y];
+        rMean /= H;
+        const rThresh = rMean * 0.45;
+        let yStart = 0, yEnd = H - 1;
+        for (let y = 0; y < H; y++) {
+            if (rowS[y] > rThresh) { yStart = y; break; }
+        }
+        for (let y = H - 1; y >= 0; y--) {
+            if (rowS[y] > rThresh) { yEnd = y; break; }
+        }
+
+        const panelW = xe - xs + 1;
+        const panelH = yEnd - yStart + 1;
+        if (panelH < H * 0.15 || panelW < W * 0.04) return null; // too small
+
+        // Sanity: stat panels are taller than wide. Reject anything strongly
+        // landscape — that's not a panel, that's the whole game frame.
+        const aspect = panelH / panelW;
+        if (aspect < 0.9) return null;
+
+        // Confidence — higher mean relative to overall mean = clearer panel
+        const confidenceRaw = (best.mean - mean) / (std + 1);
+        const confidence = Math.max(0, Math.min(1, confidenceRaw * 0.4));
+
+        // Pad slightly and convert back to source-image coordinates
+        const padX = Math.round(W * 0.015);
+        const padY = Math.round(H * 0.015);
+        const x0 = Math.max(0, xs - padX);
+        const y0 = Math.max(0, yStart - padY);
+        const x1 = Math.min(W - 1, xe + padX);
+        const y1 = Math.min(H - 1, yEnd + padY);
         const sx = img.width / W;
         const sy = img.height / H;
         return {
-            x: Math.round(x * sx),
-            y: Math.round(y * sy),
-            w: Math.round(w * sx),
-            h: Math.round(h * sy)
+            box: {
+                x: Math.round(x0 * sx),
+                y: Math.round(y0 * sy),
+                w: Math.round((x1 - x0 + 1) * sx),
+                h: Math.round((y1 - y0 + 1) * sy)
+            },
+            confidence
         };
     }
 
@@ -414,7 +529,7 @@
         if (!shotImage) return;
         const d = autoDetectPanel(shotImage);
         if (d) {
-            cropBox = d;
+            cropBox = d.box;
             shotAutoDetected = true;
         }
     }
@@ -1092,16 +1207,27 @@
                     </label>
                 {:else}
                     <div class="shot-flow">
-                        <!-- ░░░ LEFT: cropper ░░░ -->
+                        <!-- Top action strip — always visible regardless of cropper state.
+                             Lets the user swap the image without diving into manual crop. -->
+                        <div class="shot-top-actions">
+                            <label class="ghost-btn" style="cursor:pointer">
+                                ↻ Replace image
+                                <input type="file" accept="image/*" onchange={pickScreenshot} style="display:none" />
+                            </label>
+                            {#if !cropperVisible}
+                                <button type="button" class="ghost-btn" onclick={showCropperManual} title="Auto-detect missed the panel? Adjust the crop yourself">
+                                    ✂ Adjust crop manually
+                                </button>
+                            {/if}
+                        </div>
+
+                        {#if cropperVisible}
+                        <!-- ░░░ Cropper — only shown if auto-detect was low-confidence or user explicitly opened it ░░░ -->
                         <div class="shot-pane">
-                            <div class="shot-step-label">Step 1 · Crop to the stat panel</div>
+                            <div class="shot-step-label">Crop to the stat panel</div>
                             <div class="shot-actions">
                                 <button type="button" class="ghost-btn" onclick={reAutoDetect} title="Re-snap the box to the detected panel">⊕ Auto-detect</button>
                                 <button type="button" class="ghost-btn" onclick={resetCrop}>↺ Reset</button>
-                                <label class="ghost-btn" style="cursor:pointer">
-                                    ↻ Replace
-                                    <input type="file" accept="image/*" onchange={pickScreenshot} style="display:none" />
-                                </label>
                                 <span class="zoom-bar">
                                     <button type="button" class="ghost-btn" onclick={zoomOut} title="Zoom out">−</button>
                                     <span class="zoom-val">{Math.round(imgZoom * 100)}%</span>
@@ -1194,21 +1320,30 @@
                             <button class="btn shot-run-btn" disabled={shotRunning} onclick={runOcr}>
                                 {#if shotRunning && shotPhase === 'preprocessing'}Preparing image…
                                 {:else if shotRunning}Reading text… {shotProgress}%
-                                {:else}Step 2 · Run OCR ➜{/if}
+                                {:else}Run OCR ➜{/if}
                             </button>
                         </div>
+                        {/if}
 
                         <!-- ░░░ BELOW: review ░░░ -->
                         <div class="shot-pane review">
-                            <div class="shot-step-label">Step 3 · Review &amp; correct</div>
+                            <div class="shot-step-label">Review &amp; correct</div>
 
                             {#if shotError}
                                 <div class="form-error">{shotError}</div>
                             {/if}
 
-                            {#if !shotRawText && !shotRunning && !shotError}
+                            {#if shotRunning}
                                 <div class="shot-hint">
-                                    Click <strong>Run OCR</strong> when you're happy with the crop.
+                                    {shotPhase === 'preprocessing' ? 'Preparing image…' : `Reading text… ${shotProgress}%`}
+                                </div>
+                            {:else if !shotRawText && !shotError}
+                                <div class="shot-hint">
+                                    {#if cropperVisible}
+                                        Adjust the crop above, then click <strong>Run OCR</strong>.
+                                    {:else}
+                                        Reading the panel automatically — results will appear here.
+                                    {/if}
                                 </div>
                             {/if}
 
@@ -1967,6 +2102,12 @@
     border-color: rgba(0, 180, 255, 0.50);
 }
 /* ═════ Cropper (DOM-based) ═════════════════════════════════════════ */
+.shot-top-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
 .zoom-bar {
     display: inline-flex;
     align-items: center;
