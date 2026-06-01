@@ -528,10 +528,12 @@
             0, 0, cut.width, cut.height
         );
 
-        // Upscale to ≥ 2400px on the long edge — larger glyphs survive blur+
-        // threshold better, and Tesseract's letter-vs-digit accuracy improves
-        // sharply at this resolution.
-        const targetMin = 2400;
+        // Upscale to ≥ 3600px on the long edge for the digits variant — phone
+        // photos of monitors lose so much fidelity in JPEG compression that
+        // even 2400 was leaving Tesseract guessing at character shapes. 3600
+        // gives ~9 MP after upscale on most crops, enough for the recognizer
+        // to nail individual digits.
+        const targetMin = variant === 'digits' ? 3600 : 2400;
         const longest = Math.max(cut.width, cut.height);
         const scale = Math.max(1, targetMin / longest);
         const w = Math.round(cut.width * scale);
@@ -555,17 +557,17 @@
         if (variant === 'digits') {
             // Drop high-saturation pixels (the colored stat icons) to white
             // BEFORE Otsu, so the threshold focuses on the desaturated digit
-            // text only. Math: HSV saturation = (max - min) / max.
+            // text only. Threshold lowered to 0.28 — phone-photo colors are
+            // washed out vs native screenshots, so the icons sit at a lower
+            // saturation. The digit text is pure greyscale (~0 sat) so the
+            // lower cutoff doesn't risk catching it.
             for (let i = 0; i < d.length; i += 4) {
                 const r = d[i], g = d[i+1], b = d[i+2];
                 const max = Math.max(r, g, b);
                 const min = Math.min(r, g, b);
                 const sat = max === 0 ? 0 : (max - min) / max;
-                if (sat > 0.42) {
+                if (sat > 0.28) {
                     d[i] = 0; d[i+1] = 0; d[i+2] = 0;
-                    // After masking, this pixel is "background" — luminance 0
-                    // → it'll fall on the low side of Otsu's split, becoming
-                    // white in the final pass.
                 }
             }
         }
@@ -657,32 +659,64 @@
             // Header pass — full alphabet, PSM 6
             await worker.setParameters({
                 tessedit_pageseg_mode: '6' as never,
-                tessedit_char_whitelist: '' as never  // no restriction
+                tessedit_char_whitelist: '' as never,
+                classify_bln_numeric_mode: '0' as never,
+                load_system_dawg: '1' as never,
+                load_freq_dawg: '1' as never
             });
             const headerResult = await worker.recognize(textBlob);
             const headerText = headerResult.data.text;
 
-            // Stats pass — digits-only whitelist, PSM 6
+            // Stats pass — digits-only whitelist + numeric mode + no dictionary.
+            // numeric mode tells the LSTM model to expect digits;
+            // dictionary-disable stops Tesseract from rejecting plausible digit
+            // sequences for "not a word" reasons. user_defined_dpi at 300 lets
+            // the recognizer scale features for our upscaled glyph size.
             await worker.setParameters({
                 tessedit_pageseg_mode: '6' as never,
-                tessedit_char_whitelist: '0123456789/|\\() .,-' as never
+                tessedit_char_whitelist: '0123456789/|\\() .,-' as never,
+                classify_bln_numeric_mode: '1' as never,
+                load_system_dawg: '0' as never,
+                load_freq_dawg: '0' as never,
+                user_defined_dpi: '300' as never
             });
-            let statsResult = await worker.recognize(digitsBlob);
-            let statsText = statsResult.data.text;
+            const statsResultMain = await worker.recognize(digitsBlob);
+            let statsText = statsResultMain.data.text;
             let statsCount = tripleCount(statsText);
-            let usedPSM = 6;
+            const passLabels: string[] = [`PSM 6 → ${statsCount} triples`];
 
-            // Fallback to sparse-text PSM if column layout confused PSM 6
-            if (statsCount < 5) {
-                await worker.setParameters({
-                    tessedit_pageseg_mode: '11' as never
-                });
+            // Fallback 1: sparse-text PSM if column layout confused PSM 6
+            if (statsCount < 6) {
+                await worker.setParameters({ tessedit_pageseg_mode: '11' as never });
                 const r2 = await worker.recognize(digitsBlob);
-                if (tripleCount(r2.data.text) > statsCount) {
-                    statsText = r2.data.text;
-                    statsCount = tripleCount(statsText);
-                    usedPSM = 11;
+                const c2 = tripleCount(r2.data.text);
+                passLabels.push(`PSM 11 → ${c2} triples`);
+                if (c2 > statsCount) { statsText = r2.data.text; statsCount = c2; }
+            }
+
+            // Fallback 2: per-line OCR. Re-segment the digits blob with PSM 6 to
+            // get line bounding boxes, then OCR each line individually with
+            // PSM 7 (single line). Far more robust when the column grid is
+            // borderline-readable — each cell gets its own focused pass.
+            // Tesseract.js's type defs don't expose `lines` on Page so we cast.
+            const lines = (statsResultMain.data as unknown as {
+                lines?: Array<{ bbox?: { x0: number; y0: number; x1: number; y1: number } }>
+            }).lines ?? [];
+            if (statsCount < 6 && lines.length > 0) {
+                const perLineTriples: string[] = [];
+                await worker.setParameters({ tessedit_pageseg_mode: '7' as never });
+                for (const line of lines) {
+                    const bb = line.bbox;
+                    if (!bb) continue;
+                    const lineRes = await worker.recognize(digitsBlob, {
+                        rectangle: { left: bb.x0, top: bb.y0, width: bb.x1 - bb.x0, height: bb.y1 - bb.y0 }
+                    });
+                    perLineTriples.push(lineRes.data.text.trim());
                 }
+                const perLineText = perLineTriples.join('\n');
+                const c3 = tripleCount(perLineText);
+                passLabels.push(`per-line PSM 7 → ${c3} triples`);
+                if (c3 > statsCount) { statsText = perLineText; statsCount = c3; }
             }
 
             await worker.terminate();
@@ -690,7 +724,7 @@
             shotProcUrl = URL.createObjectURL(digitsBlob);
             shotRawText =
                 `── HEADER PASS (full charset, PSM 6) ──\n${headerText}\n\n` +
-                `── STATS PASS (digit whitelist, PSM ${usedPSM}) ──\n${statsText}`;
+                `── STATS PASS (best of: ${passLabels.join(', ')}) ──\n${statsText}`;
 
             parseStatPanel(headerText, statsText);
         } catch (err) {
