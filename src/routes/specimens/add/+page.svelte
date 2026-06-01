@@ -616,15 +616,15 @@
         const data = ctx.getImageData(0, 0, W, H).data;
 
         const lum = new Float32Array(W * H);
-        let maxLum = 0;
         for (let i = 0; i < W * H; i++) {
-            const l = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
-            lum[i] = l;
-            if (l > maxLum) maxLum = l;
+            lum[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
         }
 
-        // Per-row white-pixel count. Text pixels are at ~85-100% of max.
-        const brightT = maxLum * 0.78;
+        // ABSOLUTE bright threshold (200) — text pixels are at the top end
+        // of luminance regardless of how bright the dragon thumbnail is.
+        // Using a relative threshold (% of maxLum) excluded text rows when
+        // the dragon was much brighter than the stats.
+        const brightT = 200;
         const rowBright = new Float32Array(H);
         for (let y = 0; y < H; y++) {
             let cnt = 0;
@@ -641,23 +641,22 @@
             smooth[y] = (a + b + c2) / 3;
         }
 
-        // Maximum bright count seen
-        let maxBright = 0;
-        for (let y = 0; y < H; y++) if (smooth[y] > maxBright) maxBright = smooth[y];
-        // Min spacing in downsampled rows ~ 10 (≈ smallest plausible row gap)
-        const minSpacing = Math.max(6, Math.round(H * 0.022));
-        const minPeak    = maxBright * 0.18;
-
-        // Find peaks: a row is a peak if it's >= both neighbors AND at least
-        // minSpacing rows away from the previous accepted peak.
+        // Find ALL local maxima with min spacing. No global minPeak threshold
+        // — that was excluding dimmer rows when one row (dragon image) had
+        // way more bright pixels than the rest. The min-spacing constraint
+        // alone is enough to prevent duplicate detections on the same row.
+        const minSpacing = Math.max(4, Math.round(H * 0.014));
         const peaks: number[] = [];
         let lastPeak = -1000;
         for (let y = 1; y < H - 1; y++) {
             const v = smooth[y];
-            if (v < minPeak) continue;
+            // Need at least 3 bright pixels in the row — excludes truly blank
+            // gaps but accepts even sparsely-bright rows.
+            if (v < 3) continue;
             if (v < smooth[y-1] || v < smooth[y+1]) continue;
             if (y - lastPeak < minSpacing) {
-                // If new peak is stronger than the last, replace it
+                // Stronger peak within min-spacing window — replace the
+                // previous one rather than dropping this one.
                 if (peaks.length > 0 && v > smooth[peaks[peaks.length - 1]]) {
                     peaks[peaks.length - 1] = y;
                     lastPeak = y;
@@ -668,14 +667,15 @@
             lastPeak = y;
         }
 
-        // Each peak → row bbox bounded by midpoints to neighbouring peaks.
+        // Tighter bboxes so close-packed rows don't bleed into each other.
+        // The OCR can pull triples from a clean single-row strip; if two
+        // rows get merged into one bbox, PSM 6 returns 2 lines and the
+        // canonical-order mapping gets confused.
         const sy = crop.h / H;
         const rows: CropBox[] = peaks.map((p, i) => {
             const prev = i > 0 ? peaks[i-1] : -1;
             const next = i < peaks.length - 1 ? peaks[i+1] : H;
-            // Tighten around the peak: extend at most ~22 downsampled px each
-            // side OR halfway to neighbour (whichever is smaller).
-            const halfMax = Math.min(22, Math.round(H * 0.05));
+            const halfMax = Math.min(14, Math.round(H * 0.028));
             const top = Math.max(0, prev < 0 ? p - halfMax : Math.max(p - halfMax, Math.round((prev + p) / 2)));
             const bot = Math.min(H - 1, next >= H ? p + halfMax : Math.min(p + halfMax, Math.round((p + next) / 2)));
             return {
@@ -688,7 +688,7 @@
 
         return {
             rows,
-            debug: `${rows.length} rows from ${peaks.length} peaks, maxBright=${maxBright.toFixed(0)}, minPeak=${minPeak.toFixed(0)}, minSpacing=${minSpacing}`
+            debug: `${rows.length} rows from ${peaks.length} peaks, brightT=${brightT} (abs), minSpacing=${minSpacing}`
         };
     }
 
