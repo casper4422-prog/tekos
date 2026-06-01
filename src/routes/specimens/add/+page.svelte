@@ -86,9 +86,14 @@
 
     type ShotSource = 'tek' | 'spyglass';
     type CropBox = { x: number; y: number; w: number; h: number };
+    type DragMode =
+        | 'idle' | 'move'
+        | 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br'
+        | 'resize-t'  | 'resize-b'  | 'resize-l'  | 'resize-r';
 
     let shotFile     = $state<File | null>(null);
     let shotImage    = $state<HTMLImageElement | null>(null);
+    let shotImageUrl = $state<string | null>(null);
     let shotProcUrl  = $state<string | null>(null);
     let shotRunning  = $state(false);
     let shotProgress = $state(0);
@@ -99,19 +104,17 @@
     let shotSource   = $state<ShotSource | null>(null);
     let shotAutoDetected = $state(false);
 
-    // Cropper — coords held in IMAGE space so they survive canvas resize.
-    let cropBox      = $state<CropBox | null>(null);
-    let cropCanvasEl = $state<HTMLCanvasElement | null>(null);
-    let cropPointerMode = 'idle' as
-        | 'idle' | 'move'
-        | 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br'
-        | 'resize-t'  | 'resize-b'  | 'resize-l'  | 'resize-r';
-    let cropPointerStart = { x: 0, y: 0 };
-    let cropBoxStart: CropBox = { x: 0, y: 0, w: 0, h: 0 };
-    // Pinch-to-zoom (touch): two-finger gesture scales cropBox around the pinch midpoint
-    let pinchPrevDist = 0;
-    let pinchPrevMid  = { x: 0, y: 0 };
-    const activePointers = new Map<number, { x: number; y: number }>();
+    // Cropper — DOM-based overlay on top of an <img> element.
+    // cropBox coords are in IMAGE pixel space; the overlay positions itself
+    // proportionally based on `imgZoom` (1.0 = source pixel size).
+    let cropBox          = $state<CropBox | null>(null);
+    let imgZoom          = $state(1.0);
+    let stageContainerEl = $state<HTMLDivElement | null>(null);
+    let stageEl          = $state<HTMLDivElement | null>(null);
+    let stageContainerW  = $state(800);
+    // Two-pointer pinch zoom on the stage (touch only).
+    const stagePointers  = new Map<number, { x: number; y: number }>();
+    let pinchPrevDist    = 0;
 
     function pickScreenshot(e: Event) {
         const inp = e.target as HTMLInputElement;
@@ -127,28 +130,39 @@
         shotParsed = {};
         shotSource = null;
         shotAutoDetected = false;
-        if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
+        if (shotProcUrl)   { URL.revokeObjectURL(shotProcUrl);   shotProcUrl = null; }
+        if (shotImageUrl)  { URL.revokeObjectURL(shotImageUrl);  shotImageUrl = null; }
 
+        // Persistent URL — survives for the lifetime of the <img> element.
+        // Revoked on next file load / replace.
         const url = URL.createObjectURL(f);
-        try {
-            const img = await new Promise<HTMLImageElement>((res, rej) => {
-                const i = new Image();
-                i.onload  = () => res(i);
-                i.onerror = () => rej(new Error('Failed to load image'));
-                i.src = url;
-            });
-            shotImage = img;
-            const detected = autoDetectPanel(img);
-            if (detected) {
-                cropBox = detected;
-                shotAutoDetected = true;
-            } else {
-                cropBox = { x: 0, y: 0, w: img.width, h: img.height };
-                shotAutoDetected = false;
-            }
-        } finally {
-            URL.revokeObjectURL(url);
+        const img = await new Promise<HTMLImageElement>((res, rej) => {
+            const i = new Image();
+            i.onload  = () => res(i);
+            i.onerror = () => rej(new Error('Failed to load image'));
+            i.src = url;
+        });
+        shotImageUrl = url;
+        shotImage = img;
+
+        const detected = autoDetectPanel(img);
+        if (detected) {
+            cropBox = detected;
+            shotAutoDetected = true;
+        } else {
+            cropBox = { x: 0, y: 0, w: img.width, h: img.height };
+            shotAutoDetected = false;
         }
+
+        // Start fit-to-width so the user sees the whole image; they can zoom in
+        // for fine adjustment afterward.
+        imgZoom = computeFitZoom(img.width);
+    }
+
+    function computeFitZoom(imgW: number): number {
+        const containerW = stageContainerEl?.clientWidth ?? stageContainerW;
+        if (!containerW || !imgW) return 1;
+        return containerW / imgW;
     }
 
     /**
@@ -242,111 +256,7 @@
         };
     }
 
-    // ── Cropper rendering ────────────────────────────────────────────────
-    function drawCropper() {
-        if (!shotImage || !cropCanvasEl || !cropBox) return;
-        const ctx = cropCanvasEl.getContext('2d');
-        if (!ctx) return;
-        // Fit canvas to its CSS width, but cap the display height at 70vh so
-        // tall portrait phone photos don't blow past the viewport. When the
-        // aspect ratio pushes us past the ceiling we shrink the displayed
-        // width to maintain it — preserves image aspect, keeps cropper usable.
-        const dpr  = window.devicePixelRatio || 1;
-        const containerW = cropCanvasEl.clientWidth || 600;
-        const aspect = shotImage.width / shotImage.height;
-        const maxDisplayH = Math.max(420, window.innerHeight * 0.70);
-        let displayW = containerW;
-        let displayH = displayW / aspect;
-        if (displayH > maxDisplayH) {
-            displayH = maxDisplayH;
-            displayW = displayH * aspect;
-        }
-        const pixW = Math.round(displayW * dpr);
-        const pixH = Math.round(displayH * dpr);
-        if (cropCanvasEl.width !== pixW || cropCanvasEl.height !== pixH) {
-            cropCanvasEl.width = pixW;
-            cropCanvasEl.height = pixH;
-            cropCanvasEl.style.width  = `${displayW}px`;
-            cropCanvasEl.style.height = `${displayH}px`;
-        }
-        const scale = pixW / shotImage.width;
-        ctx.drawImage(shotImage, 0, 0, pixW, pixH);
-
-        const bx = cropBox.x * scale;
-        const by = cropBox.y * scale;
-        const bw = cropBox.w * scale;
-        const bh = cropBox.h * scale;
-
-        // Dim everything outside the crop
-        ctx.fillStyle = 'rgba(2, 6, 16, 0.72)';
-        ctx.fillRect(0, 0, pixW, by);
-        ctx.fillRect(0, by + bh, pixW, pixH - (by + bh));
-        ctx.fillRect(0, by, bx, bh);
-        ctx.fillRect(bx + bw, by, pixW - (bx + bw), bh);
-
-        // Crop border
-        ctx.strokeStyle = '#00b4ff';
-        ctx.lineWidth = 2 * dpr;
-        ctx.strokeRect(bx, by, bw, bh);
-
-        // Rule-of-thirds guides (subtle)
-        ctx.strokeStyle = 'rgba(0, 180, 255, 0.18)';
-        ctx.lineWidth = 1 * dpr;
-        for (let i = 1; i <= 2; i++) {
-            ctx.beginPath();
-            ctx.moveTo(bx + (bw * i) / 3, by);
-            ctx.lineTo(bx + (bw * i) / 3, by + bh);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(bx, by + (bh * i) / 3);
-            ctx.lineTo(bx + bw, by + (bh * i) / 3);
-            ctx.stroke();
-        }
-
-        // Handles — sized proportional to the crop box so they stay grabbable
-        // when the user has cropped to a small panel inside a huge screenshot.
-        // Floor at 16px, ceiling at 28px (in CSS pixels, scaled by DPR).
-        const handleCss = Math.max(16, Math.min(28, Math.min(bw, bh) * 0.18 / dpr));
-        const hs = handleCss * dpr;
-        const half = hs / 2;
-        // Outer fill (darker) for contrast against any image, then inner cyan
-        ctx.fillStyle = 'rgba(2, 6, 16, 0.92)';
-        for (const h of cropHandlePositions(bx, by, bw, bh, half)) {
-            ctx.fillRect(h.x - 1, h.y - 1, hs + 2, hs + 2);
-        }
-        ctx.fillStyle = '#00b4ff';
-        for (const h of cropHandlePositions(bx, by, bw, bh, half)) {
-            ctx.fillRect(h.x, h.y, hs, hs);
-        }
-    }
-
-    function cropHandlePositions(bx: number, by: number, bw: number, bh: number, half: number) {
-        return [
-            { id: 'resize-tl' as const, x: bx - half,         y: by - half },
-            { id: 'resize-tr' as const, x: bx + bw - half,    y: by - half },
-            { id: 'resize-bl' as const, x: bx - half,         y: by + bh - half },
-            { id: 'resize-br' as const, x: bx + bw - half,    y: by + bh - half },
-            { id: 'resize-t'  as const, x: bx + bw / 2 - half, y: by - half },
-            { id: 'resize-b'  as const, x: bx + bw / 2 - half, y: by + bh - half },
-            { id: 'resize-l'  as const, x: bx - half,         y: by + bh / 2 - half },
-            { id: 'resize-r'  as const, x: bx + bw - half,    y: by + bh / 2 - half }
-        ];
-    }
-
-    // Redraw whenever the image or crop box changes
-    $effect(() => {
-        if (shotImage && cropCanvasEl && cropBox) drawCropper();
-    });
-
-    function getPointerCoords(e: PointerEvent): { x: number; y: number } {
-        if (!cropCanvasEl) return { x: 0, y: 0 };
-        const r = cropCanvasEl.getBoundingClientRect();
-        return {
-            x: (e.clientX - r.left) * (cropCanvasEl.width / r.width),
-            y: (e.clientY - r.top)  * (cropCanvasEl.height / r.height)
-        };
-    }
-
+    // ── Cropper helpers ─────────────────────────────────────────────────
     function clampBox(b: CropBox): CropBox {
         if (!shotImage) return b;
         const MIN = 16;
@@ -358,186 +268,115 @@
         return { x, y, w, h };
     }
 
-    /**
-     * Decide which drag mode a pointer at `pt` would enter. Pure function —
-     * called from pointerdown for the actual drag start AND from pointermove
-     * (while idle) to update the hover cursor so the user can SEE which mode
-     * they'll get before clicking.
-     *
-     * Zones (all measurements in CSS pixels, scaled to canvas pixels via dpr):
-     *
-     *   Corner zones — 28 CSS px square at each of the four corners. Win
-     *   priority because they're visually marked by handles.
-     *
-     *   Edge bands — 36 CSS px on either side of each edge. The user can
-     *   click anywhere on the edge to resize from that side. Generous so
-     *   missing the exact pixel of the border still works.
-     *
-     *   Move zone — the interior of the box minus the edge bands.
-     *
-     *   Outside the box+margin entirely → 'idle' (no-op). We deliberately do
-     *   NOT create a fresh tiny box on outside-click — that surprises users
-     *   who thought they were grabbing an edge but landed in the dimmed area.
-     *   Use the Reset / Auto-detect buttons to recreate the box.
-     */
-    function hitTestCropper(pt: { x: number; y: number }): typeof cropPointerMode {
-        if (!shotImage || !cropBox || !cropCanvasEl) return 'idle';
-        const dpr = window.devicePixelRatio || 1;
-        const scale = (cropCanvasEl.width || 1) / shotImage.width;
-        const bx = cropBox.x * scale;
-        const by = cropBox.y * scale;
-        const bw = cropBox.w * scale;
-        const bh = cropBox.h * scale;
+    // ── Drag: per-handle pointerdown starts a typed drag, captures the
+    //         pointer to the handle element, listens for move/up on the same
+    //         element. Each handle is its own DOM node with its own CSS
+    //         cursor — no hit testing, no fragile zone math, the browser
+    //         handles which element the pointer is over. ─────────────────
+    function startCropDrag(e: PointerEvent, mode: DragMode) {
+        if (!cropBox || !shotImage) return;
+        // Stop the parent crop-box's 'move' pointerdown from also firing when
+        // the user grabs an edge/corner. Without this, every edge drag would
+        // also enter move mode and the two would race.
+        e.stopPropagation();
+        e.preventDefault();
 
-        const edge = 36 * dpr;       // CSS px on each side of an edge
-        const cornerSize = 28 * dpr; // CSS px square at each corner
+        const target = e.currentTarget as HTMLElement;
+        try { target.setPointerCapture(e.pointerId); } catch { /* ignore */ }
 
-        // Outside the box + edge band → no action.
-        if (pt.x < bx - edge || pt.x > bx + bw + edge) return 'idle';
-        if (pt.y < by - edge || pt.y > by + bh + edge) return 'idle';
+        const startClientX = e.clientX;
+        const startClientY = e.clientY;
+        const startBox = { ...cropBox };
 
-        // Shrink corner-zone for small boxes so corners can't eat the whole edge.
-        const cx = Math.min(cornerSize, bw / 3);
-        const cy = Math.min(cornerSize, bh / 3);
+        function onMove(ev: PointerEvent) {
+            if (ev.pointerId !== e.pointerId || !cropBox || !shotImage) return;
+            // Translate client-pixel delta into IMAGE-pixel delta via the
+            // current zoom factor. `imgZoom` is the multiplier from source
+            // pixel → CSS pixel.
+            const dx = (ev.clientX - startClientX) / imgZoom;
+            const dy = (ev.clientY - startClientY) / imgZoom;
+            const s = startBox;
+            let { x, y, w, h } = s;
 
-        const inLeftCorner   = pt.x < bx + cx;
-        const inRightCorner  = pt.x > bx + bw - cx;
-        const inTopCorner    = pt.y < by + cy;
-        const inBottomCorner = pt.y > by + bh - cy;
-
-        if (inTopCorner    && inLeftCorner)  return 'resize-tl';
-        if (inTopCorner    && inRightCorner) return 'resize-tr';
-        if (inBottomCorner && inLeftCorner)  return 'resize-bl';
-        if (inBottomCorner && inRightCorner) return 'resize-br';
-
-        const nearLeft   = pt.x < bx + edge;
-        const nearRight  = pt.x > bx + bw - edge;
-        const nearTop    = pt.y < by + edge;
-        const nearBottom = pt.y > by + bh - edge;
-
-        if (nearLeft)   return 'resize-l';
-        if (nearRight)  return 'resize-r';
-        if (nearTop)    return 'resize-t';
-        if (nearBottom) return 'resize-b';
-
-        // Anywhere inside the box that wasn't an edge band → move.
-        if (pt.x >= bx && pt.x <= bx + bw && pt.y >= by && pt.y <= by + bh) return 'move';
-        return 'idle';
-    }
-
-    function cursorForCropMode(mode: typeof cropPointerMode): string {
-        switch (mode) {
-            case 'move':       return 'move';
-            case 'resize-l':
-            case 'resize-r':   return 'ew-resize';
-            case 'resize-t':
-            case 'resize-b':   return 'ns-resize';
-            case 'resize-tl':
-            case 'resize-br':  return 'nwse-resize';
-            case 'resize-tr':
-            case 'resize-bl':  return 'nesw-resize';
-            default:           return 'default';
-        }
-    }
-
-    function onCropPointerDown(e: PointerEvent) {
-        if (!shotImage || !cropBox || !cropCanvasEl) return;
-        // setPointerCapture can throw if the pointer is no longer active
-        // (rare browser edge case). Don't let it break the rest of the flow.
-        try { cropCanvasEl.setPointerCapture(e.pointerId); } catch { /* ignore */ }
-        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-        // Two-finger TOUCH gesture → enter pinch-zoom mode. Restricted to
-        // pointerType === 'touch' so a hybrid device's stray pen/mouse pointer
-        // can't accidentally put us in pinch mode and kill the active drag.
-        if (e.pointerType === 'touch' && activePointers.size === 2) {
-            const pts = [...activePointers.values()];
-            pinchPrevDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-            pinchPrevMid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
-            cropPointerMode = 'idle';
-            return;
-        }
-
-        const pt = getPointerCoords(e);
-        const mode = hitTestCropper(pt);
-        if (mode === 'idle') {
-            // Click outside the box+margin: NO-OP. Don't replace the existing
-            // crop with a tiny new one — that confuses users who thought they
-            // were grabbing the edge from the dimmed area. The Reset and
-            // Auto-detect buttons exist for full-redraw scenarios.
-            return;
-        }
-        cropPointerMode = mode;
-        cropPointerStart = pt;
-        cropBoxStart = { ...cropBox };
-    }
-
-    function onCropPointerMove(e: PointerEvent) {
-        if (!shotImage || !cropBox || !cropCanvasEl) return;
-        if (activePointers.has(e.pointerId)) {
-            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        }
-
-        // Pinch-zoom while two TOUCH fingers down. Same gating as pointerdown
-        // — only pinch when the moving pointer is a touch contact.
-        if (e.pointerType === 'touch' && activePointers.size === 2) {
-            const pts = [...activePointers.values()];
-            const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-            if (pinchPrevDist > 0) {
-                const factor = dist / pinchPrevDist;
-                // Pinch midpoint in IMAGE coords
-                const r = cropCanvasEl.getBoundingClientRect();
-                const midCanvasX = (pinchPrevMid.x - r.left) * (cropCanvasEl.width  / r.width);
-                const midCanvasY = (pinchPrevMid.y - r.top)  * (cropCanvasEl.height / r.height);
-                const scale = (cropCanvasEl.width || 1) / shotImage.width;
-                const midImgX = midCanvasX / scale;
-                const midImgY = midCanvasY / scale;
-                const nw = cropBox.w / factor;
-                const nh = cropBox.h / factor;
-                const nx = midImgX - (midImgX - cropBox.x) / factor;
-                const ny = midImgY - (midImgY - cropBox.y) / factor;
-                cropBox = clampBox({ x: nx, y: ny, w: nw, h: nh });
+            if (mode === 'move') {
+                x = s.x + dx; y = s.y + dy;
+            } else {
+                if (mode.includes('l')) { x = s.x + dx; w = s.w - dx; }
+                if (mode.includes('r')) { w = s.w + dx; }
+                if (mode.includes('t')) { y = s.y + dy; h = s.h - dy; }
+                if (mode.includes('b')) { h = s.h + dy; }
+                // Clamp if we'd flip the box past its opposing edge.
+                if (w < 16) { if (mode.includes('l')) x = s.x + s.w - 16; w = 16; }
+                if (h < 16) { if (mode.includes('t')) y = s.y + s.h - 16; h = 16; }
             }
-            pinchPrevDist = dist;
-            pinchPrevMid  = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
-            return;
+            cropBox = clampBox({ x, y, w, h });
         }
-
-        if (cropPointerMode === 'idle') {
-            // Not dragging: update hover cursor so the user can see which
-            // mode they'll get if they click here. Costs ~nothing.
-            const hoverPt = getPointerCoords(e);
-            cropCanvasEl.style.cursor = cursorForCropMode(hitTestCropper(hoverPt));
-            return;
+        function onUp(ev: PointerEvent) {
+            if (ev.pointerId !== e.pointerId) return;
+            target.removeEventListener('pointermove',   onMove);
+            target.removeEventListener('pointerup',     onUp);
+            target.removeEventListener('pointercancel', onUp);
+            try { target.releasePointerCapture(ev.pointerId); } catch { /* ignore */ }
         }
-        const pt = getPointerCoords(e);
-        const scale = (cropCanvasEl.width || 1) / shotImage.width;
-        const dx = (pt.x - cropPointerStart.x) / scale;
-        const dy = (pt.y - cropPointerStart.y) / scale;
-        const s = cropBoxStart;
-        let { x, y, w, h } = s;
-
-        if (cropPointerMode === 'move') {
-            x = s.x + dx; y = s.y + dy;
-        } else {
-            if (cropPointerMode.includes('l')) { x = s.x + dx; w = s.w - dx; }
-            if (cropPointerMode.includes('r')) { w = s.w + dx; }
-            if (cropPointerMode.includes('t')) { y = s.y + dy; h = s.h - dy; }
-            if (cropPointerMode.includes('b')) { h = s.h + dy; }
-            // If we drag past the opposing edge, the box would invert — clamp.
-            if (w < 16) { if (cropPointerMode.includes('l')) x = s.x + s.w - 16; w = 16; }
-            if (h < 16) { if (cropPointerMode.includes('t')) y = s.y + s.h - 16; h = 16; }
-        }
-        cropBox = clampBox({ x, y, w, h });
+        target.addEventListener('pointermove',   onMove);
+        target.addEventListener('pointerup',     onUp);
+        target.addEventListener('pointercancel', onUp);
     }
 
-    function onCropPointerUp(e: PointerEvent) {
-        if (cropCanvasEl?.hasPointerCapture(e.pointerId)) {
-            cropCanvasEl.releasePointerCapture(e.pointerId);
+    // ── Zoom controls ──────────────────────────────────────────────────
+    function zoomIn()    { imgZoom = Math.min(8,    imgZoom * 1.25); }
+    function zoomOut()   { imgZoom = Math.max(0.05, imgZoom / 1.25); }
+    function zoomActual(){ imgZoom = 1.0; }
+    function zoomFit() {
+        if (!shotImage || !stageContainerEl) return;
+        imgZoom = computeFitZoom(shotImage.width);
+    }
+
+    // Ctrl-wheel on the stage zooms around the cursor.
+    function onStageWheel(e: WheelEvent) {
+        if (!e.ctrlKey || !shotImage || !stageContainerEl) return;
+        e.preventDefault();
+        const factor = e.deltaY > 0 ? (1 / 1.15) : 1.15;
+        const next = Math.max(0.05, Math.min(8, imgZoom * factor));
+        // Keep the point under the cursor stable: shift scroll position so
+        // the image coordinate the cursor was hovering stays under it.
+        const containerRect = stageContainerEl.getBoundingClientRect();
+        const cursorX = e.clientX - containerRect.left + stageContainerEl.scrollLeft;
+        const cursorY = e.clientY - containerRect.top  + stageContainerEl.scrollTop;
+        const ratio = next / imgZoom;
+        imgZoom = next;
+        // After Svelte re-renders the stage to its new size, adjust scroll.
+        requestAnimationFrame(() => {
+            if (!stageContainerEl) return;
+            stageContainerEl.scrollLeft = cursorX * ratio - (e.clientX - containerRect.left);
+            stageContainerEl.scrollTop  = cursorY * ratio - (e.clientY - containerRect.top);
+        });
+    }
+
+    // ── Pinch zoom on touch: two pointers on the stage container.
+    //    Tracked separately from the crop-drag pointers so they don't fight.
+    function onStagePointerDown(e: PointerEvent) {
+        if (e.pointerType !== 'touch') return;
+        stagePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (stagePointers.size === 2) {
+            const pts = [...stagePointers.values()];
+            pinchPrevDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
         }
-        activePointers.delete(e.pointerId);
-        if (activePointers.size < 2) pinchPrevDist = 0;
-        if (activePointers.size === 0) cropPointerMode = 'idle';
+    }
+    function onStagePointerMove(e: PointerEvent) {
+        if (e.pointerType !== 'touch' || !stagePointers.has(e.pointerId)) return;
+        stagePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (stagePointers.size === 2 && pinchPrevDist > 0) {
+            const pts = [...stagePointers.values()];
+            const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+            const factor = dist / pinchPrevDist;
+            imgZoom = Math.max(0.05, Math.min(8, imgZoom * factor));
+            pinchPrevDist = dist;
+        }
+    }
+    function onStagePointerUp(e: PointerEvent) {
+        stagePointers.delete(e.pointerId);
+        if (stagePointers.size < 2) pinchPrevDist = 0;
     }
 
     function resetCrop() {
@@ -1238,22 +1077,92 @@
                                     ↻ Replace
                                     <input type="file" accept="image/*" onchange={pickScreenshot} style="display:none" />
                                 </label>
+                                <span class="zoom-bar">
+                                    <button type="button" class="ghost-btn" onclick={zoomOut} title="Zoom out">−</button>
+                                    <span class="zoom-val">{Math.round(imgZoom * 100)}%</span>
+                                    <button type="button" class="ghost-btn" onclick={zoomIn} title="Zoom in">+</button>
+                                    <button type="button" class="ghost-btn" onclick={zoomFit} title="Fit width">⤢</button>
+                                    <button type="button" class="ghost-btn" onclick={zoomActual} title="Actual size (100%)">1:1</button>
+                                </span>
                             </div>
-                            <div class="cropper-wrap">
-                                <canvas
-                                    bind:this={cropCanvasEl}
-                                    class="cropper-canvas"
-                                    onpointerdown={onCropPointerDown}
-                                    onpointermove={onCropPointerMove}
-                                    onpointerup={onCropPointerUp}
-                                    onpointercancel={onCropPointerUp}
-                                ></canvas>
+                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                            <div
+                                class="cropper-scroll"
+                                bind:this={stageContainerEl}
+                                onwheel={onStageWheel}
+                                onpointerdown={onStagePointerDown}
+                                onpointermove={onStagePointerMove}
+                                onpointerup={onStagePointerUp}
+                                onpointercancel={onStagePointerUp}
+                            >
+                                {#if shotImage && shotImageUrl && cropBox}
+                                    {@const sw = shotImage.width  * imgZoom}
+                                    {@const sh = shotImage.height * imgZoom}
+                                    {@const cx = cropBox.x * imgZoom}
+                                    {@const cy = cropBox.y * imgZoom}
+                                    {@const cw = cropBox.w * imgZoom}
+                                    {@const ch = cropBox.h * imgZoom}
+                                    <div
+                                        class="cropper-stage"
+                                        bind:this={stageEl}
+                                        style="width: {sw}px; height: {sh}px"
+                                    >
+                                        <img
+                                            class="cropper-img"
+                                            src={shotImageUrl}
+                                            alt=""
+                                            draggable="false"
+                                        />
+                                        <!-- Four dimmed-mask quadrants outside the crop. pointer-events
+                                             disabled so clicks pass through to handles below. -->
+                                        <div class="cmask" style="left:0; top:0; width:{sw}px; height:{cy}px"></div>
+                                        <div class="cmask" style="left:0; top:{cy + ch}px; width:{sw}px; height:{sh - cy - ch}px"></div>
+                                        <div class="cmask" style="left:0; top:{cy}px; width:{cx}px; height:{ch}px"></div>
+                                        <div class="cmask" style="left:{cx + cw}px; top:{cy}px; width:{sw - cx - cw}px; height:{ch}px"></div>
+
+                                        <!-- The crop box itself: border + rule-of-thirds + handles.
+                                             pointerdown on the box (not a handle) = move.
+                                             svelte-ignore a11y_no_static_element_interactions: cropper is
+                                             inherently pointer-only; keyboard adjustment isn't supported. -->
+                                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                        <div
+                                            class="crop-box"
+                                            style="left:{cx}px; top:{cy}px; width:{cw}px; height:{ch}px"
+                                            onpointerdown={(e) => startCropDrag(e, 'move')}
+                                        >
+                                            <div class="rule v" style="left:33.333%"></div>
+                                            <div class="rule v" style="left:66.667%"></div>
+                                            <div class="rule h" style="top:33.333%"></div>
+                                            <div class="rule h" style="top:66.667%"></div>
+
+                                            <!-- Edge handles: whole edge is the hit zone (CSS handles this) -->
+                                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                            <div class="edge edge-t" onpointerdown={(e) => startCropDrag(e, 'resize-t')}></div>
+                                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                            <div class="edge edge-b" onpointerdown={(e) => startCropDrag(e, 'resize-b')}></div>
+                                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                            <div class="edge edge-l" onpointerdown={(e) => startCropDrag(e, 'resize-l')}></div>
+                                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                            <div class="edge edge-r" onpointerdown={(e) => startCropDrag(e, 'resize-r')}></div>
+
+                                            <!-- Corner handles -->
+                                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                            <div class="corner corner-tl" onpointerdown={(e) => startCropDrag(e, 'resize-tl')}></div>
+                                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                            <div class="corner corner-tr" onpointerdown={(e) => startCropDrag(e, 'resize-tr')}></div>
+                                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                            <div class="corner corner-bl" onpointerdown={(e) => startCropDrag(e, 'resize-bl')}></div>
+                                            <!-- svelte-ignore a11y_no_static_element_interactions -->
+                                            <div class="corner corner-br" onpointerdown={(e) => startCropDrag(e, 'resize-br')}></div>
+                                        </div>
+                                    </div>
+                                {/if}
                             </div>
                             <div class="shot-hint">
                                 {#if shotAutoDetected}
-                                    ⊕ Auto-snapped to the detected panel. Drag corners or center to adjust.
+                                    ⊕ Auto-snapped to the detected panel. Drag a corner / edge / inside the box to adjust. Ctrl+scroll or pinch to zoom; the bar above also has +/−/fit/1:1.
                                 {:else}
-                                    Drag corners to resize, drag the box to move. Pinch on touch to zoom.
+                                    Drag a corner / edge / inside the box to adjust. Ctrl+scroll or pinch to zoom; the bar above also has +/−/fit/1:1.
                                 {/if}
                             </div>
                             <button class="btn shot-run-btn" disabled={shotRunning} onclick={runOcr}>
@@ -2031,27 +1940,106 @@
     color: var(--tek-text);
     border-color: rgba(0, 180, 255, 0.50);
 }
-.cropper-wrap {
+/* ═════ Cropper (DOM-based) ═════════════════════════════════════════ */
+.zoom-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding-left: 8px;
+    border-left: 1px solid rgba(0, 180, 255, 0.20);
+}
+.zoom-val {
+    font-family: var(--tek-mono);
+    font-size: 0.66rem;
+    color: var(--tek-text-dim);
+    min-width: 44px;
+    text-align: center;
+    letter-spacing: 0.04em;
+}
+.cropper-scroll {
     position: relative;
     width: 100%;
+    max-height: 72vh;
+    overflow: auto;
     background: #02060e;
     border: 1px solid rgba(0, 180, 255, 0.22);
     clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
-    overflow: hidden;
-    /* Disable browser default touch gestures so we own pinch/drag */
-    touch-action: none;
+    /* Own pinch/scroll-with-ctrl gestures */
+    touch-action: pan-x pan-y;
+    /* Slight inner padding so the crop handles at image edges aren't cut off */
+    padding: 14px;
+    box-sizing: border-box;
 }
-.cropper-canvas {
-    display: block;
-    width: 100%;
-    height: auto;
-    cursor: crosshair;
+.cropper-stage {
+    position: relative;
     user-select: none;
     -webkit-user-select: none;
-    /* Own all pointer gestures — inheritance from the wrapper isn't reliable
-       across Safari + touchscreen-Windows, so set it here too. */
+}
+.cropper-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;     /* clicks go to overlays/handles below */
+    user-select: none;
+    -webkit-user-drag: none;
+    /* Crisp pixel scaling when zoomed past 100% so the user can see exactly
+       which pixels they're cropping. Browsers normally smear at high zoom. */
+    image-rendering: pixelated;
+}
+.cmask {
+    position: absolute;
+    background: rgba(2, 6, 16, 0.72);
+    pointer-events: none;
+}
+.crop-box {
+    position: absolute;
+    border: 2px solid #00b4ff;
+    box-sizing: border-box;
+    cursor: move;
+    touch-action: none;
+    /* Subtle inner glow so the box reads on any image */
+    box-shadow:
+        inset 0 0 0 1px rgba(2, 6, 16, 0.6),
+        0 0 0 1px rgba(0, 180, 255, 0.35);
+}
+.rule {
+    position: absolute;
+    background: rgba(0, 180, 255, 0.22);
+    pointer-events: none;
+}
+.rule.v { width: 1px; top: 0; bottom: 0; }
+.rule.h { height: 1px; left: 0; right: 0; }
+
+/* Edge handles span the entire edge, sitting half outside the box so they're
+   easy to grab even when the crop is right against the image edge. */
+.edge {
+    position: absolute;
     touch-action: none;
 }
+.edge-t { top: -10px;    left: 16px;  right: 16px; height: 20px; cursor: ns-resize; }
+.edge-b { bottom: -10px; left: 16px;  right: 16px; height: 20px; cursor: ns-resize; }
+.edge-l { left: -10px;   top: 16px;   bottom: 16px; width: 20px; cursor: ew-resize; }
+.edge-r { right: -10px;  top: 16px;   bottom: 16px; width: 20px; cursor: ew-resize; }
+
+/* Visible cyan corner handles, centered on each corner. Big hit zone via
+   padding-style sizing so the user can click slightly outside the visible
+   square. */
+.corner {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background: #00b4ff;
+    border: 2px solid #02060e;
+    box-sizing: border-box;
+    touch-action: none;
+    box-shadow: 0 0 6px rgba(0, 180, 255, 0.50);
+}
+.corner-tl { top: -9px;    left: -9px;    cursor: nwse-resize; }
+.corner-tr { top: -9px;    right: -9px;   cursor: nesw-resize; }
+.corner-bl { bottom: -9px; left: -9px;    cursor: nesw-resize; }
+.corner-br { bottom: -9px; right: -9px;   cursor: nwse-resize; }
+.corner:hover { background: #44ddff; }
 .shot-hint {
     font-family: var(--tek-mono);
     font-size: 0.68rem;
