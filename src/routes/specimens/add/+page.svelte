@@ -555,19 +555,41 @@
         const d = id.data;
 
         if (variant === 'digits') {
-            // Drop high-saturation pixels (the colored stat icons) to white
-            // BEFORE Otsu, so the threshold focuses on the desaturated digit
-            // text only. Threshold lowered to 0.28 — phone-photo colors are
-            // washed out vs native screenshots, so the icons sit at a lower
-            // saturation. The digit text is pure greyscale (~0 sat) so the
-            // lower cutoff doesn't risk catching it.
-            for (let i = 0; i < d.length; i += 4) {
-                const r = d[i], g = d[i+1], b = d[i+2];
-                const max = Math.max(r, g, b);
-                const min = Math.min(r, g, b);
-                const sat = max === 0 ? 0 : (max - min) / max;
-                if (sat > 0.28) {
-                    d[i] = 0; d[i+1] = 0; d[i+2] = 0;
+            // Two-pass saturation mask. The naive mask catches JPEG color-bleed
+            // pixels at the edge of an icon — fringes of the red HP cross
+            // tinting the adjacent "5" digit, etc. That partial masking
+            // mangles the glyph shape and Tesseract drops it.
+            //
+            // Pass A: build a binary saturation map (1 = colored pixel).
+            // Pass B: only mask pixels that have ≥5 of 8 colored neighbors —
+            //         i.e., they're INTERIOR to a colored region, not on the
+            //         fringe. Edge bleed pixels survive.
+            const W = w, H = h;
+            const sat = new Uint8Array(W * H);
+            for (let i = 0; i < W * H; i++) {
+                const r = d[i*4], g = d[i*4+1], b = d[i*4+2];
+                const mx = Math.max(r, g, b);
+                const mn = Math.min(r, g, b);
+                const s = mx === 0 ? 0 : (mx - mn) / mx;
+                if (s > 0.28) sat[i] = 1;
+            }
+            for (let y = 1; y < H - 1; y++) {
+                for (let x = 1; x < W - 1; x++) {
+                    const idx = y * W + x;
+                    if (!sat[idx]) continue;
+                    // Majority of 8 neighbors must also be colored
+                    let nb = 0;
+                    if (sat[idx - W - 1]) nb++;
+                    if (sat[idx - W])     nb++;
+                    if (sat[idx - W + 1]) nb++;
+                    if (sat[idx - 1])     nb++;
+                    if (sat[idx + 1])     nb++;
+                    if (sat[idx + W - 1]) nb++;
+                    if (sat[idx + W])     nb++;
+                    if (sat[idx + W + 1]) nb++;
+                    if (nb >= 5) {
+                        d[idx*4] = 0; d[idx*4+1] = 0; d[idx*4+2] = 0;
+                    }
                 }
             }
         }
@@ -694,11 +716,24 @@
                 if (c2 > statsCount) { statsText = r2.data.text; statsCount = c2; }
             }
 
-            // Fallback 2: per-line OCR. Re-segment the digits blob with PSM 6 to
+            // Fallback 2: same digit whitelist + PSM 6, but on the text-mode
+            // blob (no saturation mask at all). If the icon-adjacent first
+            // digit of any row was getting partially eaten by the sat mask,
+            // this pass recovers it. Often produces a triple-count tie with
+            // the main pass, but with the leading digits restored.
+            await worker.setParameters({ tessedit_pageseg_mode: '6' as never });
+            const r4 = await worker.recognize(textBlob);
+            const c4 = tripleCount(r4.data.text);
+            passLabels.push(`text-blob PSM 6 → ${c4} triples`);
+            // Strict ≥ here (not >) so a tie picks the safer text-blob pass.
+            if (c4 >= statsCount && c4 > 0) { statsText = r4.data.text; statsCount = c4; }
+
+            // Fallback 3: per-line OCR. Re-segment the digits blob with PSM 6 to
             // get line bounding boxes, then OCR each line individually with
-            // PSM 7 (single line). Far more robust when the column grid is
-            // borderline-readable — each cell gets its own focused pass.
-            // Tesseract.js's type defs don't expose `lines` on Page so we cast.
+            // PSM 7 (single line). Each cell gets its own focused pass —
+            // far more robust when the column grid is borderline-readable.
+            // Per-line rectangles are extended 5% to the left so icon-adjacent
+            // first digits don't fall outside the bbox Tesseract detected.
             const lines = (statsResultMain.data as unknown as {
                 lines?: Array<{ bbox?: { x0: number; y0: number; x1: number; y1: number } }>
             }).lines ?? [];
@@ -708,15 +743,18 @@
                 for (const line of lines) {
                     const bb = line.bbox;
                     if (!bb) continue;
+                    const widening = Math.round((bb.x1 - bb.x0) * 0.05);
+                    const adjLeft = Math.max(0, bb.x0 - widening);
+                    const adjW = bb.x1 - adjLeft;
                     const lineRes = await worker.recognize(digitsBlob, {
-                        rectangle: { left: bb.x0, top: bb.y0, width: bb.x1 - bb.x0, height: bb.y1 - bb.y0 }
+                        rectangle: { left: adjLeft, top: bb.y0, width: adjW, height: bb.y1 - bb.y0 }
                     });
                     perLineTriples.push(lineRes.data.text.trim());
                 }
                 const perLineText = perLineTriples.join('\n');
-                const c3 = tripleCount(perLineText);
-                passLabels.push(`per-line PSM 7 → ${c3} triples`);
-                if (c3 > statsCount) { statsText = perLineText; statsCount = c3; }
+                const c5 = tripleCount(perLineText);
+                passLabels.push(`per-line PSM 7 → ${c5} triples`);
+                if (c5 > statsCount) { statsText = perLineText; statsCount = c5; }
             }
 
             await worker.terminate();
