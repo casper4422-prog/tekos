@@ -676,9 +676,10 @@
 
         const templateAspect = template.height / template.width;
         // Candidate panel widths as a fraction of haystack width. Panels in
-        // ARK screenshots typically take 15-30% of width. 12% was producing
-        // tiny matches on noise; bumped the floor up.
-        const candidates = [0.15, 0.18, 0.21, 0.24, 0.27, 0.30, 0.35];
+        // ARK screenshots typically take 18-30% of width. Pushed the floor
+        // up further — 0.15 was still picking too-small matches that
+        // missed the HP row at the top.
+        const candidates = [0.18, 0.21, 0.24, 0.27, 0.30, 0.35, 0.40];
 
         let best: { x: number; y: number; w: number; h: number; score: number; scale: number } | null = null;
 
@@ -956,13 +957,15 @@
             });
 
             // Text area: right ~88% of the panel (skip the icon column).
-            // Extend vertical bounds slightly OUTSIDE the matched region
-            // (±4% of match height) because the template-match position can
-            // be off by a few pixels and we'd rather over-capture than miss
-            // a stat row.
-            const yPad = Math.round(match.h * 0.04);
-            const yTop = Math.max(0, match.y - yPad);
-            const yBot = Math.min(shotImage.height, match.y + match.h + yPad);
+            // Extend vertical bounds OUTSIDE the matched region — 18% above
+            // and 8% below match.h. The template match consistently lands
+            // 1-2 rows below the actual panel top (HP row missing from OCR
+            // even after the SSD normalization), so we deliberately over-
+            // capture upward to ensure HP is included.
+            const yPadTop = Math.round(match.h * 0.18);
+            const yPadBot = Math.round(match.h * 0.08);
+            const yTop = Math.max(0, match.y - yPadTop);
+            const yBot = Math.min(shotImage.height, match.y + match.h + yPadBot);
             const textRect: CropBox = {
                 x: Math.round(match.x + STAT_TEXT_X_START * match.w),
                 y: yTop,
