@@ -765,12 +765,12 @@
         worker: { recognize: (b: Blob) => Promise<{ data: { text: string } }> }
     ): Promise<{ text: string; canvas: HTMLCanvasElement }> {
         // AGGRESSIVE upscale targets so even small source panels become
-        // comfortably-sized for Tesseract. Floor at 7× so we never go below
-        // sweet-spot text height, target 1600 px tall / 8000 px wide.
-        const scaleH = 1600 / bbox.h;
+        // comfortably-sized for Tesseract. Floor at 8× so we never go below
+        // sweet-spot text height.
+        const scaleH = 2000 / bbox.h;
         const scaleW = 8000 / bbox.w;
         const scaleCap = Math.min(scaleH, scaleW);
-        const scale = Math.max(7, Math.min(16, scaleCap));
+        const scale = Math.max(8, Math.min(16, scaleCap));
         const w = Math.max(1, Math.round(bbox.w * scale));
         const h = Math.max(1, Math.round(bbox.h * scale));
 
@@ -780,20 +780,73 @@
         if (!ctx) return { text: '', canvas: out };
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        // Very light blur — strong upscales already smooth edges; we just
-        // want to thicken the thinnest strokes (pipes / slashes) without
-        // smudging adjacent digits together.
-        ctx.filter = 'blur(0.5px)';
+        ctx.filter = 'blur(0.4px)';
         ctx.drawImage(img, bbox.x, bbox.y, bbox.w, bbox.h, 0, 0, w, h);
         ctx.filter = 'none';
 
         const id = ctx.getImageData(0, 0, w, h);
         const d = id.data;
-        const threshold = otsuThreshold(d);
-        // Invert: bright (text) → black, dark (background) → white
-        for (let i = 0; i < d.length; i += 4) {
-            const l = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-            const v = l > threshold ? 0 : 255;
+
+        // SATURATION-AWARE THRESHOLD. The HP row has a GREEN bar, the rest
+        // have BLUE bars. A single global Otsu picks a threshold that puts
+        // the GREEN bar's pixels on the same side as the white text →
+        // after the polarity invert, HP becomes solid BLACK and the text
+        // disappears.
+        //
+        // Each pixel in this UI is one of three things:
+        //   • Bar background — SATURATED color (green/blue/grey/etc.)
+        //   • Dark panel background — low sat + low luminance
+        //   • White text — low sat + high luminance
+        //
+        // We ignore saturated pixels when computing Otsu's threshold (so
+        // bar colors can't skew the cut) and force them to white in the
+        // output. The threshold then cleanly separates dark bg (white in
+        // output) from bright text (black in output).
+        const pixels = w * h;
+        const isSat = new Uint8Array(pixels);
+        const hist = new Array<number>(256).fill(0);
+        let nonSatCount = 0;
+        for (let p = 0, i = 0; p < pixels; p++, i += 4) {
+            const r = d[i], g = d[i+1], b = d[i+2];
+            const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+            const s = mx === 0 ? 0 : (mx - mn) / mx;
+            if (s > 0.20) {
+                isSat[p] = 1;
+            } else {
+                const lum = Math.round(0.299*r + 0.587*g + 0.114*b);
+                hist[lum]++;
+                nonSatCount++;
+            }
+        }
+        let threshold = 128;
+        if (nonSatCount > 0) {
+            let sum = 0;
+            for (let t = 0; t < 256; t++) sum += t * hist[t];
+            let sumB = 0, wB = 0, maxVar = 0;
+            for (let t = 0; t < 256; t++) {
+                wB += hist[t];
+                if (wB === 0) continue;
+                const wF = nonSatCount - wB;
+                if (wF === 0) break;
+                sumB += t * hist[t];
+                const mB = sumB / wB;
+                const mF = (sum - sumB) / wF;
+                const variance = wB * wF * (mB - mF) * (mB - mF);
+                if (variance > maxVar) { maxVar = variance; threshold = t; }
+            }
+        }
+
+        // Apply: saturated → white (bg), dark non-sat → white (bg),
+        // bright non-sat → black (text). Polarity is now correct for
+        // Tesseract regardless of which bar color sits behind the text.
+        for (let p = 0, i = 0; p < pixels; p++, i += 4) {
+            let v: number;
+            if (isSat[p]) {
+                v = 255;
+            } else {
+                const lum = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+                v = lum > threshold ? 0 : 255;
+            }
             d[i] = v; d[i+1] = v; d[i+2] = v;
         }
         ctx.putImageData(id, 0, 0);
