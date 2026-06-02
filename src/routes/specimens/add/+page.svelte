@@ -764,13 +764,13 @@
         bbox: CropBox,
         worker: { recognize: (b: Blob) => Promise<{ data: { text: string } }> }
     ): Promise<{ text: string; canvas: HTMLCanvasElement }> {
-        // Target a much bigger scale so small panels (often only 150-200 px
-        // tall in the source) get blown up to a comfortable OCR size.
-        // Floor at 5×, ceiling at min(900/h, 6000/w) so we don't go too big.
-        const scaleH = 900 / bbox.h;
-        const scaleW = 6000 / bbox.w;
+        // AGGRESSIVE upscale targets so even small source panels become
+        // comfortably-sized for Tesseract. Floor at 7× so we never go below
+        // sweet-spot text height, target 1600 px tall / 8000 px wide.
+        const scaleH = 1600 / bbox.h;
+        const scaleW = 8000 / bbox.w;
         const scaleCap = Math.min(scaleH, scaleW);
-        const scale = Math.max(5, Math.min(12, scaleCap));
+        const scale = Math.max(7, Math.min(16, scaleCap));
         const w = Math.max(1, Math.round(bbox.w * scale));
         const h = Math.max(1, Math.round(bbox.h * scale));
 
@@ -1488,7 +1488,7 @@
                                     {#if shotProcUrl}
                                         <details open={!shotSource}>
                                             <summary class="shot-details-summary">Preprocessed image (what Tesseract sees)</summary>
-                                            <img src={shotProcUrl} alt="Preprocessed" style="width:100%; max-height:280px; object-fit:contain; margin-top:6px; border:1px solid rgba(245,158,11,0.30); background:#fff" />
+                                            <img src={shotProcUrl} alt="Preprocessed" style="width:100%; max-height:700px; object-fit:contain; margin-top:6px; border:1px solid rgba(245,158,11,0.30); background:#fff" />
                                         </details>
                                     {/if}
                                     {#if shotRawText}
