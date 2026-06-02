@@ -793,14 +793,39 @@
             add(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10));
         }
 
-        // 4. BRACKET-WRAPPED NUMBER LIST — any non-digit between bracket
-        //    pairs that yields exactly 3 numbers. Catches "(48 0 0)" and
-        //    "[55 2 0]" when all separators got dropped.
-        const bracketed = /[\(\[]([^\)\]\(\[]+)[\)\]]/g;
+        // 4. BRACKET-WRAPPED NUMBER LIST — anything from an opening bracket
+        //    to the next closing one. Use non-greedy and allow inner
+        //    brackets (covers the very common "(48(010)" pattern where the
+        //    middle pipe became an opening paren).
+        const bracketed = /[\(\[](.+?)[\)\]]/g;
         while ((m = bracketed.exec(text)) !== null) {
-            const nums = m[1].match(/\d{1,3}/g);
-            if (nums && nums.length === 3) {
+            const inner = m[1];
+            const nums = inner.match(/\d{1,3}/g);
+            if (!nums) continue;
+            if (nums.length === 3) {
                 add(parseInt(nums[0],10), parseInt(nums[1],10), parseInt(nums[2],10));
+            } else if (nums.length === 2 && nums[1].length === 3) {
+                // Second number is 3 digits — likely two values with a
+                // misread separator in the middle. The most common ARK
+                // mangling is "0|0" → "010" (the pipe read as a '1'). If
+                // the middle digit IS a "1" (or 'I' / 'l' shaped), split
+                // around it. Otherwise fall through to a 2-part split.
+                const a = parseInt(nums[0],10);
+                const sec = nums[1];
+                if (/^\d1\d$/.test(sec)) {
+                    // Treat middle '1' as a pipe: "010" → (0, 0)
+                    add(a, parseInt(sec[0],10), parseInt(sec[2],10));
+                } else {
+                    // Try splitting at each position, prefer parts ≤ 99
+                    for (let i = 1; i < sec.length; i++) {
+                        const b = parseInt(sec.substring(0,i),10);
+                        const c = parseInt(sec.substring(i),10);
+                        if (b <= 99 && c <= 99) {
+                            add(a, b, c);
+                            break;
+                        }
+                    }
+                }
             }
         }
 
@@ -946,33 +971,56 @@
 
             // 6. Map triples to stats by canonical order
             const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
-            // Pull only the rows that have at least one triple (skip header /
-            // current-max bar / color region / imprint rows)
-            const statRows = rowTriples.filter(r => r.length > 0);
 
-            if (is2Col) {
-                // Spyglass: each stat row has TWO triples (left col, right col).
-                // Canonical order:
-                //   Row 0: HP    | WGT
-                //   Row 1: STA   | MEL
-                //   Row 2: OXY   | (SPD — skip)
-                //   Row 3: FOOD  | CRA
-                const map: Array<[StatKey | null, StatKey | null]> = [
-                    ['HP',   'WGT'],
-                    ['STA',  'MEL'],
-                    ['OXY',  null],
-                    ['FOOD', 'CRA']
-                ];
-                for (let i = 0; i < Math.min(statRows.length, map.length); i++) {
-                    const [lk, rk] = map[i];
-                    if (lk && statRows[i][0]) out[lk] = statRows[i][0][0];
-                    if (rk && statRows[i][1]) out[rk] = statRows[i][1][0];
-                }
-            } else {
-                // u+/Tek: one triple per row, canonical order HP→CRA.
-                const order: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
-                for (let i = 0; i < Math.min(statRows.length, order.length); i++) {
-                    if (statRows[i][0]) out[order[i]] = statRows[i][0][0];
+            // CRITICAL: the canonical-order mapping breaks if we count empty/
+            // garbage rows from before the actual stats started. The user's
+            // panel had rows 0-10 returning fragments (dragon image, header,
+            // current/max bars) before the actual stat-with-triple rows at
+            // row 11+. If we used "first triple-row = HP" naively, we'd map
+            // FOOD's triple to HP.
+            //
+            // Better heuristic: find the Y RANGE of all triple-yielding rows.
+            // The first one is the topmost stat in the panel. For u+/Tek
+            // 1-col with 7 stats, divide the Y range into 7 equal slots and
+            // place each triple-row into the slot its Y position matches.
+            const statRows = rowTriples
+                .map((t, i) => ({ triples: t, y: rows[i]?.y ?? 0 }))
+                .filter(r => r.triples.length > 0);
+
+            // Establish the Y range of stat rows so we can assign each one to
+            // a stat slot by relative position. The TOP of the stat area is
+            // the y of the first triple-row; the BOTTOM is the last. Divide
+            // into N equal slots (4 for Spyglass, 7 for u+/Tek).
+            const stats: StatKey[] = is2Col
+                ? ['HP', 'STA', 'OXY', 'FOOD']
+                : ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
+            const rightStats: Array<StatKey | null> = is2Col
+                ? ['WGT', 'MEL', null /* SPD skipped */, 'CRA']
+                : [];
+
+            if (statRows.length > 0) {
+                const yTop    = statRows[0].y;
+                const yBottom = statRows[statRows.length - 1].y;
+                const yRange  = Math.max(1, yBottom - yTop);
+                const slotH   = yRange / Math.max(1, stats.length - 1);
+
+                for (const sr of statRows) {
+                    // Which slot does this row's y best correspond to?
+                    const slot = Math.min(
+                        stats.length - 1,
+                        Math.max(0, Math.round((sr.y - yTop) / slotH))
+                    );
+                    const leftKey  = stats[slot];
+                    const rightKey = rightStats[slot] ?? null;
+                    // Don't overwrite if we already populated this stat from
+                    // an earlier row — slot can collide when rows are tightly
+                    // packed.
+                    if (leftKey && out[leftKey] === undefined && sr.triples[0]) {
+                        out[leftKey] = sr.triples[0][0];
+                    }
+                    if (rightKey && out[rightKey] === undefined && sr.triples[1]) {
+                        out[rightKey] = sr.triples[1][0];
+                    }
                 }
             }
 
