@@ -800,19 +800,32 @@
     }
 
     /**
-     * Extract all plausible (base, mut, dom) triples from a text fragment.
-     * Multiple patterns to cover Tesseract's typical mangling:
+     * Extract triples per line. The u+/Tek panel format puts each row's
+     * triple at the END of its line: "current / max (base|mut|dom)". So
+     * for each OCR line we find all candidate triples and KEEP THE LAST
+     * one — the rightmost match — which is the actual stat triple, not
+     * a false-positive grabbed from the current/max digits.
      *
-     *   Strict     — clean separators: "59|10|21" or "(59|10|21)"
-     *   LooseBrkt  — bracketed, accepts whitespace as separator:
-     *                "(48| 0 0)" → (48,0,0)  [missing middle pipe]
-     *   TrailSep   — opening bracket lost to OCR-running into the prior
-     *                number; trailing separators survive: "55] 2] 0)"
-     *                even inside a run-on like "14472055] 2] 0)" → (55,2,0)
-     *   BracketNums— anything between brackets/parens, pick the 3 numbers:
-     *                "(48 0 0)" or "[55 2 0]" with no separators at all
+     * This kills the (107|0|71) type matches where the regex was eating
+     * "1071.0/1071.0" as a triple by reading the "1" between groups as
+     * a pipe separator.
      */
     function extractTriples(text: string): Array<[number, number, number]> {
+        const out: Array<[number, number, number]> = [];
+        for (const rawLine of text.split(/\r?\n/)) {
+            const line = rawLine.trim();
+            if (!line) continue;
+            const candidates = findTriplesInLine(line);
+            if (candidates.length > 0) {
+                // Take the last candidate — it's the rightmost match in the
+                // line, which is where the stat triple actually sits.
+                out.push(candidates[candidates.length - 1]);
+            }
+        }
+        return out;
+    }
+
+    function findTriplesInLine(line: string): Array<[number, number, number]> {
         const out: Array<[number, number, number]> = [];
         const seen = new Set<string>();
         const add = (a: number, b: number, c: number) => {
@@ -827,51 +840,36 @@
 
         // 1. STRICT — clean separators between 3 numbers. Separator class
         //    includes ) and ( because Tesseract often misreads pipes as
-        //    parens on this font, e.g. "(56 | 4) 13)" really means
-        //    "(56|4|13)".
+        //    parens on this font.
         const strict = /[\(\[]?\s*(\d{1,3})\s*[\|\/\\Il1\]\[\)\(]+\s*(\d{1,3})\s*[\|\/\\Il1\]\[\)\(]+\s*(\d{1,3})\s*[\)\]]?/g;
-        while ((m = strict.exec(text)) !== null) {
+        while ((m = strict.exec(line)) !== null) {
             add(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10));
         }
 
-        // 2. LOOSE BRACKET — between [ or ( and ] or ), whitespace also valid
-        //    as a separator (covers "(48| 0 0)" where pipe was missing)
+        // 2. LOOSE BRACKET — whitespace also valid as a separator inside
+        //    brackets (covers "(48| 0 0)" where a pipe was eaten).
         const loose = /[\(\[]\s*(\d{1,3})\s*[\|\/\\Il1\]\[\s]+(\d{1,3})\s*[\|\/\\Il1\]\[\s]+(\d{1,3})\s*[\)\]]/g;
-        while ((m = loose.exec(text)) !== null) {
+        while ((m = loose.exec(line)) !== null) {
             add(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10));
         }
 
-        // 3. TRAILING SEPARATORS — opening bracket got eaten by run-on
-        //    "X] Y] Z]" or "X] Y] Z)" — works inside "14472055] 2] 0)"
-        const trail = /(\d{1,3})\s*[\]\|]\s*(\d{1,3})\s*[\]\|]\s*(\d{1,3})\s*[\)\]\|]/g;
-        while ((m = trail.exec(text)) !== null) {
-            add(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10));
-        }
-
-        // 4. BRACKET-WRAPPED NUMBER LIST — anything from an opening bracket
-        //    to the next closing one. Use non-greedy and allow inner
-        //    brackets (covers the very common "(48(010)" pattern where the
-        //    middle pipe became an opening paren).
+        // 3. BRACKET-WRAPPED NUMBER LIST — anything from an opening bracket
+        //    to the next closing one. Allow inner brackets (covers
+        //    "(48(010)" where the middle pipe became an opening paren).
         const bracketed = /[\(\[](.+?)[\)\]]/g;
-        while ((m = bracketed.exec(text)) !== null) {
+        while ((m = bracketed.exec(line)) !== null) {
             const inner = m[1];
             const nums = inner.match(/\d{1,3}/g);
             if (!nums) continue;
             if (nums.length === 3) {
                 add(parseInt(nums[0],10), parseInt(nums[1],10), parseInt(nums[2],10));
             } else if (nums.length === 2 && nums[1].length === 3) {
-                // Second number is 3 digits — likely two values with a
-                // misread separator in the middle. The most common ARK
-                // mangling is "0|0" → "010" (the pipe read as a '1'). If
-                // the middle digit IS a "1" (or 'I' / 'l' shaped), split
-                // around it. Otherwise fall through to a 2-part split.
+                // "010" → (0, 0) if middle digit looks like a pipe
                 const a = parseInt(nums[0],10);
                 const sec = nums[1];
                 if (/^\d1\d$/.test(sec)) {
-                    // Treat middle '1' as a pipe: "010" → (0, 0)
                     add(a, parseInt(sec[0],10), parseInt(sec[2],10));
                 } else {
-                    // Try splitting at each position, prefer parts ≤ 99
                     for (let i = 1; i < sec.length; i++) {
                         const b = parseInt(sec.substring(0,i),10);
                         const c = parseInt(sec.substring(i),10);
