@@ -735,81 +735,10 @@
         };
     }
 
-    /**
-     * Within a matched panel area, find each icon's Y center via SATURATION
-     * peak finding on the icon column.
-     *
-     * Icons are colored UI sprites (red HP cross, yellow STA bolt, etc.) and
-     * stand out from white text + dark background in saturation. So we:
-     *   1. Look only at the leftmost ICON_COL_X_END of the panel
-     *   2. For each row Y, count pixels whose saturation > 0.35
-     *   3. Find local maxima with min-spacing constraint → icon centers
-     *
-     * Adapts to whatever row count the actual creature panel shows (8 rows
-     * vs 9 rows etc.) — no rigid template-offset assumptions.
-     */
-    function detectIconRowsInPanel(
-        img: HTMLImageElement,
-        panel: { x: number; y: number; w: number; h: number }
-    ): number[] {
-        // Downsample the icon column area
-        const colW = Math.max(20, Math.round(panel.w * ICON_COL_X_END));
-        const SCALE_W = 60; // small width is fine — saturation is per-row anyway
-        const SCALE_H = Math.max(40, Math.round(SCALE_W * (panel.h / colW)));
-
-        const c = document.createElement('canvas');
-        c.width = SCALE_W; c.height = SCALE_H;
-        const ctx = c.getContext('2d');
-        if (!ctx) return [];
-        ctx.drawImage(img, panel.x, panel.y, colW, panel.h, 0, 0, SCALE_W, SCALE_H);
-        const data = ctx.getImageData(0, 0, SCALE_W, SCALE_H).data;
-
-        // Per-row saturated-pixel count
-        const rowSat = new Float32Array(SCALE_H);
-        for (let y = 0; y < SCALE_H; y++) {
-            let cnt = 0;
-            for (let x = 0; x < SCALE_W; x++) {
-                const i = (y*SCALE_W + x) * 4;
-                const r = data[i], g = data[i+1], b = data[i+2];
-                const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-                const s = mx === 0 ? 0 : (mx - mn) / mx;
-                if (s > 0.35) cnt++;
-            }
-            rowSat[y] = cnt;
-        }
-
-        // Light smooth
-        const smooth = new Float32Array(SCALE_H);
-        for (let y = 0; y < SCALE_H; y++) {
-            const a = y > 0 ? rowSat[y-1] : rowSat[y];
-            const b = rowSat[y];
-            const c2 = y < SCALE_H - 1 ? rowSat[y+1] : rowSat[y];
-            smooth[y] = (a + b + c2) / 3;
-        }
-
-        // Peak find: local maxima with min spacing
-        const minSpacing = Math.max(3, Math.round(SCALE_H * 0.05));
-        const peaks: number[] = [];
-        let lastPeak = -1000;
-        for (let y = 1; y < SCALE_H - 1; y++) {
-            const v = smooth[y];
-            if (v < 2) continue; // need at least 2 saturated px
-            if (v < smooth[y-1] || v < smooth[y+1]) continue;
-            if (y - lastPeak < minSpacing) {
-                if (peaks.length > 0 && v > smooth[peaks[peaks.length - 1]]) {
-                    peaks[peaks.length - 1] = y;
-                    lastPeak = y;
-                }
-                continue;
-            }
-            peaks.push(y);
-            lastPeak = y;
-        }
-
-        // Map peak Y back to source-image coords
-        const sy = panel.h / SCALE_H;
-        return peaks.map(p => Math.round(panel.y + p * sy));
-    }
+    // (detectIconRowsInPanel removed — switched to whole-panel PSM 6 OCR
+    // and document-order triple extraction, which sidesteps row detection
+    // entirely. The user pointed out icons are WHITE on this UI, so the
+    // saturation-based detector was firing on stray bar pixels not icons.)
 
     /**
      * Preprocess + OCR a single region.
@@ -892,8 +821,11 @@
 
         let m: RegExpExecArray | null;
 
-        // 1. STRICT — clean separators between 3 numbers
-        const strict = /[\(\[]?\s*(\d{1,3})\s*[\|\/\\Il1\]\[]+\s*(\d{1,3})\s*[\|\/\\Il1\]\[]+\s*(\d{1,3})\s*[\)\]]?/g;
+        // 1. STRICT — clean separators between 3 numbers. Separator class
+        //    includes ) and ( because Tesseract often misreads pipes as
+        //    parens on this font, e.g. "(56 | 4) 13)" really means
+        //    "(56|4|13)".
+        const strict = /[\(\[]?\s*(\d{1,3})\s*[\|\/\\Il1\]\[\)\(]+\s*(\d{1,3})\s*[\|\/\\Il1\]\[\)\(]+\s*(\d{1,3})\s*[\)\]]?/g;
         while ((m = strict.exec(text)) !== null) {
             add(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10));
         }
@@ -1002,21 +934,13 @@
             const headerOut = await ocrRegion(shotImage, headerRegion, worker);
             const headerText = headerOut.text;
 
-            // 3. Find each icon's actual Y position within the matched panel.
-            //    Saturation peak finding on the leftmost column — adapts to
-            //    whatever row count this creature's panel actually shows.
-            const iconYs = detectIconRowsInPanel(shotImage, match);
-            if (iconYs.length === 0) {
-                shotError = 'Template located the panel but no icon rows were detected inside it.';
-                await worker.terminate();
-                return;
-            }
-            shotProgress = 25;
-
-            // 4. For each icon, OCR the strip to its right. PSM 7 single line
-            //    + digit-friendly whitelist + numeric mode.
+            // 3. OCR the entire text strip of the matched panel as ONE block.
+            //    PSM 6 = single block of text, multi-line. Tesseract handles
+            //    line segmentation; we then pull all triples in document
+            //    order and map to canonical stats. Much simpler than trying
+            //    to detect individual rows.
             await worker.setParameters({
-                tessedit_pageseg_mode: '7' as never,
+                tessedit_pageseg_mode: '6' as never,
                 tessedit_char_whitelist: '0123456789/|\\()[]., -' as never,
                 classify_bln_numeric_mode: '1' as never,
                 load_system_dawg: '0' as never,
@@ -1024,117 +948,72 @@
                 user_defined_dpi: '300' as never
             });
 
-            const rowResults: Array<{
-                iconY: number;
-                rect: CropBox;
-                text: string;
-                triple: [number, number, number] | null;
-                canvas: HTMLCanvasElement;
-            }> = [];
-
-            const halfH = Math.max(8, Math.round(match.h * ICON_ROW_HALF_HEIGHT));
-            for (let i = 0; i < iconYs.length; i++) {
-                const y = iconYs[i];
-                const rect: CropBox = {
-                    x: Math.round(match.x + STAT_TEXT_X_START * match.w),
-                    y: Math.max(0, y - halfH),
-                    w: Math.round((STAT_TEXT_X_END - STAT_TEXT_X_START) * match.w),
-                    h: halfH * 2
-                };
-                const o = await ocrRegion(shotImage, rect, worker);
-                const triples = extractTriples(o.text);
-                rowResults.push({
-                    iconY: y,
-                    rect,
-                    text: o.text,
-                    triple: triples[0] ?? null,
-                    canvas: o.canvas
-                });
-                shotProgress = Math.min(99, 25 + Math.round(((i + 1) / iconYs.length) * 70));
-            }
+            // Text area: right ~85% of the panel (skip the icon column),
+            // and almost the full panel height (skip a tiny bit at top/bottom
+            // to avoid header/level numbers leaking into the parse).
+            const textRect: CropBox = {
+                x: Math.round(match.x + STAT_TEXT_X_START * match.w),
+                y: Math.round(match.y + match.h * 0.02),
+                w: Math.round((STAT_TEXT_X_END - STAT_TEXT_X_START) * match.w),
+                h: Math.round(match.h * 0.96)
+            };
+            const panelOut = await ocrRegion(shotImage, textRect, worker);
+            shotProgress = 90;
 
             await worker.terminate();
 
             shotSource = 'tek';
 
-            // 5. Map icon rows to stats in CANONICAL TekOS order. We only
-            //    count rows that yielded a triple — rows that are %-only
-            //    (Imprint, Speed) get skipped silently.
+            // 4. Pull all triples from the OCR text in DOCUMENT ORDER, map
+            //    to canonical TekOS stats in order. The panel reads top-to-
+            //    bottom so the first triple is HP, second is STA, etc.
+            //    Stats that don't have a triple in the panel (Speed %,
+            //    Imprint %) won't produce one in the OCR, so they don't
+            //    shift the index.
+            const panelText = panelOut.text;
+            const allTriples = extractTriples(panelText);
+
             const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
-            const triplesInOrder = rowResults
-                .filter(r => r.triple !== null)
-                .map(r => r.triple!);
-            for (let i = 0; i < Math.min(triplesInOrder.length, CANONICAL_STAT_ORDER.length); i++) {
-                out[CANONICAL_STAT_ORDER[i]] = triplesInOrder[i][0];
+            for (let i = 0; i < Math.min(allTriples.length, CANONICAL_STAT_ORDER.length); i++) {
+                out[CANONICAL_STAT_ORDER[i]] = allTriples[i][0];
             }
 
-            // Annotate rowResults with the stat name they got mapped to, so
-            // the debug surface is easier to read.
-            const rowStatLabels: (StatKey | null)[] = [];
-            let nextStatIdx = 0;
-            for (const r of rowResults) {
-                if (r.triple !== null && nextStatIdx < CANONICAL_STAT_ORDER.length) {
-                    rowStatLabels.push(CANONICAL_STAT_ORDER[nextStatIdx++]);
-                } else {
-                    rowStatLabels.push(null);
-                }
-            }
+            // Debug image: the single preprocessed panel text strip
+            shotProcUrl = URL.createObjectURL(await new Promise<Blob>((resolve, reject) => {
+                panelOut.canvas.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
+            }));
 
-            // Debug image: stack each preprocessed rectangle with its label
-            const debugW = Math.max(...rowResults.map(r => r.canvas.width), 100) + 60;
-            const debugH = rowResults.reduce((a, r) => a + r.canvas.height + 8, 0);
-            const debugC = document.createElement('canvas');
-            debugC.width = debugW; debugC.height = debugH;
-            const dctx = debugC.getContext('2d');
-            if (dctx) {
-                dctx.fillStyle = '#ddd';
-                dctx.fillRect(0, 0, debugW, debugH);
-                let yOff = 0;
-                for (let i = 0; i < rowResults.length; i++) {
-                    const r = rowResults[i];
-                    const label = rowStatLabels[i] ?? '—';
-                    dctx.fillStyle = '#444';
-                    dctx.font = '12px monospace';
-                    dctx.fillText(label, 4, yOff + 14);
-                    dctx.drawImage(r.canvas, 56, yOff);
-                    yOff += r.canvas.height + 8;
-                }
-                const debugBlob = await new Promise<Blob>((resolve, reject) => {
-                    debugC.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
-                });
-                shotProcUrl = URL.createObjectURL(debugBlob);
-            }
-
-            // 6. Name + level from header
+            // 5. Name + level from header strip above the matched panel
             extractNameAndLevel(
                 headerText.split(/\r?\n/).map(l => l.trim()).filter(Boolean),
                 out
             );
             shotParsed = out;
 
-            // Debug dump
+            // Debug dump — full OCR text + extracted triples in order
             const dbg = [
                 `── TEMPLATE MATCH ──`,
                 `Panel located at: x=${match.x} y=${match.y} w=${match.w} h=${match.h} (SSD=${match.score.toFixed(0)})`,
                 ``,
-                `── ICON ROW DETECTION ──`,
-                `${iconYs.length} icon rows detected at Y: ${iconYs.join(', ')}`,
-                ``,
                 `── HEADER ──`,
                 headerText || '(empty)',
                 ``,
-                `── PER-ICON OCR (${rowResults.length} rows) ──`,
-                rowResults.map((r, i) => {
-                    const stat = rowStatLabels[i] ?? '—';
-                    const t = r.triple ? ` → (${r.triple[0]}|${r.triple[1]}|${r.triple[2]})` : ' → NO TRIPLE';
-                    return `  [${String(i).padStart(2)}] ${String(stat).padEnd(5)} y=${r.iconY}: "${r.text}"${t}`;
-                }).join('\n')
+                `── PANEL OCR (whole text strip, PSM 6) ──`,
+                panelText || '(empty)',
+                ``,
+                `── EXTRACTED TRIPLES (in document order) ──`,
+                allTriples.length === 0
+                    ? '(none)'
+                    : allTriples.map((t, i) => {
+                        const stat = i < CANONICAL_STAT_ORDER.length ? CANONICAL_STAT_ORDER[i] : '—';
+                        return `  [${i}] ${stat.padEnd(5)} → (${t[0]}|${t[1]}|${t[2]})`;
+                      }).join('\n')
             ].join('\n');
             shotRawText = dbg;
 
             const populatedCount = Object.keys(out).filter(k => k !== 'name' && k !== 'species' && k !== 'level').length;
             if (populatedCount === 0) {
-                shotError = 'Found the panel and detected icon rows but no stat triples were readable. Check the per-icon OCR below.';
+                shotError = 'Template matched the panel but no stat triples were readable. Check the panel OCR text below to see what Tesseract produced.';
             }
         } catch (err) {
             shotError = (err as Error).message || 'OCR failed';
