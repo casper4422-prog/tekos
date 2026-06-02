@@ -611,29 +611,20 @@
     //  Crafting Skill is NOT shown on u+/Tek for dinos; left blank.
     // ─────────────────────────────────────────────────────────────────────
 
-    type StatRow = { stat: StatKey; yCenter: number; height: number };
-    // Normalized [0..1] vertical positions within the template
-    // (estimated from the 1152×1260 reference template; row centers spaced
-    // ~0.0715 apart; rows are ~0.062 tall).
-    const STAT_ROWS_IN_TEMPLATE: StatRow[] = [
-        { stat: 'HP',   yCenter: 0.078, height: 0.062 }, // row 1
-        { stat: 'STA',  yCenter: 0.149, height: 0.062 }, // row 2
-        // skip row 3 (Torpor)
-        { stat: 'FOOD', yCenter: 0.292, height: 0.062 }, // row 4
-        { stat: 'WGT',  yCenter: 0.363, height: 0.062 }, // row 5
-        { stat: 'OXY',  yCenter: 0.435, height: 0.062 }, // row 6 (Oxygen, not Torpor)
-        // skip row 7 (Speed, % only)
-        { stat: 'MEL',  yCenter: 0.580, height: 0.062 }, // row 8
-        // skip row 9 (Imprint, % only)
-    ];
-    // Within each row, the bar/text content (not the icon column on the left)
-    // sits roughly between these X ratios:
+    // Icon column is the leftmost ~15% of the panel width. Each icon is a
+    // small colored UI sprite — distinct from the white text and dark
+    // background in saturation. We find icon Y positions by saturation
+    // peak finding within that column, then OCR to the right.
+    const ICON_COL_X_END = 0.16;  // icon column spans 0..16% of panel width
     const STAT_TEXT_X_START = 0.18;
-    const STAT_TEXT_X_END   = 0.95;
-    // The header (creature name + level) sits in the top strip above row 1.
-    // For the actual game panel this is a separate band that's NOT part of
-    // our template (template starts at row 1) — we capture it from above the
-    // matched panel area when we have room in the source image.
+    const STAT_TEXT_X_END   = 0.96;
+    const ICON_ROW_HALF_HEIGHT = 0.035; // OCR rect extends ±3.5% of panel.h around each icon Y
+
+    // Canonical TekOS stat order. Icon rows that yield triples are mapped to
+    // these stats in order: 1st triple → HP, 2nd → STA, etc. Rows without a
+    // triple (Imprint, Speed%) are skipped silently — we only count rows
+    // that produced a triple.
+    const CANONICAL_STAT_ORDER: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
 
     let cachedTemplate: HTMLImageElement | null = null;
     async function loadTemplate(): Promise<HTMLImageElement> {
@@ -744,9 +735,81 @@
         };
     }
 
-    // (detectStatRows was the row-peak-finding helper from the previous
-    // pipeline. Removed when we switched to template matching — the template
-    // tells us EXACTLY where each row sits, no detection guesswork required.)
+    /**
+     * Within a matched panel area, find each icon's Y center via SATURATION
+     * peak finding on the icon column.
+     *
+     * Icons are colored UI sprites (red HP cross, yellow STA bolt, etc.) and
+     * stand out from white text + dark background in saturation. So we:
+     *   1. Look only at the leftmost ICON_COL_X_END of the panel
+     *   2. For each row Y, count pixels whose saturation > 0.35
+     *   3. Find local maxima with min-spacing constraint → icon centers
+     *
+     * Adapts to whatever row count the actual creature panel shows (8 rows
+     * vs 9 rows etc.) — no rigid template-offset assumptions.
+     */
+    function detectIconRowsInPanel(
+        img: HTMLImageElement,
+        panel: { x: number; y: number; w: number; h: number }
+    ): number[] {
+        // Downsample the icon column area
+        const colW = Math.max(20, Math.round(panel.w * ICON_COL_X_END));
+        const SCALE_W = 60; // small width is fine — saturation is per-row anyway
+        const SCALE_H = Math.max(40, Math.round(SCALE_W * (panel.h / colW)));
+
+        const c = document.createElement('canvas');
+        c.width = SCALE_W; c.height = SCALE_H;
+        const ctx = c.getContext('2d');
+        if (!ctx) return [];
+        ctx.drawImage(img, panel.x, panel.y, colW, panel.h, 0, 0, SCALE_W, SCALE_H);
+        const data = ctx.getImageData(0, 0, SCALE_W, SCALE_H).data;
+
+        // Per-row saturated-pixel count
+        const rowSat = new Float32Array(SCALE_H);
+        for (let y = 0; y < SCALE_H; y++) {
+            let cnt = 0;
+            for (let x = 0; x < SCALE_W; x++) {
+                const i = (y*SCALE_W + x) * 4;
+                const r = data[i], g = data[i+1], b = data[i+2];
+                const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+                const s = mx === 0 ? 0 : (mx - mn) / mx;
+                if (s > 0.35) cnt++;
+            }
+            rowSat[y] = cnt;
+        }
+
+        // Light smooth
+        const smooth = new Float32Array(SCALE_H);
+        for (let y = 0; y < SCALE_H; y++) {
+            const a = y > 0 ? rowSat[y-1] : rowSat[y];
+            const b = rowSat[y];
+            const c2 = y < SCALE_H - 1 ? rowSat[y+1] : rowSat[y];
+            smooth[y] = (a + b + c2) / 3;
+        }
+
+        // Peak find: local maxima with min spacing
+        const minSpacing = Math.max(3, Math.round(SCALE_H * 0.05));
+        const peaks: number[] = [];
+        let lastPeak = -1000;
+        for (let y = 1; y < SCALE_H - 1; y++) {
+            const v = smooth[y];
+            if (v < 2) continue; // need at least 2 saturated px
+            if (v < smooth[y-1] || v < smooth[y+1]) continue;
+            if (y - lastPeak < minSpacing) {
+                if (peaks.length > 0 && v > smooth[peaks[peaks.length - 1]]) {
+                    peaks[peaks.length - 1] = y;
+                    lastPeak = y;
+                }
+                continue;
+            }
+            peaks.push(y);
+            lastPeak = y;
+        }
+
+        // Map peak Y back to source-image coords
+        const sy = panel.h / SCALE_H;
+        return peaks.map(p => Math.round(panel.y + p * sy));
+    }
 
     /**
      * Preprocess + OCR a single region.
@@ -939,11 +1002,19 @@
             const headerOut = await ocrRegion(shotImage, headerRegion, worker);
             const headerText = headerOut.text;
 
-            // 3. Per-stat OCR: build the rectangle for each stat row using its
-            //    normalized Y position within the matched panel area. PSM 7
-            //    (single line) + digit-friendly whitelist + numeric mode —
-            //    each rectangle is one row of digits + separators, the
-            //    tightest possible OCR target.
+            // 3. Find each icon's actual Y position within the matched panel.
+            //    Saturation peak finding on the leftmost column — adapts to
+            //    whatever row count this creature's panel actually shows.
+            const iconYs = detectIconRowsInPanel(shotImage, match);
+            if (iconYs.length === 0) {
+                shotError = 'Template located the panel but no icon rows were detected inside it.';
+                await worker.terminate();
+                return;
+            }
+            shotProgress = 25;
+
+            // 4. For each icon, OCR the strip to its right. PSM 7 single line
+            //    + digit-friendly whitelist + numeric mode.
             await worker.setParameters({
                 tessedit_pageseg_mode: '7' as never,
                 tessedit_char_whitelist: '0123456789/|\\()[]., -' as never,
@@ -954,38 +1025,63 @@
             });
 
             const rowResults: Array<{
-                stat: StatKey;
+                iconY: number;
                 rect: CropBox;
                 text: string;
                 triple: [number, number, number] | null;
                 canvas: HTMLCanvasElement;
             }> = [];
 
-            for (let i = 0; i < STAT_ROWS_IN_TEMPLATE.length; i++) {
-                const r = STAT_ROWS_IN_TEMPLATE[i];
-                const yC = match.y + r.yCenter * match.h;
+            const halfH = Math.max(8, Math.round(match.h * ICON_ROW_HALF_HEIGHT));
+            for (let i = 0; i < iconYs.length; i++) {
+                const y = iconYs[i];
                 const rect: CropBox = {
                     x: Math.round(match.x + STAT_TEXT_X_START * match.w),
-                    y: Math.round(yC - (r.height * match.h) / 2),
+                    y: Math.max(0, y - halfH),
                     w: Math.round((STAT_TEXT_X_END - STAT_TEXT_X_START) * match.w),
-                    h: Math.round(r.height * match.h)
+                    h: halfH * 2
                 };
                 const o = await ocrRegion(shotImage, rect, worker);
                 const triples = extractTriples(o.text);
                 rowResults.push({
-                    stat: r.stat,
+                    iconY: y,
                     rect,
                     text: o.text,
                     triple: triples[0] ?? null,
                     canvas: o.canvas
                 });
-                shotProgress = Math.min(99, 20 + Math.round(((i + 1) / STAT_ROWS_IN_TEMPLATE.length) * 75));
+                shotProgress = Math.min(99, 25 + Math.round(((i + 1) / iconYs.length) * 70));
             }
 
             await worker.terminate();
 
-            // Debug image: stack each per-stat preprocessed rectangle
-            const debugW = Math.max(...rowResults.map(r => r.canvas.width), 100);
+            shotSource = 'tek';
+
+            // 5. Map icon rows to stats in CANONICAL TekOS order. We only
+            //    count rows that yielded a triple — rows that are %-only
+            //    (Imprint, Speed) get skipped silently.
+            const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
+            const triplesInOrder = rowResults
+                .filter(r => r.triple !== null)
+                .map(r => r.triple!);
+            for (let i = 0; i < Math.min(triplesInOrder.length, CANONICAL_STAT_ORDER.length); i++) {
+                out[CANONICAL_STAT_ORDER[i]] = triplesInOrder[i][0];
+            }
+
+            // Annotate rowResults with the stat name they got mapped to, so
+            // the debug surface is easier to read.
+            const rowStatLabels: (StatKey | null)[] = [];
+            let nextStatIdx = 0;
+            for (const r of rowResults) {
+                if (r.triple !== null && nextStatIdx < CANONICAL_STAT_ORDER.length) {
+                    rowStatLabels.push(CANONICAL_STAT_ORDER[nextStatIdx++]);
+                } else {
+                    rowStatLabels.push(null);
+                }
+            }
+
+            // Debug image: stack each preprocessed rectangle with its label
+            const debugW = Math.max(...rowResults.map(r => r.canvas.width), 100) + 60;
             const debugH = rowResults.reduce((a, r) => a + r.canvas.height + 8, 0);
             const debugC = document.createElement('canvas');
             debugC.width = debugW; debugC.height = debugH;
@@ -994,11 +1090,13 @@
                 dctx.fillStyle = '#ddd';
                 dctx.fillRect(0, 0, debugW, debugH);
                 let yOff = 0;
-                for (const r of rowResults) {
+                for (let i = 0; i < rowResults.length; i++) {
+                    const r = rowResults[i];
+                    const label = rowStatLabels[i] ?? '—';
                     dctx.fillStyle = '#444';
                     dctx.font = '12px monospace';
-                    dctx.fillText(r.stat, 4, yOff + 12);
-                    dctx.drawImage(r.canvas, 40, yOff);
+                    dctx.fillText(label, 4, yOff + 14);
+                    dctx.drawImage(r.canvas, 56, yOff);
                     yOff += r.canvas.height + 8;
                 }
                 const debugBlob = await new Promise<Blob>((resolve, reject) => {
@@ -1007,40 +1105,36 @@
                 shotProcUrl = URL.createObjectURL(debugBlob);
             }
 
-            shotSource = 'tek';
-
-            // 4. Map per-stat results to the output object
-            const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
-            for (const r of rowResults) {
-                if (r.triple) out[r.stat] = r.triple[0];
-            }
-
-            // 5. Name + level from header
+            // 6. Name + level from header
             extractNameAndLevel(
                 headerText.split(/\r?\n/).map(l => l.trim()).filter(Boolean),
                 out
             );
             shotParsed = out;
 
-            // Debug dump — exposed via the "Raw OCR text" expander
+            // Debug dump
             const dbg = [
                 `── TEMPLATE MATCH ──`,
                 `Panel located at: x=${match.x} y=${match.y} w=${match.w} h=${match.h} (SSD=${match.score.toFixed(0)})`,
                 ``,
+                `── ICON ROW DETECTION ──`,
+                `${iconYs.length} icon rows detected at Y: ${iconYs.join(', ')}`,
+                ``,
                 `── HEADER ──`,
                 headerText || '(empty)',
                 ``,
-                `── PER-STAT OCR (${rowResults.length} rows) ──`,
-                rowResults.map(r => {
+                `── PER-ICON OCR (${rowResults.length} rows) ──`,
+                rowResults.map((r, i) => {
+                    const stat = rowStatLabels[i] ?? '—';
                     const t = r.triple ? ` → (${r.triple[0]}|${r.triple[1]}|${r.triple[2]})` : ' → NO TRIPLE';
-                    return `  ${r.stat.padEnd(5)}: "${r.text}"${t}`;
+                    return `  [${String(i).padStart(2)}] ${String(stat).padEnd(5)} y=${r.iconY}: "${r.text}"${t}`;
                 }).join('\n')
             ].join('\n');
             shotRawText = dbg;
 
             const populatedCount = Object.keys(out).filter(k => k !== 'name' && k !== 'species' && k !== 'level').length;
             if (populatedCount === 0) {
-                shotError = 'Template matched the panel but no stat triples were readable. Check the per-stat OCR below to see what each row produced.';
+                shotError = 'Found the panel and detected icon rows but no stat triples were readable. Check the per-icon OCR below.';
             }
         } catch (err) {
             shotError = (err as Error).message || 'OCR failed';
