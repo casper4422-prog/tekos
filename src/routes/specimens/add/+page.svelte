@@ -675,9 +675,10 @@
         }
 
         const templateAspect = template.height / template.width;
-        // Candidate panel widths as a fraction of haystack width.
-        // Panels typically take 12-30% of a full-screen capture.
-        const candidates = [0.12, 0.16, 0.20, 0.25, 0.30];
+        // Candidate panel widths as a fraction of haystack width. Panels in
+        // ARK screenshots typically take 15-30% of width. 12% was producing
+        // tiny matches on noise; bumped the floor up.
+        const candidates = [0.15, 0.18, 0.21, 0.24, 0.27, 0.30, 0.35];
 
         let best: { x: number; y: number; w: number; h: number; score: number; scale: number } | null = null;
 
@@ -700,12 +701,13 @@
                 tLum[i] = 0.299*tRgba[i*4] + 0.587*tRgba[i*4+1] + 0.114*tRgba[i*4+2];
             }
 
+            // Count of comparisons per slot (we sample every-other pixel)
+            const sampledPixels = Math.ceil(tW / 2) * Math.ceil(tH / 2);
+
             // Slide across haystack with stride 2
             const stride = 2;
             for (let y = 0; y <= HAYSTACK_H - tH; y += stride) {
                 for (let x = 0; x <= HAYSTACK_W - tW; x += stride) {
-                    // Early termination: track running min as we go (rough),
-                    // but JS branching overhead often makes this not worth it.
                     let ssd = 0;
                     for (let ty = 0; ty < tH; ty += 2) {
                         const hRow = (y + ty) * HAYSTACK_W + x;
@@ -715,8 +717,11 @@
                             ssd += d * d;
                         }
                     }
-                    if (!best || ssd < best.score) {
-                        best = { x, y, w: tW, h: tH, score: ssd, scale: widthFrac };
+                    // NORMALIZE by pixel count so smaller templates don't win
+                    // by default just for having fewer pixels to differ on.
+                    const normScore = ssd / sampledPixels;
+                    if (!best || normScore < best.score) {
+                        best = { x, y, w: tW, h: tH, score: normScore, scale: widthFrac };
                     }
                 }
             }
@@ -950,14 +955,19 @@
                 user_defined_dpi: '300' as never
             });
 
-            // Text area: right ~85% of the panel (skip the icon column),
-            // and almost the full panel height (skip a tiny bit at top/bottom
-            // to avoid header/level numbers leaking into the parse).
+            // Text area: right ~88% of the panel (skip the icon column).
+            // Extend vertical bounds slightly OUTSIDE the matched region
+            // (±4% of match height) because the template-match position can
+            // be off by a few pixels and we'd rather over-capture than miss
+            // a stat row.
+            const yPad = Math.round(match.h * 0.04);
+            const yTop = Math.max(0, match.y - yPad);
+            const yBot = Math.min(shotImage.height, match.y + match.h + yPad);
             const textRect: CropBox = {
                 x: Math.round(match.x + STAT_TEXT_X_START * match.w),
-                y: Math.round(match.y + match.h * 0.02),
+                y: yTop,
                 w: Math.round((STAT_TEXT_X_END - STAT_TEXT_X_START) * match.w),
-                h: Math.round(match.h * 0.96)
+                h: yBot - yTop
             };
             const panelOut = await ocrRegion(shotImage, textRect, worker);
             shotProgress = 90;
