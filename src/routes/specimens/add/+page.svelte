@@ -63,28 +63,24 @@
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  SCREENSHOT OCR — Tek Binoculars, u+Binoculars, Super Spyglass
+    //  SCREENSHOT OCR — Tek Binoculars / u+Binoculars only
     // ─────────────────────────────────────────────────────────────────────────
     //
-    // Flow: drop image → (auto-detect panel OR full-image) crop box → user
-    // adjusts crop → preprocess (cut → upscale → blur → Otsu threshold) →
-    // Tesseract.js → fingerprint detection → positional parser → review grid.
+    // Single source UI supported (Tek Binoculars and u+Binoculars are the
+    // SAME format — the mod just re-skins the panel):
     //
-    // Two source UIs supported:
+    //   Row format: "current / max  (base | mut | dom)"  ← parens + pipes
+    //   Top-to-bottom: HP, STA, OXY, FOOD, WGT, [TORPOR], SPD%, MEL%, CRA%
     //
-    //   Tek Binoculars / u+Binoculars (single column)
-    //     Row format: "current / max  (base | mut | dom)"   ←  parens + pipes
-    //     Top-to-bottom: HP, STA, OXY, FOOD, WGT, MEL, CRA
+    // Cryopods (vanilla or modded) are NOT a usable source — they don't
+    // surface base wild levels — the dropzone copy says so explicitly.
     //
-    //   Super Spyglass (2-column grid)
-    //     Row format: "base/mut/dom"                         ← slashes, no parens
-    //     Left/right column pairs, OCR reads row-by-row:
-    //       HP|WGT · STA|MEL · OXY|SPD(skip) · FOOD|CRA · Imp|Total · ♀|♂
-    //
-    // Cryopods (vanilla or modded) are not a usable source — they don't surface
-    // base wild levels — the dropzone copy says so explicitly.
+    // Super Spyglass was dropped — its layout was a constant source of
+    // mis-detection and the parsers complicated everything. Users wanting
+    // OCR of a Spyglass screenshot can hit pause, open u+Binoculars, and
+    // shoot a fresh screenshot.
 
-    type ShotSource = 'tek' | 'spyglass';
+    type ShotSource = 'tek';
     type CropBox = { x: number; y: number; w: number; h: number };
     type DragMode =
         | 'idle' | 'move'
@@ -216,9 +212,9 @@
     /**
      * Auto-locate the stat panel via STRUCTURAL features — no color.
      *
-     * The panels (Tek/u+ Binoculars and Super Spyglass) have a very dense
-     * pattern of horizontal edges: header line, current/max bar, "Ready to
-     * Mate" strip, 7-8 stat rows, color region row, mutation line, etc. The
+     * The Tek/u+ Binoculars panel has a very dense pattern of horizontal
+     * edges: header line, current/max bar, "Ready to Mate" strip, 7-9 stat
+     * rows, mutation line, etc. The
      * game world around them (wyverns, sky, terrain) has organic textures
      * with far less per-column horizontal-edge density. We exploit that.
      *
@@ -962,41 +958,18 @@
             // 4. Extract triples per row
             const rowTriples = rowTexts.map(t => extractTriples(t));
 
-            // 5. Determine layout: 1-col (u+ / Tek) vs 2-col (Spyglass)
-            //    Find the FIRST row that has any triple. If it has ≥2 triples
-            //    → 2-col. Else → 1-col.
-            const firstWithTriple = rowTriples.find(r => r.length > 0);
-            const is2Col = !!firstWithTriple && firstWithTriple.length >= 2;
-            shotSource = is2Col ? 'spyglass' : 'tek';
+            // 5. Tek/u+ Binoculars only — single-column layout, paren-with-
+            //    pipes triples. No layout detection needed.
+            shotSource = 'tek';
 
-            // 6. Map triples to stats by canonical order
+            // 6. Map triples to stats by canonical order using Y-position so
+            //    noise rows before the actual stats don't shift the mapping.
             const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
-
-            // CRITICAL: the canonical-order mapping breaks if we count empty/
-            // garbage rows from before the actual stats started. The user's
-            // panel had rows 0-10 returning fragments (dragon image, header,
-            // current/max bars) before the actual stat-with-triple rows at
-            // row 11+. If we used "first triple-row = HP" naively, we'd map
-            // FOOD's triple to HP.
-            //
-            // Better heuristic: find the Y RANGE of all triple-yielding rows.
-            // The first one is the topmost stat in the panel. For u+/Tek
-            // 1-col with 7 stats, divide the Y range into 7 equal slots and
-            // place each triple-row into the slot its Y position matches.
             const statRows = rowTriples
                 .map((t, i) => ({ triples: t, y: rows[i]?.y ?? 0 }))
                 .filter(r => r.triples.length > 0);
 
-            // Establish the Y range of stat rows so we can assign each one to
-            // a stat slot by relative position. The TOP of the stat area is
-            // the y of the first triple-row; the BOTTOM is the last. Divide
-            // into N equal slots (4 for Spyglass, 7 for u+/Tek).
-            const stats: StatKey[] = is2Col
-                ? ['HP', 'STA', 'OXY', 'FOOD']
-                : ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
-            const rightStats: Array<StatKey | null> = is2Col
-                ? ['WGT', 'MEL', null /* SPD skipped */, 'CRA']
-                : [];
+            const stats: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
 
             if (statRows.length > 0) {
                 const yTop    = statRows[0].y;
@@ -1005,21 +978,13 @@
                 const slotH   = yRange / Math.max(1, stats.length - 1);
 
                 for (const sr of statRows) {
-                    // Which slot does this row's y best correspond to?
                     const slot = Math.min(
                         stats.length - 1,
                         Math.max(0, Math.round((sr.y - yTop) / slotH))
                     );
-                    const leftKey  = stats[slot];
-                    const rightKey = rightStats[slot] ?? null;
-                    // Don't overwrite if we already populated this stat from
-                    // an earlier row — slot can collide when rows are tightly
-                    // packed.
-                    if (leftKey && out[leftKey] === undefined && sr.triples[0]) {
-                        out[leftKey] = sr.triples[0][0];
-                    }
-                    if (rightKey && out[rightKey] === undefined && sr.triples[1]) {
-                        out[rightKey] = sr.triples[1][0];
+                    const key = stats[slot];
+                    if (key && out[key] === undefined && sr.triples[0]) {
+                        out[key] = sr.triples[0][0];
                     }
                 }
             }
@@ -1043,7 +1008,7 @@
                 `── HEADER ──`,
                 headerText || '(empty)',
                 ``,
-                `── PER-ROW OCR (${rows.length} rows, layout: ${is2Col ? 'Spyglass 2-col' : 'u+/Tek 1-col'}) ──`,
+                `── PER-ROW OCR (${rows.length} rows, layout: u+/Tek 1-col) ──`,
                 rowTexts.map((t, i) => {
                     const trips = rowTriples[i];
                     const tripStr = trips.length ? ' → ' + trips.map(([a,b,c]) => `(${a}|${b}|${c})`).join(', ') : '';
@@ -1099,7 +1064,7 @@
                 }
             }
         }
-        // Pattern B (Super Spyglass): name on line N, "Level: 243" on line N+1
+        // Pattern B: name on line N, "Level: 243" on line N+1
         if (!headerName) {
             for (let i = 1; i < Math.min(5, lines.length); i++) {
                 if (/\blevel\s*:?\s*\d/i.test(lines[i])) {
@@ -1318,7 +1283,7 @@
                 <div class="dropzone-coming-soon">⏳ FEATURE COMING SOON</div>
             </div>
 
-            <!-- Screenshot OCR — Tek Binoculars / u+Binoculars / Super Spyglass -->
+            <!-- Screenshot OCR — Tek Binoculars / u+Binoculars only -->
             <div class="dropzone" class:visible={mode === 'screenshot'} id="dropzoneShot" style={mode === 'screenshot' ? 'min-height:auto; padding:24px' : ''}>
                 {#if !shotFile}
                     <div class="dropzone-icon">⊡</div>
@@ -1328,7 +1293,6 @@
                             <div class="ss-head ok">Supported</div>
                             <div class="ss-row"><span class="ss-mark ok">✓</span> Tek Binoculars</div>
                             <div class="ss-row"><span class="ss-mark ok">✓</span> u+Binoculars</div>
-                            <div class="ss-row"><span class="ss-mark ok">✓</span> Super Spyglass</div>
                         </div>
                         <div class="ss-col">
                             <div class="ss-head no">Not Supported</div>
@@ -1487,7 +1451,7 @@
                             {#if Object.keys(shotParsed).length > 0 && shotSource}
                                 <div class="shot-source-banner">
                                     <span class="ss-mark ok">✓</span>
-                                    Detected as <strong>{shotSource === 'spyglass' ? 'Super Spyglass' : 'Tek Binoculars / u+Binoculars'}</strong>
+                                    Detected as <strong>Tek Binoculars / u+Binoculars</strong>
                                     · Adjust anything OCR got wrong below, then apply to the form.
                                 </div>
                                 <div class="ocr-edit-grid">
