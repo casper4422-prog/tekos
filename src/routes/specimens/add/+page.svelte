@@ -611,14 +611,13 @@
     //  Crafting Skill is NOT shown on u+/Tek for dinos; left blank.
     // ─────────────────────────────────────────────────────────────────────
 
-    // Icon column is the leftmost ~15% of the panel width. Each icon is a
-    // small colored UI sprite — distinct from the white text and dark
-    // background in saturation. We find icon Y positions by saturation
-    // peak finding within that column, then OCR to the right.
-    const ICON_COL_X_END = 0.16;  // icon column spans 0..16% of panel width
-    const STAT_TEXT_X_START = 0.18;
-    const STAT_TEXT_X_END   = 0.96;
-    const ICON_ROW_HALF_HEIGHT = 0.035; // OCR rect extends ±3.5% of panel.h around each icon Y
+    // Icon column is the leftmost ~10% of the panel width. The bars
+    // (containing the digits we need) start right after at ~10%, so we
+    // start the OCR rectangle at 10% to capture the first digit of every
+    // value — clipping the leading digit made the triple regex grab
+    // garbage like "1071(48|0|0)" instead of just "(48|0|0)".
+    const STAT_TEXT_X_START = 0.10;
+    const STAT_TEXT_X_END   = 0.98;
 
     // Canonical TekOS stat order. Icon rows that yield triples are mapped to
     // these stats in order: 1st triple → HP, 2nd → STA, etc. Rows without a
@@ -743,9 +742,10 @@
     /**
      * Preprocess + OCR a single region.
      *
-     * Scale: pick the smaller of (240 / bbox.h) and (3000 / bbox.w) so we
-     * don't end up with extreme aspect ratios (a full-panel-width row
-     * upscaled 8× horizontally is 5000+ px wide which confuses Tesseract).
+     * Scale: AGGRESSIVELY upscale so each text line ends up at ~80-100 px
+     * tall — Tesseract is much more reliable on that size than the ~20-30 px
+     * we get at source resolution for a small panel. Cap at 6000 px wide
+     * to avoid drowning Tesseract.
      *
      * Polarity: ARK panels are WHITE text on DARK background. Tesseract
      * expects BLACK on WHITE so we invert after Otsu.
@@ -758,12 +758,13 @@
         bbox: CropBox,
         worker: { recognize: (b: Blob) => Promise<{ data: { text: string } }> }
     ): Promise<{ text: string; canvas: HTMLCanvasElement }> {
-        // Scale: want ~240 px height (good for Tesseract's text-height sweet
-        // spot when training data is ~32 px), but cap width at 3000 to keep
-        // aspect ratio sane.
-        const scaleH = 240 / bbox.h;
-        const scaleW = 3000 / bbox.w;
-        const scale = Math.max(2, Math.min(scaleH, scaleW));
+        // Target a much bigger scale so small panels (often only 150-200 px
+        // tall in the source) get blown up to a comfortable OCR size.
+        // Floor at 5×, ceiling at min(900/h, 6000/w) so we don't go too big.
+        const scaleH = 900 / bbox.h;
+        const scaleW = 6000 / bbox.w;
+        const scaleCap = Math.min(scaleH, scaleW);
+        const scale = Math.max(5, Math.min(12, scaleCap));
         const w = Math.max(1, Math.round(bbox.w * scale));
         const h = Math.max(1, Math.round(bbox.h * scale));
 
@@ -773,7 +774,10 @@
         if (!ctx) return { text: '', canvas: out };
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.filter = 'blur(1.0px)'; // slight blur thickens thin separators
+        // Very light blur — strong upscales already smooth edges; we just
+        // want to thicken the thinnest strokes (pipes / slashes) without
+        // smudging adjacent digits together.
+        ctx.filter = 'blur(0.5px)';
         ctx.drawImage(img, bbox.x, bbox.y, bbox.w, bbox.h, 0, 0, w, h);
         ctx.filter = 'none';
 
