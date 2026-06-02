@@ -749,28 +749,62 @@
 
     /**
      * Extract all plausible (base, mut, dom) triples from a text fragment.
-     * Tolerant of common Tesseract misreads:
-     *   - Pipes as I, l, 1, ], [
-     *   - Slashes as |, \
-     *   - Brackets/parens optional
-     *   - Whitespace between numbers and separators
+     * Multiple patterns to cover Tesseract's typical mangling:
+     *
+     *   Strict     — clean separators: "59|10|21" or "(59|10|21)"
+     *   LooseBrkt  — bracketed, accepts whitespace as separator:
+     *                "(48| 0 0)" → (48,0,0)  [missing middle pipe]
+     *   TrailSep   — opening bracket lost to OCR-running into the prior
+     *                number; trailing separators survive: "55] 2] 0)"
+     *                even inside a run-on like "14472055] 2] 0)" → (55,2,0)
+     *   BracketNums— anything between brackets/parens, pick the 3 numbers:
+     *                "(48 0 0)" or "[55 2 0]" with no separators at all
      */
     function extractTriples(text: string): Array<[number, number, number]> {
-        const triples: Array<[number, number, number]> = [];
-        // Separator class: any of | / \ I l 1 ] [ — at least one between numbers.
-        // Negative lookbehind/lookahead on digits prevents "1234/5/6" from matching as "234/5/6".
-        const re = /(?<![\d.])[\(\[]?\s*(\d{1,3})\s*[\|\/\\Il1\]\[]+\s*(\d{1,3})\s*[\|\/\\Il1\]\[]+\s*(\d{1,3})\s*[\)\]]?(?![\d.])/g;
-        let m;
-        while ((m = re.exec(text)) !== null) {
-            const a = parseInt(m[1], 10);
-            const b = parseInt(m[2], 10);
-            const c = parseInt(m[3], 10);
-            // Wild base 0-200 (extreme high-level); mut/dom 0-99
-            if (a >= 0 && a <= 999 && b >= 0 && b <= 999 && c >= 0 && c <= 999) {
-                triples.push([a, b, c]);
+        const out: Array<[number, number, number]> = [];
+        const seen = new Set<string>();
+        const add = (a: number, b: number, c: number) => {
+            if ([a,b,c].some(n => n < 0 || n > 999 || !Number.isFinite(n))) return;
+            const k = `${a},${b},${c}`;
+            if (seen.has(k)) return;
+            seen.add(k);
+            out.push([a, b, c]);
+        };
+
+        let m: RegExpExecArray | null;
+
+        // 1. STRICT — clean separators between 3 numbers
+        const strict = /[\(\[]?\s*(\d{1,3})\s*[\|\/\\Il1\]\[]+\s*(\d{1,3})\s*[\|\/\\Il1\]\[]+\s*(\d{1,3})\s*[\)\]]?/g;
+        while ((m = strict.exec(text)) !== null) {
+            add(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10));
+        }
+
+        // 2. LOOSE BRACKET — between [ or ( and ] or ), whitespace also valid
+        //    as a separator (covers "(48| 0 0)" where pipe was missing)
+        const loose = /[\(\[]\s*(\d{1,3})\s*[\|\/\\Il1\]\[\s]+(\d{1,3})\s*[\|\/\\Il1\]\[\s]+(\d{1,3})\s*[\)\]]/g;
+        while ((m = loose.exec(text)) !== null) {
+            add(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10));
+        }
+
+        // 3. TRAILING SEPARATORS — opening bracket got eaten by run-on
+        //    "X] Y] Z]" or "X] Y] Z)" — works inside "14472055] 2] 0)"
+        const trail = /(\d{1,3})\s*[\]\|]\s*(\d{1,3})\s*[\]\|]\s*(\d{1,3})\s*[\)\]\|]/g;
+        while ((m = trail.exec(text)) !== null) {
+            add(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10));
+        }
+
+        // 4. BRACKET-WRAPPED NUMBER LIST — any non-digit between bracket
+        //    pairs that yields exactly 3 numbers. Catches "(48 0 0)" and
+        //    "[55 2 0]" when all separators got dropped.
+        const bracketed = /[\(\[]([^\)\]\(\[]+)[\)\]]/g;
+        while ((m = bracketed.exec(text)) !== null) {
+            const nums = m[1].match(/\d{1,3}/g);
+            if (nums && nums.length === 3) {
+                add(parseInt(nums[0],10), parseInt(nums[1],10), parseInt(nums[2],10));
             }
         }
-        return triples;
+
+        return out;
     }
 
     async function runOcr() {
@@ -839,15 +873,42 @@
             for (let i = 0; i < rows.length; i++) {
                 const r = rows[i];
                 const trimmed: CropBox = {
-                    x: r.x + Math.round(r.w * 0.10),
+                    x: r.x + Math.round(r.w * 0.05),
                     y: r.y,
-                    w: Math.round(r.w * 0.90),
+                    w: Math.round(r.w * 0.95),
                     h: r.h
                 };
                 const o = await ocrRegion(shotImage, trimmed, worker);
                 rowTexts.push(o.text);
                 rowCanvases.push(o.canvas);
                 shotProgress = Math.round(((i + 1) / rows.length) * 100);
+            }
+
+            // 3b. RETRY pass: any row that didn't yield a triple gets a
+            //     second attempt with PSM 7 (single line) + digit whitelist
+            //     + numeric mode. Tighter constraints = less context = often
+            //     succeeds on a row that PSM 6 multi-line garbled.
+            await worker.setParameters({
+                tessedit_pageseg_mode: '7' as never,
+                tessedit_char_whitelist: '0123456789/|\\()[]., -' as never,
+                classify_bln_numeric_mode: '1' as never,
+                load_system_dawg: '0' as never,
+                load_freq_dawg: '0' as never
+            });
+            for (let i = 0; i < rows.length; i++) {
+                if (extractTriples(rowTexts[i]).length > 0) continue;
+                const r = rows[i];
+                const trimmed: CropBox = {
+                    x: r.x + Math.round(r.w * 0.05),
+                    y: r.y,
+                    w: Math.round(r.w * 0.95),
+                    h: r.h
+                };
+                const o = await ocrRegion(shotImage, trimmed, worker);
+                // Append the retry text — extractTriples will find triples in either pass's output
+                if (o.text && o.text !== rowTexts[i]) {
+                    rowTexts[i] = rowTexts[i] + '\n[retry] ' + o.text;
+                }
             }
 
             await worker.terminate();
