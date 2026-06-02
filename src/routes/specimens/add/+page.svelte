@@ -584,109 +584,169 @@
 
     type RowBox = { y0: number; y1: number }; // panel-relative pixel rows (downsampled space)
 
-    /**
-     * Detect text-bearing rows inside the cropped panel via PEAK FINDING
-     * on white-pixel density (not generic variance — that one merged
-     * adjacent rows into mega-clumps).
-     *
-     * Why white-pixel count: ARK panel text is bright white digits on dark
-     * teal background. A row with text has many pixels above ~80% of the
-     * panel's max luminance. A blank gap has almost none. The signal has
-     * sharp clean peaks at each text row centre.
-     *
-     * Why peaks instead of thresholding: thresholding requires picking a
-     * cutoff that distinguishes "has text" from "blank." When text rows
-     * are stacked close together (typical for u+/Tek), the gap dips don't
-     * go far enough below threshold, so multiple rows merge into one.
-     * Peak finding with a MINIMUM SPACING constraint guarantees one peak
-     * per real row regardless of how shallow the gap dip is.
-     */
-    function detectStatRows(img: HTMLImageElement, crop: CropBox): { rows: CropBox[]; debug: string } {
-        const W = 320;
-        const H = Math.max(1, Math.round((crop.h / crop.w) * W));
-        const c = document.createElement('canvas');
-        c.width = W; c.height = H;
-        const ctx = c.getContext('2d');
-        if (!ctx) return { rows: [], debug: 'no canvas ctx' };
-        ctx.drawImage(img, crop.x, crop.y, crop.w, crop.h, 0, 0, W, H);
-        const data = ctx.getImageData(0, 0, W, H).data;
+    // ─────────────────────────────────────────────────────────────────────
+    //  TEMPLATE-MATCHED PANEL OCR
+    //  We bundle a clean PNG of the u+/Tek Binoculars panel at
+    //  /panel-templates/uplus.png. On each OCR run we:
+    //    1. Multi-scale slide the template across the uploaded screenshot
+    //       computing sum-of-squared-differences in grayscale-downsampled
+    //       space → find best (scale, x, y) match for where the panel sits.
+    //    2. Translate the match back to source-image coordinates.
+    //    3. For each stat we want, look up its row's normalized Y position
+    //       within the template; compute the OCR rectangle in source coords.
+    //    4. OCR each tiny rectangle (one stat row, full-width OCR strip).
+    //    5. Pull the first triple from each OCR text and map to TekOS schema.
+    //
+    //  ROW ORDER in the u+/Tek panel (confirmed by user):
+    //    1. HP            (+ icon, has triple)
+    //    2. Stam          (⚡, has triple)
+    //    3. Torpor        (sparkles, has triple — we ignore, not in schema)
+    //    4. Food          (drumstick, has triple)
+    //    5. Weight        (weight icon, has triple)
+    //    6. Oxygen        (spray bottle, has triple)
+    //    7. Speed         (boot, % only — we ignore)
+    //    8. Melee         (fist, has triple)
+    //    9. Imprint       (footprint, % only — we ignore)
+    //
+    //  Crafting Skill is NOT shown on u+/Tek for dinos; left blank.
+    // ─────────────────────────────────────────────────────────────────────
 
-        const lum = new Float32Array(W * H);
-        for (let i = 0; i < W * H; i++) {
-            lum[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
-        }
+    type StatRow = { stat: StatKey; yCenter: number; height: number };
+    // Normalized [0..1] vertical positions within the template
+    // (estimated from the 1152×1260 reference template; row centers spaced
+    // ~0.0715 apart; rows are ~0.062 tall).
+    const STAT_ROWS_IN_TEMPLATE: StatRow[] = [
+        { stat: 'HP',   yCenter: 0.078, height: 0.062 }, // row 1
+        { stat: 'STA',  yCenter: 0.149, height: 0.062 }, // row 2
+        // skip row 3 (Torpor)
+        { stat: 'FOOD', yCenter: 0.292, height: 0.062 }, // row 4
+        { stat: 'WGT',  yCenter: 0.363, height: 0.062 }, // row 5
+        { stat: 'OXY',  yCenter: 0.435, height: 0.062 }, // row 6 (Oxygen, not Torpor)
+        // skip row 7 (Speed, % only)
+        { stat: 'MEL',  yCenter: 0.580, height: 0.062 }, // row 8
+        // skip row 9 (Imprint, % only)
+    ];
+    // Within each row, the bar/text content (not the icon column on the left)
+    // sits roughly between these X ratios:
+    const STAT_TEXT_X_START = 0.18;
+    const STAT_TEXT_X_END   = 0.95;
+    // The header (creature name + level) sits in the top strip above row 1.
+    // For the actual game panel this is a separate band that's NOT part of
+    // our template (template starts at row 1) — we capture it from above the
+    // matched panel area when we have room in the source image.
 
-        // ABSOLUTE bright threshold (200) — text pixels are at the top end
-        // of luminance regardless of how bright the dragon thumbnail is.
-        // Using a relative threshold (% of maxLum) excluded text rows when
-        // the dragon was much brighter than the stats.
-        const brightT = 200;
-        const rowBright = new Float32Array(H);
-        for (let y = 0; y < H; y++) {
-            let cnt = 0;
-            for (let x = 0; x < W; x++) if (lum[y*W + x] > brightT) cnt++;
-            rowBright[y] = cnt;
-        }
-
-        // Light smooth ±1 only — keep peaks crisp.
-        const smooth = new Float32Array(H);
-        for (let y = 0; y < H; y++) {
-            const a = y > 0 ? rowBright[y-1] : rowBright[y];
-            const b = rowBright[y];
-            const c2 = y < H-1 ? rowBright[y+1] : rowBright[y];
-            smooth[y] = (a + b + c2) / 3;
-        }
-
-        // Find ALL local maxima with min spacing. No global minPeak threshold
-        // — that was excluding dimmer rows when one row (dragon image) had
-        // way more bright pixels than the rest. The min-spacing constraint
-        // alone is enough to prevent duplicate detections on the same row.
-        const minSpacing = Math.max(4, Math.round(H * 0.014));
-        const peaks: number[] = [];
-        let lastPeak = -1000;
-        for (let y = 1; y < H - 1; y++) {
-            const v = smooth[y];
-            // Need at least 3 bright pixels in the row — excludes truly blank
-            // gaps but accepts even sparsely-bright rows.
-            if (v < 3) continue;
-            if (v < smooth[y-1] || v < smooth[y+1]) continue;
-            if (y - lastPeak < minSpacing) {
-                // Stronger peak within min-spacing window — replace the
-                // previous one rather than dropping this one.
-                if (peaks.length > 0 && v > smooth[peaks[peaks.length - 1]]) {
-                    peaks[peaks.length - 1] = y;
-                    lastPeak = y;
-                }
-                continue;
-            }
-            peaks.push(y);
-            lastPeak = y;
-        }
-
-        // Tighter bboxes so close-packed rows don't bleed into each other.
-        // The OCR can pull triples from a clean single-row strip; if two
-        // rows get merged into one bbox, PSM 6 returns 2 lines and the
-        // canonical-order mapping gets confused.
-        const sy = crop.h / H;
-        const rows: CropBox[] = peaks.map((p, i) => {
-            const prev = i > 0 ? peaks[i-1] : -1;
-            const next = i < peaks.length - 1 ? peaks[i+1] : H;
-            const halfMax = Math.min(14, Math.round(H * 0.028));
-            const top = Math.max(0, prev < 0 ? p - halfMax : Math.max(p - halfMax, Math.round((prev + p) / 2)));
-            const bot = Math.min(H - 1, next >= H ? p + halfMax : Math.min(p + halfMax, Math.round((p + next) / 2)));
-            return {
-                x: crop.x,
-                y: Math.round(crop.y + top * sy),
-                w: crop.w,
-                h: Math.round((bot - top + 1) * sy)
-            };
+    let cachedTemplate: HTMLImageElement | null = null;
+    async function loadTemplate(): Promise<HTMLImageElement> {
+        if (cachedTemplate) return cachedTemplate;
+        const img = await new Promise<HTMLImageElement>((res, rej) => {
+            const i = new Image();
+            i.onload  = () => res(i);
+            i.onerror = () => rej(new Error('Failed to load panel template (/panel-templates/uplus.png)'));
+            i.src = '/panel-templates/uplus.png';
         });
+        cachedTemplate = img;
+        return img;
+    }
 
+    /**
+     * Multi-scale template matching. Tries the template at several candidate
+     * widths (as a fraction of the uploaded screenshot's width), slides it
+     * across the screenshot computing grayscale SSD per position, returns
+     * the best (scale, x, y) match in source-image coordinates.
+     *
+     * To keep this tractable in JS:
+     *   - We work in a DOWNSAMPLED haystack (haystack scaled to ~300px wide)
+     *   - For each candidate scale, the template is also downsampled to the
+     *     equivalent size in haystack-downsampled space
+     *   - SSD is computed on grayscale luminance only (1 channel)
+     *   - Sliding uses a stride of 2 pixels to halve the work
+     *
+     * Returns null if no scale produced a clearly-better-than-noise match.
+     */
+    async function matchTemplate(
+        haystack: HTMLImageElement,
+        template: HTMLImageElement
+    ): Promise<{ x: number; y: number; w: number; h: number; score: number } | null> {
+        // Downsampled haystack size — aim for ~320 wide for speed
+        const HAYSTACK_W = 320;
+        const hAspect = haystack.height / haystack.width;
+        const HAYSTACK_H = Math.round(HAYSTACK_W * hAspect);
+
+        // Get grayscale luminance for the haystack
+        const hCanvas = document.createElement('canvas');
+        hCanvas.width = HAYSTACK_W; hCanvas.height = HAYSTACK_H;
+        const hCtx = hCanvas.getContext('2d');
+        if (!hCtx) return null;
+        hCtx.drawImage(haystack, 0, 0, HAYSTACK_W, HAYSTACK_H);
+        const hRgba = hCtx.getImageData(0, 0, HAYSTACK_W, HAYSTACK_H).data;
+        const hLum = new Float32Array(HAYSTACK_W * HAYSTACK_H);
+        for (let i = 0; i < HAYSTACK_W * HAYSTACK_H; i++) {
+            hLum[i] = 0.299*hRgba[i*4] + 0.587*hRgba[i*4+1] + 0.114*hRgba[i*4+2];
+        }
+
+        const templateAspect = template.height / template.width;
+        // Candidate panel widths as a fraction of haystack width.
+        // Panels typically take 12-30% of a full-screen capture.
+        const candidates = [0.12, 0.16, 0.20, 0.25, 0.30];
+
+        let best: { x: number; y: number; w: number; h: number; score: number; scale: number } | null = null;
+
+        for (const widthFrac of candidates) {
+            const tW = Math.max(20, Math.round(HAYSTACK_W * widthFrac));
+            const tH = Math.max(20, Math.round(tW * templateAspect));
+            if (tW >= HAYSTACK_W || tH >= HAYSTACK_H) continue;
+
+            // Downsample template to (tW × tH)
+            const tCanvas = document.createElement('canvas');
+            tCanvas.width = tW; tCanvas.height = tH;
+            const tCtx = tCanvas.getContext('2d');
+            if (!tCtx) continue;
+            tCtx.imageSmoothingEnabled = true;
+            tCtx.imageSmoothingQuality = 'high';
+            tCtx.drawImage(template, 0, 0, tW, tH);
+            const tRgba = tCtx.getImageData(0, 0, tW, tH).data;
+            const tLum = new Float32Array(tW * tH);
+            for (let i = 0; i < tW * tH; i++) {
+                tLum[i] = 0.299*tRgba[i*4] + 0.587*tRgba[i*4+1] + 0.114*tRgba[i*4+2];
+            }
+
+            // Slide across haystack with stride 2
+            const stride = 2;
+            for (let y = 0; y <= HAYSTACK_H - tH; y += stride) {
+                for (let x = 0; x <= HAYSTACK_W - tW; x += stride) {
+                    // Early termination: track running min as we go (rough),
+                    // but JS branching overhead often makes this not worth it.
+                    let ssd = 0;
+                    for (let ty = 0; ty < tH; ty += 2) {
+                        const hRow = (y + ty) * HAYSTACK_W + x;
+                        const tRow = ty * tW;
+                        for (let tx = 0; tx < tW; tx += 2) {
+                            const d = hLum[hRow + tx] - tLum[tRow + tx];
+                            ssd += d * d;
+                        }
+                    }
+                    if (!best || ssd < best.score) {
+                        best = { x, y, w: tW, h: tH, score: ssd, scale: widthFrac };
+                    }
+                }
+            }
+        }
+        if (!best) return null;
+
+        // Translate from downsampled-haystack coords to source coords
+        const scale = haystack.width / HAYSTACK_W;
         return {
-            rows,
-            debug: `${rows.length} rows from ${peaks.length} peaks, brightT=${brightT} (abs), minSpacing=${minSpacing}`
+            x: Math.round(best.x * scale),
+            y: Math.round(best.y * scale),
+            w: Math.round(best.w * scale),
+            h: Math.round(best.h * scale),
+            score: best.score
         };
     }
+
+    // (detectStatRows was the row-peak-finding helper from the previous
+    // pipeline. Removed when we switched to template matching — the template
+    // tells us EXACTLY where each row sits, no detection guesswork required.)
 
     /**
      * Preprocess + OCR a single region.
@@ -835,12 +895,16 @@
         if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
 
         try {
-            // 1. Detect rows in the panel — pure pixel analysis, no Tesseract
-            const { rows, debug: rowDebug } = detectStatRows(shotImage, cropBox);
-            if (rows.length === 0) {
-                shotError = 'Could not find any text rows in the cropped region. Try cropping closer to the panel.';
+            // 1. Load the reference panel template and find where the u+/Tek
+            //    panel sits in the uploaded screenshot via template matching.
+            const template = await loadTemplate();
+            shotProgress = 5;
+            const match = await matchTemplate(shotImage, template);
+            if (!match) {
+                shotError = 'Could not locate a u+/Tek Binoculars panel in this screenshot. Make sure the panel is clearly visible and try cropping closer.';
                 return;
             }
+            shotProgress = 20;
 
             shotPhase = 'recognizing';
             const Tesseract = await import('tesseract.js');
@@ -851,19 +915,20 @@
                 workerBlobURL: false,
                 logger: (m: { status: string; progress: number }) => {
                     if (m.status === 'recognizing text') {
-                        // Progress is per-region; not super meaningful with N rows
-                        shotProgress = Math.min(99, Math.round(m.progress * 100));
+                        shotProgress = Math.min(99, 20 + Math.round(m.progress * 75));
                     }
                 }
             });
 
-            // 2. Header: full charset, PSM 6 (multi-line block) — captures
-            //    creature name, level, tribe name
-            const headerRegion: CropBox = {
-                x: cropBox.x, y: cropBox.y,
-                w: cropBox.w,
-                h: Math.max(20, rows[0].y - cropBox.y)
-            };
+            // 2. Header: OCR the strip immediately ABOVE the matched panel,
+            //    where the creature name + level sit. PSM 6, full charset.
+            const headerH = Math.min(match.y, Math.round(match.h * 0.18));
+            const headerRegion: CropBox = headerH > 20 ? {
+                x: match.x,
+                y: Math.max(0, match.y - headerH),
+                w: match.w,
+                h: headerH
+            } : { x: match.x, y: match.y, w: match.w, h: 20 };
             await worker.setParameters({
                 tessedit_pageseg_mode: '6' as never,
                 tessedit_char_whitelist: '' as never,
@@ -874,70 +939,54 @@
             const headerOut = await ocrRegion(shotImage, headerRegion, worker);
             const headerText = headerOut.text;
 
-            // 3. Per-row OCR: PSM 6 (block) so multi-line content in one row
-            //    (current/max above + triple below) still parses. Numeric mode
-            //    OFF and whitelist permissive — letting Tesseract use its full
-            //    model and we filter for triples in extractTriples.
-            //    Trim the leftmost 12% of each row to skip the icon — that area
-            //    isn't text, just colored UI artwork that misleads recognition.
-            await worker.setParameters({
-                tessedit_pageseg_mode: '6' as never,
-                tessedit_char_whitelist: '0123456789/|\\()[]., -:KkMm' as never,
-                classify_bln_numeric_mode: '0' as never,
-                load_system_dawg: '0' as never,
-                load_freq_dawg: '0' as never,
-                user_defined_dpi: '300' as never
-            });
-
-            const rowTexts: string[] = [];
-            const rowCanvases: HTMLCanvasElement[] = [];
-            for (let i = 0; i < rows.length; i++) {
-                const r = rows[i];
-                const trimmed: CropBox = {
-                    x: r.x + Math.round(r.w * 0.05),
-                    y: r.y,
-                    w: Math.round(r.w * 0.95),
-                    h: r.h
-                };
-                const o = await ocrRegion(shotImage, trimmed, worker);
-                rowTexts.push(o.text);
-                rowCanvases.push(o.canvas);
-                shotProgress = Math.round(((i + 1) / rows.length) * 100);
-            }
-
-            // 3b. RETRY pass: any row that didn't yield a triple gets a
-            //     second attempt with PSM 7 (single line) + digit whitelist
-            //     + numeric mode. Tighter constraints = less context = often
-            //     succeeds on a row that PSM 6 multi-line garbled.
+            // 3. Per-stat OCR: build the rectangle for each stat row using its
+            //    normalized Y position within the matched panel area. PSM 7
+            //    (single line) + digit-friendly whitelist + numeric mode —
+            //    each rectangle is one row of digits + separators, the
+            //    tightest possible OCR target.
             await worker.setParameters({
                 tessedit_pageseg_mode: '7' as never,
                 tessedit_char_whitelist: '0123456789/|\\()[]., -' as never,
                 classify_bln_numeric_mode: '1' as never,
                 load_system_dawg: '0' as never,
-                load_freq_dawg: '0' as never
+                load_freq_dawg: '0' as never,
+                user_defined_dpi: '300' as never
             });
-            for (let i = 0; i < rows.length; i++) {
-                if (extractTriples(rowTexts[i]).length > 0) continue;
-                const r = rows[i];
-                const trimmed: CropBox = {
-                    x: r.x + Math.round(r.w * 0.05),
-                    y: r.y,
-                    w: Math.round(r.w * 0.95),
-                    h: r.h
+
+            const rowResults: Array<{
+                stat: StatKey;
+                rect: CropBox;
+                text: string;
+                triple: [number, number, number] | null;
+                canvas: HTMLCanvasElement;
+            }> = [];
+
+            for (let i = 0; i < STAT_ROWS_IN_TEMPLATE.length; i++) {
+                const r = STAT_ROWS_IN_TEMPLATE[i];
+                const yC = match.y + r.yCenter * match.h;
+                const rect: CropBox = {
+                    x: Math.round(match.x + STAT_TEXT_X_START * match.w),
+                    y: Math.round(yC - (r.height * match.h) / 2),
+                    w: Math.round((STAT_TEXT_X_END - STAT_TEXT_X_START) * match.w),
+                    h: Math.round(r.height * match.h)
                 };
-                const o = await ocrRegion(shotImage, trimmed, worker);
-                // Append the retry text — extractTriples will find triples in either pass's output
-                if (o.text && o.text !== rowTexts[i]) {
-                    rowTexts[i] = rowTexts[i] + '\n[retry] ' + o.text;
-                }
+                const o = await ocrRegion(shotImage, rect, worker);
+                const triples = extractTriples(o.text);
+                rowResults.push({
+                    stat: r.stat,
+                    rect,
+                    text: o.text,
+                    triple: triples[0] ?? null,
+                    canvas: o.canvas
+                });
+                shotProgress = Math.min(99, 20 + Math.round(((i + 1) / STAT_ROWS_IN_TEMPLATE.length) * 75));
             }
 
             await worker.terminate();
 
-            // Build a debug image: all preprocessed rows stacked vertically
-            // so the user can see EXACTLY what Tesseract saw.
-            const debugW = Math.max(...rowCanvases.map(c => c.width), 100);
-            const debugH = rowCanvases.reduce((a, c) => a + c.height + 4, 0);
+            // Debug image: stack each per-stat preprocessed rectangle
+            const debugW = Math.max(...rowResults.map(r => r.canvas.width), 100);
+            const debugH = rowResults.reduce((a, r) => a + r.canvas.height + 8, 0);
             const debugC = document.createElement('canvas');
             debugC.width = debugW; debugC.height = debugH;
             const dctx = debugC.getContext('2d');
@@ -945,9 +994,12 @@
                 dctx.fillStyle = '#ddd';
                 dctx.fillRect(0, 0, debugW, debugH);
                 let yOff = 0;
-                for (const c of rowCanvases) {
-                    dctx.drawImage(c, 0, yOff);
-                    yOff += c.height + 4;
+                for (const r of rowResults) {
+                    dctx.fillStyle = '#444';
+                    dctx.font = '12px monospace';
+                    dctx.fillText(r.stat, 4, yOff + 12);
+                    dctx.drawImage(r.canvas, 40, yOff);
+                    yOff += r.canvas.height + 8;
                 }
                 const debugBlob = await new Promise<Blob>((resolve, reject) => {
                     debugC.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
@@ -955,70 +1007,40 @@
                 shotProcUrl = URL.createObjectURL(debugBlob);
             }
 
-            // 4. Extract triples per row
-            const rowTriples = rowTexts.map(t => extractTriples(t));
-
-            // 5. Tek/u+ Binoculars only — single-column layout, paren-with-
-            //    pipes triples. No layout detection needed.
             shotSource = 'tek';
 
-            // 6. Map triples to stats by canonical order using Y-position so
-            //    noise rows before the actual stats don't shift the mapping.
+            // 4. Map per-stat results to the output object
             const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
-            const statRows = rowTriples
-                .map((t, i) => ({ triples: t, y: rows[i]?.y ?? 0 }))
-                .filter(r => r.triples.length > 0);
-
-            const stats: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
-
-            if (statRows.length > 0) {
-                const yTop    = statRows[0].y;
-                const yBottom = statRows[statRows.length - 1].y;
-                const yRange  = Math.max(1, yBottom - yTop);
-                const slotH   = yRange / Math.max(1, stats.length - 1);
-
-                for (const sr of statRows) {
-                    const slot = Math.min(
-                        stats.length - 1,
-                        Math.max(0, Math.round((sr.y - yTop) / slotH))
-                    );
-                    const key = stats[slot];
-                    if (key && out[key] === undefined && sr.triples[0]) {
-                        out[key] = sr.triples[0][0];
-                    }
-                }
+            for (const r of rowResults) {
+                if (r.triple) out[r.stat] = r.triple[0];
             }
 
-            // 7. Name + level from header
+            // 5. Name + level from header
             extractNameAndLevel(
                 headerText.split(/\r?\n/).map(l => l.trim()).filter(Boolean),
                 out
             );
-
             shotParsed = out;
 
-            // Debug dump — visible in the "Raw OCR text" details element so the
-            // user can inspect what each row was read as. Invaluable when a row
-            // gets misparsed.
+            // Debug dump — exposed via the "Raw OCR text" expander
             const dbg = [
-                `── ROW DETECTION ──`,
-                rowDebug,
-                rows.map((r, i) => `  row ${i}: y=${r.y - cropBox!.y}..${r.y - cropBox!.y + r.h}  h=${r.h}px`).join('\n'),
+                `── TEMPLATE MATCH ──`,
+                `Panel located at: x=${match.x} y=${match.y} w=${match.w} h=${match.h} (SSD=${match.score.toFixed(0)})`,
                 ``,
                 `── HEADER ──`,
                 headerText || '(empty)',
                 ``,
-                `── PER-ROW OCR (${rows.length} rows, layout: u+/Tek 1-col) ──`,
-                rowTexts.map((t, i) => {
-                    const trips = rowTriples[i];
-                    const tripStr = trips.length ? ' → ' + trips.map(([a,b,c]) => `(${a}|${b}|${c})`).join(', ') : '';
-                    return `  row ${i}: "${t}"${tripStr}`;
+                `── PER-STAT OCR (${rowResults.length} rows) ──`,
+                rowResults.map(r => {
+                    const t = r.triple ? ` → (${r.triple[0]}|${r.triple[1]}|${r.triple[2]})` : ' → NO TRIPLE';
+                    return `  ${r.stat.padEnd(5)}: "${r.text}"${t}`;
                 }).join('\n')
             ].join('\n');
             shotRawText = dbg;
 
-            if (Object.keys(out).filter(k => k !== 'name' && k !== 'species' && k !== 'level').length === 0) {
-                shotError = 'Found rows in the panel but no readable stat triples. Check the row-by-row OCR below to see what Tesseract read.';
+            const populatedCount = Object.keys(out).filter(k => k !== 'name' && k !== 'species' && k !== 'level').length;
+            if (populatedCount === 0) {
+                shotError = 'Template matched the panel but no stat triples were readable. Check the per-stat OCR below to see what each row produced.';
             }
         } catch (err) {
             shotError = (err as Error).message || 'OCR failed';
