@@ -787,47 +787,57 @@
         const id = ctx.getImageData(0, 0, w, h);
         const d = id.data;
 
-        // MIN-CHANNEL THRESHOLD. ARK panel text is pure WHITE (R=G=B=255 →
-        // min channel = 255). Bars are SATURATED COLORS (green has low R+B,
-        // blue has low R, etc.) → their min channel is low (10-100). Dark
-        // background also has low min (~30). So the min channel naturally
-        // separates white text (high) from everything else (low) regardless
-        // of bar color — no need to mask saturated pixels and risk eating
-        // anti-aliased text edges.
+        // V-CHANNEL OTSU + SATURATION GATE. Each pixel is text iff:
+        //     V (max channel) > Otsu-threshold AND saturation < 0.40
         //
-        // We run Otsu on the min-channel histogram, then apply: above
-        // threshold → BLACK (text), below → WHITE (bg).
+        // Rationale:
+        //   • V = max(R,G,B) treats green and blue bars symmetrically (both
+        //     have V around 150-180); standard luminance weights G heavily
+        //     and gives the green HP bar a much higher value than blue bars.
+        //   • Sat gate (<0.40) blocks PURE bar pixels (sat > 0.5) but lets
+        //     through text-edge anti-aliasing (sat ~0.25), which is where
+        //     the bar's color bleeds slightly into white text.
+        //
+        // Result: white text BLACK regardless of bar color; bars + dark bg
+        // all become WHITE.
         const pixels = w * h;
-        const minHist = new Array<number>(256).fill(0);
+        const vHist = new Array<number>(256).fill(0);
+        const vBuf = new Uint8Array(pixels);
+        const sBuf = new Float32Array(pixels);
         for (let p = 0, i = 0; p < pixels; p++, i += 4) {
             const r = d[i], g = d[i+1], b = d[i+2];
-            const mn = Math.min(r, g, b);
-            minHist[mn]++;
+            const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+            const s = mx === 0 ? 0 : (mx - mn) / mx;
+            vBuf[p] = mx;
+            sBuf[p] = s;
+            vHist[mx]++;
         }
+
+        // Otsu on V-channel histogram
         let threshold = 150;
         {
             let sum = 0;
-            for (let t = 0; t < 256; t++) sum += t * minHist[t];
+            for (let t = 0; t < 256; t++) sum += t * vHist[t];
             let sumB = 0, wB = 0, maxVar = 0;
             for (let t = 0; t < 256; t++) {
-                wB += minHist[t];
+                wB += vHist[t];
                 if (wB === 0) continue;
                 const wF = pixels - wB;
                 if (wF === 0) break;
-                sumB += t * minHist[t];
+                sumB += t * vHist[t];
                 const mB = sumB / wB;
                 const mF = (sum - sumB) / wF;
                 const variance = wB * wF * (mB - mF) * (mB - mF);
                 if (variance > maxVar) { maxVar = variance; threshold = t; }
             }
         }
-        // Floor the threshold at 100 — if Otsu picks below that, the
-        // image is mostly bar/text and the cut is unreliable.
-        if (threshold < 100) threshold = 150;
+        // Floor at 140 — if Otsu picks too low, dim pixels start counting
+        // as text. Sane floor for ARK panels where bar V is ~150-180.
+        if (threshold < 140) threshold = 150;
 
         for (let p = 0, i = 0; p < pixels; p++, i += 4) {
-            const mn = Math.min(d[i], d[i+1], d[i+2]);
-            const v = mn > threshold ? 0 : 255;
+            const isText = vBuf[p] > threshold && sBuf[p] < 0.40;
+            const v = isText ? 0 : 255;
             d[i] = v; d[i+1] = v; d[i+2] = v;
         }
         ctx.putImageData(id, 0, 0);
