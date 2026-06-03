@@ -626,6 +626,8 @@
     const CANONICAL_STAT_ORDER: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
 
     let cachedTemplate: HTMLImageElement | null = null;
+    let cachedTemplateBands: Array<{ y: number; h: number }> | null = null;
+    let cachedTemplateBandsForH: number = 0;
     async function loadTemplate(): Promise<HTMLImageElement> {
         if (cachedTemplate) return cachedTemplate;
         const img = await new Promise<HTMLImageElement>((res, rej) => {
@@ -1057,7 +1059,23 @@
                 user_defined_dpi: '300' as never
             });
 
-            const bands = detectRowBands(shotImage, match);
+            // Detect row bands on the REFERENCE TEMPLATE, not on the user's
+            // tiny panel. The template is high-res (text is huge and clearly
+            // bright); my detection thresholds actually work there. The panel
+            // layout is FIXED (per user) so the row Y positions transfer
+            // directly: compute as fractions of template height, scale to
+            // matched panel height.
+            if (!cachedTemplateBands || cachedTemplateBandsForH !== template.height) {
+                cachedTemplateBands = detectRowBands(template, {
+                    x: 0, y: 0, w: template.width, h: template.height
+                });
+                cachedTemplateBandsForH = template.height;
+            }
+            const tplH = template.height;
+            const bands = cachedTemplateBands.map(b => ({
+                y: Math.round((b.y / tplH) * match.h),
+                h: Math.round((b.h / tplH) * match.h)
+            }));
 
             // Per-row OCR. Each band crops the right ~88% of the row (skips
             // the icon column) with a small vertical pad to keep descenders.
