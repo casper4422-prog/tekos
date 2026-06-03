@@ -740,10 +740,68 @@
         };
     }
 
-    // (detectIconRowsInPanel removed — switched to whole-panel PSM 6 OCR
-    // and document-order triple extraction, which sidesteps row detection
-    // entirely. The user pointed out icons are WHITE on this UI, so the
-    // saturation-based detector was firing on stray bar pixels not icons.)
+    // Detect text-bearing horizontal bands within the matched panel. Used
+    // by runOcr() to drive per-row PSM 7 OCR — much cleaner than asking
+    // Tesseract to segment lines from a multi-row block at PSM 6.
+    function detectRowBands(
+        img: HTMLImageElement,
+        panel: { x: number; y: number; w: number; h: number }
+    ): Array<{ y: number; h: number }> {
+        const tmp = document.createElement('canvas');
+        tmp.width = panel.w;
+        tmp.height = panel.h;
+        const tctx = tmp.getContext('2d');
+        if (!tctx) return [];
+        tctx.drawImage(img, panel.x, panel.y, panel.w, panel.h, 0, 0, panel.w, panel.h);
+        const pdata = tctx.getImageData(0, 0, panel.w, panel.h);
+        const d = pdata.data;
+
+        // Count "text-like" pixels per Y row: bright + low-saturation = white
+        // text. Filters out solid colored bars (high saturation) and dark bg.
+        // Scan only the right 60% of the panel where digits + triples live.
+        const textCounts = new Array<number>(panel.h).fill(0);
+        const xStart = Math.floor(panel.w * 0.40);
+        for (let y = 0; y < panel.h; y++) {
+            let count = 0;
+            for (let x = xStart; x < panel.w; x++) {
+                const i = (y * panel.w + x) * 4;
+                const r = d[i], g = d[i + 1], b = d[i + 2];
+                const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+                const s = mx === 0 ? 0 : (mx - mn) / mx;
+                if (mx > 200 && s < 0.30) count++;
+            }
+            textCounts[y] = count;
+        }
+
+        const textThreshold = Math.floor((panel.w - xStart) * 0.05);
+
+        // Group consecutive text-bearing rows into bands. Tolerate gaps of
+        // up to 2 px within a band (anti-aliasing breaks between glyphs).
+        const bands: Array<{ y: number; h: number }> = [];
+        let bandStart: number | null = null;
+        let gapCount = 0;
+        for (let y = 0; y < panel.h; y++) {
+            const isText = textCounts[y] > textThreshold;
+            if (isText) {
+                if (bandStart === null) bandStart = y;
+                gapCount = 0;
+            } else if (bandStart !== null) {
+                gapCount++;
+                if (gapCount > 2) {
+                    const lastTextY = y - gapCount;
+                    const bandH = lastTextY - bandStart + 1;
+                    if (bandH >= 8) bands.push({ y: bandStart, h: bandH });
+                    bandStart = null;
+                    gapCount = 0;
+                }
+            }
+        }
+        if (bandStart !== null) {
+            const bandH = panel.h - bandStart;
+            if (bandH >= 8) bands.push({ y: bandStart, h: bandH });
+        }
+        return bands;
+    }
 
     /**
      * Preprocess + OCR a single region.
@@ -986,61 +1044,92 @@
             const headerOut = await ocrRegion(shotImage, headerRegion, worker);
             const headerText = headerOut.text;
 
-            // 3. OCR the entire text strip of the matched panel as ONE block.
-            //    PSM 6 = single block of text, multi-line. Tesseract handles
-            //    line segmentation; we then pull all triples in document
-            //    order and map to canonical stats. Much simpler than trying
-            //    to detect individual rows.
+            // 3. Detect row bands within the matched panel, then OCR each
+            //    row separately at PSM 7 (single text line). PSM 6 on the
+            //    whole panel kept producing merged-line garbage; PSM 7 per
+            //    detected band lets Tesseract focus on one line of text.
             await worker.setParameters({
-                tessedit_pageseg_mode: '6' as never,
-                tessedit_char_whitelist: '0123456789/|\\()[]., -' as never,
+                tessedit_pageseg_mode: '7' as never,
+                tessedit_char_whitelist: '0123456789()|/., ' as never,
                 classify_bln_numeric_mode: '1' as never,
                 load_system_dawg: '0' as never,
                 load_freq_dawg: '0' as never,
                 user_defined_dpi: '300' as never
             });
 
-            // Text area: right ~88% of the panel (skip the icon column).
-            // Extend vertical bounds OUTSIDE the matched region — 18% above
-            // and 8% below match.h. The template match consistently lands
-            // 1-2 rows below the actual panel top (HP row missing from OCR
-            // even after the SSD normalization), so we deliberately over-
-            // capture upward to ensure HP is included.
-            const yPadTop = Math.round(match.h * 0.18);
-            const yPadBot = Math.round(match.h * 0.08);
-            const yTop = Math.max(0, match.y - yPadTop);
-            const yBot = Math.min(shotImage.height, match.y + match.h + yPadBot);
-            const textRect: CropBox = {
-                x: Math.round(match.x + STAT_TEXT_X_START * match.w),
-                y: yTop,
-                w: Math.round((STAT_TEXT_X_END - STAT_TEXT_X_START) * match.w),
-                h: yBot - yTop
-            };
-            const panelOut = await ocrRegion(shotImage, textRect, worker);
+            const bands = detectRowBands(shotImage, match);
+
+            // Per-row OCR. Each band crops the right ~88% of the row (skips
+            // the icon column) with a small vertical pad to keep descenders.
+            const perRowResults: Array<{
+                band: { y: number; h: number };
+                text: string;
+                canvas: HTMLCanvasElement;
+            }> = [];
+            for (let bi = 0; bi < bands.length; bi++) {
+                const band = bands[bi];
+                const padY = 2;
+                const rowY = Math.max(0, match.y + band.y - padY);
+                const rowH = Math.min(
+                    shotImage.height - rowY,
+                    band.h + 2 * padY
+                );
+                if (rowH <= 0) continue;
+                const rowRect: CropBox = {
+                    x: Math.round(match.x + STAT_TEXT_X_START * match.w),
+                    y: rowY,
+                    w: Math.round((STAT_TEXT_X_END - STAT_TEXT_X_START) * match.w),
+                    h: rowH
+                };
+                const rowOut = await ocrRegion(shotImage, rowRect, worker);
+                perRowResults.push({ band, text: rowOut.text, canvas: rowOut.canvas });
+                shotProgress = Math.min(89, 20 + Math.round(((bi + 1) / Math.max(bands.length, 1)) * 65));
+            }
             shotProgress = 90;
 
             await worker.terminate();
 
             shotSource = 'tek';
 
-            // 4. Pull all triples from the OCR text in DOCUMENT ORDER, map
-            //    to canonical TekOS stats in order. The panel reads top-to-
-            //    bottom so the first triple is HP, second is STA, etc.
-            //    Stats that don't have a triple in the panel (Speed %,
-            //    Imprint %) won't produce one in the OCR, so they don't
-            //    shift the index.
-            const panelText = panelOut.text;
-            const allTriples = extractTriples(panelText);
+            // 4. Per-row triple extraction in document order. Each band that
+            //    yields a triple maps to the next canonical stat slot. Bands
+            //    without triples (Torpor, Speed % etc.) don't shift the index.
+            const allTriples: Array<[number, number, number]> = [];
+            for (const r of perRowResults) {
+                const rowTriples = extractTriples(r.text);
+                if (rowTriples.length > 0) {
+                    allTriples.push(rowTriples[rowTriples.length - 1]);
+                }
+            }
 
             const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
             for (let i = 0; i < Math.min(allTriples.length, CANONICAL_STAT_ORDER.length); i++) {
                 out[CANONICAL_STAT_ORDER[i]] = allTriples[i][0];
             }
 
-            // Debug image: the single preprocessed panel text strip
-            shotProcUrl = URL.createObjectURL(await new Promise<Blob>((resolve, reject) => {
-                panelOut.canvas.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
-            }));
+            // Debug image: stitch all per-row preprocessed canvases vertically.
+            if (perRowResults.length > 0) {
+                const maxRowW = Math.max(...perRowResults.map(r => r.canvas.width));
+                const totalRowH = perRowResults.reduce((sum, r) => sum + r.canvas.height, 0);
+                if (maxRowW > 0 && totalRowH > 0) {
+                    const debugCanvas = document.createElement('canvas');
+                    debugCanvas.width = maxRowW;
+                    debugCanvas.height = totalRowH;
+                    const debugCtx = debugCanvas.getContext('2d');
+                    if (debugCtx) {
+                        debugCtx.fillStyle = '#000';
+                        debugCtx.fillRect(0, 0, maxRowW, totalRowH);
+                        let yOff = 0;
+                        for (const r of perRowResults) {
+                            debugCtx.drawImage(r.canvas, 0, yOff);
+                            yOff += r.canvas.height;
+                        }
+                    }
+                    shotProcUrl = URL.createObjectURL(await new Promise<Blob>((resolve, reject) => {
+                        debugCanvas.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
+                    }));
+                }
+            }
 
             // 5. Name + level from header strip above the matched panel
             extractNameAndLevel(
@@ -1049,7 +1138,7 @@
             );
             shotParsed = out;
 
-            // Debug dump — full OCR text + extracted triples in order
+            // Debug dump — per-row text + extracted triples in order
             const dbg = [
                 `── TEMPLATE MATCH ──`,
                 `Panel located at: x=${match.x} y=${match.y} w=${match.w} h=${match.h} (SSD=${match.score.toFixed(0)})`,
@@ -1057,8 +1146,14 @@
                 `── HEADER ──`,
                 headerText || '(empty)',
                 ``,
-                `── PANEL OCR (whole text strip, PSM 6) ──`,
-                panelText || '(empty)',
+                `── ROW DETECTION ──`,
+                `Found ${bands.length} text band${bands.length === 1 ? '' : 's'} within the panel:`,
+                ...bands.map((b, i) => `  Band ${i}: y=${b.y} h=${b.h}`),
+                ``,
+                `── PER-ROW OCR (PSM 7) ──`,
+                perRowResults.length === 0
+                    ? '(no rows detected)'
+                    : perRowResults.map((r, i) => `  Row ${i}: "${r.text}"`).join('\n'),
                 ``,
                 `── EXTRACTED TRIPLES (in document order) ──`,
                 allTriples.length === 0
