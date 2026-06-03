@@ -787,66 +787,47 @@
         const id = ctx.getImageData(0, 0, w, h);
         const d = id.data;
 
-        // SATURATION-AWARE THRESHOLD. The HP row has a GREEN bar, the rest
-        // have BLUE bars. A single global Otsu picks a threshold that puts
-        // the GREEN bar's pixels on the same side as the white text →
-        // after the polarity invert, HP becomes solid BLACK and the text
-        // disappears.
+        // MIN-CHANNEL THRESHOLD. ARK panel text is pure WHITE (R=G=B=255 →
+        // min channel = 255). Bars are SATURATED COLORS (green has low R+B,
+        // blue has low R, etc.) → their min channel is low (10-100). Dark
+        // background also has low min (~30). So the min channel naturally
+        // separates white text (high) from everything else (low) regardless
+        // of bar color — no need to mask saturated pixels and risk eating
+        // anti-aliased text edges.
         //
-        // Each pixel in this UI is one of three things:
-        //   • Bar background — SATURATED color (green/blue/grey/etc.)
-        //   • Dark panel background — low sat + low luminance
-        //   • White text — low sat + high luminance
-        //
-        // We ignore saturated pixels when computing Otsu's threshold (so
-        // bar colors can't skew the cut) and force them to white in the
-        // output. The threshold then cleanly separates dark bg (white in
-        // output) from bright text (black in output).
+        // We run Otsu on the min-channel histogram, then apply: above
+        // threshold → BLACK (text), below → WHITE (bg).
         const pixels = w * h;
-        const isSat = new Uint8Array(pixels);
-        const hist = new Array<number>(256).fill(0);
-        let nonSatCount = 0;
+        const minHist = new Array<number>(256).fill(0);
         for (let p = 0, i = 0; p < pixels; p++, i += 4) {
             const r = d[i], g = d[i+1], b = d[i+2];
-            const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-            const s = mx === 0 ? 0 : (mx - mn) / mx;
-            if (s > 0.20) {
-                isSat[p] = 1;
-            } else {
-                const lum = Math.round(0.299*r + 0.587*g + 0.114*b);
-                hist[lum]++;
-                nonSatCount++;
-            }
+            const mn = Math.min(r, g, b);
+            minHist[mn]++;
         }
-        let threshold = 128;
-        if (nonSatCount > 0) {
+        let threshold = 150;
+        {
             let sum = 0;
-            for (let t = 0; t < 256; t++) sum += t * hist[t];
+            for (let t = 0; t < 256; t++) sum += t * minHist[t];
             let sumB = 0, wB = 0, maxVar = 0;
             for (let t = 0; t < 256; t++) {
-                wB += hist[t];
+                wB += minHist[t];
                 if (wB === 0) continue;
-                const wF = nonSatCount - wB;
+                const wF = pixels - wB;
                 if (wF === 0) break;
-                sumB += t * hist[t];
+                sumB += t * minHist[t];
                 const mB = sumB / wB;
                 const mF = (sum - sumB) / wF;
                 const variance = wB * wF * (mB - mF) * (mB - mF);
                 if (variance > maxVar) { maxVar = variance; threshold = t; }
             }
         }
+        // Floor the threshold at 100 — if Otsu picks below that, the
+        // image is mostly bar/text and the cut is unreliable.
+        if (threshold < 100) threshold = 150;
 
-        // Apply: saturated → white (bg), dark non-sat → white (bg),
-        // bright non-sat → black (text). Polarity is now correct for
-        // Tesseract regardless of which bar color sits behind the text.
         for (let p = 0, i = 0; p < pixels; p++, i += 4) {
-            let v: number;
-            if (isSat[p]) {
-                v = 255;
-            } else {
-                const lum = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-                v = lum > threshold ? 0 : 255;
-            }
+            const mn = Math.min(d[i], d[i+1], d[i+2]);
+            const v = mn > threshold ? 0 : 255;
             d[i] = v; d[i+1] = v; d[i+2] = v;
         }
         ctx.putImageData(id, 0, 0);
