@@ -742,87 +742,20 @@
         };
     }
 
-    // Detect text-bearing horizontal bands within the matched panel. Used
-    // by runOcr() to drive per-row PSM 7 OCR — much cleaner than asking
-    // Tesseract to segment lines from a multi-row block at PSM 6.
+    // Hardcoded row positions: 9 evenly-spaced rows in the top 68% of the
+    // panel. Layout is fixed (per user). Skipping variance/brightness
+    // detection entirely — it's been flaky and the layout is reliable
+    // enough to hardcode.
+    //
+    // Param signature is kept compatible with previous detection callers
+    // (img + panel bbox) but only panel.h is used.
     function detectRowBands(
-        img: HTMLImageElement,
+        _img: HTMLImageElement,
         panel: { x: number; y: number; w: number; h: number }
     ): Array<{ y: number; h: number }> {
-        const tmp = document.createElement('canvas');
-        tmp.width = panel.w;
-        tmp.height = panel.h;
-        const tctx = tmp.getContext('2d');
-        if (!tctx) return [];
-        tctx.drawImage(img, panel.x, panel.y, panel.w, panel.h, 0, 0, panel.w, panel.h);
-        const pdata = tctx.getImageData(0, 0, panel.w, panel.h);
-        const d = pdata.data;
-
-        // Per-Y luminance VARIANCE across the right 60% of the panel. Text
-        // rows have HIGH variance (bright text contrasts with bar/bg).
-        // Solid bar regions have moderate variance. Dark gaps have low
-        // variance. Variance is robust to whatever absolute colors the
-        // panel uses, unlike brightness thresholds (which failed because
-        // bars in this template are bright enough to pass).
-        const xStart = Math.floor(panel.w * 0.40);
-        const n = panel.w - xStart;
-        const yVars = new Array<number>(panel.h).fill(0);
-        let maxVar = 0;
-        for (let y = 0; y < panel.h; y++) {
-            let sum = 0;
-            let sumSq = 0;
-            for (let x = xStart; x < panel.w; x++) {
-                const i = (y * panel.w + x) * 4;
-                const luma = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-                sum += luma;
-                sumSq += luma * luma;
-            }
-            const mean = sum / n;
-            const v = sumSq / n - mean * mean;
-            yVars[y] = v;
-            if (v > maxVar) maxVar = v;
-        }
-
-        // Adaptive threshold: 30% of the max variance, floor 500.
-        const varThreshold = Math.max(500, maxVar * 0.30);
-
-        // Group consecutive high-variance rows into bands. Gap tolerance 2 px.
-        const bands: Array<{ y: number; h: number }> = [];
-        let bandStart: number | null = null;
-        let gapCount = 0;
-        for (let y = 0; y < panel.h; y++) {
-            const isText = yVars[y] > varThreshold;
-            if (isText) {
-                if (bandStart === null) bandStart = y;
-                gapCount = 0;
-            } else if (bandStart !== null) {
-                gapCount++;
-                if (gapCount > 2) {
-                    const lastTextY = y - gapCount;
-                    const bandH = lastTextY - bandStart + 1;
-                    if (bandH >= 8) bands.push({ y: bandStart, h: bandH });
-                    bandStart = null;
-                    gapCount = 0;
-                }
-            }
-        }
-        if (bandStart !== null) {
-            const bandH = panel.h - bandStart;
-            if (bandH >= 8) bands.push({ y: bandStart, h: bandH });
-        }
-
-        // Fallback: if detection produced 1 huge band, no bands, or fewer
-        // than 4 (panel should have ~9), use hardcoded 9 equal-fraction
-        // bands in the top 68% of the panel. Layout is fixed (per user).
-        const hasOneHuge = bands.length === 1 && bands[0].h > panel.h * 0.6;
-        if (bands.length < 4 || hasOneHuge) {
-            return generateHardcodedBands(panel.h);
-        }
-        return bands;
+        return generateHardcodedBands(panel.h);
     }
 
-    // Hardcoded fallback: 9 evenly-spaced rows in the top 68% of the panel.
-    // Matches the typical Tek/u+ panel layout (per user: layout is fixed).
     function generateHardcodedBands(panelH: number): Array<{ y: number; h: number }> {
         const rows: Array<{ y: number; h: number }> = [];
         const startFrac = 0.025;
@@ -863,7 +796,7 @@
         const scaleH = 2000 / bbox.h;
         const scaleW = 8000 / bbox.w;
         const scaleCap = Math.min(scaleH, scaleW);
-        const scale = Math.max(8, Math.min(16, scaleCap));
+        const scale = Math.max(8, Math.min(24, scaleCap));
         const w = Math.max(1, Math.round(bbox.w * scale));
         const h = Math.max(1, Math.round(bbox.h * scale));
 
@@ -871,11 +804,10 @@
         out.width = w; out.height = h;
         const ctx = out.getContext('2d');
         if (!ctx) return { text: '', canvas: out };
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.filter = 'blur(0.4px)';
+        // Nearest-neighbor upscale — preserves crisp edges on tiny UI text.
+        // Bilinear smoothing + blur was turning text into mush at this size.
+        ctx.imageSmoothingEnabled = false;
         ctx.drawImage(img, bbox.x, bbox.y, bbox.w, bbox.h, 0, 0, w, h);
-        ctx.filter = 'none';
 
         const id = ctx.getImageData(0, 0, w, h);
         const d = id.data;
