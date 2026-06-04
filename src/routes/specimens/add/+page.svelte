@@ -758,32 +758,40 @@
         const pdata = tctx.getImageData(0, 0, panel.w, panel.h);
         const d = pdata.data;
 
-        // Count "text-like" pixels per Y row: bright + low-saturation = white
-        // text. Filters out solid colored bars (high saturation) and dark bg.
-        // Scan only the right 60% of the panel where digits + triples live.
-        const textCounts = new Array<number>(panel.h).fill(0);
+        // Per-Y luminance VARIANCE across the right 60% of the panel. Text
+        // rows have HIGH variance (bright text contrasts with bar/bg).
+        // Solid bar regions have moderate variance. Dark gaps have low
+        // variance. Variance is robust to whatever absolute colors the
+        // panel uses, unlike brightness thresholds (which failed because
+        // bars in this template are bright enough to pass).
         const xStart = Math.floor(panel.w * 0.40);
+        const n = panel.w - xStart;
+        const yVars = new Array<number>(panel.h).fill(0);
+        let maxVar = 0;
         for (let y = 0; y < panel.h; y++) {
-            let count = 0;
+            let sum = 0;
+            let sumSq = 0;
             for (let x = xStart; x < panel.w; x++) {
                 const i = (y * panel.w + x) * 4;
-                const r = d[i], g = d[i + 1], b = d[i + 2];
-                const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-                const s = mx === 0 ? 0 : (mx - mn) / mx;
-                if (mx > 200 && s < 0.30) count++;
+                const luma = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+                sum += luma;
+                sumSq += luma * luma;
             }
-            textCounts[y] = count;
+            const mean = sum / n;
+            const v = sumSq / n - mean * mean;
+            yVars[y] = v;
+            if (v > maxVar) maxVar = v;
         }
 
-        const textThreshold = Math.floor((panel.w - xStart) * 0.05);
+        // Adaptive threshold: 30% of the max variance, floor 500.
+        const varThreshold = Math.max(500, maxVar * 0.30);
 
-        // Group consecutive text-bearing rows into bands. Tolerate gaps of
-        // up to 2 px within a band (anti-aliasing breaks between glyphs).
+        // Group consecutive high-variance rows into bands. Gap tolerance 2 px.
         const bands: Array<{ y: number; h: number }> = [];
         let bandStart: number | null = null;
         let gapCount = 0;
         for (let y = 0; y < panel.h; y++) {
-            const isText = textCounts[y] > textThreshold;
+            const isText = yVars[y] > varThreshold;
             if (isText) {
                 if (bandStart === null) bandStart = y;
                 gapCount = 0;
@@ -802,7 +810,32 @@
             const bandH = panel.h - bandStart;
             if (bandH >= 8) bands.push({ y: bandStart, h: bandH });
         }
+
+        // Fallback: if detection produced 1 huge band, no bands, or fewer
+        // than 4 (panel should have ~9), use hardcoded 9 equal-fraction
+        // bands in the top 68% of the panel. Layout is fixed (per user).
+        const hasOneHuge = bands.length === 1 && bands[0].h > panel.h * 0.6;
+        if (bands.length < 4 || hasOneHuge) {
+            return generateHardcodedBands(panel.h);
+        }
         return bands;
+    }
+
+    // Hardcoded fallback: 9 evenly-spaced rows in the top 68% of the panel.
+    // Matches the typical Tek/u+ panel layout (per user: layout is fixed).
+    function generateHardcodedBands(panelH: number): Array<{ y: number; h: number }> {
+        const rows: Array<{ y: number; h: number }> = [];
+        const startFrac = 0.025;
+        const endFrac = 0.68;
+        const stride = (endFrac - startFrac) / 9;
+        const rowHFrac = stride * 0.85; // 85% row, 15% gap
+        for (let i = 0; i < 9; i++) {
+            rows.push({
+                y: Math.round((startFrac + i * stride) * panelH),
+                h: Math.round(rowHFrac * panelH)
+            });
+        }
+        return rows;
     }
 
     /**
