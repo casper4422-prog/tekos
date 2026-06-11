@@ -96,6 +96,7 @@
     let shotPhase    = $state<'idle' | 'preprocessing' | 'recognizing'>('idle');
     let shotRawText  = $state('');
     let shotParsed   = $state<Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number }>({});
+    let shotParsedMuts = $state<Partial<Record<StatKey, number>>>({});
     let shotError    = $state('');
     let shotSource   = $state<ShotSource | null>(null);
     let shotAutoDetected = $state(false);
@@ -611,23 +612,7 @@
     //  Crafting Skill is NOT shown on u+/Tek for dinos; left blank.
     // ─────────────────────────────────────────────────────────────────────
 
-    // Icon column is the leftmost ~10% of the panel width. The bars
-    // (containing the digits we need) start right after at ~10%, so we
-    // start the OCR rectangle at 10% to capture the first digit of every
-    // value — clipping the leading digit made the triple regex grab
-    // garbage like "1071(48|0|0)" instead of just "(48|0|0)".
-    const STAT_TEXT_X_START = 0.10;
-    const STAT_TEXT_X_END   = 0.98;
-
-    // Canonical TekOS stat order. Icon rows that yield triples are mapped to
-    // these stats in order: 1st triple → HP, 2nd → STA, etc. Rows without a
-    // triple (Imprint, Speed%) are skipped silently — we only count rows
-    // that produced a triple.
-    const CANONICAL_STAT_ORDER: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
-
     let cachedTemplate: HTMLImageElement | null = null;
-    let cachedTemplateBands: Array<{ y: number; h: number }> | null = null;
-    let cachedTemplateBandsForH: number = 0;
     async function loadTemplate(): Promise<HTMLImageElement> {
         if (cachedTemplate) return cachedTemplate;
         const img = await new Promise<HTMLImageElement>((res, rej) => {
@@ -677,11 +662,13 @@
         }
 
         const templateAspect = template.height / template.width;
-        // Candidate panel widths as a fraction of haystack width. Panels in
-        // ARK screenshots typically take 18-30% of width. Pushed the floor
-        // up further — 0.15 was still picking too-small matches that
-        // missed the HP row at the top.
-        const candidates = [0.18, 0.21, 0.24, 0.27, 0.30, 0.35, 0.40];
+        // Candidate panel widths as a fraction of haystack width. The floor
+        // must reach small panels: on a high-res direct screenshot the panel
+        // can be ~12-16% of width (a real user panel measured 16.4%) — the
+        // old 0.18 floor forced a too-big match that misframed everything.
+        // The match is only a COARSE locator now (bar detection refines it),
+        // so a generous spread is safe.
+        const candidates = [0.12, 0.14, 0.16, 0.18, 0.21, 0.24, 0.27, 0.30, 0.35, 0.40];
 
         let best: { x: number; y: number; w: number; h: number; score: number; scale: number } | null = null;
 
@@ -742,358 +729,725 @@
         };
     }
 
-    // Hardcoded row positions: 9 evenly-spaced rows in the top 68% of the
-    // panel. Layout is fixed (per user). Skipping variance/brightness
-    // detection entirely — it's been flaky and the layout is reliable
-    // enough to hardcode.
+    // ─────────────────────────────────────────────────────────────────────
+    //  BAR-ANCHORED PANEL STRUCTURE
     //
-    // Param signature is kept compatible with previous detection callers
-    // (img + panel bbox) but only panel.h is used.
-    function detectRowBands(
-        _img: HTMLImageElement,
-        panel: { x: number; y: number; w: number; h: number }
-    ): Array<{ y: number; h: number }> {
-        return generateHardcodedBands(panel.h);
+    //  The u+ panel's colored stat bars are the most reliable landmarks in
+    //  any screenshot: the HP bar is the only long saturated GREEN
+    //  horizontal run, and the blue bars below share its x-extent. From
+    //  the green bar top + measured bar pitch we generate the row bands
+    //  directly on the USER's panel — no template-fraction guessing, and
+    //  layout variants (8-row vs 9-row panels, per-creature rows) don't
+    //  break alignment. Bars are FILL bars (empty stat = no color), so
+    //  bars only anchor the grid; text rows are OCR'd regardless of fill.
+    // ─────────────────────────────────────────────────────────────────────
+
+    type PanelStructure = {
+        greenTop: number;   // y of the HP bar top (source px)
+        pitch: number;      // row-to-row distance (source px)
+        barX0: number;      // bar column left edge (source px)
+        barX1: number;      // bar column right edge (source px)
+        rows: Array<{ y: number; h: number }>; // 9 bands in source coords
+        greenH: number;
+    };
+
+    function isGreenBarPx(r: number, g: number, b: number): boolean {
+        return g > 80 && g > 1.8 * r && g > 1.8 * b;
+    }
+    function isBlueBarPx(r: number, g: number, b: number): boolean {
+        return b > 80 && b > 2.0 * Math.max(r, 8) && g > 0.5 * b && g < 0.95 * b;
     }
 
-    function generateHardcodedBands(panelH: number): Array<{ y: number; h: number }> {
+    function detectPanelStructure(
+        img: HTMLImageElement,
+        region: { x: number; y: number; w: number; h: number }
+    ): PanelStructure | null {
+        const rx = Math.max(0, Math.round(region.x));
+        const ry = Math.max(0, Math.round(region.y));
+        const rw = Math.min(img.width - rx, Math.round(region.w));
+        const rh = Math.min(img.height - ry, Math.round(region.h));
+        if (rw < 40 || rh < 40) return null;
+        const c = document.createElement('canvas');
+        c.width = rw; c.height = rh;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return null;
+        ctx.drawImage(img, rx, ry, rw, rh, 0, 0, rw, rh);
+        const d = ctx.getImageData(0, 0, rw, rh).data;
+
+        type Pred = (r: number, g: number, b: number) => boolean;
+        type Band = { yStart: number; yEnd: number; xMin: number; xMax: number };
+
+        // Per-row PIXEL COUNTS (not runs) — white text overlaid on a bar
+        // splits runs but barely dents the count.
+        const rowCounts = (x0: number, x1: number, y0: number, y1: number, pred: Pred) => {
+            const out: Array<{ y: number; count: number; xMin: number; xMax: number }> = [];
+            for (let y = Math.max(0, y0); y < Math.min(rh, y1); y++) {
+                let count = 0, xMin = -1, xMax = -1;
+                for (let x = Math.max(0, x0); x < Math.min(rw, x1); x++) {
+                    const i = (y * rw + x) * 4;
+                    if (pred(d[i], d[i + 1], d[i + 2])) { count++; if (xMin < 0) xMin = x; xMax = x; }
+                }
+                out.push({ y, count, xMin, xMax });
+            }
+            return out;
+        };
+        const groupRows = (rows: ReturnType<typeof rowCounts>, minCount: number): Band[] => {
+            const bands: Band[] = [];
+            let cur: Band | null = null;
+            for (const r of rows) {
+                if (r.count < minCount) continue;
+                if (!cur || r.y - cur.yEnd > 3) {
+                    cur = { yStart: r.y, yEnd: r.y, xMin: r.xMin, xMax: r.xMax };
+                    bands.push(cur);
+                } else {
+                    cur.yEnd = r.y;
+                    cur.xMin = Math.min(cur.xMin, r.xMin);
+                    cur.xMax = Math.max(cur.xMax, r.xMax);
+                }
+            }
+            return bands;
+        };
+
+        const minCount = Math.max(30, Math.round(rw * 0.18));
+
+        // 1. Green HP bar = the anchor
+        const greenBands = groupRows(rowCounts(0, rw, 0, rh, isGreenBarPx), minCount);
+        const green = greenBands.find(b => b.yEnd - b.yStart + 1 >= 6);
+        if (!green) return null;
+        const greenH = green.yEnd - green.yStart + 1;
+
+        // 2. Blue bars below → row pitch. Gaps may span multiple rows
+        //    (empty fill bars are invisible), so normalize each gap by the
+        //    row count it plausibly spans.
+        const blueBands = groupRows(
+            rowCounts(green.xMin - 10, green.xMax + 10, green.yEnd + 2, green.yEnd + 2 + greenH * 14, isBlueBarPx),
+            Math.round(minCount * 0.5)
+        ).filter(b => b.yEnd - b.yStart + 1 >= Math.max(4, greenH * 0.5));
+
+        const rowEstimate = greenH * 1.4;
+        let pitch = rowEstimate;
+        const tops = [green.yStart, ...blueBands.map(b => b.yStart)];
+        const pitches: number[] = [];
+        for (let i = 1; i < tops.length; i++) {
+            const gap = tops[i] - tops[i - 1];
+            const k = Math.max(1, Math.round(gap / rowEstimate));
+            pitches.push(gap / k);
+        }
+        if (pitches.length) {
+            pitches.sort((a, b) => a - b);
+            pitch = pitches[Math.floor(pitches.length / 2)];
+        }
+
+        // 3. Bar x-extent: longest contiguous column segment (stray scene
+        //    pixels — e.g. a teal creature — can't form one).
+        const bandXExtent = (band: Band, pred: Pred): { x0: number; x1: number } | null => {
+            const counts = new Map<number, number>();
+            for (let y = band.yStart; y <= band.yEnd; y++)
+                for (let x = 0; x < rw; x++) {
+                    const i = (y * rw + x) * 4;
+                    if (pred(d[i], d[i + 1], d[i + 2])) counts.set(x, (counts.get(x) || 0) + 1);
+                }
+            const need = Math.max(2, Math.round((band.yEnd - band.yStart + 1) * 0.4));
+            let best: { x0: number; x1: number } | null = null;
+            let segStart = -1, lastGood = -10;
+            for (let x = 0; x < rw; x++) {
+                if ((counts.get(x) || 0) >= need) {
+                    if (x - lastGood > 6) segStart = x;
+                    lastGood = x;
+                    if (!best || lastGood - segStart > best.x1 - best.x0) best = { x0: segStart, x1: lastGood };
+                }
+            }
+            return best;
+        };
+        const greenExt = bandXExtent(green, isGreenBarPx);
+        if (!greenExt) return null;
+        let barX0 = greenExt.x0, barX1 = greenExt.x1;
+        for (const b of blueBands) {
+            const e = bandXExtent(b, isBlueBarPx);
+            if (e && e.x1 - e.x0 > (barX1 - barX0) * 0.6) {
+                barX0 = Math.min(barX0, e.x0);
+                barX1 = Math.max(barX1, e.x1);
+            }
+        }
+
+        // 4. 9 row bands generated downward from the anchor
         const rows: Array<{ y: number; h: number }> = [];
-        const startFrac = 0.025;
-        const endFrac = 0.68;
-        const stride = (endFrac - startFrac) / 9;
-        const rowHFrac = stride * 0.85; // 85% row, 15% gap
         for (let i = 0; i < 9; i++) {
             rows.push({
-                y: Math.round((startFrac + i * stride) * panelH),
-                h: Math.round(rowHFrac * panelH)
+                y: Math.round(ry + green.yStart - 2 + i * pitch),
+                h: Math.round(pitch * 0.95)
             });
         }
-        return rows;
+        return {
+            greenTop: ry + green.yStart,
+            pitch,
+            barX0: rx + barX0,
+            barX1: rx + barX1,
+            rows,
+            greenH
+        };
     }
 
-    /**
-     * Preprocess + OCR a single region.
-     *
-     * Scale: AGGRESSIVELY upscale so each text line ends up at ~80-100 px
-     * tall — Tesseract is much more reliable on that size than the ~20-30 px
-     * we get at source resolution for a small panel. Cap at 6000 px wide
-     * to avoid drowning Tesseract.
-     *
-     * Polarity: ARK panels are WHITE text on DARK background. Tesseract
-     * expects BLACK on WHITE so we invert after Otsu.
-     *
-     * Returns BOTH the text AND a debug canvas so the caller can preview
-     * exactly what Tesseract saw.
-     */
-    async function ocrRegion(
-        img: HTMLImageElement,
-        bbox: CropBox,
-        worker: { recognize: (b: Blob) => Promise<{ data: { text: string } }> }
-    ): Promise<{ text: string; canvas: HTMLCanvasElement }> {
-        // AGGRESSIVE upscale targets so even small source panels become
-        // comfortably-sized for Tesseract. Floor at 8× so we never go below
-        // sweet-spot text height.
-        const scaleH = 2000 / bbox.h;
-        const scaleW = 8000 / bbox.w;
-        const scaleCap = Math.min(scaleH, scaleW);
-        const scale = Math.max(8, Math.min(24, scaleCap));
+    // ─────────────────────────────────────────────────────────────────────
+    //  PREPROCESSING — min-channel binarization
+    //
+    //  min(R,G,B) is high only for white-ish text: colored bars always
+    //  have one near-zero channel (green bar b≈0, blue bar r≈0) and the
+    //  dark bg is low everywhere. Anti-aliased text blended into a bar
+    //  keeps a clearly-higher min than the bar itself, so tiny text
+    //  survives where a saturation gate would eat it.
+    //
+    //  Order matters: smooth-upscale the COLOR crop first (keeps sub-pixel
+    //  gradients), threshold last → smooth glyph edges, no blocky fusion.
+    // ─────────────────────────────────────────────────────────────────────
+
+    type BinRegion = { bin: Uint8Array; w: number; h: number };
+
+    type TessWorker = {
+        recognize: (
+            image: HTMLCanvasElement | Blob,
+            opts?: Record<string, unknown>,
+            output?: Record<string, boolean>
+        ) => Promise<{ data: TessData }>;
+        setParameters: (p: Record<string, unknown>) => Promise<unknown>;
+        terminate: () => Promise<unknown>;
+    };
+    type TessBBox = { x0: number; y0: number; x1: number; y1: number };
+    type TessData = {
+        text: string;
+        blocks?: Array<{
+            paragraphs: Array<{
+                lines: Array<{
+                    words: Array<{
+                        text: string;
+                        bbox: TessBBox;
+                        symbols?: Array<{ text: string; bbox: TessBBox }>;
+                    }>;
+                }>;
+            }>;
+        }> | null;
+    };
+
+    function binarizeRegion(img: HTMLImageElement, bbox: CropBox, bias: number, targetH: number): BinRegion | null {
+        const scale = Math.max(2, Math.min(24, targetH / Math.max(1, bbox.h)));
         const w = Math.max(1, Math.round(bbox.w * scale));
         const h = Math.max(1, Math.round(bbox.h * scale));
-
-        const out = document.createElement('canvas');
-        out.width = w; out.height = h;
-        const ctx = out.getContext('2d');
-        if (!ctx) return { text: '', canvas: out };
-        // Nearest-neighbor upscale — preserves crisp edges on tiny UI text.
-        // Bilinear smoothing + blur was turning text into mush at this size.
-        ctx.imageSmoothingEnabled = false;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return null;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, bbox.x, bbox.y, bbox.w, bbox.h, 0, 0, w, h);
-
-        const id = ctx.getImageData(0, 0, w, h);
-        const d = id.data;
-
-        // V-CHANNEL OTSU + SATURATION GATE. Each pixel is text iff:
-        //     V (max channel) > Otsu-threshold AND saturation < 0.40
-        //
-        // Rationale:
-        //   • V = max(R,G,B) treats green and blue bars symmetrically (both
-        //     have V around 150-180); standard luminance weights G heavily
-        //     and gives the green HP bar a much higher value than blue bars.
-        //   • Sat gate (<0.40) blocks PURE bar pixels (sat > 0.5) but lets
-        //     through text-edge anti-aliasing (sat ~0.25), which is where
-        //     the bar's color bleeds slightly into white text.
-        //
-        // Result: white text BLACK regardless of bar color; bars + dark bg
-        // all become WHITE.
+        const d = ctx.getImageData(0, 0, w, h).data;
         const pixels = w * h;
-        const vHist = new Array<number>(256).fill(0);
-        const vBuf = new Uint8Array(pixels);
-        const sBuf = new Float32Array(pixels);
+        const hist = new Array<number>(256).fill(0);
+        const mBuf = new Uint8Array(pixels);
         for (let p = 0, i = 0; p < pixels; p++, i += 4) {
-            const r = d[i], g = d[i+1], b = d[i+2];
-            const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-            const s = mx === 0 ? 0 : (mx - mn) / mx;
-            vBuf[p] = mx;
-            sBuf[p] = s;
-            vHist[mx]++;
+            const mn = Math.min(d[i], d[i + 1], d[i + 2]);
+            mBuf[p] = mn;
+            hist[mn]++;
         }
-
-        // Otsu on V-channel histogram
-        let threshold = 150;
+        let threshold = 90;
         {
             let sum = 0;
-            for (let t = 0; t < 256; t++) sum += t * vHist[t];
+            for (let t = 0; t < 256; t++) sum += t * hist[t];
             let sumB = 0, wB = 0, maxVar = 0;
             for (let t = 0; t < 256; t++) {
-                wB += vHist[t];
+                wB += hist[t];
                 if (wB === 0) continue;
                 const wF = pixels - wB;
                 if (wF === 0) break;
-                sumB += t * vHist[t];
-                const mB = sumB / wB;
-                const mF = (sum - sumB) / wF;
-                const variance = wB * wF * (mB - mF) * (mB - mF);
-                if (variance > maxVar) { maxVar = variance; threshold = t; }
+                sumB += t * hist[t];
+                const mB = sumB / wB, mF = (sum - sumB) / wF;
+                const v = wB * wF * (mB - mF) * (mB - mF);
+                if (v > maxVar) { maxVar = v; threshold = t; }
             }
         }
-        // Floor at 140 — if Otsu picks too low, dim pixels start counting
-        // as text. Sane floor for ARK panels where bar V is ~150-180.
-        if (threshold < 140) threshold = 150;
+        // Clamp to a sane window: bars/bg min-channel sits well under 60,
+        // pure text min sits 140+. Otsu drifting outside that window means
+        // a degenerate crop.
+        threshold = Math.max(60, Math.min(160, threshold)) + bias;
+        const bin = new Uint8Array(pixels);
+        for (let p = 0; p < pixels; p++) bin[p] = mBuf[p] > threshold ? 1 : 0;
+        return { bin, w, h };
+    }
 
-        for (let p = 0, i = 0; p < pixels; p++, i += 4) {
-            const isText = vBuf[p] > threshold && sBuf[p] < 0.40;
-            const v = isText ? 0 : 255;
-            d[i] = v; d[i+1] = v; d[i+2] = v;
+    /** Binary buffer (1 = text) → black-on-white canvas for Tesseract/debug. */
+    function binToCanvas(bin: Uint8Array, w: number, h: number): HTMLCanvasElement {
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        if (!ctx) return c;
+        const id = ctx.createImageData(w, h);
+        for (let p = 0; p < w * h; p++) {
+            const v = bin[p] ? 0 : 255;
+            id.data[p * 4] = v; id.data[p * 4 + 1] = v; id.data[p * 4 + 2] = v; id.data[p * 4 + 3] = 255;
         }
         ctx.putImageData(id, 0, 0);
-
-        const blob = await new Promise<Blob>((resolve, reject) => {
-            out.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
-        });
-        const result = await worker.recognize(blob);
-        return { text: result.data.text.trim(), canvas: out };
+        return c;
     }
 
-    /**
-     * Extract triples per line. The u+/Tek panel format puts each row's
-     * triple at the END of its line: "current / max (base|mut|dom)". So
-     * for each OCR line we find all candidate triples and KEEP THE LAST
-     * one — the rightmost match — which is the actual stat triple, not
-     * a false-positive grabbed from the current/max digits.
-     *
-     * This kills the (107|0|71) type matches where the regex was eating
-     * "1071.0/1071.0" as a triple by reading the "1" between groups as
-     * a pipe separator.
-     */
-    function extractTriples(text: string): Array<[number, number, number]> {
-        const out: Array<[number, number, number]> = [];
-        for (const rawLine of text.split(/\r?\n/)) {
-            const line = rawLine.trim();
-            if (!line) continue;
-            const candidates = findTriplesInLine(line);
-            if (candidates.length > 0) {
-                // Take the last candidate — it's the rightmost match in the
-                // line, which is where the stat triple actually sits.
-                out.push(candidates[candidates.length - 1]);
+    // ─────────────────────────────────────────────────────────────────────
+    //  SEGMENT-BASED TRIPLE EXTRACTION
+    //
+    //  Tesseract chronically misreads the thin pipes in "(base|mut|dom)" —
+    //  they vanish, merge into digits, or read as 1/l/(/). So we stop
+    //  asking it to read separators: split the binarized row at column
+    //  gaps, classify narrow segments as separators GEOMETRICALLY, drop
+    //  them, and reassemble only the digit clusters with wide gaps. The
+    //  LAST THREE digit groups in a stat row are always base|mut|dom.
+    // ─────────────────────────────────────────────────────────────────────
+
+    type Seg = { x0: number; x1: number; w: number; hExt: number; yMax: number; xRender?: number; dead?: boolean };
+    type TripleCandidate = { method: string; triple: [number, number, number] };
+
+    function segmentRow(bin: Uint8Array, w: number, h: number): Seg[] {
+        const col = new Array<number>(w).fill(0);
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) col[x] += bin[y * w + x];
+        const segs: Seg[] = [];
+        let start = -1, gap = 0;
+        for (let x = 0; x < w; x++) {
+            if (col[x] > 0) { if (start < 0) start = x; gap = 0; }
+            else if (start >= 0) {
+                gap++;
+                if (gap > 2) { segs.push({ x0: start, x1: x - gap, w: 0, hExt: 0, yMax: 0 }); start = -1; gap = 0; }
             }
         }
-        return out;
+        if (start >= 0) segs.push({ x0: start, x1: w - 1, w: 0, hExt: 0, yMax: 0 });
+        for (const s of segs) {
+            let yMin = h, yMax = 0;
+            for (let y = 0; y < h; y++) for (let x = s.x0; x <= s.x1; x++)
+                if (bin[y * w + x]) { if (y < yMin) yMin = y; if (y > yMax) yMax = y; }
+            s.w = s.x1 - s.x0 + 1; s.hExt = yMax - yMin + 1; s.yMax = yMax;
+        }
+        return segs;
     }
 
-    function findTriplesInLine(line: string): Array<[number, number, number]> {
-        const out: Array<[number, number, number]> = [];
-        const seen = new Set<string>();
-        const add = (a: number, b: number, c: number) => {
-            if ([a,b,c].some(n => n < 0 || n > 999 || !Number.isFinite(n))) return;
-            const k = `${a},${b},${c}`;
-            if (seen.has(k)) return;
-            seen.add(k);
-            out.push([a, b, c]);
+    /** Parens dip below the digit baseline somewhere in their span (their
+     *  curves taper at the edges), so find a "deep" column run near a group
+     *  edge and cut the whole edge region off. */
+    function parenTrim(bin: Uint8Array, w: number, h: number, groups: Seg[]): Seg[] {
+        if (!groups.length) return groups;
+        const bottoms = groups.map(g => g.yMax).slice().sort((a, b) => a - b);
+        const baseline = bottoms[Math.floor(bottoms.length / 2)];
+        const tol = h * 0.035;
+        const colBottom = (x: number) => {
+            let m = -1;
+            for (let y = 0; y < h; y++) if (bin[y * w + x]) m = y;
+            return m;
         };
-
-        let m: RegExpExecArray | null;
-
-        // 1. STRICT — clean separators between 3 numbers. Separator class
-        //    includes ) and ( because Tesseract often misreads pipes as
-        //    parens on this font.
-        const strict = /[\(\[]?\s*(\d{1,3})\s*[\|\/\\Il1\]\[\)\(]+\s*(\d{1,3})\s*[\|\/\\Il1\]\[\)\(]+\s*(\d{1,3})\s*[\)\]]?/g;
-        while ((m = strict.exec(line)) !== null) {
-            add(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10));
+        for (const g of groups) {
+            const edge = Math.max(4, Math.round(h * 0.16)); // paren width budget
+            for (let x = g.x1; x >= Math.max(g.x0, g.x1 - edge); x--) {
+                if (colBottom(x) > baseline + tol) {
+                    let xs = x;
+                    while (xs > g.x0 && colBottom(xs - 1) > baseline + tol) xs--;
+                    g.x1 = xs - 1;
+                    break;
+                }
+            }
+            for (let x = g.x0; x <= Math.min(g.x1, g.x0 + edge); x++) {
+                if (colBottom(x) > baseline + tol) {
+                    let xe = x;
+                    while (xe < g.x1 && colBottom(xe + 1) > baseline + tol) xe++;
+                    g.x0 = xe + 1;
+                    break;
+                }
+            }
+            if (g.x1 < g.x0) { g.x1 = g.x0; g.dead = true; }
         }
+        return groups.filter(g => !g.dead && g.x1 - g.x0 + 1 >= h * 0.14);
+    }
 
-        // 2. LOOSE BRACKET — whitespace also valid as a separator inside
-        //    brackets (covers "(48| 0 0)" where a pipe was eaten).
-        const loose = /[\(\[]\s*(\d{1,3})\s*[\|\/\\Il1\]\[\s]+(\d{1,3})\s*[\|\/\\Il1\]\[\s]+(\d{1,3})\s*[\)\]]/g;
-        while ((m = loose.exec(line)) !== null) {
-            add(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10));
+    /** OCR one binarized row via segment reassembly. Returns triple
+     *  candidates plus the reassembled canvas for the debug strip. */
+    async function ocrRowSegments(
+        worker: TessWorker,
+        bin: Uint8Array,
+        w: number,
+        h: number
+    ): Promise<{ candidates: TripleCandidate[]; text: string; canvas: HTMLCanvasElement | null }> {
+        const segs = segmentRow(bin, w, h);
+        const minDigitW = h * 0.16;
+        let groups = segs.filter(g => g.w >= minDigitW && g.hExt > h * 0.22);
+        groups = parenTrim(bin, w, h, groups);
+        if (!groups.length) return { candidates: [], text: '', canvas: null };
+
+        // Adjacency-preserving reassembly: digits of the same number keep a
+        // small gap; where a separator was dropped, insert a big gap.
+        const SMALL = Math.max(2, Math.round(h * 0.06));
+        const BIG = Math.round(h * 0.5);
+        const PAD = Math.round(h * 0.25);
+        const gaps: number[] = [];
+        for (let gi = 1; gi < groups.length; gi++) {
+            const prev = groups[gi - 1], cur = groups[gi];
+            const separatorBetween = segs.some(s => s.x0 > prev.x1 && s.x1 < cur.x0);
+            const wideGap = (cur.x0 - prev.x1) > h * 0.28;
+            gaps.push(separatorBetween || wideGap ? BIG : SMALL);
         }
+        const totalW = groups.reduce((a, g) => a + (g.x1 - g.x0 + 1), 0) + gaps.reduce((a, b) => a + b, 0) + PAD * 2;
+        const lineC = document.createElement('canvas');
+        lineC.width = totalW; lineC.height = h + PAD * 2;
+        const lctx = lineC.getContext('2d');
+        if (!lctx) return { candidates: [], text: '', canvas: null };
+        lctx.fillStyle = '#fff';
+        lctx.fillRect(0, 0, totalW, h + PAD * 2);
+        lctx.fillStyle = '#000';
+        let xOff = PAD;
+        for (let gi = 0; gi < groups.length; gi++) {
+            const g = groups[gi];
+            const gw = g.x1 - g.x0 + 1;
+            g.xRender = xOff;
+            for (let y = 0; y < h; y++) for (let x = 0; x < gw; x++)
+                if (bin[y * w + g.x0 + x]) lctx.fillRect(xOff + x, PAD + y, 1, 1);
+            xOff += gw + (gi < gaps.length ? gaps[gi] : 0);
+        }
+        const res = await worker.recognize(lineC, {}, { blocks: true, text: true });
+        const text = res.data.text.trim();
 
-        // 3. BRACKET-WRAPPED NUMBER LIST — anything from an opening bracket
-        //    to the next closing one. Allow inner brackets (covers
-        //    "(48(010)" where the middle pipe became an opening paren).
-        const bracketed = /[\(\[](.+?)[\)\]]/g;
-        while ((m = bracketed.exec(line)) !== null) {
-            const inner = m[1];
-            const nums = inner.match(/\d{1,3}/g);
-            if (!nums) continue;
-            if (nums.length === 3) {
-                add(parseInt(nums[0],10), parseInt(nums[1],10), parseInt(nums[2],10));
-            } else if (nums.length === 2 && nums[1].length === 3) {
-                // "010" → (0, 0) if middle digit looks like a pipe
-                const a = parseInt(nums[0],10);
-                const sec = nums[1];
-                if (/^\d1\d$/.test(sec)) {
-                    add(a, parseInt(sec[0],10), parseInt(sec[2],10));
-                } else {
-                    for (let i = 1; i < sec.length; i++) {
-                        const b = parseInt(sec.substring(0,i),10);
-                        const c = parseInt(sec.substring(i),10);
-                        if (b <= 99 && c <= 99) {
-                            add(a, b, c);
+        // SYMBOL-level mapping: assign each recognized character to the
+        // group its bbox center falls in — word merging across gaps
+        // becomes irrelevant.
+        const groupTexts = new Array<string>(groups.length).fill('');
+        for (const b of res.data.blocks ?? []) for (const par of b.paragraphs)
+            for (const ln of par.lines) for (const wd of ln.words)
+                for (const sym of wd.symbols ?? []) {
+                    const chr = sym.text.replace(/[^0-9]/g, '');
+                    if (!chr) continue;
+                    const cx = (sym.bbox.x0 + sym.bbox.x1) / 2;
+                    for (let gi = 0; gi < groups.length; gi++) {
+                        const g = groups[gi];
+                        if (cx >= (g.xRender ?? 0) - 4 && cx <= (g.xRender ?? 0) + (g.x1 - g.x0) + 4) {
+                            groupTexts[gi] += chr;
                             break;
                         }
                     }
                 }
-            }
+
+        // PSM 10 single-char retry for empty groups among the last three —
+        // Tesseract chronically drops trailing isolated digits in line mode.
+        for (let gi = Math.max(0, groups.length - 3); gi < groups.length; gi++) {
+            if (groupTexts[gi]) continue;
+            const g = groups[gi];
+            const gw = g.x1 - g.x0 + 1;
+            if (gw > h * 0.8) continue; // multi-char group; PSM 10 won't help
+            const pad = Math.round(h * 0.3);
+            const cc = document.createElement('canvas');
+            cc.width = gw + pad * 2; cc.height = h + pad * 2;
+            const cctx = cc.getContext('2d');
+            if (!cctx) continue;
+            cctx.fillStyle = '#fff';
+            cctx.fillRect(0, 0, cc.width, cc.height);
+            cctx.fillStyle = '#000';
+            for (let y = 0; y < h; y++) for (let x = 0; x < gw; x++)
+                if (bin[y * w + g.x0 + x]) cctx.fillRect(pad + x, pad + y, 1, 1);
+            await worker.setParameters({ tessedit_pageseg_mode: '10' });
+            const cres = await worker.recognize(cc);
+            await worker.setParameters({ tessedit_pageseg_mode: '7' });
+            const t = cres.data.text.trim().replace(/[^0-9]/g, '');
+            if (t.length >= 1 && t.length <= 2) groupTexts[gi] = t;
         }
 
-        return out;
+        const candidates: TripleCandidate[] = [];
+        if (groups.length >= 3) {
+            const lastThree = groupTexts.slice(-3);
+            if (lastThree.every(t => /^\d{1,3}$/.test(t))) {
+                // Consistency: recognized char count must match the group's
+                // pixel width (digit ≈ 0.24×rowH wide). Dropped digits →
+                // low confidence.
+                const charW = h * 0.24;
+                const lastGroups = groups.slice(-3);
+                const consistent = lastThree.every((t, k) => {
+                    const gw = lastGroups[k].x1 - lastGroups[k].x0 + 1;
+                    const expected = Math.max(1, Math.min(3, Math.round(gw / charW)));
+                    return t.length >= expected;
+                });
+                candidates.push({
+                    method: consistent ? 'wordmap' : 'wordmap-low',
+                    triple: lastThree.map(t => parseInt(t, 10)) as [number, number, number]
+                });
+            }
+            const all = text.split(/[()\s]+/).filter(t => /^\d{1,3}$/.test(t)).map(t => parseInt(t, 10));
+            if (all.length >= 3) {
+                candidates.push({ method: 'tokens', triple: all.slice(-3) as [number, number, number] });
+            }
+        }
+        return { candidates, text, canvas: lineC };
+    }
+
+    /** Constraint-split rescue for fused pipes in OCR text, e.g.
+     *  "(5910 | 21)" → numbers [5910, 21]. Enumerate ways to split the
+     *  fused run into parts ≤255 and accept only a UNIQUE valid split. */
+    function constraintSplit(bracketContent: string): [number, number, number] | null {
+        const nums = bracketContent.match(/\d+/g);
+        if (!nums) return null;
+        if (nums.length === 3 && nums.every(n => n.length <= 3)) {
+            const t = nums.map(n => parseInt(n, 10)) as [number, number, number];
+            return t.every(v => v <= 255) ? t : null;
+        }
+        if (nums.length === 2) {
+            const valid: Array<[number, number, number]> = [];
+            for (let target = 0; target < 2; target++) {
+                const fixed = parseInt(nums[1 - target], 10);
+                if (fixed > 255) continue;
+                const run = nums[target];
+                if (run.length < 2 || run.length > 6) continue;
+                for (let cut = 1; cut < run.length; cut++) {
+                    if (run[cut] === '0' && run.length - cut > 1) continue; // no leading-zero parts
+                    const a = parseInt(run.slice(0, cut), 10), b = parseInt(run.slice(cut), 10);
+                    if (a <= 255 && b <= 255) {
+                        valid.push(target === 0 ? [a, b, fixed] : [fixed, a, b]);
+                    }
+                }
+            }
+            return valid.length === 1 ? valid[0] : null;
+        }
+        return null;
     }
 
     async function runOcr() {
-        if (!shotImage || !cropBox) { shotError = 'Drop a screenshot first.'; return; }
+        if (!shotImage) { shotError = 'Drop a screenshot first.'; return; }
         shotRunning = true; shotError = ''; shotProgress = 0; shotPhase = 'preprocessing';
-        shotRawText = ''; shotParsed = {}; shotSource = null;
+        shotRawText = ''; shotParsed = {}; shotParsedMuts = {}; shotSource = null;
         if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
+        const dbg: string[] = [];
 
         try {
-            // 1. Load the reference panel template and find where the u+/Tek
-            //    panel sits in the uploaded screenshot via template matching.
-            const template = await loadTemplate();
-            shotProgress = 5;
-            const match = await matchTemplate(shotImage, template);
-            if (!match) {
-                shotError = 'Could not locate a u+/Tek Binoculars panel in this screenshot. Make sure the panel is clearly visible and try cropping closer.';
+            // 1. Find the panel STRUCTURE (green HP bar + blue bars). The
+            //    search region comes from, in order: the user's manual crop,
+            //    the template match (coarse locator), the whole image.
+            let struct: PanelStructure | null = null;
+            if (cropperVisible && cropBox) {
+                const pad = Math.round(Math.max(cropBox.w, cropBox.h) * 0.15);
+                struct = detectPanelStructure(shotImage, {
+                    x: cropBox.x - pad, y: cropBox.y - pad,
+                    w: cropBox.w + pad * 2, h: cropBox.h + pad * 2
+                });
+                dbg.push(`── PANEL SEARCH ──`, `Manual crop region: structure ${struct ? 'FOUND' : 'not found'}`);
+            } else {
+                dbg.push(`── PANEL SEARCH ──`);
+            }
+            if (!struct) {
+                const template = await loadTemplate();
+                shotProgress = 5;
+                const match = await matchTemplate(shotImage, template);
+                if (match) {
+                    dbg.push(`Template match: x=${match.x} y=${match.y} w=${match.w} h=${match.h} (SSD=${match.score.toFixed(0)})`);
+                    struct = detectPanelStructure(shotImage, {
+                        x: match.x - match.w * 0.4, y: match.y - match.h * 0.4,
+                        w: match.w * 1.8, h: match.h * 1.8
+                    });
+                    dbg.push(`Bar structure near match: ${struct ? 'FOUND' : 'not found'}`);
+                } else {
+                    dbg.push(`Template match: none`);
+                }
+            }
+            if (!struct) {
+                struct = detectPanelStructure(shotImage, { x: 0, y: 0, w: shotImage.width, h: shotImage.height });
+                dbg.push(`Whole-image bar scan: ${struct ? 'FOUND' : 'not found'}`);
+            }
+            if (!struct) {
+                shotRawText = dbg.join('\n');
+                shotError = 'Could not find the stat panel (no green HP bar detected). Crop closer to the panel and try again.';
+                showCropperManual();
                 return;
             }
-            shotProgress = 20;
+            dbg.push(
+                `Structure: HP bar top y=${struct.greenTop}, row pitch=${struct.pitch.toFixed(1)}px, ` +
+                `bars x=${struct.barX0}..${struct.barX1}, bar h=${struct.greenH}px`
+            );
+            shotProgress = 15;
 
             shotPhase = 'recognizing';
             const Tesseract = await import('tesseract.js');
-            const worker = await Tesseract.createWorker('eng', 1, {
+            const worker = (await Tesseract.createWorker('eng', 1, {
                 workerPath: '/tesseract/worker.min.js',
                 corePath:   '/tesseract',
                 langPath:   '/tesseract',
-                workerBlobURL: false,
-                logger: (m: { status: string; progress: number }) => {
-                    if (m.status === 'recognizing text') {
-                        shotProgress = Math.min(99, 20 + Math.round(m.progress * 75));
+                workerBlobURL: false
+            })) as unknown as TessWorker;
+
+            // 2. Header: the name/level strip sits ~3 rows above the HP bar
+            //    (inside the panel's own header section). PSM 6, full charset.
+            const headerX = Math.max(0, Math.round(struct.barX0 - struct.pitch));
+            const headerW = Math.min(shotImage.width, Math.round(struct.barX1 + struct.pitch * 0.5)) - headerX;
+            const headerY = Math.max(0, Math.round(struct.greenTop - struct.pitch * 3.6));
+            const headerHpx = struct.greenTop - 2 - headerY;
+            let headerText = '';
+            if (headerHpx > 8 && headerW > 20) {
+                await worker.setParameters({
+                    tessedit_pageseg_mode: '6',
+                    tessedit_char_whitelist: '',
+                    classify_bln_numeric_mode: '0'
+                });
+                const hb = binarizeRegion(shotImage, { x: headerX, y: headerY, w: headerW, h: headerHpx }, 0, 220);
+                if (hb) {
+                    const hres = await worker.recognize(binToCanvas(hb.bin, hb.w, hb.h));
+                    headerText = hres.data.text.trim();
+                }
+            }
+            shotProgress = 25;
+
+            // 3. Per-row OCR: numeric PSM 7 over each bar-anchored band.
+            await worker.setParameters({
+                tessedit_pageseg_mode: '7',
+                tessedit_char_whitelist: '0123456789()|/.,% ',
+                classify_bln_numeric_mode: '1',
+                preserve_interword_spaces: '1',
+                user_defined_dpi: '300'
+            });
+
+            const rowX = Math.max(0, struct.barX0 - 3);
+            const rowW = Math.min(shotImage.width, struct.barX1 + 4) - rowX;
+            const rowResults: Array<{
+                i: number;
+                triple: [number, number, number] | null;
+                pct: boolean;
+                full: string;
+                method: string;
+            }> = [];
+            const debugCanvases: HTMLCanvasElement[] = [];
+
+            for (let i = 0; i < struct.rows.length; i++) {
+                const band = struct.rows[i];
+                const bbox: CropBox = { x: rowX, y: Math.max(0, band.y), w: rowW, h: band.h };
+                if (bbox.y + bbox.h > shotImage.height || bbox.h <= 4 || bbox.w <= 20) continue;
+
+                // Full-row pass: row classification (% / slash) + split rescue
+                const b0 = binarizeRegion(shotImage, bbox, 0, 110);
+                if (!b0) continue;
+                const fullC = binToCanvas(b0.bin, b0.w, b0.h);
+                debugCanvases.push(fullC);
+                const fres = await worker.recognize(fullC);
+                const full = fres.data.text.trim();
+                const pct = full.includes('%');
+
+                // Candidates: segment OCR at two thresholds (early-exit on a
+                // high-confidence geometric read) + constraint-split rescue.
+                const cands: TripleCandidate[] = [];
+                for (const bias of [0, 15]) {
+                    const bb = bias === 0 ? b0 : binarizeRegion(shotImage, bbox, bias, 110);
+                    if (!bb) continue;
+                    const seg = await ocrRowSegments(worker, bb.bin, bb.w, bb.h);
+                    cands.push(...seg.candidates.map(c => ({ ...c, method: c.method + '@' + bias })));
+                    if (cands.some(c => c.method.startsWith('wordmap@'))) break;
+                }
+                {
+                    const lastParen = full.lastIndexOf('(');
+                    if (lastParen >= 0) {
+                        const t = constraintSplit(full.slice(lastParen + 1));
+                        if (t) cands.push({ method: 'split', triple: t });
                     }
                 }
-            });
+                // Dense rows (HP) sometimes need a smoother, larger render to
+                // recover the bracket at all. Cheap because it's rare.
+                if (!cands.some(c => c.method.startsWith('wordmap@') || c.method.startsWith('tokens'))) {
+                    for (const bias of [0, 15]) {
+                        const big = binarizeRegion(shotImage, bbox, bias, 300);
+                        if (!big) continue;
+                        const bres = await worker.recognize(binToCanvas(big.bin, big.w, big.h));
+                        const bigText = bres.data.text.trim();
+                        const lastParen = bigText.lastIndexOf('(');
+                        if (lastParen >= 0) {
+                            const t = constraintSplit(bigText.slice(lastParen + 1));
+                            if (t) cands.push({ method: 'split300@' + bias, triple: t });
+                        }
+                    }
+                }
 
-            // 2. Header: OCR the strip immediately ABOVE the matched panel,
-            //    where the creature name + level sit. PSM 6, full charset.
-            const headerH = Math.min(match.y, Math.round(match.h * 0.18));
-            const headerRegion: CropBox = headerH > 20 ? {
-                x: match.x,
-                y: Math.max(0, match.y - headerH),
-                w: match.w,
-                h: headerH
-            } : { x: match.x, y: match.y, w: match.w, h: 20 };
-            await worker.setParameters({
-                tessedit_pageseg_mode: '6' as never,
-                tessedit_char_whitelist: '' as never,
-                classify_bln_numeric_mode: '0' as never,
-                load_system_dawg: '1' as never,
-                load_freq_dawg: '1' as never
-            });
-            const headerOut = await ocrRegion(shotImage, headerRegion, worker);
-            const headerText = headerOut.text;
-
-            // 3. Detect row bands within the matched panel, then OCR each
-            //    row separately at PSM 7 (single text line). PSM 6 on the
-            //    whole panel kept producing merged-line garbage; PSM 7 per
-            //    detected band lets Tesseract focus on one line of text.
-            await worker.setParameters({
-                tessedit_pageseg_mode: '7' as never,
-                tessedit_char_whitelist: '0123456789()|/., ' as never,
-                classify_bln_numeric_mode: '1' as never,
-                load_system_dawg: '0' as never,
-                load_freq_dawg: '0' as never,
-                user_defined_dpi: '300' as never
-            });
-
-            // Detect row bands on the REFERENCE TEMPLATE, not on the user's
-            // tiny panel. The template is high-res (text is huge and clearly
-            // bright); my detection thresholds actually work there. The panel
-            // layout is FIXED (per user) so the row Y positions transfer
-            // directly: compute as fractions of template height, scale to
-            // matched panel height.
-            if (!cachedTemplateBands || cachedTemplateBandsForH !== template.height) {
-                cachedTemplateBands = detectRowBands(template, {
-                    x: 0, y: 0, w: template.width, h: template.height
+                // Score: sanity filter → shift detection → truncation merge
+                // → vote by method family → method rank.
+                let valid = cands.filter(c =>
+                    c.triple.every(v => v >= 0 && v <= 500) && c.triple[0] <= 255);
+                const wordmaps = valid.filter(c => c.method.startsWith('wordmap'));
+                valid = valid.filter(c => {
+                    if (!c.method.startsWith('tokens')) return true;
+                    // tokens = wordmap shifted right by one means the text
+                    // pass missed the trailing digit; geometry wins.
+                    return !wordmaps.some(wm =>
+                        c.triple[1] === wm.triple[0] && c.triple[2] === wm.triple[1]);
                 });
-                cachedTemplateBandsForH = template.height;
-            }
-            const tplH = template.height;
-            const bands = cachedTemplateBands.map(b => ({
-                y: Math.round((b.y / tplH) * match.h),
-                h: Math.round((b.h / tplH) * match.h)
-            }));
+                for (const c of valid) {
+                    for (const o of valid) {
+                        if (c === o) continue;
+                        // Two components agree, third is a digit-truncation
+                        // of the other's → digit-drop; promote the longer.
+                        for (const [k1, k2, vary] of [[1, 2, 0], [0, 1, 2]] as Array<[number, number, number]>) {
+                            if (c.triple[k1] === o.triple[k1] && c.triple[k2] === o.triple[k2]) {
+                                const cs = String(c.triple[vary]), os = String(o.triple[vary]);
+                                if (cs.length < os.length && (os.endsWith(cs) || os.startsWith(cs))) {
+                                    c.triple = o.triple.slice() as [number, number, number];
+                                }
+                            }
+                        }
+                    }
+                }
+                let chosen: TripleCandidate | null = null;
+                if (valid.length) {
+                    const key = (t: number[]) => t.join('|');
+                    const fams = new Map<string, Set<string>>();
+                    for (const c of valid) {
+                        const fam = c.method.replace(/@\d+$/, '');
+                        if (!fams.has(key(c.triple))) fams.set(key(c.triple), new Set());
+                        fams.get(key(c.triple))!.add(fam);
+                    }
+                    const rank = (m: string) =>
+                        m.startsWith('wordmap@') ? 0 :
+                        m.startsWith('tokens') ? 1 :
+                        m.startsWith('split') ? 2 : 3; // wordmap-low last
+                    valid.sort((a, b) =>
+                        (fams.get(key(b.triple))!.size - fams.get(key(a.triple))!.size) ||
+                        (rank(a.method) - rank(b.method)));
+                    chosen = valid[0];
+                }
 
-            // Per-row OCR. Each band crops the right ~88% of the row (skips
-            // the icon column) with a small vertical pad to keep descenders.
-            const perRowResults: Array<{
-                band: { y: number; h: number };
-                text: string;
-                canvas: HTMLCanvasElement;
-            }> = [];
-            for (let bi = 0; bi < bands.length; bi++) {
-                const band = bands[bi];
-                const padY = 2;
-                const rowY = Math.max(0, match.y + band.y - padY);
-                const rowH = Math.min(
-                    shotImage.height - rowY,
-                    band.h + 2 * padY
-                );
-                if (rowH <= 0) continue;
-                const rowRect: CropBox = {
-                    x: Math.round(match.x + STAT_TEXT_X_START * match.w),
-                    y: rowY,
-                    w: Math.round((STAT_TEXT_X_END - STAT_TEXT_X_START) * match.w),
-                    h: rowH
-                };
-                const rowOut = await ocrRegion(shotImage, rowRect, worker);
-                perRowResults.push({ band, text: rowOut.text, canvas: rowOut.canvas });
-                shotProgress = Math.min(89, 20 + Math.round(((bi + 1) / Math.max(bands.length, 1)) * 65));
+                rowResults.push({
+                    i,
+                    triple: chosen ? chosen.triple : null,
+                    pct,
+                    full,
+                    method: chosen ? chosen.method : '—'
+                });
+                shotProgress = Math.min(89, 25 + Math.round(((i + 1) / struct.rows.length) * 60));
             }
             shotProgress = 90;
-
             await worker.terminate();
 
             shotSource = 'tek';
 
-            // 4. Per-row triple extraction in document order. Each band that
-            //    yields a triple maps to the next canonical stat slot. Bands
-            //    without triples (Torpor, Speed % etc.) don't shift the index.
-            const allTriples: Array<[number, number, number]> = [];
-            for (const r of perRowResults) {
-                const rowTriples = extractTriples(r.text);
-                if (rowTriples.length > 0) {
-                    allTriples.push(rowTriples[rowTriples.length - 1]);
-                }
-            }
-
+            // 4. Semantic mapping. Row positions are anchored to the HP bar,
+            //    and the first six rows are identical across panel variants:
+            //    0=HP, 1=STA, 2=Torpor (never a stat), 3=Food, 4=Weight,
+            //    5=Oxygen. Variants differ AFTER that (optional rows), so
+            //    Melee/Crafting are found by content: %-rows with a triple.
+            //    An absolute-position stat row that reads as % (e.g. aquatic
+            //    creatures without an Oxygen row) is skipped positionally
+            //    and picked up by the % scan instead.
             const out: Partial<Record<StatKey, number>> & { name?: string; species?: string; level?: number } = {};
-            for (let i = 0; i < Math.min(allTriples.length, CANONICAL_STAT_ORDER.length); i++) {
-                out[CANONICAL_STAT_ORDER[i]] = allTriples[i][0];
+            const muts: Partial<Record<StatKey, number>> = {};
+            const POSITIONAL: Partial<Record<number, StatKey>> = { 0: 'HP', 1: 'STA', 3: 'FOOD', 4: 'WGT', 5: 'OXY' };
+            const pctOrder: StatKey[] = ['MEL', 'CRA'];
+            let pctIdx = 0;
+            const assigned: string[] = [];
+            for (const r of rowResults) {
+                if (!r.triple || r.i === 2) continue;
+                let stat: StatKey | null = null;
+                if (!r.pct && POSITIONAL[r.i] !== undefined) {
+                    stat = POSITIONAL[r.i]!;
+                } else if (r.pct && r.i >= 4 && pctIdx < pctOrder.length) {
+                    stat = pctOrder[pctIdx++];
+                }
+                if (!stat) continue;
+                out[stat] = r.triple[0];
+                muts[stat] = r.triple[1];
+                assigned.push(`  ${stat.padEnd(5)} ← row ${r.i} (${r.triple.join('|')}) via ${r.method}`);
             }
 
-            // Debug image: stitch all per-row preprocessed canvases vertically.
-            if (perRowResults.length > 0) {
-                const maxRowW = Math.max(...perRowResults.map(r => r.canvas.width));
-                const totalRowH = perRowResults.reduce((sum, r) => sum + r.canvas.height, 0);
+            // Debug image: stitch the per-row binarized strips vertically.
+            if (debugCanvases.length > 0) {
+                const maxRowW = Math.max(...debugCanvases.map(c => c.width));
+                const totalRowH = debugCanvases.reduce((sum, c) => sum + c.height, 0);
                 if (maxRowW > 0 && totalRowH > 0) {
                     const debugCanvas = document.createElement('canvas');
                     debugCanvas.width = maxRowW;
@@ -1103,9 +1457,9 @@
                         debugCtx.fillStyle = '#000';
                         debugCtx.fillRect(0, 0, maxRowW, totalRowH);
                         let yOff = 0;
-                        for (const r of perRowResults) {
-                            debugCtx.drawImage(r.canvas, 0, yOff);
-                            yOff += r.canvas.height;
+                        for (const c of debugCanvases) {
+                            debugCtx.drawImage(c, 0, yOff);
+                            yOff += c.height;
                         }
                     }
                     shotProcUrl = URL.createObjectURL(await new Promise<Blob>((resolve, reject) => {
@@ -1114,43 +1468,35 @@
                 }
             }
 
-            // 5. Name + level from header strip above the matched panel
+            // 5. Name + level from the header strip
             extractNameAndLevel(
                 headerText.split(/\r?\n/).map(l => l.trim()).filter(Boolean),
                 out
             );
             shotParsed = out;
+            shotParsedMuts = muts;
 
-            // Debug dump — per-row text + extracted triples in order
-            const dbg = [
-                `── TEMPLATE MATCH ──`,
-                `Panel located at: x=${match.x} y=${match.y} w=${match.w} h=${match.h} (SSD=${match.score.toFixed(0)})`,
+            dbg.push(
                 ``,
                 `── HEADER ──`,
                 headerText || '(empty)',
                 ``,
-                `── ROW DETECTION ──`,
-                `Found ${bands.length} text band${bands.length === 1 ? '' : 's'} within the panel:`,
-                ...bands.map((b, i) => `  Band ${i}: y=${b.y} h=${b.h}`),
+                `── PER-ROW OCR ──`,
+                rowResults.length === 0
+                    ? '(no rows)'
+                    : rowResults.map(r =>
+                        `  Row ${r.i}: "${r.full.replace(/\n/g, ' ')}" → ` +
+                        `${r.triple ? `(${r.triple.join('|')}) via ${r.method}` : 'no triple'}${r.pct ? ' [%]' : ''}`
+                      ).join('\n'),
                 ``,
-                `── PER-ROW OCR (PSM 7) ──`,
-                perRowResults.length === 0
-                    ? '(no rows detected)'
-                    : perRowResults.map((r, i) => `  Row ${i}: "${r.text}"`).join('\n'),
-                ``,
-                `── EXTRACTED TRIPLES (in document order) ──`,
-                allTriples.length === 0
-                    ? '(none)'
-                    : allTriples.map((t, i) => {
-                        const stat = i < CANONICAL_STAT_ORDER.length ? CANONICAL_STAT_ORDER[i] : '—';
-                        return `  [${i}] ${stat.padEnd(5)} → (${t[0]}|${t[1]}|${t[2]})`;
-                      }).join('\n')
-            ].join('\n');
-            shotRawText = dbg;
+                `── ASSIGNED STATS (base|mut|dom) ──`,
+                assigned.length === 0 ? '(none)' : assigned.join('\n')
+            );
+            shotRawText = dbg.join('\n');
 
             const populatedCount = Object.keys(out).filter(k => k !== 'name' && k !== 'species' && k !== 'level').length;
             if (populatedCount === 0) {
-                shotError = 'Template matched the panel but no stat triples were readable. Check the panel OCR text below to see what Tesseract produced.';
+                shotError = 'Found the panel but no stat triples were readable. Check the panel OCR text below to see what Tesseract produced.';
             }
         } catch (err) {
             shotError = (err as Error).message || 'OCR failed';
@@ -1262,6 +1608,8 @@
         for (const k of STATS) {
             const v = shotParsed[k];
             if (typeof v === 'number') fStats[k] = v;
+            const m = shotParsedMuts[k];
+            if (typeof m === 'number') fMuts[k] = m;
         }
         // Switch back to manual so the user can review/correct before saving
         mode = 'manual';
