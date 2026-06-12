@@ -1150,6 +1150,31 @@
         }
 
         const candidates: TripleCandidate[] = [];
+
+        // SLOT extraction: partition digit groups into the numbers between
+        // the pipe separators. A BIG gap (a dropped "|" or a wide space)
+        // starts a new slot; a SMALL gap means the segmenter split ONE
+        // number across columns, so those digits belong to the same slot.
+        // The last three slots are base|mut|dom. This fixes the multi-digit
+        // drop the "last three GROUPS" heuristic suffers (e.g. "55" splitting
+        // into [5,5] used to push the leading 5 out of the window).
+        if (groups.length >= 3) {
+            const slots: string[] = [];
+            let acc = groupTexts[0] ?? '';
+            for (let gi = 1; gi < groups.length; gi++) {
+                if (gaps[gi - 1] >= BIG) { slots.push(acc); acc = groupTexts[gi] ?? ''; }
+                else acc += groupTexts[gi] ?? '';
+            }
+            slots.push(acc);
+            const digitSlots = slots.filter(s => /^\d{1,3}$/.test(s));
+            if (digitSlots.length >= 3) {
+                candidates.push({
+                    method: 'slots',
+                    triple: digitSlots.slice(-3).map(s => parseInt(s, 10)) as [number, number, number]
+                });
+            }
+        }
+
         if (groups.length >= 3) {
             const lastThree = groupTexts.slice(-3);
             if (lastThree.every(t => /^\d{1,3}$/.test(t))) {
@@ -1393,9 +1418,10 @@
                         fams.get(key(c.triple))!.add(fam);
                     }
                     const rank = (m: string) =>
-                        m.startsWith('wordmap@') ? 0 :
-                        m.startsWith('tokens') ? 1 :
-                        m.startsWith('split') ? 2 : 3; // wordmap-low last
+                        m.startsWith('slots') ? 0 :     // pipe-partitioned: most reliable
+                        m.startsWith('wordmap@') ? 1 :
+                        m.startsWith('tokens') ? 2 :
+                        m.startsWith('split') ? 3 : 4;  // wordmap-low last
                     valid.sort((a, b) =>
                         (fams.get(key(b.triple))!.size - fams.get(key(a.triple))!.size) ||
                         (rank(a.method) - rank(b.method)));
