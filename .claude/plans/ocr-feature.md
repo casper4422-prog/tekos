@@ -1,5 +1,20 @@
 # TekOS — Upload Screenshot OCR
 
+## Fix in progress (2026-06-12) — slot-based triple extraction
+
+Validated `0915dfd` against real ground truth (see [`../memory/ocr-ground-truth.md`](../memory/ocr-ground-truth.md)).
+Result: 4/6 stats correct; FOOD + MEL wrong, HP mangled. Root cause was a single
+bug: the extractor took "the last three digit GROUPS" of a row, so when a triple
+component was multi-digit and the segmenter split it (e.g. `55` → `[5,5]`), the
+leading digit fell out of the 3-group window — turning `55|2|0` into `5|2|0` and
+`56|4|13` into `56|4|13`→`56|4|3`, and wrecking the dense HP row entirely.
+
+Fix: added a `slots` extraction method in `ocrRowSegments` that partitions digit
+groups by the pipe separators the code already detects geometrically (BIG gap =
+new number, SMALL gap = same number split across columns), then takes the last
+three SLOTS as base|mut|dom. Ranked above `wordmap`. Single-digit reads are
+unaffected, so the 4 already-correct stats don't regress. Pending live test.
+
 ## Current state (as of commit `0915dfd`, 2026-06-11)
 
 **The OCR was rebuilt around bar-anchored structure detection and is working.** Validated 6/6 base+mut on a real failing screenshot per the project memory.
