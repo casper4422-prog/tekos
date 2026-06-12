@@ -1,77 +1,67 @@
-# TekOS — Upload Screenshot OCR (Tesseract Done Right)
+# TekOS — Upload Screenshot OCR
 
-## Current iteration state
+## Current state (as of commit `0915dfd`, 2026-06-11)
 
-**Latest commit on master:** `a942fea` — force hardcoded 9 bands + nearest-neighbor upscale + 24× scale cap. PENDING user test (Render was paused 2026-06-09, user upgraded to paid Render Starter 2026-06-11, test next).
+**The OCR was rebuilt around bar-anchored structure detection and is working.** Validated 6/6 base+mut on a real failing screenshot per the project memory.
 
-**What's been tried so far (in order):**
-- `1079b8a` Per-row PSM 7 + brightness-based band detection on user's panel → only found 2 tiny bands (panel text too small for `mx > 200` threshold)
-- `b8fc477` Switch detection to the high-res REFERENCE template (1152×1260), scale fractions to matched panel → template's bars pass brightness threshold too, returned ONE huge band covering the whole template
-- `11a4c50` Variance-based detection + hardcoded 9-band fallback → still wrong, user reported image too small + illegible
-- `a942fea` (CURRENT) Force hardcoded 9 bands always (skip variance) + nearest-neighbor upscale (no blur) + bump scale cap from 16× to 24×
+### How it works now
 
-**Next move when user tests `a942fea`:**
-- If 9 rows visible AND text legible to the user's eye → tune OCR if needed (Fix 4: per-row bar-color-aware preprocessing — HP green, others blue)
-- If 9 rows visible but text still mush → Plan B (per-digit template matching). Extract digit glyphs from `static/panel-templates/uplus.png` and match directly. No Tesseract.
-- If hardcoded fractions misalign with actual stat rows → measure precise row positions from `uplus.png`, update `generateHardcodedBands` constants in [`src/routes/specimens/add/+page.svelte`](../../src/routes/specimens/add/+page.svelte)
+- **Anchor:** the green HP bar is the structural anchor. Blue bars give the row pitch (vertical spacing between rows).
+- **Binarization:** min-channel (not Otsu, not V-channel + saturation gate — those iterations were dead ends).
+- **Triple extraction:** segment-based with candidate voting (multiple candidates per triple slot, vote the most likely).
+- **Stat mapping:** content-aware. **Real u+/Tek panel row order is `HP, STA, Torpor, FOOD, WGT, OXY, [% rows MEL/CRA]`** — NOT the old canonical assumption (`HP, STA, OXY, FOOD, WGT, MEL, CRA`). The mapping handles this correctly.
+- **Template match:** still used but now only as a coarse locator (find roughly where the panel is). Internal structure comes from bar detection, not template fractions.
+- **Panel layouts vary:** u+ panel has 8 vs 9 rows depending on the creature. The bar-anchored approach handles both.
+- **Scope:** Tek/u+ Binoculars only. Super Spyglass dropped.
 
----
+### Offline test harness
 
-## Context
-
-**What the user wants:** Point u+/Tek Binoculars at a tame in ARK, screenshot the stat panel, drop it into TekOS. The form fills with that creature's stat numbers. No typing.
-
-**Why it matters:** 800+ cryofridges of tames per active breeder to enter. Manual entry is the feature failing.
-
-**Why we're rebuilding the Tesseract approach (not throwing it out):** A week of preprocessing failed because we were using Tesseract wrong, not because Tesseract can't do this. The four mistakes:
-
-1. Using PSM 6 (block of text) when each row is one line — should be PSM 7 per row ✅ done
-2. No character whitelist — Tesseract has been trying to match A-Z, punctuation, everything ✅ done (whitelist `0123456789()|/., `)
-3. Preprocessing the whole panel uniformly when HP (green bar) and the other rows (blue bars) need different handling — STILL TO DO
-4. Letting the English language model interfere with `(34 | 0 | 0)` content ✅ done (`load_system_dawg = '0'`, `load_freq_dawg = '0'`)
-
-Fix those four things and Tesseract should hit 95%+ on clean shots. If it still fails, fall back to per-digit template matching as Plan B.
-
-**Constraint:** [`.claude/memory/no-per-call-costs.md`](../memory/no-per-call-costs.md) — browser-side only.
+`E:\agents\ark-expert\workspace\ocr-lab\final.js` — runs the OCR pipeline against samples in `ocr-samples/`. Use this to iterate locally without redeploying. Validated 6/6 base+mut on a real failing screenshot.
 
 ---
 
-## Plan B (if Tesseract still fails)
+## Previous iteration history (pre-0915dfd, for context)
 
-Per-digit template matching. Extract digit glyphs (0-9 + `(`, `)`, `|`, `/`, `.`, `,`) from `uplus.png` at known crop coordinates, slide each across the matched panel with non-maximum suppression, parse character sequence into triples.
+This chat's iteration from 2026-06-03 → 2026-06-04 tried various Tesseract preprocessing tweaks (all SUPERSEDED by the 0915dfd rebuild):
 
-Why it'll work: font is fixed, character set is tiny (10 digits + 5 separators), template matching already works at the panel level — extend down to glyphs. Same approach we proved on the panel match, just at smaller scale.
+- `1079b8a` Per-row PSM 7 + brightness-based band detection on user's panel → only found 2 tiny bands
+- `b8fc477` Detection on the high-res REFERENCE template, scale fractions to matched panel → template's bars passed brightness threshold, returned one huge band
+- `11a4c50` Variance-based detection + hardcoded 9-band fallback → user reported image too small + illegible
+- `a942fea` Force hardcoded 9 bands + nearest-neighbor upscale + 24× scale cap → user couldn't test (Render free tier ran out)
 
----
+The user paid for Render Starter on 2026-06-11. Between that and a fresh OCR rebuild from another work stream, `0915dfd` replaced the entire Tesseract-tuning iteration with the bar-anchored approach above.
 
-## Critical files
-
-- [`src/routes/specimens/add/+page.svelte`](../../src/routes/specimens/add/+page.svelte) — all OCR code lives here ([lines 619-1083](../../src/routes/specimens/add/+page.svelte#L619-L1083))
-- [`static/panel-templates/uplus.png`](../../static/panel-templates/uplus.png) — read-only reference template, used for panel match + (in Plan B) digit template extraction
-- [`package.json`](../../package.json) — Tesseract stays for now; only removed if we fall to Plan B
-
-## Reused code
-
-- `loadTemplate()` — pattern for fetching + caching reference images
-- `matchTemplate()` — multi-scale SSD match for panel localization (works reliably)
-- `ocrRegion()` — Tesseract wrapper. Currently uses nearest-neighbor upscale + V-channel Otsu + saturation gate. PSM 7 per row.
-- `extractTriples()` — parses `(base | mut | dom)` triples from row text
-- `CANONICAL_STAT_ORDER` — row index → stat key
-
-## Verification (after each fix)
-
-1. User drops the Iris screenshot on the live site after Render redeploys.
-2. User pastes the debug output back.
-3. **User describes what they SEE on screen** alongside the paste — the user's eyes are the source of truth, NOT debug text alone.
-4. We compare extracted values to what the user reads on the panel.
-5. Decide: did this fix land? Move to next or revisit.
-
-End-to-end success: drop screenshot → form fills with correct base/mut/dom for all 7 stats + level → user confirms by eye comparison.
+The key insight from the failed iterations that informed the rebuild: **the panel text is too small at source resolution for general-purpose OCR thresholding to work**, and **the row layout differs between template and actual panel (8 vs 9 rows)**. Bar-anchored structure detection sidesteps both — bars are unmistakable colored regions, and finding them adapts to whatever layout the actual creature's panel has.
 
 ---
 
-## Out of scope
+## What's next
 
-- Name / species extraction — manual fields, user types them.
-- Spyglass screenshots — different layout. Tek/u+ Binoculars only.
-- Bulk upload — single screenshot for now.
+Now that OCR works, the polish punch list comes off the shelf. Carried forward from earlier sessions:
+
+- **Dossier:** reorder Active Breeding Projects under Tribe Snapshot, add list/card view toggle on pinned projects
+- **Specimens list:** strip advanced filters down to just Gender; add Alphabetically / Species type / Last updated sorts (Last updated needs `Creature.updatedAt` schema add)
+- **Dex:** drop "Has Badge" checkbox; consolidate "Lost Colony (boss reward only)" and "Fjordur (boss reward only)" into parent maps
+- **Feed:** recommended sources persistence (regression from BreedingProject migration); update Loaded Crysis description
+- **Network/Messages:** promote Messages to top-level nav under Social
+- **Tribe:** name editing in Edit Tribe modal; rework Tribe Specimens into a full shared-vault page
+- **Badges:** Boss Ready cumulative tiers (lower tiers credit higher-tier species); Specialist Endurance role STA → OXY; Map Boss prune + species requirement reshape
+- **Overseer:** Lost King + Lost Queen combo card; max-player/max-tame caps per boss; tribute cycling per difficulty; war-room countdown timer
+- **Notifications:** Accept/Decline buttons (IDs missing from payloads)
+- **Settings:** BattleMetrics integration for Add Server flow
+- **Global:** Discord webhook integration for tribe / war-room events
+
+When pulling this into active work, write a fresh plan file in `.claude/plans/` per scope of batch.
+
+---
+
+## Critical files (OCR)
+
+- [`src/routes/specimens/add/+page.svelte`](../../src/routes/specimens/add/+page.svelte) — Upload screenshot UI, OCR pipeline, form fill
+- [`static/panel-templates/uplus.png`](../../static/panel-templates/uplus.png) — Coarse-locator template
+- `E:\agents\ark-expert\workspace\ocr-lab\final.js` — Offline test harness (outside the repo)
+- `E:\agents\ark-expert\workspace\ocr-lab\ocr-samples\` — Test screenshots
+
+## Verification
+
+Drop a screenshot of a Tek/u+ Binoculars panel onto `/specimens/add`. Form should auto-fill the base + mut for HP/STA/OXY/FOOD/WGT/MEL/CRA. If it doesn't, run the offline harness against the same screenshot to debug without the redeploy cycle.
