@@ -55,10 +55,48 @@ Seconds per run, no Render, no human in the loop.
 - **Glow/metallic styling** softens edges → binarize first (reuse), and cut templates through the same binarization so they match like-for-like.
 - **Generalization** → one fixture overfits; grow `static/ocr-samples/` to a few panels (different species/levels/themes) before calling it done.
 
-## Blocked on
+## Panel model (confirmed with user 2026-06-14, Giga close-up)
 
-One real full-res panel screenshot committed to `static/ocr-samples/` — it's the
-raw material the templates are cut from and the thing the harness tests against.
+A close-up phone photo of the lower stat block yields the whole "add creature"
+form in one shot:
+
+- **Top line = Name OR Species.** Unnamed → species ("Giganotosaurus"); named →
+  the custom name replaces it. Disambiguate by matching the text against
+  `species-database.js`: match → fill **Species**; no match → it's a custom
+  **Name** (player still picks species). **Level** is on the next line.
+- **Color-region row:** 6 boxes = ARK color regions 0–5. Each box BOTH prints
+  the color ID *and* is filled with that actual color (ID 1 = red → red box).
+  → read the digit AND sample the swatch as a built-in cross-check; blank box =
+  region uncoloured on this creature.
+- **2-column stat grid** (`base /mut/ dom`, slash-separated, fixed icon order):
+  - row 0: HP | WGT
+  - row 1: STA | MEL
+  - row 2: OXY | Speed (Speed not a breeding stat)
+  - row 3: FOOD | CRA
+  - then imprint% / level row, then gender-count row (skip both).
+
+Photo artifacts to handle: skew/keystone (hold phone flat; deskew later),
+translucent panel scene bleed-through (→ local/adaptive threshold), glare.
+
+## Status
+
+- **v1 SHIPPED (close-up 2-column stat reader):** `runCloseupOcr` +
+  `readCloseupGrid` in `add/+page.svelte`. Adaptive (Bradley local-mean)
+  threshold for the translucent bg, horizontal-projection row bands, per-half
+  cell OCR (digit+slash whitelist), fixed-grid stat mapping. Separate "📷 Read
+  close-up" button — does NOT touch the working vertical-panel `runOcr`. Emits a
+  per-cell debug strip (`shotProcUrl`) + row log (`shotRawText`) so iteration is
+  sighted: user runs on phone, pastes the debug image back.
+- **Next:** color-region row (digit + swatch cross-check → `fColorRegions`);
+  name/species top-line + DB disambiguation for the close-up path; deskew if
+  phone-test shows skew hurting; then swap per-cell Tesseract for the fixed-font
+  template matcher once a real photo is committed for calibration.
+
+## Blocked on (for the template-matcher upgrade, not v1)
+
+One real full-res panel photo committed to `static/ocr-samples/` — the raw
+material the digit templates are cut from and the harness tests against. v1 works
+without it via Tesseract; the template matcher needs it.
 
 ## Critical files
 

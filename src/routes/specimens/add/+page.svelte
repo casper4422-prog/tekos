@@ -989,6 +989,223 @@
     }
 
     // ─────────────────────────────────────────────────────────────────────
+    //  CLOSE-UP 2-COLUMN READER  (phone-photo path)
+    //
+    //  A close-up phone photo of the lower stat block: a 2-column grid of
+    //  "base /mut/ dom" triples, fixed icon order. Unlike the vertical u+
+    //  panel, the background is the TRANSLUCENT panel (game scene bleeds
+    //  through) so a single global threshold fails. We threshold LOCALLY
+    //  (each pixel vs the mean of its neighbourhood) so bright-text-on-
+    //  varying-bg survives everywhere.
+    //
+    //  Fixed grid (first four rows are the breeding stats):
+    //     row 0:  HP   | WGT
+    //     row 1:  STA  | MEL
+    //     row 2:  OXY  | (Speed — not a breeding stat)
+    //     row 3:  FOOD | CRA
+    // ─────────────────────────────────────────────────────────────────────
+
+    /** Min-channel buffer + dims for a crop, upscaled to ~targetH tall. */
+    function minChannelRegion(img: HTMLImageElement, box: CropBox, targetH: number): { mn: Uint8Array; w: number; h: number } | null {
+        const scale = Math.max(2, Math.min(20, targetH / Math.max(1, box.h)));
+        const w = Math.max(1, Math.round(box.w * scale));
+        const h = Math.max(1, Math.round(box.h * scale));
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return null;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, box.x, box.y, box.w, box.h, 0, 0, w, h);
+        const d = ctx.getImageData(0, 0, w, h).data;
+        const mn = new Uint8Array(w * h);
+        for (let p = 0, i = 0; p < w * h; p++, i += 4) mn[p] = Math.min(d[i], d[i + 1], d[i + 2]);
+        return { mn, w, h };
+    }
+
+    /** Local-mean (Bradley) adaptive threshold over a min-channel buffer.
+     *  White text reads 1 where it sits clearly above its neighbourhood,
+     *  which survives the translucent panel's scene bleed-through. */
+    function adaptiveBin(mn: Uint8Array, w: number, h: number): Uint8Array {
+        // Integral image for O(1) window means.
+        const ii = new Float64Array((w + 1) * (h + 1));
+        for (let y = 0; y < h; y++) {
+            let rowSum = 0;
+            for (let x = 0; x < w; x++) {
+                rowSum += mn[y * w + x];
+                ii[(y + 1) * (w + 1) + (x + 1)] = ii[y * (w + 1) + (x + 1)] + rowSum;
+            }
+        }
+        const rad = Math.max(6, Math.round(h * 0.07));   // ~ row-height window
+        const C = 9;                                     // bias above local mean
+        const bin = new Uint8Array(w * h);
+        for (let y = 0; y < h; y++) {
+            const y0 = Math.max(0, y - rad), y1 = Math.min(h - 1, y + rad);
+            for (let x = 0; x < w; x++) {
+                const x0 = Math.max(0, x - rad), x1 = Math.min(w - 1, x + rad);
+                const area = (x1 - x0 + 1) * (y1 - y0 + 1);
+                const sum = ii[(y1 + 1) * (w + 1) + (x1 + 1)] - ii[y0 * (w + 1) + (x1 + 1)]
+                          - ii[(y1 + 1) * (w + 1) + x0] + ii[y0 * (w + 1) + x0];
+                const mean = sum / area;
+                const v = mn[y * w + x];
+                bin[y * w + x] = (v > mean + C && v > 55) ? 1 : 0;
+            }
+        }
+        return bin;
+    }
+
+    /** Extract a sub-rectangle from a binary buffer. */
+    function subBin(bin: Uint8Array, w: number, x0: number, y0: number, cw: number, ch: number): Uint8Array {
+        const out = new Uint8Array(cw * ch);
+        for (let y = 0; y < ch; y++)
+            for (let x = 0; x < cw; x++)
+                out[y * cw + x] = bin[(y0 + y) * w + (x0 + x)];
+        return out;
+    }
+
+    /** Parse a cell's OCR text into a [base, mut, dom] triple, or null. */
+    function parseGridTriple(text: string): [number, number, number] | null {
+        const nums = (text.match(/\d+/g) ?? []).map(n => parseInt(n, 10)).filter(n => n <= 999);
+        if (nums.length < 3) return null;
+        const t: [number, number, number] = [nums[0], nums[1], nums[2]];
+        if (t[0] > 255) return null;             // base wild level sanity
+        return t;
+    }
+
+    type GridReadResult = {
+        stats: Partial<Record<StatKey, number>>;
+        muts: Partial<Record<StatKey, number>>;
+        debug: HTMLCanvasElement[];
+        log: string[];
+    };
+
+    async function readCloseupGrid(worker: TessWorker, img: HTMLImageElement, box: CropBox): Promise<GridReadResult> {
+        const log: string[] = [];
+        const debug: HTMLCanvasElement[] = [];
+        const stats: Partial<Record<StatKey, number>> = {};
+        const muts: Partial<Record<StatKey, number>> = {};
+
+        const mc = minChannelRegion(img, box, 560);
+        if (!mc) return { stats, muts, debug, log: ['minChannel failed'] };
+        const { w, h } = mc;
+        const bin = adaptiveBin(mc.mn, w, h);
+        log.push(`── CLOSE-UP 2-COLUMN ──`, `region ${w}×${h}px (adaptive threshold)`);
+
+        // Row bands: horizontal ink projection → contiguous runs of "enough" ink.
+        const rowInk = new Float32Array(h);
+        let maxInk = 1;
+        for (let y = 0; y < h; y++) {
+            let s = 0;
+            for (let x = 0; x < w; x++) s += bin[y * w + x];
+            rowInk[y] = s;
+            if (s > maxInk) maxInk = s;
+        }
+        const inkThresh = maxInk * 0.06;
+        const minBandH = Math.max(6, Math.round(h * 0.04));
+        const bands: Array<{ y0: number; y1: number }> = [];
+        let bs = -1;
+        for (let y = 0; y <= h; y++) {
+            const on = y < h && rowInk[y] > inkThresh;
+            if (on && bs < 0) bs = y;
+            else if (!on && bs >= 0) {
+                if (y - 1 - bs + 1 >= minBandH) bands.push({ y0: bs, y1: y - 1 });
+                bs = -1;
+            }
+        }
+        log.push(`detected ${bands.length} row band(s)`);
+
+        await worker.setParameters({ tessedit_char_whitelist: '0123456789/', tessedit_pageseg_mode: '7' });
+
+        // The numeric text sits to the RIGHT of the stat icon in each half.
+        const mid = Math.round(w / 2);
+        const leftStats: Array<StatKey | null>  = ['HP', 'STA', 'OXY', 'FOOD'];
+        const rightStats: Array<StatKey | null> = ['WGT', 'MEL', null, 'CRA'];
+
+        let statRow = 0;
+        for (const band of bands) {
+            if (statRow >= 4) break;
+            const by = band.y0, bh = band.y1 - band.y0 + 1;
+            const halves: Array<{ x0: number; x1: number; side: 'L' | 'R' }> = [
+                { x0: 0,   x1: mid, side: 'L' },
+                { x0: mid, x1: w,   side: 'R' }
+            ];
+            let rowTriples: Record<'L' | 'R', [number, number, number] | null> = { L: null, R: null };
+            for (const half of halves) {
+                const hw = half.x1 - half.x0;
+                const iconSkip = Math.round(hw * 0.22);          // drop the icon glyph
+                const cx0 = half.x0 + iconSkip;
+                const cw = half.x1 - cx0;
+                if (cw < 8) continue;
+                const cell = subBin(bin, w, cx0, by, cw, bh);
+                const canvas = binToCanvas(cell, cw, bh);
+                debug.push(canvas);
+                const res = await worker.recognize(canvas);
+                const t = parseGridTriple(res.data.text.trim());
+                rowTriples[half.side] = t;
+            }
+            // Only count rows that look like a stat row (left cell parsed).
+            if (!rowTriples.L && !rowTriples.R) continue;
+            const lstat = leftStats[statRow], rstat = rightStats[statRow];
+            if (lstat && rowTriples.L) { stats[lstat] = rowTriples.L[0]; muts[lstat] = rowTriples.L[1]; }
+            if (rstat && rowTriples.R) { stats[rstat] = rowTriples.R[0]; muts[rstat] = rowTriples.R[1]; }
+            log.push(`row ${statRow}: ${lstat ?? '—'}=${rowTriples.L ? rowTriples.L.join('|') : '?'}  ${rstat ?? '—'}=${rowTriples.R ? rowTriples.R.join('|') : '?'}`);
+            statRow++;
+        }
+        return { stats, muts, debug, log };
+    }
+
+    async function runCloseupOcr() {
+        if (!shotImage) { shotError = 'Take a close-up photo first.'; return; }
+        shotRunning = true; shotError = ''; shotProgress = 0; shotPhase = 'recognizing';
+        shotRawText = ''; shotParsed = {}; shotParsedMuts = {}; shotSource = null;
+        if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
+        try {
+            const box: CropBox = cropBox ?? { x: 0, y: 0, w: shotImage.width, h: shotImage.height };
+            const Tesseract = await import('tesseract.js');
+            const worker = (await Tesseract.createWorker('eng', 1, {
+                workerPath: '/tesseract/worker.min.js',
+                corePath:   '/tesseract',
+                langPath:   '/tesseract',
+                workerBlobURL: false
+            })) as unknown as TessWorker;
+            shotProgress = 30;
+            const r = await readCloseupGrid(worker, shotImage, box);
+            await worker.terminate();
+            shotProgress = 95;
+
+            shotParsed = { ...r.stats };
+            shotParsedMuts = { ...r.muts };
+            shotSource = 'tek';
+            shotRawText = r.log.join('\n');
+            renderDebugStrip(r.debug);
+            shotProgress = 100;
+            if (Object.keys(r.stats).length === 0) {
+                shotError = 'No stats read from the close-up. Frame just the 2-column stat block, hold the phone flat, and try again.';
+            }
+        } catch (err) {
+            shotError = 'Close-up read failed: ' + (err instanceof Error ? err.message : String(err));
+        } finally {
+            shotRunning = false; shotPhase = 'idle';
+        }
+    }
+
+    /** Stack the per-cell debug canvases into one strip for review. */
+    function renderDebugStrip(canvases: HTMLCanvasElement[]) {
+        if (!canvases.length) return;
+        const pad = 4;
+        const w = Math.max(...canvases.map(c => c.width)) + pad * 2;
+        const h = canvases.reduce((a, c) => a + c.height + pad, pad);
+        const strip = document.createElement('canvas');
+        strip.width = w; strip.height = h;
+        const ctx = strip.getContext('2d');
+        if (!ctx) return;
+        ctx.fillStyle = '#888'; ctx.fillRect(0, 0, w, h);
+        let y = pad;
+        for (const c of canvases) { ctx.drawImage(c, pad, y); y += c.height + pad; }
+        strip.toBlob(b => { if (b) shotProcUrl = URL.createObjectURL(b); });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
     //  SEGMENT-BASED TRIPLE EXTRACTION
     //
     //  Tesseract chronically misreads the thin pipes in "(base|mut|dom)" —
@@ -1929,6 +2146,15 @@
                                 {:else if shotRunning}Reading text… {shotProgress}%
                                 {:else}Run OCR ➜{/if}
                             </button>
+                            <button class="btn shot-run-btn closeup" disabled={shotRunning} onclick={runCloseupOcr}>
+                                {#if shotRunning}Reading… {shotProgress}%
+                                {:else}📷 Read close-up (2-column block){/if}
+                            </button>
+                            <div class="shot-hint" style="margin-top:6px">
+                                <strong>Close-up?</strong> Walk your phone up to the screen and frame just the lower
+                                <em>2-column stats block</em> (HP/STA/OXY/FOOD on the left, WGT/MEL/Speed/Craft on the right).
+                                Hold the phone flat to the screen to avoid skew, crop tight, then use the 📷 button.
+                            </div>
                         </div>
                         {/if}
 
@@ -2830,6 +3056,14 @@
     letter-spacing: 0.04em;
 }
 .shot-run-btn { margin-top: 4px; }
+.shot-run-btn.closeup {
+    background: transparent;
+    border: 1px solid var(--tek-blue);
+    color: var(--tek-blue);
+}
+.shot-run-btn.closeup:hover:not(:disabled) {
+    background: rgba(56, 189, 248, 0.12);
+}
 
 .shot-source-banner {
     display: flex;
