@@ -1075,6 +1075,9 @@
     type GridReadResult = {
         stats: Partial<Record<StatKey, number>>;
         muts: Partial<Record<StatKey, number>>;
+        name?: string;
+        species?: string;
+        level?: number;
         debug: HTMLCanvasElement[];
         log: string[];
     };
@@ -1090,6 +1093,23 @@
         const { w, h } = mc;
         const bin = adaptiveBin(mc.mn, w, h);
         log.push(`── CLOSE-UP 2-COLUMN ──`, `region ${w}×${h}px (adaptive threshold)`);
+
+        // ── Header: the Name-or-Species title + level live at the top of the
+        //    crop. Full-charset PSM 6, then reuse extractNameAndLevel (which
+        //    cross-references the species DB → unnamed = species, named = the
+        //    custom name). The top ~28% comfortably covers title + level line.
+        const headerOut: { name?: string; species?: string; level?: number } = {};
+        const headerBox: CropBox = { x: box.x, y: box.y, w: box.w, h: Math.max(8, Math.round(box.h * 0.28)) };
+        const hb = binarizeRegion(img, headerBox, 0, 220);
+        if (hb) {
+            await worker.setParameters({ tessedit_pageseg_mode: '6', tessedit_char_whitelist: '', classify_bln_numeric_mode: '0' });
+            const hcanvas = binToCanvas(hb.bin, hb.w, hb.h);
+            debug.push(hcanvas);
+            const hres = await worker.recognize(hcanvas);
+            const htext = hres.data.text.trim();
+            extractNameAndLevel(htext.split(/\r?\n/).map(l => l.trim()).filter(Boolean), headerOut);
+            log.push(`header: "${htext.replace(/\n/g, ' / ')}" → name=${headerOut.name ?? '—'} species=${headerOut.species ?? '—'} lvl=${headerOut.level ?? '—'}`);
+        }
 
         // Row bands: horizontal ink projection → contiguous runs of "enough" ink.
         const rowInk = new Float32Array(h);
@@ -1151,7 +1171,7 @@
             log.push(`row ${statRow}: ${lstat ?? '—'}=${rowTriples.L ? rowTriples.L.join('|') : '?'}  ${rstat ?? '—'}=${rowTriples.R ? rowTriples.R.join('|') : '?'}`);
             statRow++;
         }
-        return { stats, muts, debug, log };
+        return { stats, muts, name: headerOut.name, species: headerOut.species, level: headerOut.level, debug, log };
     }
 
     async function runCloseupOcr() {
@@ -1174,6 +1194,9 @@
             shotProgress = 95;
 
             shotParsed = { ...r.stats };
+            if (r.name)    shotParsed.name = r.name;
+            if (r.species) shotParsed.species = r.species;
+            if (r.level)   shotParsed.level = r.level;
             shotParsedMuts = { ...r.muts };
             shotSource = 'tek';
             shotRawText = r.log.join('\n');
@@ -2151,9 +2174,10 @@
                                 {:else}📷 Read close-up (2-column block){/if}
                             </button>
                             <div class="shot-hint" style="margin-top:6px">
-                                <strong>Close-up?</strong> Walk your phone up to the screen and frame just the lower
-                                <em>2-column stats block</em> (HP/STA/OXY/FOOD on the left, WGT/MEL/Speed/Craft on the right).
-                                Hold the phone flat to the screen to avoid skew, crop tight, then use the 📷 button.
+                                <strong>Close-up?</strong> Walk your phone up to the screen and frame from the
+                                <em>name/species title at the top</em> down through the <em>2-column stats block</em>
+                                (HP/STA/OXY/FOOD on the left, WGT/MEL/Speed/Craft on the right). Including the title
+                                fills the name, species and level too. Hold the phone flat to avoid skew, then tap 📷.
                             </div>
                         </div>
                         {/if}
