@@ -991,7 +991,9 @@
 
     /** Min-channel buffer + dims for a crop, upscaled to ~targetH tall. */
     function minChannelRegion(img: HTMLImageElement, box: CropBox, targetH: number): { mn: Uint8Array; w: number; h: number } | null {
-        const scale = Math.max(2, Math.min(20, targetH / Math.max(1, box.h)));
+        // Normalise to ~targetH tall: upscale tiny crops, DOWNSCALE big photos
+        // (a full-frame phone shot is already thousands of px → keep it workable).
+        const scale = Math.max(0.25, Math.min(8, targetH / Math.max(1, box.h)));
         const w = Math.max(1, Math.round(box.w * scale));
         const h = Math.max(1, Math.round(box.h * scale));
         const c = document.createElement('canvas');
@@ -1072,89 +1074,115 @@
         const stats: Partial<Record<StatKey, number>> = {};
         const muts: Partial<Record<StatKey, number>> = {};
 
-        const mc = minChannelRegion(img, box, 560);
+        const mc = minChannelRegion(img, box, 1500);
         if (!mc) return { stats, muts, debug, log: ['minChannel failed'] };
         const { w, h } = mc;
         const bin = adaptiveBin(mc.mn, w, h);
         log.push(`── CLOSE-UP 2-COLUMN ──`, `region ${w}×${h}px (adaptive threshold)`);
 
-        // ── Header: the Name-or-Species title + level live at the top of the
-        //    crop. Full-charset PSM 6, then reuse extractNameAndLevel (which
-        //    cross-references the species DB → unnamed = species, named = the
-        //    custom name). The top ~28% comfortably covers title + level line.
-        const headerOut: { name?: string; species?: string; level?: number } = {};
-        const headerBox: CropBox = { x: box.x, y: box.y, w: box.w, h: Math.max(8, Math.round(box.h * 0.28)) };
-        const hb = binarizeRegion(img, headerBox, 0, 220);
-        if (hb) {
-            await worker.setParameters({ tessedit_pageseg_mode: '6', tessedit_char_whitelist: '', classify_bln_numeric_mode: '0' });
-            const hcanvas = binToCanvas(hb.bin, hb.w, hb.h);
-            debug.push(hcanvas);
-            const hres = await worker.recognize(hcanvas);
-            const htext = hres.data.text.trim();
-            extractNameAndLevel(htext.split(/\r?\n/).map(l => l.trim()).filter(Boolean), headerOut);
-            log.push(`header: "${htext.replace(/\n/g, ' / ')}" → name=${headerOut.name ?? '—'} species=${headerOut.species ?? '—'} lvl=${headerOut.level ?? '—'}`);
-        }
-
-        // Row bands: horizontal ink projection → contiguous runs of "enough" ink.
+        // ── Row bands. Solid bars (HP / Maturing / Needs-Care) saturate the
+        //    ink projection and fuse text rows together, so a row counts as
+        //    TEXT only when its ink fraction is moderate — neither empty nor a
+        //    full-width solid bar. Small vertical gaps are bridged so one glyph
+        //    row stays a single band.
         const rowInk = new Float32Array(h);
-        let maxInk = 1;
-        for (let y = 0; y < h; y++) {
-            let s = 0;
-            for (let x = 0; x < w; x++) s += bin[y * w + x];
-            rowInk[y] = s;
-            if (s > maxInk) maxInk = s;
-        }
-        const inkThresh = maxInk * 0.06;
-        const minBandH = Math.max(6, Math.round(h * 0.04));
-        const bands: Array<{ y0: number; y1: number }> = [];
-        let bs = -1;
-        for (let y = 0; y <= h; y++) {
-            const on = y < h && rowInk[y] > inkThresh;
-            if (on && bs < 0) bs = y;
-            else if (!on && bs >= 0) {
-                if (y - 1 - bs + 1 >= minBandH) bands.push({ y0: bs, y1: y - 1 });
-                bs = -1;
+        for (let y = 0; y < h; y++) { let s = 0; for (let x = 0; x < w; x++) s += bin[y * w + x]; rowInk[y] = s; }
+        const isText = (y: number) => { const f = rowInk[y] / w; return f > 0.02 && f < 0.55; };
+        const minBandH = Math.max(4, Math.round(h * 0.012));
+        const mergeGap = Math.max(2, Math.round(h * 0.006));
+        const bands: Array<{ y0: number; y1: number; hgt: number }> = [];
+        {
+            let bsv = -1, gap = 0;
+            for (let y = 0; y <= h; y++) {
+                const on = y < h && isText(y);
+                if (on) { if (bsv < 0) bsv = y; gap = 0; }
+                else if (bsv >= 0) {
+                    gap++;
+                    if (gap > mergeGap || y === h) {
+                        const y1 = y - gap;
+                        if (y1 - bsv + 1 >= minBandH) bands.push({ y0: bsv, y1, hgt: y1 - bsv + 1 });
+                        bsv = -1; gap = 0;
+                    }
+                }
             }
         }
-        log.push(`detected ${bands.length} row band(s)`);
+        log.push(`detected ${bands.length} text band(s)`);
+
+        // ── Column split: the gap between the two stat columns is the
+        //    lowest-ink column in the central third of the width.
+        const colInk = new Float32Array(w);
+        for (let x = 0; x < w; x++) { let s = 0; for (let y = 0; y < h; y++) s += bin[y * w + x]; colInk[x] = s; }
+        let split = Math.round(w / 2), bestCol = Infinity;
+        for (let x = Math.round(w * 0.32); x <= Math.round(w * 0.68); x++) {
+            if (colInk[x] < bestCol) { bestCol = colInk[x]; split = x; }
+        }
+        log.push(`column split @ x=${split} (${Math.round(split / w * 100)}%)`);
 
         await worker.setParameters({ tessedit_char_whitelist: '0123456789/', tessedit_pageseg_mode: '7' });
 
-        // The numeric text sits to the RIGHT of the stat icon in each half.
-        const mid = Math.round(w / 2);
         const leftStats: Array<StatKey | null>  = ['HP', 'STA', 'OXY', 'FOOD'];
         const rightStats: Array<StatKey | null> = ['WGT', 'MEL', null, 'CRA'];
 
-        let statRow = 0;
-        for (const band of bands) {
-            if (statRow >= 4) break;
-            const by = band.y0, bh = band.y1 - band.y0 + 1;
-            const halves: Array<{ x0: number; x1: number; side: 'L' | 'R' }> = [
-                { x0: 0,   x1: mid, side: 'L' },
-                { x0: mid, x1: w,   side: 'R' }
-            ];
-            let rowTriples: Record<'L' | 'R', [number, number, number] | null> = { L: null, R: null };
-            for (const half of halves) {
-                const hw = half.x1 - half.x0;
-                const iconSkip = Math.round(hw * 0.22);          // drop the icon glyph
-                const cx0 = half.x0 + iconSkip;
-                const cw = half.x1 - cx0;
-                if (cw < 8) continue;
-                const cell = subBin(bin, w, cx0, by, cw, bh);
-                const canvas = binToCanvas(cell, cw, bh);
+        // Read both halves of each band. A STAT row is one whose left AND right
+        // cells both parse as triples — the top current/max block, the bars,
+        // the imprint%/level and the gender rows all fail this, so the 2-column
+        // block is located no matter where it sits in a loose crop.
+        const readHalf = async (x0: number, x1: number, by: number, bh: number) => {
+            const hw = x1 - x0;
+            const cx0 = x0 + Math.round(hw * 0.20);              // drop the icon
+            const cw = x1 - cx0;
+            if (cw < 8 || bh < 4) return { t: null as [number, number, number] | null, canvas: null as HTMLCanvasElement | null };
+            const cell = subBin(bin, w, cx0, by, cw, bh);
+            const canvas = binToCanvas(cell, cw, bh);
+            const res = await worker.recognize(canvas);
+            return { t: parseGridTriple(res.data.text.trim()), canvas };
+        };
+
+        type Parsed = { y0: number; hgt: number; L: [number, number, number] | null; R: [number, number, number] | null; cL: HTMLCanvasElement | null; cR: HTMLCanvasElement | null };
+        const parsed: Parsed[] = [];
+        for (const band of bands.slice(0, 36)) {              // cap work on noisy crops
+            const L = await readHalf(0, split, band.y0, band.hgt);
+            const R = await readHalf(split, w, band.y0, band.hgt);
+            parsed.push({ y0: band.y0, hgt: band.hgt, L: L.t, R: R.t, cL: L.canvas, cR: R.canvas });
+        }
+        const statRows = parsed.filter(p => p.L && p.R);
+        log.push(`stat rows (both columns parse): ${statRows.length}`);
+
+        let firstStatY = h;
+        for (let i = 0; i < Math.min(4, statRows.length); i++) {
+            const p = statRows[i];
+            if (p.y0 < firstStatY) firstStatY = p.y0;
+            const lstat = leftStats[i], rstat = rightStats[i];
+            if (lstat && p.L) { stats[lstat] = p.L[0]; muts[lstat] = p.L[1]; }
+            if (rstat && p.R) { stats[rstat] = p.R[0]; muts[rstat] = p.R[1]; }
+            if (p.cL) debug.push(p.cL);
+            if (p.cR) debug.push(p.cR);
+            log.push(`row ${i}: ${lstat ?? '—'}=${p.L ? p.L.join('|') : '?'}  ${rstat ?? '—'}=${p.R ? p.R.join('|') : '?'}`);
+        }
+
+        // ── Name / species / level from the title region (bands ABOVE the stat
+        //    block). The title is the TALLEST band up there; OCR it + the band
+        //    below it (the "Level: N" line) with the full charset, then reuse
+        //    extractNameAndLevel (species-DB disambiguation).
+        const headerOut: { name?: string; species?: string; level?: number } = {};
+        const aboveIdx = bands.map((b, i) => ({ b, i })).filter(o => o.b.y1 < firstStatY);
+        if (aboveIdx.length) {
+            await worker.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '', classify_bln_numeric_mode: '0' });
+            const titleO = aboveIdx.reduce((a, o) => o.b.hgt > a.b.hgt ? o : a);
+            const lines: string[] = [];
+            for (const b of [bands[titleO.i], bands[titleO.i + 1]]) {
+                if (!b || b.y1 >= firstStatY) continue;
+                const cell = subBin(bin, w, 0, b.y0, w, b.hgt);
+                const canvas = binToCanvas(cell, w, b.hgt);
                 debug.push(canvas);
                 const res = await worker.recognize(canvas);
-                const t = parseGridTriple(res.data.text.trim());
-                rowTriples[half.side] = t;
+                const t = res.data.text.trim();
+                if (t) lines.push(t);
             }
-            // Only count rows that look like a stat row (left cell parsed).
-            if (!rowTriples.L && !rowTriples.R) continue;
-            const lstat = leftStats[statRow], rstat = rightStats[statRow];
-            if (lstat && rowTriples.L) { stats[lstat] = rowTriples.L[0]; muts[lstat] = rowTriples.L[1]; }
-            if (rstat && rowTriples.R) { stats[rstat] = rowTriples.R[0]; muts[rstat] = rowTriples.R[1]; }
-            log.push(`row ${statRow}: ${lstat ?? '—'}=${rowTriples.L ? rowTriples.L.join('|') : '?'}  ${rstat ?? '—'}=${rowTriples.R ? rowTriples.R.join('|') : '?'}`);
-            statRow++;
+            extractNameAndLevel(lines, headerOut);
+            log.push(`title lines: ${JSON.stringify(lines)} → name=${headerOut.name ?? '—'} species=${headerOut.species ?? '—'} lvl=${headerOut.level ?? '—'}`);
         }
+
         return { stats, muts, name: headerOut.name, species: headerOut.species, level: headerOut.level, debug, log };
     }
 
