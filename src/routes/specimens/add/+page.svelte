@@ -12,7 +12,7 @@
     type StatKey = 'HP' | 'STA' | 'OXY' | 'FOOD' | 'WGT' | 'MEL' | 'CRA';
     const STATS: StatKey[] = ['HP', 'STA', 'OXY', 'FOOD', 'WGT', 'MEL', 'CRA'];
 
-    type Mode = 'manual' | 'save' | 'screenshot';
+    type Mode = 'manual' | 'screenshot';
     let mode = $state<Mode>('manual');
 
     // ── Form state ──────────────────────────────────────────────────────────
@@ -145,40 +145,24 @@
         shotImageUrl = url;
         shotImage = img;
 
+        // Photo-first flow: ALWAYS show the cropper and let the user pick a
+        // reader (📷 close-up vs. full-panel). Auto-detect just seeds a starting
+        // crop box — it never auto-runs, so the reader buttons are always
+        // reachable (the old auto-run could hide them and fire the wrong reader).
         const detected = autoDetectPanel(img);
-        let autoRun = false;
         if (detected) {
             cropBox = detected.box;
             shotAutoDetected = true;
-            // High confidence → trust the auto-crop and run OCR immediately.
-            // The cropper UI stays hidden; user only sees the review pane.
-            // Threshold 0.18 is calibrated from testing — anything below it
-            // tended to misfire on game-world clutter.
-            if (detected.confidence >= 0.18) {
-                cropperVisible = false;
-                autoRun = true;
-            } else {
-                // Low-confidence detection: cropper opens so the user can
-                // tighten it before running OCR.
-                cropperVisible = true;
-            }
         } else {
-            // No panel found at all — use full image, show cropper for manual.
             cropBox = { x: 0, y: 0, w: img.width, h: img.height };
             shotAutoDetected = false;
-            cropperVisible = true;
         }
+        cropperVisible = true;
 
         // Wait for the DOM to render the cropper-scroll container so we can
         // read its real dimensions before computing fit-zoom.
         await tick();
         imgZoom = computeFitZoom(img.width, img.height);
-
-        // Streamlined flow: if auto-detect was confident, run OCR immediately
-        // so the user just sees results — no manual crop step required.
-        if (autoRun) {
-            void runOcr();
-        }
     }
 
     // Manual override — exposed via "Adjust crop" button in the review pane.
@@ -2000,13 +1984,9 @@
             <svg class="mt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Manual Entry
         </button>
-        <button class="mode-tab" class:active={mode === 'save'} onclick={() => mode = 'save'} data-mode="save">
-            <svg class="mt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-            Import from ARK Save
-        </button>
         <button class="mode-tab" class:active={mode === 'screenshot'} onclick={() => mode = 'screenshot'} data-mode="screenshot">
             <svg class="mt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            Import from Screenshot
+            Add Photo
         </button>
     </div>
 
@@ -2016,24 +1996,11 @@
         <!-- ═══════════════ FORM COLUMN ═══════════════ -->
         <div class="form-col">
 
-            <!-- Save-file dropzone (still TODO — single-player only when built) -->
-            <div class="dropzone" class:visible={mode === 'save'} id="dropzoneSave">
-                <div class="dropzone-icon">⬡</div>
-                <div class="dropzone-title">Drop your ARK save file</div>
-                <div class="dropzone-desc">
-                    <strong style="color: var(--tek-amber)">Single-player only.</strong>
-                    Dedicated / Nitrado / Wildcard servers don't expose their save files to clients, so this importer is for local single-player worlds only.
-                    We'll extract every tame from your save and stage them as Specimen entries — stats only. Supports <code style="font-family:var(--tek-mono); color:var(--tek-blue);">.ark</code> files up to 200MB.
-                </div>
-                <button class="btn">CHOOSE FILE</button>
-                <div class="dropzone-coming-soon">⏳ FEATURE COMING SOON</div>
-            </div>
-
-            <!-- Screenshot OCR — Tek Binoculars / u+Binoculars only -->
+            <!-- Photo / screenshot OCR — Tek Binoculars / u+Binoculars only -->
             <div class="dropzone" class:visible={mode === 'screenshot'} id="dropzoneShot" style={mode === 'screenshot' ? 'min-height:auto; padding:24px' : ''}>
                 {#if !shotFile}
                     <div class="dropzone-icon">⊡</div>
-                    <div class="dropzone-title">Import stats from a screenshot</div>
+                    <div class="dropzone-title">Add a photo of the stat panel</div>
                     <div class="shot-sources">
                         <div class="ss-col">
                             <div class="ss-head ok">Supported</div>
@@ -2164,21 +2131,21 @@
                                     Drag a corner / edge / inside the box to adjust. Ctrl+scroll or pinch to zoom; the bar above also has +/−/fit/1:1.
                                 {/if}
                             </div>
-                            <button class="btn shot-run-btn" disabled={shotRunning} onclick={runOcr}>
-                                {#if shotRunning && shotPhase === 'preprocessing'}Preparing image…
-                                {:else if shotRunning}Reading text… {shotProgress}%
-                                {:else}Run OCR ➜{/if}
-                            </button>
-                            <button class="btn shot-run-btn closeup" disabled={shotRunning} onclick={runCloseupOcr}>
+                            <button class="btn shot-run-btn" disabled={shotRunning} onclick={runCloseupOcr}>
                                 {#if shotRunning}Reading… {shotProgress}%
-                                {:else}📷 Read close-up (2-column block){/if}
+                                {:else}📷 Read photo ➜{/if}
                             </button>
                             <div class="shot-hint" style="margin-top:6px">
-                                <strong>Close-up?</strong> Walk your phone up to the screen and frame from the
-                                <em>name/species title at the top</em> down through the <em>2-column stats block</em>
-                                (HP/STA/OXY/FOOD on the left, WGT/MEL/Speed/Craft on the right). Including the title
-                                fills the name, species and level too. Hold the phone flat to avoid skew, then tap 📷.
+                                Frame from the <em>name/species title at the top</em> down through the
+                                <em>2-column stats block</em> (HP/STA/OXY/FOOD on the left, WGT/MEL/Speed/Craft on
+                                the right). Including the title fills name, species and level too. Hold the phone flat
+                                to avoid skew, crop tight, then tap <strong>Read photo</strong>.
                             </div>
+                            <button class="btn shot-run-btn closeup" disabled={shotRunning} onclick={runOcr} title="For a full in-game screenshot of the tall vertical Tek/u+ panel">
+                                {#if shotRunning && shotPhase === 'preprocessing'}Preparing…
+                                {:else if shotRunning}Reading… {shotProgress}%
+                                {:else}Full vertical-panel screenshot? Use the old reader{/if}
+                            </button>
                         </div>
                         {/if}
 
