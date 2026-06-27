@@ -1182,6 +1182,56 @@
         return { stats, muts, name: headerOut.name, species: headerOut.species, level: headerOut.level, debug, log };
     }
 
+    /** Locate the stat panel as the dominant BRIGHT rectangle. The ARK panel
+     *  has a light, fairly uniform background; the surrounding scene is darker
+     *  / noisier. Brightness projections find its bounding box far more
+     *  reliably than edge density (which fixates on the dense icon column). */
+    function findPanelBox(img: HTMLImageElement): CropBox | null {
+        const W = 240;
+        const H = Math.max(1, Math.round((img.height / img.width) * W));
+        const c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0, W, H);
+        const d = ctx.getImageData(0, 0, W, H).data;
+        const lum = new Float32Array(W * H);
+        let mean = 0;
+        for (let i = 0, p = 0; p < W * H; p++, i += 4) {
+            const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+            lum[p] = l; mean += l;
+        }
+        mean /= W * H;
+        const thr = Math.max(125, mean);                 // "bright" = panel bg
+
+        // Widest contiguous run of columns that are bright for much of the height.
+        const bc = new Int32Array(W);
+        for (let x = 0; x < W; x++) { let s = 0; for (let y = 0; y < H; y++) if (lum[y * W + x] > thr) s++; bc[x] = s; }
+        const colOn = (x: number) => bc[x] > H * 0.30;
+        let bx0 = 0, bx1 = -1, cs = -1;
+        for (let x = 0; x <= W; x++) {
+            const on = x < W && colOn(x);
+            if (on) { if (cs < 0) cs = x; }
+            else if (cs >= 0) { if (x - 1 - cs > bx1 - bx0) { bx0 = cs; bx1 = x - 1; } cs = -1; }
+        }
+        if (bx1 < bx0) return null;
+
+        // Vertical extent within those columns.
+        const br = new Int32Array(H);
+        for (let y = 0; y < H; y++) { let s = 0; for (let x = bx0; x <= bx1; x++) if (lum[y * W + x] > thr) s++; br[y] = s; }
+        const rowOn = (y: number) => br[y] > (bx1 - bx0 + 1) * 0.35;
+        let by0 = 0, by1 = -1, rs = -1;
+        for (let y = 0; y <= H; y++) {
+            const on = y < H && rowOn(y);
+            if (on) { if (rs < 0) rs = y; }
+            else if (rs >= 0) { if (y - 1 - rs > by1 - by0) { by0 = rs; by1 = y - 1; } rs = -1; }
+        }
+        if (by1 < by0) { by0 = 0; by1 = H - 1; }
+
+        const sx = img.width / W, sy = img.height / H;
+        return { x: bx0 * sx, y: by0 * sy, w: (bx1 - bx0 + 1) * sx, h: (by1 - by0 + 1) * sy };
+    }
+
     async function runCloseupOcr() {
         if (!shotImage) { shotError = 'Take a close-up photo first.'; return; }
         shotRunning = true; shotError = ''; shotProgress = 0; shotPhase = 'recognizing';
@@ -1196,15 +1246,17 @@
             // surrounding scene, whose texture becomes OCR-killing speckle.
             // Falls back to the whole image if detection fails.
             let box: CropBox = { x: 0, y: 0, w: shotImage.width, h: shotImage.height };
-            const det = autoDetectPanel(shotImage);
-            if (det) {
-                const padX = det.box.w * 0.10, padY = det.box.h * 0.10;
-                const x = Math.max(0, det.box.x - padX);
-                const y = Math.max(0, det.box.y - padY);
+            const pb = findPanelBox(shotImage);
+            // Guard against slivers/degenerate boxes — only trust a detection
+            // that covers a real chunk of the frame; otherwise use whole image.
+            if (pb && pb.w > shotImage.width * 0.30 && pb.h > shotImage.height * 0.30) {
+                const padX = pb.w * 0.05, padY = pb.h * 0.05;
+                const x = Math.max(0, pb.x - padX);
+                const y = Math.max(0, pb.y - padY);
                 box = {
                     x, y,
-                    w: Math.min(shotImage.width  - x, det.box.w + padX * 2),
-                    h: Math.min(shotImage.height - y, det.box.h + padY * 2)
+                    w: Math.min(shotImage.width  - x, pb.w + padX * 2),
+                    h: Math.min(shotImage.height - y, pb.h + padY * 2)
                 };
             }
             await step(12);
