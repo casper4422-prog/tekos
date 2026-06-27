@@ -145,24 +145,16 @@
         shotImageUrl = url;
         shotImage = img;
 
-        // Photo-first flow: ALWAYS show the cropper and let the user pick a
-        // reader (📷 close-up vs. full-panel). Auto-detect just seeds a starting
-        // crop box — it never auto-runs, so the reader buttons are always
-        // reachable (the old auto-run could hide them and fire the wrong reader).
-        const detected = autoDetectPanel(img);
-        if (detected) {
-            cropBox = detected.box;
-            shotAutoDetected = true;
-        } else {
-            cropBox = { x: 0, y: 0, w: img.width, h: img.height };
-            shotAutoDetected = false;
-        }
-        cropperVisible = true;
-
-        // Wait for the DOM to render the cropper-scroll container so we can
-        // read its real dimensions before computing fit-zoom.
+        // Photo-first flow: upload → auto-read the whole image → fill the
+        // review fields → user adjusts. No crop step (the reader self-locates
+        // the stat block). The manual cropper stays available as an escape
+        // hatch but is hidden by default.
+        cropBox = { x: 0, y: 0, w: img.width, h: img.height };
+        shotAutoDetected = false;
+        cropperVisible = false;
         await tick();
         imgZoom = computeFitZoom(img.width, img.height);
+        void runCloseupOcr();
     }
 
     // Manual override — exposed via "Adjust crop" button in the review pane.
@@ -1078,109 +1070,96 @@
         if (!mc) return { stats, muts, debug, log: ['minChannel failed'] };
         const { w, h } = mc;
         const bin = adaptiveBin(mc.mn, w, h);
+        const fullCanvas = binToCanvas(bin, w, h);
+        debug.push(fullCanvas);
         log.push(`── CLOSE-UP 2-COLUMN ──`, `region ${w}×${h}px (adaptive threshold)`);
 
-        // ── Row bands. Solid bars (HP / Maturing / Needs-Care) saturate the
-        //    ink projection and fuse text rows together, so a row counts as
-        //    TEXT only when its ink fraction is moderate — neither empty nor a
-        //    full-width solid bar. Small vertical gaps are bridged so one glyph
-        //    row stays a single band.
-        const rowInk = new Float32Array(h);
-        for (let y = 0; y < h; y++) { let s = 0; for (let x = 0; x < w; x++) s += bin[y * w + x]; rowInk[y] = s; }
-        const isText = (y: number) => { const f = rowInk[y] / w; return f > 0.02 && f < 0.55; };
-        const minBandH = Math.max(4, Math.round(h * 0.012));
-        const mergeGap = Math.max(2, Math.round(h * 0.006));
-        const bands: Array<{ y0: number; y1: number; hgt: number }> = [];
-        {
-            let bsv = -1, gap = 0;
-            for (let y = 0; y <= h; y++) {
-                const on = y < h && isText(y);
-                if (on) { if (bsv < 0) bsv = y; gap = 0; }
-                else if (bsv >= 0) {
-                    gap++;
-                    if (gap > mergeGap || y === h) {
-                        const y1 = y - gap;
-                        if (y1 - bsv + 1 >= minBandH) bands.push({ y0: bsv, y1, hgt: y1 - bsv + 1 });
-                        bsv = -1; gap = 0;
+        // The big solid stat ICONS form a near-continuous vertical column with
+        // no row gaps, so an ink projection fuses the whole block into one
+        // band. Instead, OCR the whole image once and cluster the DIGIT WORDS
+        // by position — Tesseract's own layout pass separates the rows, and the
+        // icon blobs read as noise we drop.
+        await worker.setParameters({
+            tessedit_pageseg_mode: '6',
+            tessedit_char_whitelist: '0123456789/',
+            preserve_interword_spaces: '1'
+        });
+        const res = await worker.recognize(fullCanvas, {}, { blocks: true, text: true });
+
+        type W = { raw: string; cx: number; cy: number; gh: number };
+        const words: W[] = [];
+        for (const b of res.data.blocks ?? [])
+            for (const par of b.paragraphs)
+                for (const ln of par.lines)
+                    for (const wd of ln.words) {
+                        if (!/\d/.test(wd.text)) continue;
+                        const bb = wd.bbox;
+                        words.push({ raw: wd.text, cx: (bb.x0 + bb.x1) / 2, cy: (bb.y0 + bb.y1) / 2, gh: bb.y1 - bb.y0 });
                     }
-                }
-            }
-        }
-        log.push(`detected ${bands.length} text band(s)`);
+        log.push(`digit words: ${words.length}`);
+        if (!words.length) return { stats, muts, debug, log };
 
-        // ── Column split: the gap between the two stat columns is the
-        //    lowest-ink column in the central third of the width.
-        const colInk = new Float32Array(w);
-        for (let x = 0; x < w; x++) { let s = 0; for (let y = 0; y < h; y++) s += bin[y * w + x]; colInk[x] = s; }
-        let split = Math.round(w / 2), bestCol = Infinity;
-        for (let x = Math.round(w * 0.32); x <= Math.round(w * 0.68); x++) {
-            if (colInk[x] < bestCol) { bestCol = colInk[x]; split = x; }
+        // Column split = the widest horizontal gap between word centres, kept
+        // within the central band of the width.
+        const cxs = words.map(o => o.cx).slice().sort((a, b) => a - b);
+        let split = w / 2, gapBest = -1;
+        for (let i = 1; i < cxs.length; i++) {
+            const mid = (cxs[i] + cxs[i - 1]) / 2, gap = cxs[i] - cxs[i - 1];
+            if (gap > gapBest && mid > w * 0.30 && mid < w * 0.70) { gapBest = gap; split = mid; }
         }
-        log.push(`column split @ x=${split} (${Math.round(split / w * 100)}%)`);
+        log.push(`column split @ x=${Math.round(split)} (${Math.round(split / w * 100)}%)`);
 
-        await worker.setParameters({ tessedit_char_whitelist: '0123456789/', tessedit_pageseg_mode: '7' });
+        // Cluster words into rows by vertical centre.
+        const heights = words.map(o => o.gh).slice().sort((a, b) => a - b);
+        const medH = heights[Math.floor(heights.length / 2)] || 20;
+        const rowTol = medH * 0.6;
+        const rowsW: W[][] = [];
+        for (const wd of words.slice().sort((a, b) => a.cy - b.cy)) {
+            const last = rowsW[rowsW.length - 1];
+            if (last && Math.abs(wd.cy - last[0].cy) <= rowTol) last.push(wd);
+            else rowsW.push([wd]);
+        }
+
+        const tripleOf = (ws: W[]): [number, number, number] | null =>
+            parseGridTriple(ws.slice().sort((a, b) => a.cx - b.cx).map(o => o.raw).join(' '));
 
         const leftStats: Array<StatKey | null>  = ['HP', 'STA', 'OXY', 'FOOD'];
         const rightStats: Array<StatKey | null> = ['WGT', 'MEL', null, 'CRA'];
 
-        // Read both halves of each band. A STAT row is one whose left AND right
-        // cells both parse as triples — the top current/max block, the bars,
-        // the imprint%/level and the gender rows all fail this, so the 2-column
-        // block is located no matter where it sits in a loose crop.
-        const readHalf = async (x0: number, x1: number, by: number, bh: number) => {
-            const hw = x1 - x0;
-            const cx0 = x0 + Math.round(hw * 0.20);              // drop the icon
-            const cw = x1 - cx0;
-            if (cw < 8 || bh < 4) return { t: null as [number, number, number] | null, canvas: null as HTMLCanvasElement | null };
-            const cell = subBin(bin, w, cx0, by, cw, bh);
-            const canvas = binToCanvas(cell, cw, bh);
-            const res = await worker.recognize(canvas);
-            return { t: parseGridTriple(res.data.text.trim()), canvas };
-        };
-
-        type Parsed = { y0: number; hgt: number; L: [number, number, number] | null; R: [number, number, number] | null; cL: HTMLCanvasElement | null; cR: HTMLCanvasElement | null };
-        const parsed: Parsed[] = [];
-        for (const band of bands.slice(0, 36)) {              // cap work on noisy crops
-            const L = await readHalf(0, split, band.y0, band.hgt);
-            const R = await readHalf(split, w, band.y0, band.hgt);
-            parsed.push({ y0: band.y0, hgt: band.hgt, L: L.t, R: R.t, cL: L.canvas, cR: R.canvas });
+        // A STAT row is one whose LEFT and RIGHT columns both parse as triples.
+        // The top current/max block (value only on the right), the bars, the
+        // imprint%/level and gender rows all fail this → the block is found
+        // wherever it sits, no crop needed.
+        const statRowsData: Array<{ cyTop: number; L: [number, number, number]; R: [number, number, number] }> = [];
+        for (const row of rowsW) {
+            const L = tripleOf(row.filter(o => o.cx < split));
+            const R = tripleOf(row.filter(o => o.cx >= split));
+            if (L && R) statRowsData.push({ cyTop: Math.min(...row.map(o => o.cy)), L, R });
         }
-        const statRows = parsed.filter(p => p.L && p.R);
-        log.push(`stat rows (both columns parse): ${statRows.length}`);
+        log.push(`stat rows (both columns parse): ${statRowsData.length}`);
 
         let firstStatY = h;
-        for (let i = 0; i < Math.min(4, statRows.length); i++) {
-            const p = statRows[i];
-            if (p.y0 < firstStatY) firstStatY = p.y0;
+        for (let i = 0; i < Math.min(4, statRowsData.length); i++) {
+            const p = statRowsData[i];
+            if (p.cyTop < firstStatY) firstStatY = p.cyTop;
             const lstat = leftStats[i], rstat = rightStats[i];
-            if (lstat && p.L) { stats[lstat] = p.L[0]; muts[lstat] = p.L[1]; }
-            if (rstat && p.R) { stats[rstat] = p.R[0]; muts[rstat] = p.R[1]; }
-            if (p.cL) debug.push(p.cL);
-            if (p.cR) debug.push(p.cR);
-            log.push(`row ${i}: ${lstat ?? '—'}=${p.L ? p.L.join('|') : '?'}  ${rstat ?? '—'}=${p.R ? p.R.join('|') : '?'}`);
+            if (lstat) { stats[lstat] = p.L[0]; muts[lstat] = p.L[1]; }
+            if (rstat) { stats[rstat] = p.R[0]; muts[rstat] = p.R[1]; }
+            log.push(`row ${i}: ${lstat ?? '—'}=${p.L.join('|')}  ${rstat ?? '—'}=${p.R.join('|')}`);
         }
 
-        // ── Name / species / level from the title region (bands ABOVE the stat
-        //    block). The title is the TALLEST band up there; OCR it + the band
-        //    below it (the "Level: N" line) with the full charset, then reuse
-        //    extractNameAndLevel (species-DB disambiguation).
+        // Name / species / level: OCR the region above the stat block with the
+        // full charset, then reuse extractNameAndLevel (species-DB disambig).
         const headerOut: { name?: string; species?: string; level?: number } = {};
-        const aboveIdx = bands.map((b, i) => ({ b, i })).filter(o => o.b.y1 < firstStatY);
-        if (aboveIdx.length) {
-            await worker.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '', classify_bln_numeric_mode: '0' });
-            const titleO = aboveIdx.reduce((a, o) => o.b.hgt > a.b.hgt ? o : a);
-            const lines: string[] = [];
-            for (const b of [bands[titleO.i], bands[titleO.i + 1]]) {
-                if (!b || b.y1 >= firstStatY) continue;
-                const cell = subBin(bin, w, 0, b.y0, w, b.hgt);
-                const canvas = binToCanvas(cell, w, b.hgt);
-                debug.push(canvas);
-                const res = await worker.recognize(canvas);
-                const t = res.data.text.trim();
-                if (t) lines.push(t);
-            }
+        if (firstStatY > medH * 1.5) {
+            await worker.setParameters({ tessedit_pageseg_mode: '6', tessedit_char_whitelist: '', classify_bln_numeric_mode: '0' });
+            const topH = Math.max(8, Math.round(firstStatY - medH * 0.5));
+            const titleCanvas = binToCanvas(subBin(bin, w, 0, 0, w, topH), w, topH);
+            debug.push(titleCanvas);
+            const tres = await worker.recognize(titleCanvas);
+            const lines = tres.data.text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
             extractNameAndLevel(lines, headerOut);
-            log.push(`title lines: ${JSON.stringify(lines)} → name=${headerOut.name ?? '—'} species=${headerOut.species ?? '—'} lvl=${headerOut.level ?? '—'}`);
+            log.push(`title: ${JSON.stringify(lines.slice(0, 5))} → name=${headerOut.name ?? '—'} species=${headerOut.species ?? '—'} lvl=${headerOut.level ?? '—'}`);
         }
 
         return { stats, muts, name: headerOut.name, species: headerOut.species, level: headerOut.level, debug, log };
@@ -1192,7 +1171,8 @@
         shotRawText = ''; shotParsed = {}; shotParsedMuts = {}; shotSource = null;
         if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
         try {
-            const box: CropBox = cropBox ?? { x: 0, y: 0, w: shotImage.width, h: shotImage.height };
+            // Whole image — the reader self-locates the stat block, no crop needed.
+            const box: CropBox = { x: 0, y: 0, w: shotImage.width, h: shotImage.height };
             const Tesseract = await import('tesseract.js');
             const worker = (await Tesseract.createWorker('eng', 1, {
                 workerPath: '/tesseract/worker.min.js',
@@ -2041,10 +2021,13 @@
                         </div>
                     </div>
                     <div class="dropzone-desc" style="margin-top:14px">
-                        OCR runs entirely in your browser — nothing uploads. Phone photos of your monitor are fine; you'll crop to the panel in the next step.
+                        Snap a photo of the panel with your phone — walk close so the digits are big, and include the
+                        <strong>name/species title at the top</strong> down through the stat block. It reads automatically the
+                        moment you pick it (no cropping), fills the fields below, and you can fix anything that's off.
+                        Runs entirely in your browser — nothing uploads.
                     </div>
                     <label class="btn" style="cursor:pointer; display:inline-block">
-                        CHOOSE IMAGE
+                        CHOOSE PHOTO
                         <input type="file" accept="image/*" onchange={pickScreenshot} style="display:none" />
                     </label>
                 {:else}
