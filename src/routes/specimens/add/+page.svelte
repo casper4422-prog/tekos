@@ -1095,7 +1095,7 @@
         // by position — Tesseract's own layout pass separates the rows, and the
         // icon blobs read as noise we drop.
         await worker.setParameters({
-            tessedit_pageseg_mode: '6',
+            tessedit_pageseg_mode: '11',     // sparse text — find digits anywhere
             tessedit_char_whitelist: '0123456789/',
             preserve_interword_spaces: '1'
         });
@@ -1115,16 +1115,6 @@
         log.push(`digit words: ${words.length}`);
         if (!words.length) return { stats, muts, debug, log };
 
-        // Column split = the widest horizontal gap between word centres, kept
-        // within the central band of the width.
-        const cxs = words.map(o => o.cx).slice().sort((a, b) => a - b);
-        let split = w / 2, gapBest = -1;
-        for (let i = 1; i < cxs.length; i++) {
-            const mid = (cxs[i] + cxs[i - 1]) / 2, gap = cxs[i] - cxs[i - 1];
-            if (gap > gapBest && mid > w * 0.30 && mid < w * 0.70) { gapBest = gap; split = mid; }
-        }
-        log.push(`column split @ x=${Math.round(split)} (${Math.round(split / w * 100)}%)`);
-
         // Cluster words into rows by vertical centre.
         const heights = words.map(o => o.gh).slice().sort((a, b) => a - b);
         const medH = heights[Math.floor(heights.length / 2)] || 20;
@@ -1136,23 +1126,26 @@
             else rowsW.push([wd]);
         }
 
-        const tripleOf = (ws: W[]): [number, number, number] | null =>
-            parseGridTriple(ws.slice().sort((a, b) => a.cx - b.cx).map(o => o.raw).join(' '));
-
         const leftStats: Array<StatKey | null>  = ['HP', 'STA', 'OXY', 'FOOD'];
         const rightStats: Array<StatKey | null> = ['WGT', 'MEL', null, 'CRA'];
 
-        // A STAT row is one whose LEFT and RIGHT columns both parse as triples.
-        // The top current/max block (value only on the right), the bars, the
-        // imprint%/level and gender rows all fail this → the block is found
-        // wherever it sits, no crop needed.
+        // No column split (the bright scene kept fooling it). Read each row
+        // left→right as a flat list of numbers; a stat row yields >= 6 (two
+        // "base /mut/ dom" triples). Take the first two triples — any scene
+        // clutter is further right and ignored. The top block, bars, imprint
+        // and gender rows yield < 6 numbers and are skipped.
         const statRowsData: Array<{ cyTop: number; L: [number, number, number]; R: [number, number, number] }> = [];
         for (const row of rowsW) {
-            const L = tripleOf(row.filter(o => o.cx < split));
-            const R = tripleOf(row.filter(o => o.cx >= split));
-            if (L && R) statRowsData.push({ cyTop: Math.min(...row.map(o => o.cy)), L, R });
+            const nums = row.slice().sort((a, b) => a.cx - b.cx)
+                .flatMap(o => (o.raw.match(/\d+/g) ?? []).map(n => parseInt(n, 10)));
+            if (nums.length < 6) continue;
+            const L: [number, number, number] = [nums[0], nums[1], nums[2]];
+            const R: [number, number, number] = [nums[3], nums[4], nums[5]];
+            if (L[0] > 255 || R[0] > 255) continue;       // base = wild level
+            statRowsData.push({ cyTop: Math.min(...row.map(o => o.cy)), L, R });
+            log.push(`candidate row @y=${Math.round(Math.min(...row.map(o => o.cy)))}: nums=[${nums.join(',')}]`);
         }
-        log.push(`stat rows (both columns parse): ${statRowsData.length}`);
+        log.push(`stat rows (>=6 numbers): ${statRowsData.length}`);
 
         let firstStatY = h;
         for (let i = 0; i < Math.min(4, statRowsData.length); i++) {
