@@ -1074,7 +1074,7 @@
         log: string[];
     };
 
-    async function readCloseupGrid(worker: TessWorker, img: HTMLImageElement, box: CropBox): Promise<GridReadResult> {
+    async function readCloseupGrid(worker: TessWorker, img: HTMLImageElement, box: CropBox, onStep?: (p: number) => Promise<void>): Promise<GridReadResult> {
         const log: string[] = [];
         const debug: HTMLCanvasElement[] = [];
         const stats: Partial<Record<StatKey, number>> = {};
@@ -1087,6 +1087,7 @@
         const fullCanvas = binToCanvas(bin, w, h);
         debug.push(fullCanvas);
         log.push(`── CLOSE-UP 2-COLUMN ──`, `region ${w}×${h}px (adaptive threshold)`);
+        await onStep?.(40);
 
         // The big solid stat ICONS form a near-continuous vertical column with
         // no row gaps, so an ink projection fuses the whole block into one
@@ -1099,6 +1100,7 @@
             preserve_interword_spaces: '1'
         });
         const res = await worker.recognize(fullCanvas, {}, { blocks: true, text: true });
+        await onStep?.(70);
 
         type W = { raw: string; cx: number; cy: number; gh: number };
         const words: W[] = [];
@@ -1162,6 +1164,7 @@
             log.push(`row ${i}: ${lstat ?? '—'}=${p.L.join('|')}  ${rstat ?? '—'}=${p.R.join('|')}`);
         }
 
+        await onStep?.(85);
         // Name / species / level: OCR the region above the stat block with the
         // full charset, then reuse extractNameAndLevel (species-DB disambig).
         const headerOut: { name?: string; species?: string; level?: number } = {};
@@ -1184,7 +1187,11 @@
         shotRunning = true; shotError = ''; shotProgress = 0; shotPhase = 'recognizing';
         shotRawText = ''; shotParsed = {}; shotParsedMuts = {}; shotSource = null;
         if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
+        // Update progress AND yield so the UI repaints (heavy sync steps would
+        // otherwise freeze the % display, making it look hung).
+        const step = async (p: number) => { shotProgress = p; await new Promise(res => setTimeout(res, 0)); };
         try {
+            await step(5);
             // Auto-localize the panel (invisible — no manual crop) to strip the
             // surrounding scene, whose texture becomes OCR-killing speckle.
             // Falls back to the whole image if detection fails.
@@ -1200,6 +1207,7 @@
                     h: Math.min(shotImage.height - y, det.box.h + padY * 2)
                 };
             }
+            await step(12);
             const Tesseract = await import('tesseract.js');
             const worker = (await Tesseract.createWorker('eng', 1, {
                 workerPath: '/tesseract/worker.min.js',
@@ -1207,8 +1215,8 @@
                 langPath:   '/tesseract',
                 workerBlobURL: false
             })) as unknown as TessWorker;
-            shotProgress = 30;
-            const r = await readCloseupGrid(worker, shotImage, box);
+            await step(25);
+            const r = await readCloseupGrid(worker, shotImage, box, step);
             await worker.terminate();
             shotProgress = 95;
 
