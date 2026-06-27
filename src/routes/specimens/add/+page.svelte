@@ -1029,7 +1029,21 @@
                 bin[y * w + x] = (v > mean + C && v > 55) ? 1 : 0;
             }
         }
-        return bin;
+        // Speckle removal: drop set pixels with fewer than 2 set neighbours
+        // (kills phone-photo noise; digit strokes have many neighbours).
+        const clean = new Uint8Array(w * h);
+        for (let y = 1; y < h - 1; y++) {
+            for (let x = 1; x < w - 1; x++) {
+                const p = y * w + x;
+                if (!bin[p]) continue;
+                let n = 0;
+                for (let dy = -1; dy <= 1; dy++)
+                    for (let dx = -1; dx <= 1; dx++)
+                        if ((dy || dx) && bin[(y + dy) * w + (x + dx)]) n++;
+                clean[p] = n >= 2 ? 1 : 0;
+            }
+        }
+        return clean;
     }
 
     /** Extract a sub-rectangle from a binary buffer. */
@@ -1171,8 +1185,21 @@
         shotRawText = ''; shotParsed = {}; shotParsedMuts = {}; shotSource = null;
         if (shotProcUrl) { URL.revokeObjectURL(shotProcUrl); shotProcUrl = null; }
         try {
-            // Whole image — the reader self-locates the stat block, no crop needed.
-            const box: CropBox = { x: 0, y: 0, w: shotImage.width, h: shotImage.height };
+            // Auto-localize the panel (invisible — no manual crop) to strip the
+            // surrounding scene, whose texture becomes OCR-killing speckle.
+            // Falls back to the whole image if detection fails.
+            let box: CropBox = { x: 0, y: 0, w: shotImage.width, h: shotImage.height };
+            const det = autoDetectPanel(shotImage);
+            if (det) {
+                const padX = det.box.w * 0.10, padY = det.box.h * 0.10;
+                const x = Math.max(0, det.box.x - padX);
+                const y = Math.max(0, det.box.y - padY);
+                box = {
+                    x, y,
+                    w: Math.min(shotImage.width  - x, det.box.w + padX * 2),
+                    h: Math.min(shotImage.height - y, det.box.h + padY * 2)
+                };
+            }
             const Tesseract = await import('tesseract.js');
             const worker = (await Tesseract.createWorker('eng', 1, {
                 workerPath: '/tesseract/worker.min.js',
