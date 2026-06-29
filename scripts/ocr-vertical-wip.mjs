@@ -1,3 +1,16 @@
+// WIP — vertical u+/Tek binocular panel reader. NOT shipped, NOT reliable yet.
+//
+// STATUS (handoff): foundation solid (panel-find, binarize, CC+slant, rows).
+// KEY INSIGHT: current/max values are always >255; the breeding triple values
+// are always <=255 and last in the row — so: read all number-groups, keep
+// those <=255, take the LAST 3 = (base|mut|dom). Auto-skips Torpor/Speed.
+// BLOCKER: per-number OCR is flaky on this layout (single small digits drop;
+// pipe "|" separators bleed into 0s -> "0|0" reads "10"; tight number spacing
+// merges groups). Base IS usually present in the <=255 set but extraction is
+// not yet reliable. NEXT: likely needs per-digit template matching (slash/pipe-
+// immune) rather than Tesseract per-number, OR much finer glyph segmentation.
+// Run: node scripts/ocr-vertical-wip.mjs static/ocr-samples/alap.jpg
+
 // WIP — vertical u+/Tek binocular panel reader (NOT shipped, NOT working yet).
 // Foundation works (panel-find, binarize, CC, rows; reads ~1 row). Remaining
 // hard part: reliably isolating the parenthesized (base|mut|dom) triple from the
@@ -22,7 +35,7 @@ for(let y=0;y<h;y++)for(let x=0;x<w;x++){const l=lab[y*w+x];if(!l)continue;const
 for(let i=0;i<nc;i++){const l=i+1;comps[i].slant=(tn[l]&&bn[l])?Math.abs(bsx[l]/bn[l]-tsx[l]/tn[l]):0;}
 const idx=new Map(comps.map((c,i)=>[c,i+1]));
 const medH=median(comps.filter(c=>c.cnt>50&&c.bh>=12&&c.bh<=80).map(c=>c.bh))||20;
-const glyph=c=>c.cnt>=40&&c.bh>medH*0.5&&c.bh<=medH*1.7&&c.bw>=medH*0.22&&c.bw<=medH*1.9&&!(c.slant>medH*0.28&&c.bw<medH*0.85);
+const glyph=c=>c.cnt>=40&&c.bh>medH*0.5&&c.bh<=medH*1.7&&c.bw>=medH*0.18&&c.bw<=medH*1.9&&!(c.slant>medH*0.30&&c.bw<medH*0.80);
 const gs=comps.filter(glyph);console.log('medH',medH,'glyphs',gs.length);const rowTol=medH*0.7;const rows=[];
 for(const c of gs.slice().sort((a,b)=>(a.mny+a.mxy)-(b.mny+b.mxy))){const cy=(c.mny+c.mxy)/2;const last=rows[rows.length-1];if(last&&Math.abs(cy-last.cy)<=rowTol){last.items.push(c);last.cy=(last.cy*last.n+cy)/(last.n+1);last.n++;}else rows.push({cy,n:1,items:[c]});}
 const worker=await createWorker('eng',1,{langPath:TDIR,corePath:TDIR,gzip:true,cacheMethod:'none'});
@@ -37,12 +50,14 @@ async function readTriple(items){const[a,b,c,d]=bboxOf(items);const votes={};
 function render(items,sc){const a=Math.min(...items.map(i=>i.mnx)),b=Math.max(...items.map(i=>i.mxx)),c=Math.min(...items.map(i=>i.mny)),d=Math.max(...items.map(i=>i.mxy));let cw=b-a+1,ch=d-c+1;if(cw<3||ch<3||cw>600||ch>200)return null;if(cw*sc>1600)sc=Math.max(2,Math.floor(1600/cw));const P=10,W2=cw+2*P,H2=ch+2*P;const g=Buffer.alloc(W2*H2,255);const set=new Set(items.map(it=>idx.get(it)));for(let y=0;y<ch;y++)for(let x2=0;x2<cw;x2++){const pp=(c+y)*w+(a+x2);if(bin[pp]&&set.has(lab[pp]))g[(y+P)*W2+(x2+P)]=0;}return sharp(g,{raw:{width:W2,height:H2,channels:1}}).resize(W2*sc,H2*sc,{fit:'fill',kernel:'nearest'}).png().toBuffer();}
 async function ocrNum(items){const v={};for(const sc of[3,4,5]){let png;try{png=await render(items,sc);}catch{continue;}if(!png)continue;let r;try{r=await worker.recognize(png);}catch{continue;}const t=(r.data.text.match(/\d{1,3}/)||[])[0];if(t)v[t]=(v[t]||0)+1;}const best=Object.entries(v).sort((x,y)=>y[1]-x[1])[0];return best?parseInt(best[0],10):null;}
 const order=['HP','STA','FOOD','WGT','OXY','MEL','CRA'];const stats={},muts={};const valid=[];
+async function ocrG(items){const v={};for(const sc of[3,4,5]){let png;try{png=await renderBox(...bboxOf(items),sc);}catch{continue;}if(!png)continue;for(const psm of['8','10']){await worker.setParameters({tessedit_pageseg_mode:psm,tessedit_char_whitelist:'0123456789'});let r;try{r=await worker.recognize(png);}catch{continue;}const t=(r.data.text.match(/\d{1,3}/)||[])[0];if(t)v[t]=(v[t]||0)+1;}}const b=Object.entries(v).sort((x,y)=>y[1]-x[1])[0];return b?parseInt(b[0],10):null;}
 for(const row of rows){const items=row.items.slice().sort((a,b)=>a.mnx-b.mnx);if(items.length<3)continue;
-  const minX=items[0].mnx,maxX=items[items.length-1].mxx,span=maxX-minX;
-  const right=items.filter(c=>c.mnx>minX+span*0.5);if(right.length<3)continue;
-  const tri=await readTriple(right);
-  console.log(`cy${Math.round(row.cy)} rightItems${right.length} -> ${tri?tri.join('|'):'—'}`);
-  if(tri)valid.push(tri);}
+  const groups=[];let cur=null;for(const c of items){if(cur&&c.mnx-cur.mxx<medH*0.38){cur.items.push(c);cur.mxx=Math.max(cur.mxx,c.mxx);}else{cur={mnx:c.mnx,mxx:c.mxx,items:[c]};groups.push(cur);}}
+  const nums=[];for(const g of groups){nums.push(await ocrG(g.items));}
+  const small=nums.filter(n=>n!=null&&n<=255);
+  if(small.length<3){console.log(`cy${Math.round(row.cy)} nums=[${nums.join(',')}] small=[${small.join(',')}] (skip)`);continue;}
+  const tri=small.slice(-3);console.log(`cy${Math.round(row.cy)} nums=[${nums.join(',')}] -> triple ${tri.join('|')}`);
+  valid.push(tri);}
 for(let i=0;i<valid.length&&i<order.length;i++){stats[order[i]]=valid[i][0];muts[order[i]]=valid[i][1];}
 await worker.terminate();
-console.log('\nBASE:',JSON.stringify(stats));console.log('MUT :',JSON.stringify(muts));console.log('TRUTH: HP52 STA43 FOOD46 WGT46 OXY48 MEL51 (muts all 0)');
+console.log('\nBASE:',JSON.stringify(stats));console.log('MUT :',JSON.stringify(muts));console.log('TRUTH: HP52 STA43 FOOD46 WGT46 OXY48 MEL51 (muts 0)');
