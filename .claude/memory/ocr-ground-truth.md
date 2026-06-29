@@ -26,6 +26,13 @@ stat the species/panel doesn't have.
 | Screenshot file | Species | Name | Level | HP | STA | FOOD | WGT | OXY | MEL | CRA |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `andromeda-01.png` | _(fill)_ | Andromeda | _(fill)_ | `59|10|21` | `48|0|0` | `55|2|0` | `59|0|23` | `38|0|0` | `56|4|13` | `—` |
+| `giga.jpg` | Giganotosaurus | _(unnamed→species)_ | 304 | `51|0|0` | `53|0|0` | `47|0|0` | `47|0|0` | `55|0|0` | `50|0|0` | `—` |
+
+> `giga.jpg` is a REAL phone photo of a screen (recovered from the session
+> transcript 2026-06-27) — the true target input: glare, slight skew, the
+> translucent panel's scene bleed-through, and `/` separators. Tribe is Andromeda;
+> creature unnamed so the title shows the species. Color regions (0–5):
+> `45, —, —, —, 63, 25`. Local harness: `scripts/ocr-harness.mjs`.
 
 > Ground truth confirmed by the user 2026-06-12. This creature has **no Crafting
 > stat** — correct behavior is to leave CRA blank, not invent one.
