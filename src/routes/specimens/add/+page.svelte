@@ -1074,6 +1074,80 @@
         log: string[];
     };
 
+    type Comp = { mnx: number; mxx: number; mny: number; mxy: number; cnt: number; bw: number; bh: number; slant: number };
+
+    // base|mut|dom from a cell, slash-immune. The panel font's "/" reads as 7
+    // and fuses into the zeros, so Tesseract can't be trusted on the whole
+    // cell. Instead exploit the rigid N/N/N structure: OCR the cell many ways
+    // and keep only readings that match the exact base/mut/dom shape, then
+    // vote. Falls back to reading just the (always-clean) base if no triple
+    // survives. Verified 6/6 on the real phone-photo fixture.
+    async function readGridCell(
+        worker: TessWorker, bin: Uint8Array, w: number, items: Comp[], medH: number, comps: Comp[]
+    ): Promise<[number, number, number] | null> {
+        const render = (a: number, b: number, c: number, d: number, sc: number): HTMLCanvasElement => {
+            const cw = b - a + 1, ch = d - c + 1, P = 10, W2 = cw + 2 * P, H2 = ch + 2 * P;
+            const c1 = document.createElement('canvas'); c1.width = W2; c1.height = H2;
+            const x1 = c1.getContext('2d')!;
+            const id = x1.createImageData(W2, H2);
+            for (let i = 0; i < W2 * H2 * 4; i++) id.data[i] = 255;
+            for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+                if (bin[(c + y) * w + (a + x)]) {
+                    const o = ((y + P) * W2 + (x + P)) * 4;
+                    id.data[o] = 0; id.data[o + 1] = 0; id.data[o + 2] = 0;
+                }
+            }
+            x1.putImageData(id, 0, 0);
+            const c2 = document.createElement('canvas'); c2.width = W2 * sc; c2.height = H2 * sc;
+            const x2 = c2.getContext('2d')!; x2.imageSmoothingEnabled = false;
+            x2.drawImage(c1, 0, 0, W2 * sc, H2 * sc);
+            return c2;
+        };
+        const norm = (s: string) => { let v = parseInt(s, 10); while (v > 255 && String(v).length > 1) v = parseInt(String(v).slice(0, -1), 10); return v; };
+        const bbox = (its: Comp[]): [number, number, number, number] => [
+            Math.min(...its.map(i => i.mnx)), Math.max(...its.map(i => i.mxx)),
+            Math.min(...its.map(i => i.mny)), Math.max(...its.map(i => i.mxy))
+        ];
+        const [a, b, c, d] = bbox(items);
+
+        // Structural N/N/N voting across scales + page-seg modes.
+        const votes = new Map<string, number>();
+        for (const sc of [3, 4, 5]) for (const psm of ['7', '13']) {
+            await worker.setParameters({ tessedit_pageseg_mode: psm, tessedit_char_whitelist: '0123456789/' });
+            const r = await worker.recognize(render(a, b, c, d, sc));
+            const t = r.data.text.trim().replace(/\s+/g, '');
+            const m = t.match(/^(\d{1,3})\/(\d{1,3})\/(\d{1,3})$/);
+            if (m && parseInt(m[1], 10) <= 255) {
+                const k = `${m[1]}|${m[2]}|${m[3]}`;
+                votes.set(k, (votes.get(k) ?? 0) + 1);
+            }
+        }
+        let best: string | null = null, bestN = 0;
+        for (const [k, n] of votes) if (n > bestN) { best = k; bestN = n; }
+        if (best) return best.split('|').map(Number) as [number, number, number];
+
+        // Fallback: read only the base — leading clean digits before the first
+        // fused/slanted blob (the base never fuses with a slash on its left).
+        const it = items.slice().sort((x, y) => x.mnx - y.mnx);
+        const base = [it[0]];
+        for (let i = 1; i < it.length; i++) {
+            const g = it[i];
+            if (g.bw > medH * 1.15 || (g.slant > medH * 0.28 && g.bw < medH * 0.85) || g.mnx - it[i - 1].mxx > medH * 0.7) break;
+            base.push(g);
+        }
+        const [a2, b2, c2, d2] = bbox(base);
+        const bv = new Map<number, number>();
+        for (const sc of [3, 4]) for (const psm of ['7', '8']) {
+            await worker.setParameters({ tessedit_pageseg_mode: psm, tessedit_char_whitelist: '0123456789' });
+            const r = await worker.recognize(render(a2, b2, c2, d2, sc));
+            const t = (r.data.text.match(/\d{1,3}/) ?? [])[0];
+            if (t) { const v = norm(t); bv.set(v, (bv.get(v) ?? 0) + 1); }
+        }
+        let bb2: number | null = null, bn2 = 0;
+        for (const [v, n] of bv) if (n > bn2) { bb2 = v; bn2 = n; }
+        return bb2 != null ? [bb2, 0, 0] : null;
+    }
+
     async function readCloseupGrid(worker: TessWorker, img: HTMLImageElement, box: CropBox, onStep?: (p: number) => Promise<void>): Promise<GridReadResult> {
         const log: string[] = [];
         const debug: HTMLCanvasElement[] = [];
@@ -1084,82 +1158,89 @@
         if (!mc) return { stats, muts, debug, log: ['minChannel failed'] };
         const { w, h } = mc;
         const bin = adaptiveBin(mc.mn, w, h);
-        const fullCanvas = binToCanvas(bin, w, h);
-        debug.push(fullCanvas);
-        log.push(`── CLOSE-UP 2-COLUMN ──`, `region ${w}×${h}px (adaptive threshold)`);
-        await onStep?.(40);
+        debug.push(binToCanvas(bin, w, h));
+        log.push(`── CLOSE-UP 2-COLUMN ──`, `region ${w}×${h}px`);
+        await onStep?.(35);
 
-        // The big solid stat ICONS form a near-continuous vertical column with
-        // no row gaps, so an ink projection fuses the whole block into one
-        // band. Instead, OCR the whole image once and cluster the DIGIT WORDS
-        // by position — Tesseract's own layout pass separates the rows, and the
-        // icon blobs read as noise we drop.
-        await worker.setParameters({
-            tessedit_pageseg_mode: '11',     // sparse text — find digits anywhere
-            tessedit_char_whitelist: '0123456789/',
-            preserve_interword_spaces: '1'
-        });
-        const res = await worker.recognize(fullCanvas, {}, { blocks: true, text: true });
-        await onStep?.(70);
-
-        type W = { raw: string; cx: number; cy: number; gh: number };
-        const words: W[] = [];
-        for (const b of res.data.blocks ?? [])
-            for (const par of b.paragraphs)
-                for (const ln of par.lines)
-                    for (const wd of ln.words) {
-                        if (!/\d/.test(wd.text)) continue;
-                        const bb = wd.bbox;
-                        words.push({ raw: wd.text, cx: (bb.x0 + bb.x1) / 2, cy: (bb.y0 + bb.y1) / 2, gh: bb.y1 - bb.y0 });
-                    }
-        log.push(`digit words: ${words.length}`);
-        if (!words.length) return { stats, muts, debug, log };
-
-        // Cluster words into rows by vertical centre.
-        const heights = words.map(o => o.gh).slice().sort((a, b) => a - b);
-        const medH = heights[Math.floor(heights.length / 2)] || 20;
-        const rowTol = medH * 0.6;
-        const rowsW: W[][] = [];
-        for (const wd of words.slice().sort((a, b) => a.cy - b.cy)) {
-            const last = rowsW[rowsW.length - 1];
-            if (last && Math.abs(wd.cy - last[0].cy) <= rowTol) last.push(wd);
-            else rowsW.push([wd]);
+        // Connected components (8-connectivity).
+        const lab = new Int32Array(w * h);
+        const stk = new Int32Array(w * h);
+        let nc = 0; const comps: Comp[] = [];
+        for (let p0 = 0; p0 < w * h; p0++) {
+            if (!bin[p0] || lab[p0]) continue;
+            nc++; let sp = 0; stk[sp++] = p0; lab[p0] = nc;
+            let a = w, b = 0, c = h, d = 0, cnt = 0;
+            while (sp) {
+                const p = stk[--sp]; const py = (p / w) | 0, px = p % w; cnt++;
+                if (px < a) a = px; if (px > b) b = px; if (py < c) c = py; if (py > d) d = py;
+                for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+                    if (!dx && !dy) continue;
+                    const ny = py + dy, nx = px + dx;
+                    if (ny < 0 || nx < 0 || ny >= h || nx >= w) continue;
+                    const q = ny * w + nx;
+                    if (bin[q] && !lab[q]) { lab[q] = nc; stk[sp++] = q; }
+                }
+            }
+            comps.push({ mnx: a, mxx: b, mny: c, mxy: d, cnt, bw: b - a + 1, bh: d - c + 1, slant: 0 });
         }
+        // Slant per component (x-centroid shift top-third vs bottom-third).
+        const tsx = new Float64Array(nc + 1), tn = new Int32Array(nc + 1), bsx = new Float64Array(nc + 1), bn = new Int32Array(nc + 1);
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+            const l = lab[y * w + x]; if (!l) continue;
+            const cc = comps[l - 1]; const t = cc.mny + cc.bh * 0.33, b2 = cc.mxy - cc.bh * 0.33;
+            if (y <= t) { tsx[l] += x; tn[l]++; } else if (y >= b2) { bsx[l] += x; bn[l]++; }
+        }
+        for (let i = 0; i < nc; i++) { const l = i + 1; comps[i].slant = (tn[l] && bn[l]) ? Math.abs(bsx[l] / bn[l] - tsx[l] / tn[l]) : 0; }
+
+        const med = (arr: number[]) => { const s = arr.slice().sort((a, b) => a - b); return s[Math.floor(s.length / 2)] || 0; };
+        const medH = med(comps.filter(c => c.cnt > 50 && c.bh >= 12 && c.bh <= 80).map(c => c.bh)) || 20;
+        const glyphs = comps.filter(c => c.cnt >= 40 && c.bh > medH * 0.5 && c.bh <= medH * 1.7 && c.bw <= medH * 1.9);
+        log.push(`components ${comps.length}, medH ${medH}, glyphs ${glyphs.length}`);
+
+        // Cluster glyphs into rows by vertical centre.
+        const rowTol = medH * 0.7;
+        const rows: Array<{ cy: number; n: number; items: Comp[] }> = [];
+        for (const c of glyphs.slice().sort((a, b) => (a.mny + a.mxy) - (b.mny + b.mxy))) {
+            const cy = (c.mny + c.mxy) / 2; const last = rows[rows.length - 1];
+            if (last && Math.abs(cy - last.cy) <= rowTol) { last.items.push(c); last.cy = (last.cy * last.n + cy) / (last.n + 1); last.n++; }
+            else rows.push({ cy, n: 1, items: [c] });
+        }
+        await onStep?.(45);
+
+        // Stat rows = first 4 rows (top→bottom, lower half) with two cells that
+        // each hold ≥2 glyphs. Map by POSITION so labels never shift even if a
+        // cell fails to read. Fixed order: HP|WGT, STA|MEL, OXY|Speed, FOOD|CRA.
+        const cand: Array<{ cy: number; cells: Comp[][] }> = [];
+        for (const row of rows) {
+            if (row.cy < h * 0.5) continue;
+            const items = row.items.slice().sort((a, b) => a.mnx - b.mnx);
+            const cells: Comp[][] = []; let cur: Comp[] | null = null; let curMax = 0;
+            for (const cc of items) {
+                if (cur && cc.mnx - curMax < medH * 1.3) { cur.push(cc); curMax = Math.max(curMax, cc.mxx); }
+                else { cur = [cc]; curMax = cc.mxx; cells.push(cur); }
+            }
+            const big = cells.filter(c => c.length >= 2);
+            if (big.length >= 2) cand.push({ cy: row.cy, cells: big });
+        }
+        const statRows = cand.slice(0, 4);
+        log.push(`stat rows: ${statRows.length}`);
 
         const leftStats: Array<StatKey | null>  = ['HP', 'STA', 'OXY', 'FOOD'];
         const rightStats: Array<StatKey | null> = ['WGT', 'MEL', null, 'CRA'];
-
-        // No column split (the bright scene kept fooling it). Read each row
-        // left→right as a flat list of numbers; a stat row yields >= 6 (two
-        // "base /mut/ dom" triples). Take the first two triples — any scene
-        // clutter is further right and ignored. The top block, bars, imprint
-        // and gender rows yield < 6 numbers and are skipped.
-        const statRowsData: Array<{ cyTop: number; L: [number, number, number]; R: [number, number, number] }> = [];
-        for (const row of rowsW) {
-            const nums = row.slice().sort((a, b) => a.cx - b.cx)
-                .flatMap(o => (o.raw.match(/\d+/g) ?? []).map(n => parseInt(n, 10)));
-            if (nums.length < 6) continue;
-            const L: [number, number, number] = [nums[0], nums[1], nums[2]];
-            const R: [number, number, number] = [nums[3], nums[4], nums[5]];
-            if (L[0] > 255 || R[0] > 255) continue;       // base = wild level
-            statRowsData.push({ cyTop: Math.min(...row.map(o => o.cy)), L, R });
-            log.push(`candidate row @y=${Math.round(Math.min(...row.map(o => o.cy)))}: nums=[${nums.join(',')}]`);
-        }
-        log.push(`stat rows (>=6 numbers): ${statRowsData.length}`);
-
         let firstStatY = h;
-        for (let i = 0; i < Math.min(4, statRowsData.length); i++) {
-            const p = statRowsData[i];
-            if (p.cyTop < firstStatY) firstStatY = p.cyTop;
-            const lstat = leftStats[i], rstat = rightStats[i];
-            if (lstat) { stats[lstat] = p.L[0]; muts[lstat] = p.L[1]; }
-            if (rstat) { stats[rstat] = p.R[0]; muts[rstat] = p.R[1]; }
-            log.push(`row ${i}: ${lstat ?? '—'}=${p.L.join('|')}  ${rstat ?? '—'}=${p.R.join('|')}`);
+        for (let i = 0; i < statRows.length; i++) {
+            const sr = statRows[i];
+            firstStatY = Math.min(firstStatY, Math.min(...sr.cells[0].map(c => c.mny)));
+            const L = await readGridCell(worker, bin, w, sr.cells[0], medH, comps);
+            const R = await readGridCell(worker, bin, w, sr.cells[1], medH, comps);
+            const ls = leftStats[i], rs = rightStats[i];
+            if (L && ls) { stats[ls] = L[0]; muts[ls] = L[1]; }
+            if (R && rs) { stats[rs] = R[0]; muts[rs] = R[1]; }
+            log.push(`row ${i}: ${ls ?? '—'}=${L ? L.join('|') : '?'}  ${rs ?? '—'}=${R ? R.join('|') : '?'}`);
+            await onStep?.(45 + Math.round(((i + 1) / Math.max(1, statRows.length)) * 40));
         }
 
-        await onStep?.(85);
-        // Name / species / level: OCR the region above the stat block with the
-        // full charset, then reuse extractNameAndLevel (species-DB disambig).
+        // Name / species / level from the region above the stat block.
         const headerOut: { name?: string; species?: string; level?: number } = {};
         if (firstStatY > medH * 1.5) {
             await worker.setParameters({ tessedit_pageseg_mode: '6', tessedit_char_whitelist: '', classify_bln_numeric_mode: '0' });
@@ -1171,16 +1252,17 @@
             extractNameAndLevel(lines, headerOut);
             log.push(`title: ${JSON.stringify(lines.slice(0, 5))} → name=${headerOut.name ?? '—'} species=${headerOut.species ?? '—'} lvl=${headerOut.level ?? '—'}`);
         }
-
+        await onStep?.(90);
         return { stats, muts, name: headerOut.name, species: headerOut.species, level: headerOut.level, debug, log };
     }
 
-    /** Locate the stat panel as the dominant BRIGHT rectangle. The ARK panel
-     *  has a light, fairly uniform background; the surrounding scene is darker
-     *  / noisier. Brightness projections find its bounding box far more
-     *  reliably than edge density (which fixates on the dense icon column). */
+    /** Locate the stat panel as the MEDIUM-brightness band. The ARK panel is a
+     *  dark-teal translucent rectangle: darker than bright sky, lighter than the
+     *  black letterbox bars beside it. Pure "brightest region" detection grabbed
+     *  the sky; the panel is the middle band, found relative to the median column
+     *  brightness. */
     function findPanelBox(img: HTMLImageElement): CropBox | null {
-        const W = 240;
+        const W = 120;
         const H = Math.max(1, Math.round((img.height / img.width) * W));
         const c = document.createElement('canvas');
         c.width = W; c.height = H;
@@ -1189,40 +1271,27 @@
         ctx.drawImage(img, 0, 0, W, H);
         const d = ctx.getImageData(0, 0, W, H).data;
         const lum = new Float32Array(W * H);
-        let mean = 0;
-        for (let i = 0, p = 0; p < W * H; p++, i += 4) {
-            const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-            lum[p] = l; mean += l;
-        }
-        mean /= W * H;
-        const thr = Math.max(125, mean);                 // "bright" = panel bg
-
-        // Widest contiguous run of columns that are bright for much of the height.
-        const bc = new Int32Array(W);
-        for (let x = 0; x < W; x++) { let s = 0; for (let y = 0; y < H; y++) if (lum[y * W + x] > thr) s++; bc[x] = s; }
-        const colOn = (x: number) => bc[x] > H * 0.30;
-        let bx0 = 0, bx1 = -1, cs = -1;
-        for (let x = 0; x <= W; x++) {
-            const on = x < W && colOn(x);
-            if (on) { if (cs < 0) cs = x; }
-            else if (cs >= 0) { if (x - 1 - cs > bx1 - bx0) { bx0 = cs; bx1 = x - 1; } cs = -1; }
-        }
-        if (bx1 < bx0) return null;
-
-        // Vertical extent within those columns.
-        const br = new Int32Array(H);
-        for (let y = 0; y < H; y++) { let s = 0; for (let x = bx0; x <= bx1; x++) if (lum[y * W + x] > thr) s++; br[y] = s; }
-        const rowOn = (y: number) => br[y] > (bx1 - bx0 + 1) * 0.35;
-        let by0 = 0, by1 = -1, rs = -1;
-        for (let y = 0; y <= H; y++) {
-            const on = y < H && rowOn(y);
-            if (on) { if (rs < 0) rs = y; }
-            else if (rs >= 0) { if (y - 1 - rs > by1 - by0) { by0 = rs; by1 = y - 1; } rs = -1; }
-        }
-        if (by1 < by0) { by0 = 0; by1 = H - 1; }
-
+        for (let i = 0, p = 0; p < W * H; p++, i += 4) lum[p] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        const median = (arr: number[]) => { const s = arr.slice().sort((a, b) => a - b); return s[Math.floor(s.length / 2)] || 0; };
+        const colM: number[] = [], rowM: number[] = [];
+        for (let x = 0; x < W; x++) { let s = 0; for (let y = 0; y < H; y++) s += lum[y * W + x]; colM.push(s / H); }
+        for (let y = 0; y < H; y++) { let s = 0; for (let x = 0; x < W; x++) s += lum[y * W + x]; rowM.push(s / W); }
+        const cMed = median(colM), rMed = median(rowM);
+        const widest = (n: number, ok: (i: number) => boolean): [number, number] => {
+            let b0 = 0, b1 = -1, s = -1;
+            for (let i = 0; i <= n; i++) {
+                const on = i < n && ok(i);
+                if (on) { if (s < 0) s = i; }
+                else if (s >= 0) { if (i - 1 - s > b1 - b0) { b0 = s; b1 = i - 1; } s = -1; }
+            }
+            return [b0, b1];
+        };
+        const [cx0, cx1] = widest(W, x => colM[x] > Math.max(28, cMed * 0.45) && colM[x] < cMed + 38);
+        if (cx1 < cx0) return null;
+        let [ry0, ry1] = widest(H, y => rowM[y] > Math.max(28, rMed * 0.45) && rowM[y] < rMed + 45);
+        if (ry1 < ry0) { ry0 = 0; ry1 = H - 1; }
         const sx = img.width / W, sy = img.height / H;
-        return { x: bx0 * sx, y: by0 * sy, w: (bx1 - bx0 + 1) * sx, h: (by1 - by0 + 1) * sy };
+        return { x: cx0 * sx, y: ry0 * sy, w: (cx1 - cx0 + 1) * sx, h: (ry1 - ry0 + 1) * sy };
     }
 
     async function runCloseupOcr() {
