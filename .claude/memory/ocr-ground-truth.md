@@ -28,6 +28,8 @@ stat the species/panel doesn't have.
 | `andromeda-01.png` | _(fill)_ | Andromeda | _(fill)_ | `59|10|21` | `48|0|0` | `55|2|0` | `59|0|23` | `38|0|0` | `56|4|13` | `—` |
 | `giga.jpg` | Giganotosaurus | _(unnamed→species)_ | 304 | `51|0|0` | `53|0|0` | `47|0|0` | `47|0|0` | `55|0|0` | `50|0|0` | `—` |
 | `mororex.png` | _(custom name)_ | MoroRex Gen2 | 528 | `53|26|0` | `55|6|0` | `42|2|0` | `55|12|0` | `32|0|0` | `56|188|0` | `—` |
+| `lightning-wyvern.png` (2-col) | Lightning Wyvern | 334 | `59|0|0` | `52|0|0` | `50|0|0` | `62|0|0` | `53|0|0` | `57|0|0` | `—` |
+| `4wolf.webp` (2-col) | 4wolf | 345 | `65|0|0` | `51|0|0` | `52|0|0` | `59|0|0` | `61|0|0` | `56|0|0` | `—` |
 | `alap.jpg` ⚠️VERTICAL | _(name)_ Alap | 287 | `52|0|0` | `43|0|0` | `46|0|0` | `46|0|0` | `48|0|0` | `51|0|0` | `—` |
 
 > `giga.jpg` is a REAL phone photo of a screen (recovered from the session
@@ -66,3 +68,7 @@ creature without crafting has exactly one `%` row (Melee); one *with* crafting h
 two. Use the species DB to know whether to expect a CRA value rather than guessing
 from row count alone. (TODO: confirm the exact field name in species-database.js
 that flags crafting-capable species.)
+
+
+> ⚠️ VERTICAL fixtures (not yet handled): `burrowbuck.webp` (HP58 STA46 FOOD46 WGT59 OXY50 MEL52), `unicorn.webp` (HP49 STA40 FOOD41 WGT51 OXY48 MEL39). Both Awesome-Spyglass vertical panels w/ location text.
+> 2-COLUMN reader verified 4/4: giga, mororex, lightning-wyvern, 4wolf.
