@@ -29,15 +29,16 @@ function bb(items){return[Math.min(...items.map(i=>i.mnx)),Math.max(...items.map
 const norm=v=>{v=parseInt(v,10);while(v>255&&String(v).length>1)v=parseInt(String(v).slice(0,-1),10);return v;};
 async function readCell(items){const[a,b,c,d]=bb(items);const votes={};
   for(const sc of[3,4,5])for(const psm of['7','8','13']){await worker.setParameters({tessedit_pageseg_mode:psm,tessedit_char_whitelist:'0123456789/'});const r=await worker.recognize(await render(a,b,c,d,sc));const t=r.data.text.trim().replace(/\s+/g,'');const m=t.match(/^(\d{1,3})\/(\d{1,3})\/(\d{1,3})$/);if(m&&+m[1]<=255){const k=m[1]+'|'+m[2]+'|'+m[3];votes[k]=(votes[k]||0)+1;}}
-  const best=Object.entries(votes).sort((x,y)=>y[1]-x[1])[0];if(best)return best[0].split('|').map(Number);
+  const best=Object.entries(votes).sort((x,y)=>y[1]-x[1])[0];if(best){const dt=v=>{while(v>255&&String(v).length>1)v=parseInt(String(v).slice(0,-1),10);return v;};const dh=v=>{while(v>255&&String(v).length>1)v=parseInt(String(v).slice(1),10);return v;};const[b,m,d]=best[0].split('|').map(Number);return [dt(b),dh(m),dh(d)];}
   const it=items.slice().sort((a,b)=>a.mnx-b.mnx);const base=[it[0]];for(let i=1;i<it.length;i++){const g2=it[i];if(g2.bw>medH*1.15||(g2.slant>medH*0.28&&g2.bw<medH*0.85)||g2.mnx-it[i-1].mxx>medH*0.7)break;base.push(g2);}
   const[a2,b2,c2,d2]=bb(base);const bv={};
   for(const sc of[3,4,5])for(const psm of['7','8']){await worker.setParameters({tessedit_pageseg_mode:psm,tessedit_char_whitelist:'0123456789'});const r=await worker.recognize(await render(a2,b2,c2,d2,sc));const t=(r.data.text.match(/\d{1,3}/)||[])[0];if(t){const v=norm(t);bv[v]=(bv[v]||0)+1;}}
   const bbest=Object.entries(bv).sort((x,y)=>y[1]-x[1])[0];return bbest?[parseInt(bbest[0]),0,0]:null;}
 const cand=[];
 for(const row of rows){if(row.cy<h*0.5)continue;const items=row.items.slice().sort((a,b)=>a.mnx-b.mnx);const cells=[];let cur=null;for(const cc of items){if(cur&&cc.mnx-cur.mxx<medH*1.3){cur.items.push(cc);cur.mxx=Math.max(cur.mxx,cc.mxx);}else{cur={mnx:cc.mnx,mxx:cc.mxx,items:[cc]};cells.push(cur);}}const big=cells.filter(c=>c.items.length>=2);if(big.length>=2)cand.push({cy:row.cy,big});}
-const statRows=cand.slice(0,4);
-const L=['HP','STA','OXY','FOOD'],R=['WGT','MEL',null,'CRA'];const stats={};
-for(let i=0;i<statRows.length;i++){const lc=await readCell(statRows[i].big[0].items),rc=await readCell(statRows[i].big[1].items);if(lc&&L[i])stats[L[i]]=lc[0];if(rc&&R[i])stats[R[i]]=rc[0];}
+
+const L=['HP','STA','OXY','FOOD'],R=['WGT','MEL',null,'CRA'];const stats={},muts={};
+const valid=[];for(const cd of cand){const lc=await readCell(cd.big[0].items),rc=await readCell(cd.big[1].items);if(lc||rc)valid.push({lc,rc});if(valid.length>=4)break;}
+for(let i=0;i<valid.length;i++){const{lc,rc}=valid[i];if(lc&&L[i]){stats[L[i]]=lc[0];muts[L[i]]=lc[1];}if(rc&&R[i]){stats[R[i]]=rc[0];muts[R[i]]=rc[1];}}
 await worker.terminate();
-console.log('BASE:',JSON.stringify(stats));
+console.log('BASE:',JSON.stringify(stats));console.log('MUT :',JSON.stringify(muts));

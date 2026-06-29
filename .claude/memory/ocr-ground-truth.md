@@ -27,6 +27,7 @@ stat the species/panel doesn't have.
 |---|---|---|---|---|---|---|---|---|---|---|
 | `andromeda-01.png` | _(fill)_ | Andromeda | _(fill)_ | `59|10|21` | `48|0|0` | `55|2|0` | `59|0|23` | `38|0|0` | `56|4|13` | `—` |
 | `giga.jpg` | Giganotosaurus | _(unnamed→species)_ | 304 | `51|0|0` | `53|0|0` | `47|0|0` | `47|0|0` | `55|0|0` | `50|0|0` | `—` |
+| `mororex.png` | _(custom name)_ | MoroRex Gen2 | 528 | `53|26|0` | `55|6|0` | `42|2|0` | `55|12|0` | `32|0|0` | `56|188|0` | `—` |
 
 > `giga.jpg` is a REAL phone photo of a screen (recovered from the session
 > transcript 2026-06-27) — the true target input: glare, slight skew, the

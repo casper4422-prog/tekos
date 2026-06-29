@@ -1124,7 +1124,14 @@
         }
         let best: string | null = null, bestN = 0;
         for (const [k, n] of votes) if (n > bestN) { best = k; bestN = n; }
-        if (best) return best.split('|').map(Number) as [number, number, number];
+        if (best) {
+            // base overflow = trailing phantom (slash trails the base → "51"+7);
+            // mut/dom overflow = leading phantom (slash leads them → 7+"26").
+            const dropTail = (v: number) => { while (v > 255 && String(v).length > 1) v = parseInt(String(v).slice(0, -1), 10); return v; };
+            const dropHead = (v: number) => { while (v > 255 && String(v).length > 1) v = parseInt(String(v).slice(1), 10); return v; };
+            const [b0, m0, d0] = best.split('|').map(Number);
+            return [dropTail(b0), dropHead(m0), dropHead(d0)];
+        }
 
         // Fallback: read only the base — leading clean digits before the first
         // fused/slanted blob (the base never fuses with a slash on its left).
@@ -1222,22 +1229,29 @@
             const big = cells.filter(c => c.length >= 2);
             if (big.length >= 2) cand.push({ cy: row.cy, cells: big });
         }
-        const statRows = cand.slice(0, 4);
-        log.push(`stat rows: ${statRows.length}`);
-
         const leftStats: Array<StatKey | null>  = ['HP', 'STA', 'OXY', 'FOOD'];
         const rightStats: Array<StatKey | null> = ['WGT', 'MEL', null, 'CRA'];
-        let firstStatY = h;
-        for (let i = 0; i < statRows.length; i++) {
-            const sr = statRows[i];
-            firstStatY = Math.min(firstStatY, Math.min(...sr.cells[0].map(c => c.mny)));
-            const L = await readGridCell(worker, bin, w, sr.cells[0], medH, comps);
-            const R = await readGridCell(worker, bin, w, sr.cells[1], medH, comps);
+        // Read candidates top→bottom; a row only counts as a stat row if a cell
+        // actually yields a value — this skips spurious rows (the "Needs Care"
+        // strip, bars) that would otherwise shift every label. First 4 valid →
+        // fixed-position map: HP|WGT, STA|MEL, OXY|Speed, FOOD|CRA.
+        type ValidRow = { cy: number; L: [number, number, number] | null; R: [number, number, number] | null };
+        const valid: ValidRow[] = [];
+        for (const cd of cand) {
+            const L = await readGridCell(worker, bin, w, cd.cells[0], medH, comps);
+            const R = await readGridCell(worker, bin, w, cd.cells[1], medH, comps);
+            if (L || R) valid.push({ cy: Math.min(...cd.cells[0].map(c => c.mny)), L, R });
+            await onStep?.(45 + Math.round((valid.length / 4) * 40));
+            if (valid.length >= 4) break;
+        }
+        log.push(`stat rows (valid): ${valid.length}`);
+        const firstStatY = valid.length ? valid[0].cy : h;
+        for (let i = 0; i < valid.length; i++) {
+            const { L, R } = valid[i];
             const ls = leftStats[i], rs = rightStats[i];
             if (L && ls) { stats[ls] = L[0]; muts[ls] = L[1]; }
             if (R && rs) { stats[rs] = R[0]; muts[rs] = R[1]; }
             log.push(`row ${i}: ${ls ?? '—'}=${L ? L.join('|') : '?'}  ${rs ?? '—'}=${R ? R.join('|') : '?'}`);
-            await onStep?.(45 + Math.round(((i + 1) / Math.max(1, statRows.length)) * 40));
         }
 
         // Name / species / level from the region above the stat block.
